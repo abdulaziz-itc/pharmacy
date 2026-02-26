@@ -102,9 +102,7 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
         try {
             await updateMedOrg(org.id, editData);
             setIsEditing(false);
-            if (onClose) {
-                // Optionally onClose() if we want to close it, but usually just turning off edit mode is better.
-            }
+            // Optionally onClose() if we want to close it, but usually just turning off edit mode is better.
         } catch (error) {
             console.error("Failed to update organization", error);
         } finally {
