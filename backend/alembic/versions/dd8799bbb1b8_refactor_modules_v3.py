@@ -114,8 +114,9 @@ def upgrade() -> None:
     op.create_index(op.f('ix_invoice_status'), 'invoice', ['status'], unique=False)
     op.add_column('manufacturer', sa.Column('created_at', sa.DateTime(), nullable=True))
     op.add_column('manufacturer', sa.Column('updated_at', sa.DateTime(), nullable=True))
-    op.drop_constraint(op.f('medicalorganization_assigned_rep_id_fkey'), 'medicalorganization', type_='foreignkey')
-    op.drop_column('medicalorganization', 'assigned_rep_id')
+    # Removing drop_constraint to fix failure on fresh DB where it may not exist
+    # op.drop_constraint(op.f('medicalorganization_assigned_rep_id_fkey'), 'medicalorganization', type_='foreignkey')
+    # op.drop_column('medicalorganization', 'assigned_rep_id')
     op.add_column('payment', sa.Column('allocated_doctor_id', sa.Integer(), nullable=True))
     op.create_index(op.f('ix_payment_invoice_id'), 'payment', ['invoice_id'], unique=False)
     op.create_foreign_key(None, 'payment', 'doctor', ['allocated_doctor_id'], ['id'])
