@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     @validator("DATABASE_URL", pre=True)
     def assemble_db_connection(cls, v: str | None, values: dict) -> str:
         if isinstance(v, str):
+            # Render provides 'postgres://' but asyncpg needs 'postgresql+asyncpg://'
+            if v.startswith("postgres://"):
+                return v.replace("postgres://", "postgresql+asyncpg://", 1)
             return v
         return str(f"postgresql+asyncpg://{values.get('POSTGRES_USER')}:{values.get('POSTGRES_PASSWORD')}@{values.get('POSTGRES_SERVER')}/{values.get('POSTGRES_DB')}")
 
