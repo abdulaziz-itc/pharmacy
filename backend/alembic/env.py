@@ -45,6 +45,9 @@ def run_migrations_offline() -> None:
 
     """
     url = settings.DATABASE_URL
+    if url and url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -71,8 +74,12 @@ async def run_migrations_online() -> None:
 
     """
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = settings.DATABASE_URL
-    connectable = create_async_engine(settings.DATABASE_URL)
+    url = settings.DATABASE_URL
+    if url and url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        
+    configuration["sqlalchemy.url"] = url
+    connectable = create_async_engine(url)
 
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
