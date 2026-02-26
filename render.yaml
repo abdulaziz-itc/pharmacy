@@ -1,13 +1,13 @@
 version: "1"
 
-services:
+databases:
   # 1. PostgreSQL Database
-  - type: pgo
-    name: pharma-db
+  - name: pharma-db
     plan: free # Free tier database
     databaseName: pharma_db
     user: pharma_user
 
+services:
   # 2. FastAPI Backend
   - type: web
     name: pharma-api
