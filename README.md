@@ -1,2 +1,0 @@
-# pharmacy
-CRM/WHS/ERP
