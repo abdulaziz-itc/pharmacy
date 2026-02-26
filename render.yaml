@@ -30,15 +30,12 @@ services:
     buildCommand: "cd frontend && npm install && npm run build"
     staticPublishPath: "./frontend/dist"
     envVars:
-      # Use an intermediate variable to get the base URL
-      - key: BACKEND_URL
+      # Inject the raw backend URL without interpolation
+      - key: VITE_BACKEND_URL
         fromService:
           type: web
           name: pharma-api
           envVarKey: RENDER_EXTERNAL_URL
-      # Construct the final API URL by appending /api/v1
-      - key: VITE_API_URL
-        value: ${BACKEND_URL}/api/v1
     routes:
       - type: rewrite
         source: /*
