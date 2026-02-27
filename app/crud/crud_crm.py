@@ -37,7 +37,15 @@ async def create_specialty(db: AsyncSession, obj_in: DoctorSpecialtyCreate) -> D
 # Doctor Category
 async def get_doctor_categories(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[DoctorCategory]:
     result = await db.execute(select(DoctorCategory).offset(skip).limit(limit))
-    return result.scalars().all()
+    categories = result.scalars().all()
+    if not categories:
+        # Auto-seed default categories if empty
+        for name in ["VIP", "A", "B", "C"]:
+            db.add(DoctorCategory(name=name))
+        await db.commit()
+        result = await db.execute(select(DoctorCategory).offset(skip).limit(limit))
+        categories = result.scalars().all()
+    return categories
 
 async def create_doctor_category(db: AsyncSession, obj_in: DoctorCategoryCreate) -> DoctorCategory:
     db_obj = DoctorCategory(**obj_in.dict())
@@ -166,7 +174,20 @@ async def get_doctors(
     return result.scalars().all()
 
 async def create_doctor(db: AsyncSession, obj_in: DoctorCreate) -> Doctor:
-    db_obj = Doctor(**obj_in.dict())
+    obj_data = obj_in.dict()
+    category_name = obj_data.pop("category_name", None)
+    
+    if category_name and not obj_data.get("category_id"):
+        result = await db.execute(select(DoctorCategory).where(DoctorCategory.name == category_name))
+        category = result.scalars().first()
+        if not category:
+            category = DoctorCategory(name=category_name)
+            db.add(category)
+            await db.commit()
+            await db.refresh(category)
+        obj_data["category_id"] = category.id
+
+    db_obj = Doctor(**obj_data)
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
@@ -174,6 +195,18 @@ async def create_doctor(db: AsyncSession, obj_in: DoctorCreate) -> Doctor:
 
 async def update_doctor(db: AsyncSession, db_obj: Doctor, obj_in: DoctorUpdate) -> Doctor:
     update_data = obj_in.dict(exclude_unset=True)
+    category_name = update_data.pop("category_name", None)
+    
+    if category_name and not update_data.get("category_id"):
+        result = await db.execute(select(DoctorCategory).where(DoctorCategory.name == category_name))
+        category = result.scalars().first()
+        if not category:
+            category = DoctorCategory(name=category_name)
+            db.add(category)
+            await db.commit()
+            await db.refresh(category)
+        update_data["category_id"] = category.id
+        
     for field in update_data:
         setattr(db_obj, field, update_data[field])
     db.add(db_obj)
