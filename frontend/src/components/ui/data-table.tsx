@@ -177,7 +177,7 @@ export function DataTable<TData, TValue>({
                                     {headerGroup.headers.map((header) => (
                                         <TableHead
                                             key={header.id}
-                                            className="h-10 px-3 align-middle text-xs font-black uppercase tracking-widest text-slate-500 bg-white whitespace-nowrap border-none"
+                                            className="h-10 px-3 align-middle text-[10px] font-black uppercase tracking-wider text-slate-500 bg-white whitespace-nowrap border-none"
                                             style={{
                                                 width: header.getSize(),
                                                 minWidth: header.getSize(),

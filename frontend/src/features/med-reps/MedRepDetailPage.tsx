@@ -173,7 +173,7 @@ export default function MedRepDetailPage() {
 
                 {/* 3. Pharmacies */}
                 <div className="transition-all duration-300 hover:translate-y-[-4px]">
-                    <MedRepPharmaciesTable data={pharmacies} />
+                    <MedRepPharmaciesTable data={pharmacies} medRepId={id} />
                 </div>
 
                 {/* 4. Doctors */}

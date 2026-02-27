@@ -122,7 +122,8 @@ export function AddDoctorModal({ isOpen, onClose, onSuccess }: AddDoctorModalPro
                 address: address,
 
                 specialty_id: parseInt(specialtyId),
-                category_id: parseInt(categoryId),
+                category_name: categoryId, // sending string name instead of id
+                category_id: null,
                 med_org_id: parseInt(medOrgId),
                 region_id: parseInt(regionId),
                 assigned_rep_id: medRepId ? parseInt(medRepId) : null
@@ -251,8 +252,10 @@ export function AddDoctorModal({ isOpen, onClose, onSuccess }: AddDoctorModalPro
                                         <SelectValue placeholder="Категория" />
                                     </SelectTrigger>
                                     <SelectContent className="rounded-2xl border-slate-100 shadow-xl">
-                                        {categories.map((c) => (
-                                            <SelectItem key={c.id} value={c.id.toString()} className="font-bold cursor-pointer rounded-xl mx-1 my-0.5 focus:bg-blue-50 focus:text-blue-600">{c.name}</SelectItem>
+                                        {['VIP', 'A', 'B', 'C'].map((c) => (
+                                            <SelectItem key={c} value={c} className="font-bold cursor-pointer rounded-xl mx-1 my-0.5 focus:bg-blue-50 focus:text-blue-600">
+                                                {c}
+                                            </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>

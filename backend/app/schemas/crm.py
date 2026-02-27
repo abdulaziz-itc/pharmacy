@@ -87,7 +87,8 @@ class DoctorBase(BaseModel):
     
     region_id: int
     specialty_id: int
-    category_id: int
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
     med_org_id: int
     assigned_rep_id: Optional[int] = None
 
@@ -107,6 +108,7 @@ class DoctorUpdate(BaseModel):
     region_id: Optional[int] = None
     specialty_id: Optional[int] = None
     category_id: Optional[int] = None
+    category_name: Optional[str] = None
     med_org_id: Optional[int] = None
     assigned_rep_id: Optional[int] = None
 

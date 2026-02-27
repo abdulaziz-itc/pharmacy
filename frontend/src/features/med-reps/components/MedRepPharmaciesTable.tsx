@@ -15,6 +15,7 @@ import {
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { MedOrgDetailModal } from "../../med-orgs/MedOrgDetailModal";
+import { AddMedOrgModal } from "../../med-orgs/AddMedOrgModal";
 
 
 const columns: ColumnDef<any>[] = [
@@ -51,9 +52,10 @@ const columns: ColumnDef<any>[] = [
 
 interface MedRepPharmaciesTableProps {
     data: any[];
+    medRepId?: string;
 }
 
-export function MedRepPharmaciesTable({ data }: MedRepPharmaciesTableProps) {
+export function MedRepPharmaciesTable({ data, medRepId }: MedRepPharmaciesTableProps) {
     const [isAddOpen, setIsAddOpen] = React.useState(false);
     const [selectedOrg, setSelectedOrg] = React.useState<any | null>(null);
 
@@ -61,33 +63,24 @@ export function MedRepPharmaciesTable({ data }: MedRepPharmaciesTableProps) {
         <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden h-full flex flex-col">
             <div className="p-6 border-b border-slate-100/80 flex justify-between items-center bg-slate-50/30">
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">Аптеки</h3>
-                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="font-bold text-blue-600 border-blue-200 hover:bg-blue-50 rounded-xl px-4 uppercase text-[10px] tracking-widest shadow-sm">
-                            <Plus className="w-3.5 h-3.5 mr-1" />
-                            ДОБАВИТЬ
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px] rounded-3xl">
-                        <DialogHeader>
-                            <DialogTitle className="text-xl font-black text-slate-900">Прикрепить аптеку</DialogTitle>
-                            <DialogDescription className="text-slate-500 text-xs">
-                                Выберите аптеку из списка для прикрепления к представителю.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="pharmacy" className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Аптека</Label>
-                                <Input id="pharmacy" placeholder="Название аптеки" className="rounded-xl border-slate-200" />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest h-10 shadow-lg shadow-blue-500/20" onClick={() => setIsAddOpen(false)}>
-                                Прикрепить
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-bold text-blue-600 border-blue-200 hover:bg-blue-50 rounded-xl px-4 uppercase text-[10px] tracking-widest shadow-sm"
+                    onClick={() => setIsAddOpen(true)}
+                >
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    ДОБАВИТЬ
+                </Button>
+                <AddMedOrgModal
+                    isOpen={isAddOpen}
+                    onClose={() => {
+                        setIsAddOpen(false);
+                        window.location.reload();
+                    }}
+                    defaultRepId={medRepId}
+                    defaultOrgType="pharmacy"
+                />
             </div>
             <div className="flex-1">
                 <DataTable columns={columns} data={data} onRowClick={(row) => setSelectedOrg(row)} />

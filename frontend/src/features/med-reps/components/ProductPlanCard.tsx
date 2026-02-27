@@ -69,8 +69,8 @@ interface ProductPlanCardProps {
 }
 
 export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan, onAssignFact, doctors = [] }: ProductPlanCardProps) {
-    const [startDate, setStartDate] = React.useState("2026-02-01");
-    const [endDate, setEndDate] = React.useState("2026-02-28");
+    const [currentMonth, setCurrentMonth] = React.useState<number>(new Date().getMonth() + 1);
+    const [currentYear, setCurrentYear] = React.useState<number>(new Date().getFullYear());
     const [isAddOpen, setIsAddOpen] = React.useState(false);
 
     // Plan Edit States
@@ -139,10 +139,9 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             const product = products.find(p => p.id === selectedProductId);
             const targetAmount = product ? product.price * qty : 0;
 
-            // Assume month/year from startDate, or default to current
-            const dateObj = new Date(startDate);
-            const month = dateObj.getMonth() + 1; // 1-12
-            const year = dateObj.getFullYear();
+            // Use selected month/year
+            const month = currentMonth;
+            const year = currentYear;
 
             await onAddPlan({
                 product_id: selectedProductId,
@@ -168,9 +167,8 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             const product = products.find(p => p.id === editingProductId);
             const targetAmount = product ? product.price * qty : 0;
 
-            const dateObj = new Date(startDate);
-            const month = dateObj.getMonth() + 1;
-            const year = dateObj.getFullYear();
+            const month = currentMonth;
+            const year = currentYear;
 
             await onEditPlan(editingPlanId, {
                 product_id: editingProductId,
@@ -218,9 +216,8 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
         try {
             setIsAssignFactSubmitting(true);
             const qty = parseInt(assignFactQuantity, 10);
-            const dateObj = new Date(startDate);
-            const month = dateObj.getMonth() + 1;
-            const year = dateObj.getFullYear();
+            const month = currentMonth;
+            const year = currentYear;
 
             await onAssignFact({
                 product_id: assigningFactProductId,
@@ -381,24 +378,28 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">План по продукту</h3>
 
                 <div className="flex flex-wrap gap-2 items-center">
-                    <div className="flex items-center gap-2 border border-slate-200 bg-white rounded-xl px-2 py-1 text-xs font-bold text-slate-600 shadow-sm relative group">
-                        <span className="text-[10px] text-slate-400 uppercase tracking-tighter">От</span>
-                        <DatePicker
-                            date={startDate ? new Date(startDate) : undefined}
-                            setDate={(d) => setStartDate(d ? d.toISOString().split('T')[0] : "")}
-                            className="bg-transparent border-none p-0 text-xs font-bold focus:ring-0 active:ring-0 w-auto h-auto shadow-none hover:bg-transparent"
-                            placeholder="Начало"
-                            formatStr="dd.MM.yyyy"
-                        />
+                    <div className="flex items-center gap-2 border border-slate-200 bg-white rounded-xl px-2 py-1 shadow-sm">
+                        <Select value={currentMonth.toString()} onValueChange={(v) => setCurrentMonth(parseInt(v))}>
+                            <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none font-bold text-xs focus:ring-0">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-200">
+                                {[
+                                    [1, 'Январь'], [2, 'Февраль'], [3, 'Март'], [4, 'Апрель'],
+                                    [5, 'Май'], [6, 'Июнь'], [7, 'Июль'], [8, 'Август'],
+                                    [9, 'Сентябрь'], [10, 'Октябрь'], [11, 'Ноябрь'], [12, 'Декабрь']
+                                ].map(([num, name]) => (
+                                    <SelectItem key={num} value={num.toString()} className="text-xs font-medium">{name as string}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <div className="flex items-center gap-2 border border-slate-200 bg-white rounded-xl px-2 py-1 text-xs font-bold text-slate-600 shadow-sm">
-                        <span className="text-[10px] text-slate-400 uppercase tracking-tighter">До</span>
-                        <DatePicker
-                            date={endDate ? new Date(endDate) : undefined}
-                            setDate={(d) => setEndDate(d ? d.toISOString().split('T')[0] : "")}
-                            className="bg-transparent border-none p-0 text-xs font-bold focus:ring-0 active:ring-0 w-auto h-auto shadow-none hover:bg-transparent"
-                            placeholder="Конец"
-                            formatStr="dd.MM.yyyy"
+                    <div className="flex items-center gap-2 border border-slate-200 bg-white rounded-xl px-2 py-1 shadow-sm">
+                        <Input
+                            type="number"
+                            className="h-8 w-[80px] border-none bg-transparent shadow-none font-bold text-xs focus-visible:ring-0 text-center"
+                            value={currentYear}
+                            onChange={(e) => setCurrentYear(parseInt(e.target.value) || new Date().getFullYear())}
                         />
                     </div>
 
@@ -612,7 +613,9 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                         </SelectTrigger>
                                         <SelectContent className="rounded-xl border-slate-200 max-h-[200px]">
                                             {doctors.map(d => (
-                                                <SelectItem key={d.id} value={d.id.toString()} className="font-medium">{d.full_name}</SelectItem>
+                                                <SelectItem key={d.id} value={d.id.toString()} className={`font-medium ${!d.is_active ? 'text-slate-400 opacity-70' : ''}`}>
+                                                    {d.full_name} {!d.is_active && "(Faol emas)"}
+                                                </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -807,6 +810,10 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                             <div key={docPlan.planId} className="px-4 py-3 flex items-center justify-between hover:bg-emerald-50/50 transition-colors">
                                                 <div className="flex-1 text-[13px] font-medium text-emerald-900/80 flex items-center gap-2">
                                                     Имя доктора ({docPlan.doctorName})
+                                                    {(() => {
+                                                        const doc = doctors.find(d => d.id === docPlan.doctorId);
+                                                        return doc && !doc.is_active ? <span className="opacity-70">(Faol emas)</span> : null;
+                                                    })()}
                                                 </div>
                                                 <div className="flex items-center gap-6 shrink-0 text-[13px] text-emerald-900/80">
                                                     <div className="min-w-[70px] text-left">{docPlan.planQty}</div>

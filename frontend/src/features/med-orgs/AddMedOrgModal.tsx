@@ -29,6 +29,8 @@ const DefaultIcon = L.icon({
 interface AddMedOrgModalProps {
     isOpen: boolean;
     onClose: () => void;
+    defaultRepId?: string;
+    defaultOrgType?: string;
 }
 
 function LocationMarker({ setPosition, position }: { setPosition: (pos: [number, number]) => void, position: [number, number] | null }) {
@@ -43,17 +45,17 @@ function LocationMarker({ setPosition, position }: { setPosition: (pos: [number,
     );
 }
 
-export function AddMedOrgModal({ isOpen, onClose }: AddMedOrgModalProps) {
+export function AddMedOrgModal({ isOpen, onClose, defaultRepId, defaultOrgType }: AddMedOrgModalProps) {
     const { regions, fetchRegions } = useRegionStore();
     const { medReps, fetchMedReps } = useMedRepStore();
     const { createMedOrg } = useMedOrgStore();
 
     // Form State
     const [name, setName] = useState("");
-    const [orgType, setOrgType] = useState("pharmacy");
+    const [orgType, setOrgType] = useState(defaultOrgType || "pharmacy");
     const [brand, setBrand] = useState("");
     const [contactPhone, setContactPhone] = useState("");
-    const [assignedRepId, setAssignedRepId] = useState("");
+    const [assignedRepId, setAssignedRepId] = useState(defaultRepId || "");
     const [regionId, setRegionId] = useState("");
     const [address, setAddress] = useState("");
     const [position, setPosition] = useState<[number, number] | null>(null);
@@ -88,10 +90,10 @@ export function AddMedOrgModal({ isOpen, onClose }: AddMedOrgModalProps) {
             onClose();
             // Reset form
             setName("");
-            setOrgType("pharmacy");
+            setOrgType(defaultOrgType || "pharmacy");
             setBrand("");
             setContactPhone("");
-            setAssignedRepId("");
+            setAssignedRepId(defaultRepId || "");
             setRegionId("");
             setAddress("");
             setPosition(null);
@@ -212,7 +214,7 @@ export function AddMedOrgModal({ isOpen, onClose }: AddMedOrgModalProps) {
                                     </SelectTrigger>
                                     <SelectContent className="rounded-2xl border-slate-100 shadow-xl overflow-hidden max-h-[200px]">
                                         <SelectItem value="none" className="font-bold text-slate-400 italic cursor-pointer rounded-xl mx-1 my-0.5 focus:bg-slate-100">Не назначать</SelectItem>
-                                        {medReps.map((rep) => (
+                                        {medReps.filter(rep => rep.is_active).map((rep) => (
                                             <SelectItem key={rep.id} value={rep.id.toString()} className="font-bold cursor-pointer rounded-xl mx-1 my-0.5 focus:bg-blue-50 focus:text-blue-600">
                                                 {rep.full_name}
                                             </SelectItem>

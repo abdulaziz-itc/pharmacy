@@ -3,12 +3,13 @@ import { useParams } from 'react-router-dom';
 import { User } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { DataTable } from '../../components/ui/data-table';
-import { subordinateColumns } from './subordinateColumns';
+import { getSubordinateColumns, type SubordinateUser } from './subordinateColumns';
 import { PageContainer } from '../../components/PageContainer';
 import { getUserHierarchy } from '../../api/userHierarchy';
 import { CreateFFMModal } from './components/CreateFFMModal';
 import { CreateRMModal } from './components/CreateRMModal';
 import { CreateMedRepModal } from './components/CreateMedRepModal';
+import { EditSubordinateModal } from './components/EditSubordinateModal';
 
 export default function ProductManagerDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -16,6 +17,7 @@ export default function ProductManagerDetailPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
     const [isCreateRMModalOpen, setIsCreateRMModalOpen] = React.useState(false);
     const [isCreateMedRepModalOpen, setIsCreateMedRepModalOpen] = React.useState(false);
+    const [editingUser, setEditingUser] = React.useState<SubordinateUser | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
 
     const fetchHierarchy = React.useCallback(async () => {
@@ -35,6 +37,10 @@ export default function ProductManagerDetailPage() {
     React.useEffect(() => {
         fetchHierarchy();
     }, [fetchHierarchy]);
+
+    const columns = React.useMemo(() => getSubordinateColumns((user) => {
+        setEditingUser(user);
+    }), []);
 
     if (isLoading) {
         return (
@@ -112,7 +118,7 @@ export default function ProductManagerDetailPage() {
                             </button>
                         </div>
                         <DataTable
-                            columns={subordinateColumns}
+                            columns={columns}
                             data={hierarchyData.field_force_managers || []}
                         />
                     </div>
@@ -132,7 +138,7 @@ export default function ProductManagerDetailPage() {
                             </button>
                         </div>
                         <DataTable
-                            columns={subordinateColumns}
+                            columns={columns}
                             data={hierarchyData.regional_managers || []}
                         />
                     </div>
@@ -152,7 +158,7 @@ export default function ProductManagerDetailPage() {
                             </button>
                         </div>
                         <DataTable
-                            columns={subordinateColumns}
+                            columns={columns}
                             data={hierarchyData.med_reps || []}
                         />
                     </div>
@@ -178,6 +184,12 @@ export default function ProductManagerDetailPage() {
                         onClose={() => setIsCreateMedRepModalOpen(false)}
                         onSuccess={fetchHierarchy}
                         rmList={hierarchyData.regional_managers || []}
+                    />
+                    <EditSubordinateModal
+                        isOpen={!!editingUser}
+                        onClose={() => setEditingUser(null)}
+                        onSuccess={fetchHierarchy}
+                        user={editingUser}
                     />
                 </>
             )}

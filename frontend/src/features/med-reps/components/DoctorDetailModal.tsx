@@ -2,17 +2,20 @@ import React from 'react';
 import { Dialog, DialogContent } from "../../../components/ui/dialog";
 import { Building2, TrendingUp, Phone, Edit2, X, Check, MapPin, Tag } from "lucide-react";
 import { Input } from "../../../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { updateDoctor } from "../../../api/crm";
 
 interface DoctorDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
+    onSuccess?: () => void;
     doctor: any;
     salesPlans: any[];
     salesFacts: any[];
     defaultEditMode?: boolean;
 }
 
-export function DoctorDetailModal({ isOpen, onClose, doctor, salesPlans, salesFacts, defaultEditMode = false }: DoctorDetailModalProps) {
+export function DoctorDetailModal({ isOpen, onClose, onSuccess, doctor, salesPlans, salesFacts, defaultEditMode = false }: DoctorDetailModalProps) {
     const [isEditing, setIsEditing] = React.useState(false);
     const [editData, setEditData] = React.useState<any>({});
     const [isSaving, setIsSaving] = React.useState(false);
@@ -33,9 +36,14 @@ export function DoctorDetailModal({ isOpen, onClose, doctor, salesPlans, salesFa
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            // Update logic here
-            // await updateDoctor(doctor.id, editData);
+            await updateDoctor(doctor.id, {
+                full_name: editData.full_name,
+                contact1: editData.contact1,
+                // Only sending category_name to avoid overwriting or breaking specialty if it isn't an ID
+                category_name: editData.category || null,
+            });
             setIsEditing(false);
+            if (onSuccess) onSuccess();
         } catch (error) {
             console.error("Failed to update doctor", error);
         } finally {
@@ -116,7 +124,17 @@ export function DoctorDetailModal({ isOpen, onClose, doctor, salesPlans, salesFa
                         ) : (
                             <>
                                 <button
-                                    onClick={() => setIsEditing(false)}
+                                    onClick={() => {
+                                        setIsEditing(false);
+                                        // Revert changes
+                                        setEditData({
+                                            full_name: doctor.full_name || '',
+                                            specialty: doctor.specialty?.name || '',
+                                            category: doctor.category?.name || '',
+                                            contact1: doctor.contact1 || '',
+                                            med_org_id: doctor.med_org?.id || null,
+                                        });
+                                    }}
                                     className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all shadow-sm"
                                 >
                                     <X className="w-5 h-5" />
@@ -166,6 +184,7 @@ export function DoctorDetailModal({ isOpen, onClose, doctor, salesPlans, salesFa
                                         onChange={(e) => setEditData({ ...editData, specialty: e.target.value })}
                                         className="h-8 px-3 rounded-full bg-white text-slate-800 text-xs w-[200px]"
                                         placeholder="Специальность"
+                                        disabled // Need ID lookup for specialty, keep disabled for now to avoid errors
                                     />
                                 ) : (
                                     <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-500/30">
@@ -174,7 +193,7 @@ export function DoctorDetailModal({ isOpen, onClose, doctor, salesPlans, salesFa
                                 )}
                                 <span className="flex items-center gap-1.5 text-slate-400 text-xs font-bold uppercase tracking-widest">
                                     <MapPin className="w-4 h-4 text-emerald-500" />
-                                    Категория: {doctor.category?.name || "Нет"}
+                                    Категория: {isEditing ? editData.category : (doctor.category?.name || "Нет")}
                                 </span>
                             </div>
                         </div>
@@ -200,12 +219,29 @@ export function DoctorDetailModal({ isOpen, onClose, doctor, salesPlans, salesFa
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
                                 </div>
                                 {isEditing && item.field !== 'med_org' ? (
-                                    <Input
-                                        value={editData[item.field] || ''}
-                                        onChange={(e) => setEditData({ ...editData, [item.field]: e.target.value })}
-                                        className="h-8 text-xs font-bold text-slate-800"
-                                        placeholder={`Введите ${item.label.toLowerCase()}`}
-                                    />
+                                    item.field === 'category' ? (
+                                        <Select
+                                            value={editData.category || ''}
+                                            onValueChange={(val) => setEditData({ ...editData, category: val })}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs font-bold text-slate-800 border-slate-200">
+                                                <SelectValue placeholder="Выберите категорию" />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl shadow-xl">
+                                                {['VIP', 'A', 'B', 'C'].map(c => (
+                                                    <SelectItem key={c} value={c} className="text-xs font-bold cursor-pointer rounded-lg mx-1 my-0.5 focus:bg-blue-50 focus:text-blue-600">{c}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
+                                        <Input
+                                            value={editData[item.field] || ''}
+                                            onChange={(e) => setEditData({ ...editData, [item.field]: e.target.value })}
+                                            className="h-8 text-xs font-bold text-slate-800"
+                                            placeholder={`Введите ${item.label.toLowerCase()}`}
+                                            disabled={item.field === 'specialty'} // Prevent string mutation for references
+                                        />
+                                    )
                                 ) : (
                                     <div className="text-xs font-bold text-slate-800 line-clamp-1">
                                         {item.value || "—"}

@@ -11,33 +11,34 @@ import { cn } from "../../lib/utils";
 import api from "../../api/axios";
 import { useMedRepStore } from "../../store/medRepStore";
 
-interface ReassignRepsModalProps {
+interface ReassignUserModalProps {
     isOpen: boolean;
     onClose: () => void;
-    fromRepId: number;
-    fromRepName: string;
+    fromUserId: number;
+    fromUserName: string;
+    role: string;
 }
 
-export function ReassignRepsModal({ isOpen, onClose, fromRepId, fromRepName }: ReassignRepsModalProps) {
+export function ReassignUserModal({ isOpen, onClose, fromUserId, fromUserName, role }: ReassignUserModalProps) {
     const { medReps, fetchMedReps } = useMedRepStore();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [toRepId, setToRepId] = useState<number>(0);
+    const [toUserId, setToUserId] = useState<number>(0);
 
     useEffect(() => {
         if (isOpen) {
-            fetchMedReps("med_rep");
-            setToRepId(0);
+            fetchMedReps(role); // Use the passed role
+            setToUserId(0);
         }
-    }, [isOpen, fetchMedReps]);
+    }, [isOpen, fetchMedReps, role]);
 
     const handleSubmit = async () => {
-        if (!toRepId || toRepId === fromRepId) return;
+        if (!toUserId || toUserId === fromUserId) return;
 
         setIsSubmitting(true);
         try {
-            await api.post('/domain/users/users/reassign', {
-                from_rep_id: fromRepId,
-                to_rep_id: toRepId
+            await api.post('/users/reassign', {
+                from_user_id: fromUserId,
+                to_user_id: toUserId
             });
             onClose();
         } catch (error) {
@@ -47,8 +48,8 @@ export function ReassignRepsModal({ isOpen, onClose, fromRepId, fromRepName }: R
         }
     };
 
-    // Filter out the current rep from the target list
-    const availableReps = medReps.filter(r => r.id !== fromRepId);
+    // Filter out the current user from the target list
+    const availableUsers = medReps.filter(r => r.id !== fromUserId);
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -70,19 +71,19 @@ export function ReassignRepsModal({ isOpen, onClose, fromRepId, fromRepName }: R
                 <div className="p-6 space-y-6">
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1 items-center justify-center">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest text-center">ОТ КОГО</p>
-                        <p className="font-bold text-slate-800 text-center">{fromRepName}</p>
+                        <p className="font-bold text-slate-800 text-center">{fromUserName}</p>
                     </div>
 
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">КОМУ ПЕРЕДАТЬ</label>
                         <select
-                            value={toRepId}
-                            onChange={(e) => setToRepId(Number(e.target.value))}
+                            value={toUserId}
+                            onChange={(e) => setToUserId(Number(e.target.value))}
                             className="w-full h-12 px-4 rounded-xl border border-slate-100 bg-slate-50/50 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/5 transition-all font-bold text-slate-700 outline-none"
                         >
                             <option value={0}>Выберите сотрудника...</option>
-                            {availableReps.map((r) => (
-                                <option key={r.id} value={r.id}>{r.username}</option>
+                            {availableUsers.map((r) => (
+                                <option key={r.id} value={r.id}>{r.full_name || r.username}</option>
                             ))}
                         </select>
                         <p className="text-xs text-slate-500 mt-2 font-medium px-1">
@@ -102,7 +103,7 @@ export function ReassignRepsModal({ isOpen, onClose, fromRepId, fromRepName }: R
                         <Button
                             type="button"
                             onClick={handleSubmit}
-                            disabled={isSubmitting || !toRepId}
+                            disabled={isSubmitting || !toUserId}
                             className={cn(
                                 "flex-[2] h-12 bg-gradient-to-r from-indigo-500 to-purple-600",
                                 "hover:opacity-90 text-white font-bold rounded-2xl",

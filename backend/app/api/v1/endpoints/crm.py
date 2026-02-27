@@ -94,14 +94,19 @@ async def read_med_orgs(
     rep_id: Optional[int] = None,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    return await crud_crm.get_med_orgs(
-        db, 
-        skip=skip, 
-        limit=limit, 
-        name=name, 
-        region_id=region_id, 
-        rep_id=rep_id
-    )
+    try:
+        return await crud_crm.get_med_orgs(
+            db, 
+            skip=skip, 
+            limit=limit, 
+            name=name, 
+            region_id=region_id, 
+            rep_id=rep_id
+        )
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=str(error_msg))
 
 @router.post("/med-orgs/", response_model=MedicalOrganization)
 async def create_med_org(

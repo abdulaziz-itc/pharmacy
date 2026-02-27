@@ -16,7 +16,11 @@ const columns: ColumnDef<any>[] = [
     {
         accessorKey: "fullName",
         header: "ПОЛНОЕ ИМЯ",
-        cell: ({ row }) => <span className="font-bold text-slate-900">{row.original.fullName}</span>
+        cell: ({ row }) => (
+            <span className={`font-bold ${row.original.rawDoctor?.is_active === false ? 'text-slate-400 opacity-70' : 'text-slate-900'}`}>
+                {row.original.fullName} {row.original.rawDoctor?.is_active === false && "(Faol emas)"}
+            </span>
+        )
     },
     {
         accessorKey: "specialty",
@@ -109,6 +113,7 @@ export function MedRepDoctorsTable({ data, salesPlans, salesFacts }: MedRepDocto
                     setSelectedDoctor(null);
                     setIsEditMode(false);
                 }}
+                onSuccess={() => window.location.reload()}
                 doctor={selectedDoctor?.rawDoctor}
                 salesPlans={salesPlans}
                 salesFacts={salesFacts}

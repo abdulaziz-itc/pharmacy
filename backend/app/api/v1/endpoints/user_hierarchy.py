@@ -5,6 +5,7 @@ from sqlalchemy import select
 from app.api import deps
 from app.models.user import User, UserRole
 from app.schemas.user import User as UserSchema
+import traceback
 
 router = APIRouter()
 
@@ -18,41 +19,46 @@ async def get_user_hierarchy(
     Get the hierarchical structure under a specific user (Product Manager).
     Returns subordinates grouped by role.
     """
-    # Verify the user exists
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalars().first()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Level 1: Field Force Managers
-    ffm_result = await db.execute(
-        select(User).where(User.manager_id == user_id, User.role == UserRole.FIELD_FORCE_MANAGER)
-    )
-    field_force_managers = ffm_result.scalars().all()
-    ffm_ids = [u.id for u in field_force_managers]
-    
-    # Level 2: Regional Managers (managed by the FFMs)
-    regional_managers = []
-    rm_ids = []
-    if ffm_ids:
-        rm_result = await db.execute(
-            select(User).where(User.manager_id.in_(ffm_ids), User.role == UserRole.REGIONAL_MANAGER)
-        )
-        regional_managers = rm_result.scalars().all()
-        rm_ids = [u.id for u in regional_managers]
+    try:
+        # Verify the user exists
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
         
-    # Level 3: Med Reps (managed by the RMs)
-    med_reps = []
-    if rm_ids:
-        mr_result = await db.execute(
-            select(User).where(User.manager_id.in_(rm_ids), User.role == UserRole.MED_REP)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Level 1: Field Force Managers
+        ffm_result = await db.execute(
+            select(User).where(User.manager_id == user_id, User.role == UserRole.FIELD_FORCE_MANAGER)
         )
-        med_reps = mr_result.scalars().all()
-    
-    return {
-        "user": UserSchema.model_validate(user),
-        "field_force_managers": [UserSchema.model_validate(u) for u in field_force_managers],
-        "regional_managers": [UserSchema.model_validate(u) for u in regional_managers],
-        "med_reps": [UserSchema.model_validate(u) for u in med_reps],
-    }
+        field_force_managers = ffm_result.scalars().all()
+        ffm_ids = [u.id for u in field_force_managers]
+        
+        # Level 2: Regional Managers (managed by the FFMs)
+        regional_managers = []
+        rm_ids = []
+        if ffm_ids:
+            rm_result = await db.execute(
+                select(User).where(User.manager_id.in_(ffm_ids), User.role == UserRole.REGIONAL_MANAGER)
+            )
+            regional_managers = rm_result.scalars().all()
+            rm_ids = [u.id for u in regional_managers]
+            
+        # Level 3: Med Reps (managed by the RMs)
+        med_reps = []
+        if rm_ids:
+            mr_result = await db.execute(
+                select(User).where(User.manager_id.in_(rm_ids), User.role == UserRole.MED_REP)
+            )
+            med_reps = mr_result.scalars().all()
+        
+        return {
+            "user": UserSchema.model_validate(user),
+            "field_force_managers": [UserSchema.model_validate(u) for u in field_force_managers],
+            "regional_managers": [UserSchema.model_validate(u) for u in regional_managers],
+            "med_reps": [UserSchema.model_validate(u) for u in med_reps],
+        }
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=str(error_msg))

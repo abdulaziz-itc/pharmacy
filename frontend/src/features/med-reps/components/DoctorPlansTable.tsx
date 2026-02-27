@@ -211,8 +211,8 @@ export function DoctorPlansTable({ data: initialData }: DoctorPlansTableProps) {
                                         </SelectTrigger>
                                         <SelectContent className="rounded-xl border-slate-200 shadow-xl max-h-[200px]">
                                             {doctors.map((doctor) => (
-                                                <SelectItem key={doctor.id} value={doctor.id.toString()} className="font-medium">
-                                                    {doctor.full_name} <span className="text-slate-400 text-xs ml-2">({doctor.specialty?.name})</span>
+                                                <SelectItem key={doctor.id} value={doctor.id.toString()} className={`font-medium ${!doctor.is_active ? 'text-slate-400 opacity-70' : ''}`}>
+                                                    {doctor.full_name} {!doctor.is_active && "(Faol emas)"} <span className="text-slate-400 text-xs ml-2">({doctor.specialty?.name})</span>
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>

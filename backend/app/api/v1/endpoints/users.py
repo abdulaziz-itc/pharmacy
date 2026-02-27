@@ -62,6 +62,77 @@ async def create_user(
     user = await crud_user.create(db, obj_in=user_in)
     return user
 
+@router.put("/{user_id}", response_model=UserSchema)
+async def update_user(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    user_id: int,
+    user_in: UserUpdate,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Update a user.
+    """
+    user = await crud_user.get(db, id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER]:
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+        
+    if current_user.role == UserRole.PRODUCT_MANAGER:
+        if user.role not in [UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.MED_REP]:
+            raise HTTPException(status_code=400, detail="Product Manager can only edit subordinates")
+            
+    # Validation for deactivation (is_active = False)
+    if user_in.is_active is False and user.is_active is True:
+        # Check subordinates
+        subordinates_query = await db.execute(select(User).where(User.manager_id == user_id, User.is_active == True))
+        if subordinates_query.scalars().first():
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cannot deactivate user. They still have active subordinates assigned to them."
+            )
+            
+        # Check role-specific dependencies
+        if user.role == UserRole.MED_REP:
+            from app.models.crm import Doctor, medrep_organization
+            from app.models.sales import Plan
+            
+            # Check for assigned doctors
+            doctors_query = await db.execute(select(Doctor).where(Doctor.assigned_rep_id == user_id))
+            if doctors_query.scalars().first():
+                raise HTTPException(status_code=400, detail="Cannot deactivate Med Rep. They still have assigned doctors.")
+                
+            # Check for assigned organizations
+            orgs_query = await db.execute(select(medrep_organization.c.organization_id).where(medrep_organization.c.user_id == user_id))
+            if orgs_query.first():
+                raise HTTPException(status_code=400, detail="Cannot deactivate Med Rep. They still have assigned pharmacies/clinics.")
+                
+            # Check for plans (you might want to clarify if ALL plans or just active/incomplete plans block deactivation. For now, we block if ANY plans exist in current/future months, but a simpler approach is blocking if ANY exist that aren't closed. Let's block if any plans exist for the current year/month onwards to be safe)
+            import datetime
+            now = datetime.datetime.now()
+            plans_query = await db.execute(
+                select(Plan).where(
+                    Plan.med_rep_id == user_id,
+                    (Plan.year > now.year) | ((Plan.year == now.year) & (Plan.month >= now.month))
+                )
+            )
+            if plans_query.scalars().first():
+                raise HTTPException(status_code=400, detail="Cannot deactivate Med Rep. They still have active plans for the current or future months.")
+
+    # Check if new username is already taken by someone else
+    if user_in.username and user_in.username != user.username:
+        user_exists = await crud_user.get_by_username(db, username=user_in.username)
+        if user_exists:
+            raise HTTPException(
+                status_code=400,
+                detail="The user with this username already exists in the system.",
+            )
+            
+    user = await crud_user.update(db, db_obj=user, obj_in=user_in)
+    return user
+
 @router.get("/me", response_model=UserSchema)
 async def read_user_me(
     current_user: User = Depends(deps.get_current_user),
@@ -114,3 +185,91 @@ async def get_med_reps(
         })
     
     return result
+
+from pydantic import BaseModel
+class ReassignRequest(BaseModel):
+    from_user_id: int
+    to_user_id: int
+
+@router.post("/reassign")
+async def reassign_user_dependencies(
+    req: ReassignRequest,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Transfer all subordinates, territories (doctors, organizations), and active plans 
+    from one user to another user of the same role.
+    """
+    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+        raise HTTPException(status_code=400, detail="Not enough permissions to reassign.")
+        
+    from_user = await crud_user.get(db, id=req.from_user_id)
+    to_user = await crud_user.get(db, id=req.to_user_id)
+    
+    if not from_user or not to_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if from_user.role != to_user.role:
+        raise HTTPException(status_code=400, detail="Cannot transfer dependencies between different roles.")
+        
+    # Reassign subordinates
+    subordinates = await db.execute(select(User).where(User.manager_id == req.from_user_id))
+    for sub in subordinates.scalars().all():
+        sub.manager_id = req.to_user_id
+        
+    if from_user.role == UserRole.MED_REP:
+        from app.models.crm import Doctor, medrep_organization
+        from app.models.sales import Plan
+        import datetime
+        from sqlalchemy import update, delete
+        
+        # 1. Reassign Doctors
+        await db.execute(
+            update(Doctor)
+            .where(Doctor.assigned_rep_id == req.from_user_id)
+            .values(assigned_rep_id=req.to_user_id)
+        )
+        
+        # 2. Reassign Organizations (Many to Many)
+        # Fetch orgs assigned to the 'from' user
+        orgs_query = await db.execute(
+            select(medrep_organization.c.organization_id)
+            .where(medrep_organization.c.user_id == req.from_user_id)
+        )
+        org_ids = [row[0] for row in orgs_query.all()]
+        
+        if org_ids:
+            # Check if 'to' user already has any of these orgs to prevent PK violations
+            existing_orgs_query = await db.execute(
+                select(medrep_organization.c.organization_id)
+                .where(medrep_organization.c.user_id == req.to_user_id, medrep_organization.c.organization_id.in_(org_ids))
+            )
+            existing_org_ids = [row[0] for row in existing_orgs_query.all()]
+            
+            org_ids_to_add = [oid for oid in org_ids if oid not in existing_org_ids]
+            
+            # Delete from old
+            await db.execute(
+                delete(medrep_organization)
+                .where(medrep_organization.c.user_id == req.from_user_id)
+            )
+            
+            # Insert to new
+            if org_ids_to_add:
+                values = [{"user_id": req.to_user_id, "organization_id": oid} for oid in org_ids_to_add]
+                await db.execute(medrep_organization.insert().values(values))
+                
+        # 3. Reassign Active/Future Plans
+        now = datetime.datetime.now()
+        await db.execute(
+            update(Plan)
+            .where(
+                Plan.med_rep_id == req.from_user_id,
+                (Plan.year > now.year) | ((Plan.year == now.year) & (Plan.month >= now.month))
+            )
+            .values(med_rep_id=req.to_user_id)
+        )
+        
+    await db.commit()
+    return {"msg": "Successfully transferred all dependencies."}

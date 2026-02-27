@@ -8,75 +8,68 @@ import {
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { createUser } from '../../../api/user';
-import { useRegionStore } from '../../../store/regionStore';
+import { updateUser } from '../../../api/user';
+import { type SubordinateUser } from '../subordinateColumns';
 
-interface CreateMedRepModalProps {
+interface EditSubordinateModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
-    rmList: any[]; // Regional Managers to choose from
+    user: SubordinateUser | null;
 }
 
-export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: CreateMedRepModalProps) {
-    const { fetchRegions } = useRegionStore();
+export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditSubordinateModalProps) {
     const [isLoading, setIsLoading] = React.useState(false);
     const [formData, setFormData] = React.useState({
         full_name: '',
         username: '',
         password: '',
-        manager_id: '',
-        region_id: '',
     });
 
     useEffect(() => {
-        if (isOpen) {
-            fetchRegions();
+        if (user) {
+            setFormData({
+                full_name: user.full_name || '',
+                username: user.username || '',
+                password: '', // default empty, only send if user types something
+            });
         }
-    }, [isOpen, fetchRegions]);
-
-    // Automatically set region_id when manager_id changes
-    useEffect(() => {
-        if (formData.manager_id) {
-            const selectedManager = rmList.find(rm => rm.id === parseInt(formData.manager_id));
-            if (selectedManager && selectedManager.region_id) {
-                setFormData(prev => ({ ...prev, region_id: String(selectedManager.region_id) }));
-            } else {
-                setFormData(prev => ({ ...prev, region_id: '' }));
-            }
-        } else {
-            setFormData(prev => ({ ...prev, region_id: '' }));
-        }
-    }, [formData.manager_id, rmList]);
+    }, [user, isOpen]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) return;
+
         setIsLoading(true);
         try {
-            await createUser({
+            const updatePayload: any = {
                 full_name: formData.full_name,
                 username: formData.username,
-                password: formData.password,
-                role: 'med_rep',
-                manager_id: parseInt(formData.manager_id),
-                region_id: formData.region_id ? parseInt(formData.region_id) : undefined,
-            });
+            };
+
+            if (formData.password) {
+                updatePayload.password = formData.password;
+            }
+
+            await updateUser(user.id, updatePayload);
             onSuccess();
             onClose();
-            setFormData({ full_name: '', username: '', password: '', manager_id: '', region_id: '' });
         } catch (error) {
-            console.error('Failed to create med rep:', error);
+            console.error('Failed to update user:', error);
+            // Optionally could show an error toast here
         } finally {
             setIsLoading(false);
         }
     };
+
+    if (!user) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
                 <DialogHeader className="bg-blue-600 p-8 text-white relative">
                     <DialogTitle className="text-2xl font-bold text-center tracking-tight">
-                        Добавить медицинского представителя
+                        Редактировать
                     </DialogTitle>
                 </DialogHeader>
 
@@ -112,35 +105,16 @@ export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: Create
 
                         <div className="space-y-2">
                             <Label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                Пароль
+                                Новый пароль (оставьте пустым для сохранения старого)
                             </Label>
                             <Input
                                 id="password"
                                 type="password"
-                                placeholder="Пароль"
+                                placeholder="Новый пароль"
                                 className="h-12 rounded-xl border-slate-200 focus:border-blue-500 transition-all font-medium"
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                required
                             />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="manager_id" className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                Regional Manager
-                            </Label>
-                            <select
-                                id="manager_id"
-                                className="w-full h-12 px-3 rounded-xl border border-slate-200 focus:border-blue-500 transition-all font-medium text-sm"
-                                value={formData.manager_id}
-                                onChange={(e) => setFormData({ ...formData, manager_id: e.target.value })}
-                                required
-                            >
-                                <option value="">Выберите менеджера</option>
-                                {rmList.map(rm => (
-                                    <option key={rm.id} value={rm.id}>{rm.full_name}</option>
-                                ))}
-                            </select>
                         </div>
                     </div>
 
@@ -149,7 +123,7 @@ export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: Create
                         className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
                         disabled={isLoading}
                     >
-                        {isLoading ? 'ДОБАВЛЕНИЕ...' : 'ДОБАВИТЬ'}
+                        {isLoading ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
                     </Button>
                 </form>
             </DialogContent>
