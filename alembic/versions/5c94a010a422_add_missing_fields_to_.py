@@ -20,13 +20,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column('medicalorganization', sa.Column('brand', sa.String(), nullable=True))
-    op.add_column('medicalorganization', sa.Column('director_name', sa.String(), nullable=True))
-    op.add_column('medicalorganization', sa.Column('contact_phone', sa.String(), nullable=True))
+    op.execute('ALTER TABLE medicalorganization ADD COLUMN IF NOT EXISTS brand VARCHAR')
+    op.execute('ALTER TABLE medicalorganization ADD COLUMN IF NOT EXISTS director_name VARCHAR')
+    op.execute('ALTER TABLE medicalorganization ADD COLUMN IF NOT EXISTS contact_phone VARCHAR')
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_column('medicalorganization', 'contact_phone')
-    op.drop_column('medicalorganization', 'director_name')
-    op.drop_column('medicalorganization', 'brand')
+    op.execute('ALTER TABLE medicalorganization DROP COLUMN IF EXISTS contact_phone')
+    op.execute('ALTER TABLE medicalorganization DROP COLUMN IF EXISTS director_name')
+    op.execute('ALTER TABLE medicalorganization DROP COLUMN IF EXISTS brand')
