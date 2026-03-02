@@ -1,11 +1,19 @@
 import { type ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MapPin, ChevronDown, ChevronRight } from "lucide-react"
+import { ArrowUpDown, MapPin, ChevronDown, ChevronRight, MoreHorizontal, UserMinus, UserPlus } from "lucide-react"
 import { Button } from "../../components/ui/button"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu"
 import { Checkbox } from "../../components/ui/checkbox"
 import type { Doctor } from "../../store/doctorStore"
 import { cn } from "../../lib/utils"
 
-export const columns: ColumnDef<Doctor>[] = [
+export const getDoctorColumns = (onToggleActive?: (doctor: Doctor) => void): ColumnDef<Doctor>[] => [
     {
         id: "select",
         header: ({ table }) => (
@@ -76,12 +84,14 @@ export const columns: ColumnDef<Doctor>[] = [
             const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
 
             return (
-                <div className="flex items-center gap-3 w-full">
+                <div className="flex items-center gap-3 w-full opacity-100 transition-opacity" style={{ opacity: row.original.is_active === false ? 0.5 : 1 }}>
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-blue-500/20 flex-shrink-0">
                         {initials}
                     </div>
                     <div className="truncate">
-                        <div className="font-bold text-slate-900 leading-tight truncate">{name}</div>
+                        <div className="font-bold text-slate-900 leading-tight truncate">
+                            {name} {row.original.is_active === false && "(Faol emas)"}
+                        </div>
                         <div className="text-[9px] text-slate-400 font-medium mt-0.5">Специалист</div>
                     </div>
                 </div>
@@ -249,5 +259,49 @@ export const columns: ColumnDef<Doctor>[] = [
             return <div className="text-right font-bold text-slate-600 text-xs">{amount.toLocaleString()} сум</div>
         },
         size: 130,
+    },
+    {
+        id: "actions",
+        cell: ({ row }) => {
+            const doctor = row.original
+            const isActive = doctor.is_active !== false
+
+            if (!onToggleActive) return null
+
+            return (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Действия</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            className={isActive ? "text-red-600" : "text-emerald-600"}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleActive(doctor);
+                            }}
+                        >
+                            {isActive ? (
+                                <>
+                                    <UserMinus className="mr-2 h-4 w-4" />
+                                    Деактивировать
+                                </>
+                            ) : (
+                                <>
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Активировать
+                                </>
+                            )}
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )
+        },
+        size: 60,
     },
 ]

@@ -5,6 +5,11 @@ import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { updateDoctor } from "../../../api/crm";
 
+const MONTHS_RU = [
+    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+];
+
 interface DoctorDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -12,10 +17,11 @@ interface DoctorDetailModalProps {
     doctor: any;
     salesPlans: any[];
     salesFacts: any[];
+    bonusPayments?: any[];
     defaultEditMode?: boolean;
 }
 
-export function DoctorDetailModal({ isOpen, onClose, onSuccess, doctor, salesPlans, salesFacts, defaultEditMode = false }: DoctorDetailModalProps) {
+export function DoctorDetailModal({ isOpen, onClose, onSuccess, doctor, salesPlans, salesFacts, bonusPayments = [], defaultEditMode = false }: DoctorDetailModalProps) {
     const [isEditing, setIsEditing] = React.useState(false);
     const [editData, setEditData] = React.useState<any>({});
     const [isSaving, setIsSaving] = React.useState(false);
@@ -56,6 +62,7 @@ export function DoctorDetailModal({ isOpen, onClose, onSuccess, doctor, salesPla
     // Filter plans and facts for this specific doctor
     const doctorPlans = salesPlans.filter(p => p.doctor?.id === doctor.id);
     const doctorFacts = salesFacts?.filter(f => f.doctor_id === doctor.id) || [];
+    const doctorBonuses = bonusPayments.filter(b => b.doctor_id === doctor.id);
 
     // Group matching facts for this doctor
     const productStats = new Map<number, {
@@ -332,6 +339,80 @@ export function DoctorDetailModal({ isOpen, onClose, onSuccess, doctor, salesPla
                                 )}
                             </div>
                         </div>
+
+                        {/* Bonuses Section */}
+                        {doctorBonuses.length > 0 && (
+                            <div className="bg-white rounded-[36px] overflow-hidden border border-slate-100 shadow-sm xl:col-span-2">
+                                <div className="p-8 pb-6 border-b border-slate-100/80">
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
+                                        Прединвестиции и Бонусы
+                                    </div>
+                                </div>
+                                <div className="overflow-x-auto p-4 pt-0">
+                                    <table className="w-full text-xs">
+                                        <thead>
+                                            <tr className="text-[10px] font-bold uppercase text-slate-400 border-b border-slate-100">
+                                                <th className="text-left py-4 px-4">Период</th>
+                                                <th className="text-left py-4 px-4">Продукт</th>
+                                                <th className="text-left py-4 px-4">Дата</th>
+                                                <th className="text-right py-4 px-4">Сумма</th>
+                                                <th className="text-right py-4 px-4">Факт</th>
+                                                <th className="text-right py-4 px-4">Предынвест</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {doctorBonuses.map((bp, idx) => {
+                                                const earnedBonus = doctorFacts.filter(f => {
+                                                    const factDate = new Date(f.date);
+                                                    return (factDate.getMonth() + 1) === bp.for_month &&
+                                                        factDate.getFullYear() === bp.for_year &&
+                                                        (!bp.product_id || f.product_id === bp.product_id);
+                                                }).reduce((sum, f) => sum + (f.amount || 0), 0);
+
+                                                const predinvest = Math.max(0, bp.amount - earnedBonus);
+
+                                                return (
+                                                    <tr key={idx} className="hover:bg-blue-50/30 transition-colors group">
+                                                        <td className="py-4 px-4">
+                                                            <span className="font-bold text-blue-700">
+                                                                {MONTHS_RU[bp.for_month - 1]} {bp.for_year}
+                                                            </span>
+                                                            {bp.notes && <p className="text-[9px] text-slate-400 italic mt-0.5">{bp.notes}</p>}
+                                                        </td>
+                                                        <td className="py-4 px-4">
+                                                            {bp.product ? (
+                                                                <span className="bg-violet-50 text-violet-700 border border-violet-200 rounded-lg px-2 py-0.5 font-semibold text-[10px]">
+                                                                    {bp.product.name}
+                                                                </span>
+                                                            ) : <span className="text-slate-300">—</span>}
+                                                        </td>
+                                                        <td className="py-4 px-4 text-slate-500 font-medium whitespace-nowrap">
+                                                            {bp.paid_date ? bp.paid_date : "—"}
+                                                        </td>
+                                                        <td className="py-4 px-4 text-right font-black text-blue-700 whitespace-nowrap">
+                                                            {new Intl.NumberFormat('ru-RU').format(bp.amount)}
+                                                        </td>
+                                                        <td className="py-4 px-4 text-right text-slate-600 font-semibold whitespace-nowrap">
+                                                            {new Intl.NumberFormat('ru-RU').format(earnedBonus)}
+                                                        </td>
+                                                        <td className="py-4 px-4 text-right whitespace-nowrap">
+                                                            {predinvest > 0 ? (
+                                                                <span className="font-black text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                                                                    {new Intl.NumberFormat('ru-RU').format(predinvest)}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-slate-300">—</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </DialogContent>

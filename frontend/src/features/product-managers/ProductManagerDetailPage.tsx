@@ -10,6 +10,11 @@ import { CreateFFMModal } from './components/CreateFFMModal';
 import { CreateRMModal } from './components/CreateRMModal';
 import { CreateMedRepModal } from './components/CreateMedRepModal';
 import { EditSubordinateModal } from './components/EditSubordinateModal';
+import { Button } from '../../components/ui/button';
+import { ArrowRightLeft } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
+import { ReassignUserModal } from '../med-reps/ReassignUserModal';
+import { toast } from 'sonner';
 
 export default function ProductManagerDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -17,8 +22,16 @@ export default function ProductManagerDetailPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
     const [isCreateRMModalOpen, setIsCreateRMModalOpen] = React.useState(false);
     const [isCreateMedRepModalOpen, setIsCreateMedRepModalOpen] = React.useState(false);
+    const [isReassignModalOpen, setIsReassignModalOpen] = React.useState(false);
     const [editingUser, setEditingUser] = React.useState<SubordinateUser | null>(null);
+    const [transferUser, setTransferUser] = React.useState<SubordinateUser | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
+    const currentUser = useAuthStore((state) => state.user);
+
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+    // Check if current user has permission to reassign
+    const canReassign = currentUser?.role && ['admin', 'director', 'deputy_director'].includes(currentUser.role);
 
     const fetchHierarchy = React.useCallback(async () => {
         if (!id) return;
@@ -38,9 +51,32 @@ export default function ProductManagerDetailPage() {
         fetchHierarchy();
     }, [fetchHierarchy]);
 
-    const columns = React.useMemo(() => getSubordinateColumns((user) => {
-        setEditingUser(user);
-    }), []);
+    const handleToggleActive = async (user: SubordinateUser) => {
+        try {
+            setIsSubmitting(true);
+            const api = (await import('../../api/axios')).default;
+            await api.put(`/users/${user.id}`, {
+                is_active: user.is_active === false ? true : false
+            });
+            await fetchHierarchy();
+            toast.success("Статус успешно изменен.");
+        } catch (error: any) {
+            console.error("Failed to toggle active status:", error);
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error("Ошибка при изменении статуса.");
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const columns = React.useMemo(() => getSubordinateColumns(
+        (user) => setEditingUser(user),
+        canReassign ? (user) => setTransferUser(user) : undefined,
+        canReassign ? handleToggleActive : undefined
+    ), [canReassign, fetchHierarchy]);
 
     if (isLoading) {
         return (
@@ -65,7 +101,7 @@ export default function ProductManagerDetailPage() {
     return (
         <PageContainer>
             {/* User Profile Header */}
-            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border p-8 mb-6">
+            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border p-8 mb-6 relative">
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
                         <User className="w-8 h-8 text-slate-400" />
@@ -79,7 +115,39 @@ export default function ProductManagerDetailPage() {
                         </p>
                     </div>
                 </div>
+                {canReassign && (
+                    <Button
+                        onClick={() => setIsReassignModalOpen(true)}
+                        className="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 font-bold rounded-xl shadow-sm h-11 px-5 mt-4 sm:absolute sm:top-8 sm:right-8 sm:mt-0"
+                    >
+                        <ArrowRightLeft className="w-4 h-4 mr-2" />
+                        Передать полномочия
+                    </Button>
+                )}
             </div>
+
+            <ReassignUserModal
+                isOpen={isReassignModalOpen}
+                onClose={() => {
+                    setIsReassignModalOpen(false);
+                    // Reload data to reflect changes
+                    window.location.reload();
+                }}
+                fromUserId={parseInt(id || "0")}
+                fromUserName={hierarchyData.user.full_name || "Unknown"}
+                role="product_manager"
+            />
+
+            <ReassignUserModal
+                isOpen={!!transferUser}
+                onClose={() => {
+                    setTransferUser(null);
+                    window.location.reload();
+                }}
+                fromUserId={transferUser?.id || 0}
+                fromUserName={transferUser?.full_name || "Unknown"}
+                role={transferUser?.role || "med_rep"}
+            />
 
             {/* Tabs for Hierarchical Structure */}
             <Tabs defaultValue="field_force" className="w-full">

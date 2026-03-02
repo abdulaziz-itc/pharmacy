@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, Float, DateTime, Table
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, Float, DateTime, Table, Boolean
 from sqlalchemy.orm import relationship
 import enum
 from datetime import datetime
@@ -54,6 +54,7 @@ class MedicalOrganization(Base):
 class Doctor(Base):
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, index=True, nullable=False)
+    is_active = Column(Boolean, default=True)
     
     contact1 = Column(String, nullable=True)
     contact2 = Column(String, nullable=True)

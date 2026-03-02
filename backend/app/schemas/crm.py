@@ -77,6 +77,7 @@ class MedicalOrganization(MedicalOrganizationBase):
 # Doctor
 class DoctorBase(BaseModel):
     full_name: str
+    is_active: bool = True
     contact1: Optional[str] = None
     contact2: Optional[str] = None
     email: Optional[str] = None
@@ -97,6 +98,7 @@ class DoctorCreate(DoctorBase):
 
 class DoctorUpdate(BaseModel):
     full_name: Optional[str] = None
+    is_active: Optional[bool] = None
     contact1: Optional[str] = None
     contact2: Optional[str] = None
     email: Optional[str] = None

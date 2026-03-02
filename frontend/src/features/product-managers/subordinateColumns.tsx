@@ -1,5 +1,5 @@
 import { type ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Edit, Trash2 } from "lucide-react"
+import { MoreHorizontal, Edit, Trash2, ArrowRightLeft } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import {
     DropdownMenu,
@@ -15,10 +15,13 @@ export interface SubordinateUser {
     username: string;
     full_name: string;
     role: string;
+    is_active?: boolean;
 }
 
 export const getSubordinateColumns = (
-    onEdit: (user: SubordinateUser) => void
+    onEdit: (user: SubordinateUser) => void,
+    onTransfer?: (user: SubordinateUser) => void,
+    onToggleActive?: (user: SubordinateUser) => void
 ): ColumnDef<SubordinateUser>[] => [
         {
             id: "index",
@@ -50,7 +53,14 @@ export const getSubordinateColumns = (
                     СТАТУС
                 </span>
             ),
-            cell: ({ row }) => <span className="font-medium text-slate-600">{row.getValue("role")}</span>,
+            cell: ({ row }) => {
+                const isActive = row.original.is_active !== false;
+                return (
+                    <span className={`font-medium ${isActive ? 'text-slate-600' : 'text-slate-400'}`}>
+                        {row.getValue("role")} {!isActive && "(Faol emas)"}
+                    </span>
+                )
+            },
         },
         {
             id: "actions",
@@ -77,6 +87,30 @@ export const getSubordinateColumns = (
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span className="font-medium">Редактировать</span>
                             </DropdownMenuItem>
+
+                            {onTransfer && user.is_active !== false && (
+                                <DropdownMenuItem
+                                    onClick={() => onTransfer(user)}
+                                    className="rounded-xl focus:bg-purple-50 focus:text-purple-600 cursor-pointer transition-colors px-3 py-2.5"
+                                >
+                                    <ArrowRightLeft className="mr-2 h-4 w-4 text-purple-500" />
+                                    <span className="font-medium text-purple-600">Передать полномочия</span>
+                                </DropdownMenuItem>
+                            )}
+
+                            {onToggleActive && (
+                                <DropdownMenuItem
+                                    onClick={() => onToggleActive(user)}
+                                    className={`rounded-xl cursor-pointer transition-colors px-3 py-2.5 ${user.is_active !== false
+                                        ? "focus:bg-red-50 focus:text-red-600 text-red-500"
+                                        : "focus:bg-emerald-50 focus:text-emerald-600 text-emerald-500"
+                                        }`}
+                                >
+                                    <span className="font-medium">
+                                        {user.is_active !== false ? "Деактивировать" : "Активировать"}
+                                    </span>
+                                </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )

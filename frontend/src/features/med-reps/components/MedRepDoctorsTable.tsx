@@ -2,9 +2,11 @@ import React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "../../../components/ui/data-table";
 import { Button } from "../../../components/ui/button";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, UserMinus, UserPlus } from "lucide-react";
 import { AddDoctorModal } from "./AddDoctorModal";
 import { DoctorDetailModal } from "./DoctorDetailModal";
+import { useAuthStore } from "../../../store/authStore";
+import { toast } from "sonner";
 
 
 const columns: ColumnDef<any>[] = [
@@ -42,18 +44,37 @@ const columns: ColumnDef<any>[] = [
         header: "ДЕЙСТВИЯ",
         cell: ({ row, table }) => {
             const onEditClick = (table.options.meta as any)?.onEditClick;
+            const onToggleActive = (table.options.meta as any)?.onToggleActive;
+            const isActive = row.original.rawDoctor?.is_active !== false;
+
             return (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onEditClick && onEditClick(row.original);
-                    }}
-                >
-                    <Pencil className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onEditClick && onEditClick(row.original);
+                        }}
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </Button>
+                    {onToggleActive && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-8 w-8 ${isActive ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleActive(row.original);
+                            }}
+                            title={isActive ? "Деактивировать" : "Активировать"}
+                        >
+                            {isActive ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                        </Button>
+                    )}
+                </div>
             );
         }
     }
@@ -63,12 +84,35 @@ interface MedRepDoctorsTableProps {
     data: any[];
     salesPlans: any[];
     salesFacts: any[];
+    bonusPayments?: any[];
 }
 
-export function MedRepDoctorsTable({ data, salesPlans, salesFacts }: MedRepDoctorsTableProps) {
+export function MedRepDoctorsTable({ data, salesPlans, salesFacts, bonusPayments = [] }: MedRepDoctorsTableProps) {
     const [isAddOpen, setIsAddOpen] = React.useState(false);
     const [selectedDoctor, setSelectedDoctor] = React.useState<any>(null);
     const [isEditMode, setIsEditMode] = React.useState(false);
+
+    const currentUser = useAuthStore((state) => state.user);
+    const canToggle = currentUser?.role && ['admin', 'director', 'deputy_director', 'product_manager'].includes(currentUser.role);
+
+    const handleToggleActive = async (doctorData: any) => {
+        try {
+            const api = (await import('../../../api/axios')).default;
+            const doctor = doctorData.rawDoctor;
+            await api.put(`/doctors/${doctor.id}`, {
+                is_active: doctor.is_active === false ? true : false
+            });
+            toast.success("Статус успешно изменен.");
+            window.location.reload();
+        } catch (error: any) {
+            console.error("Failed to toggle active status:", error);
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error("Ошибка при изменении статуса.");
+            }
+        }
+    };
 
     return (
         <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden h-full flex flex-col">
@@ -101,7 +145,8 @@ export function MedRepDoctorsTable({ data, salesPlans, salesFacts }: MedRepDocto
                         onEditClick: (doctor: any) => {
                             setSelectedDoctor(doctor);
                             setIsEditMode(true);
-                        }
+                        },
+                        onToggleActive: canToggle ? handleToggleActive : undefined
                     }}
                 />
             </div>
@@ -117,6 +162,7 @@ export function MedRepDoctorsTable({ data, salesPlans, salesFacts }: MedRepDocto
                 doctor={selectedDoctor?.rawDoctor}
                 salesPlans={salesPlans}
                 salesFacts={salesFacts}
+                bonusPayments={bonusPayments}
                 defaultEditMode={isEditMode}
             />
         </div>

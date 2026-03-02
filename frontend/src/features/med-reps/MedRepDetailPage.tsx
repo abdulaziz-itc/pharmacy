@@ -8,7 +8,7 @@ import { MedRepPharmaciesTable } from './components/MedRepPharmaciesTable';
 import { MedRepNotificationsTable } from './components/MedRepNotificationsTable';
 import { ProductPlanCard } from './components/ProductPlanCard';
 import { BonusPaymentsCard } from './components/BonusPaymentsCard';
-import { ReassignRepsModal } from './ReassignRepsModal';
+import { ReassignUserModal } from './ReassignUserModal';
 import { Button } from '../../components/ui/button';
 import { ArrowRightLeft } from 'lucide-react';
 import { getDoctors, getMedOrgs } from '../../api/crm';
@@ -149,15 +149,16 @@ export default function MedRepDetailPage() {
                 </div>
             </div>
 
-            <ReassignRepsModal
+            <ReassignUserModal
                 isOpen={isReassignModalOpen}
                 onClose={() => {
                     setIsReassignModalOpen(false);
                     // Reload data to reflect changes
                     window.location.reload();
                 }}
-                fromRepId={parseInt(id || "0")}
-                fromRepName={medRep?.full_name || "Unknown"}
+                fromUserId={parseInt(id || "0")}
+                fromUserName={medRep?.full_name || "Unknown"}
+                role="med_rep"
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-20">
@@ -189,6 +190,7 @@ export default function MedRepDetailPage() {
                         }))}
                         salesPlans={salesPlans}
                         salesFacts={salesFacts} // Pass facts down here
+                        bonusPayments={bonusPayments}
                     />
                 </div>
 

@@ -29,6 +29,7 @@ export interface Doctor {
     specialty_obj?: any;
     category?: any;
     assigned_rep?: any;
+    is_active?: boolean;
 }
 
 interface DoctorStore {

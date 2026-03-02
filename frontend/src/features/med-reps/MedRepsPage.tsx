@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { ReassignUserModal } from './ReassignUserModal';
 
+import { toast } from 'sonner';
+
 export default function MedRepsPage() {
     const navigate = useNavigate();
     const { medReps, fetchMedReps, isLoading } = useMedRepStore();
@@ -37,12 +39,13 @@ export default function MedRepsPage() {
                 is_active: !medRep.is_active
             });
             await fetchMedReps("med_rep");
+            toast.success("Статус успешно изменен.");
         } catch (error: any) {
             console.error("Failed to toggle active status:", error);
             if (error.response?.data?.detail) {
-                alert(error.response.data.detail);
+                toast.error(error.response.data.detail);
             } else {
-                alert("Ошибка при изменении статуса.");
+                toast.error("Ошибка при изменении статуса.");
             }
         } finally {
             setIsSubmitting(false);

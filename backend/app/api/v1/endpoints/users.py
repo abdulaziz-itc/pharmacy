@@ -91,7 +91,7 @@ async def update_user(
         if subordinates_query.scalars().first():
             raise HTTPException(
                 status_code=400, 
-                detail=f"Cannot deactivate user. They still have active subordinates assigned to them."
+                detail=f"Невозможно деактивировать пользователя. У него все еще есть активные подчиненные."
             )
             
         # Check role-specific dependencies
@@ -102,12 +102,12 @@ async def update_user(
             # Check for assigned doctors
             doctors_query = await db.execute(select(Doctor).where(Doctor.assigned_rep_id == user_id))
             if doctors_query.scalars().first():
-                raise HTTPException(status_code=400, detail="Cannot deactivate Med Rep. They still have assigned doctors.")
+                raise HTTPException(status_code=400, detail="Невозможно деактивировать медпредставителя. У него все еще есть прикрепленные врачи.")
                 
             # Check for assigned organizations
             orgs_query = await db.execute(select(medrep_organization.c.organization_id).where(medrep_organization.c.user_id == user_id))
             if orgs_query.first():
-                raise HTTPException(status_code=400, detail="Cannot deactivate Med Rep. They still have assigned pharmacies/clinics.")
+                raise HTTPException(status_code=400, detail="Невозможно деактивировать медпредставителя. У него все еще есть прикрепленные аптеки/клиники.")
                 
             # Check for plans (you might want to clarify if ALL plans or just active/incomplete plans block deactivation. For now, we block if ANY plans exist in current/future months, but a simpler approach is blocking if ANY exist that aren't closed. Let's block if any plans exist for the current year/month onwards to be safe)
             import datetime
@@ -119,7 +119,7 @@ async def update_user(
                 )
             )
             if plans_query.scalars().first():
-                raise HTTPException(status_code=400, detail="Cannot deactivate Med Rep. They still have active plans for the current or future months.")
+                raise HTTPException(status_code=400, detail="Невозможно деактивировать медпредставителя. У него все еще есть активные планы на текущий или будущие месяцы.")
 
     # Check if new username is already taken by someone else
     if user_in.username and user_in.username != user.username:
@@ -201,8 +201,8 @@ async def reassign_user_dependencies(
     Transfer all subordinates, territories (doctors, organizations), and active plans 
     from one user to another user of the same role.
     """
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
-        raise HTTPException(status_code=400, detail="Not enough permissions to reassign.")
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="Not enough permissions to reassign.")
         
     from_user = await crud_user.get(db, id=req.from_user_id)
     to_user = await crud_user.get(db, id=req.to_user_id)
@@ -213,6 +213,10 @@ async def reassign_user_dependencies(
     if from_user.role != to_user.role:
         raise HTTPException(status_code=400, detail="Cannot transfer dependencies between different roles.")
         
+    if from_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+        if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR]:
+            raise HTTPException(status_code=403, detail="Only Admin, Director, or Deputy Director can reassign manager authority.")
+            
     # Reassign subordinates
     subordinates = await db.execute(select(User).where(User.manager_id == req.from_user_id))
     for sub in subordinates.scalars().all():
@@ -220,7 +224,7 @@ async def reassign_user_dependencies(
         
     if from_user.role == UserRole.MED_REP:
         from app.models.crm import Doctor, medrep_organization
-        from app.models.sales import Plan
+        from app.models.sales import Plan, DoctorFactAssignment, BonusPayment
         import datetime
         from sqlalchemy import update, delete
         
@@ -260,14 +264,24 @@ async def reassign_user_dependencies(
                 values = [{"user_id": req.to_user_id, "organization_id": oid} for oid in org_ids_to_add]
                 await db.execute(medrep_organization.insert().values(values))
                 
-        # 3. Reassign Active/Future Plans
-        now = datetime.datetime.now()
+        # 3. Reassign ALL Plans (Historical and Future)
         await db.execute(
             update(Plan)
-            .where(
-                Plan.med_rep_id == req.from_user_id,
-                (Plan.year > now.year) | ((Plan.year == now.year) & (Plan.month >= now.month))
-            )
+            .where(Plan.med_rep_id == req.from_user_id)
+            .values(med_rep_id=req.to_user_id)
+        )
+        
+        # 4. Reassign Doctor Facts
+        await db.execute(
+            update(DoctorFactAssignment)
+            .where(DoctorFactAssignment.med_rep_id == req.from_user_id)
+            .values(med_rep_id=req.to_user_id)
+        )
+
+        # 5. Reassign Bonus Payments (incl. Pre-investments)
+        await db.execute(
+            update(BonusPayment)
+            .where(BonusPayment.med_rep_id == req.from_user_id)
             .values(med_rep_id=req.to_user_id)
         )
         

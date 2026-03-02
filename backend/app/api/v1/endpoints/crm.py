@@ -212,10 +212,25 @@ async def update_doctor(
     doctor_in: DoctorUpdate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR]:
+    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.ADMIN]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     doctor = await crud_crm.get_doctor(db, id=id)
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
+        
+    if doctor_in.is_active is False and doctor.is_active is True:
+        from app.models.sales import Plan
+        import datetime
+        from sqlalchemy import select
+        now = datetime.datetime.now()
+        plans_query = await db.execute(
+            select(Plan).where(
+                Plan.doctor_id == id,
+                (Plan.year > now.year) | ((Plan.year == now.year) & (Plan.month >= now.month))
+            )
+        )
+        if plans_query.scalars().first():
+            raise HTTPException(status_code=400, detail="Невозможно деактивировать врача. У него все еще есть активные планы на текущий или будущие месяцы.")
+
     return await crud_crm.update_doctor(db, db_obj=doctor, obj_in=doctor_in)

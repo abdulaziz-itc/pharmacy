@@ -12,6 +12,8 @@ import { useMedOrgStore } from "../../store/medOrgStore";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { getDoctors, updateDoctor } from "../../api/crm";
+import { DoctorDetailModal } from "../med-reps/components/DoctorDetailModal";
+import { getPlans, getSaleFacts, getBonusPayments } from "../../api/sales";
 
 // Fix Leaflet icon issue
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -44,6 +46,13 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
     const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
     const [isAttaching, setIsAttaching] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(false);
+
+    // Profile view states
+    const [selectedViewDoctor, setSelectedViewDoctor] = useState<any>(null);
+    const [viewDoctorPlans, setViewDoctorPlans] = useState<any[]>([]);
+    const [viewDoctorFacts, setViewDoctorFacts] = useState<any[]>([]);
+    const [viewDoctorBonuses, setViewDoctorBonuses] = useState<any[]>([]);
+    const [isLoadingDocView, setIsLoadingDocView] = useState(false);
 
     useEffect(() => {
         if (org && isOpen) {
@@ -92,6 +101,28 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
             alert("Ошибка при прикреплении врача");
         } finally {
             setIsAttaching(false);
+        }
+    };
+
+    const handleDoctorClick = async (doc: any) => {
+        setIsLoadingDocView(true);
+        try {
+            // First open modal with empty arrays to show the skeleton or basic info quickly
+            setSelectedViewDoctor(doc);
+
+            // Try fetching specific data if he has an assigned rep
+            // If the user has permission to fetch all, we just pass no med_rep_id
+            const plans = await getPlans();
+            const facts = await getSaleFacts();
+            const bonuses = await getBonusPayments();
+
+            setViewDoctorPlans(plans.filter((p: any) => p.doctor_id === doc.id));
+            setViewDoctorFacts(facts.filter((f: any) => f.doctor_id === doc.id));
+            setViewDoctorBonuses(bonuses.filter((b: any) => b.doctor_id === doc.id));
+        } catch (error) {
+            console.error("Failed to fetch doctor details", error);
+        } finally {
+            setIsLoadingDocView(false);
         }
     };
 
@@ -363,7 +394,11 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                                     <p className="text-xs text-slate-400 font-medium animate-pulse">Загрузка врачей...</p>
                                 ) : doctors.length > 0 ? (
                                     doctors.map((doc, idx) => (
-                                        <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all group cursor-pointer">
+                                        <div
+                                            key={idx}
+                                            className="p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all group cursor-pointer"
+                                            onClick={() => handleDoctorClick(doc)}
+                                        >
                                             <div className="flex items-center gap-4">
                                                 <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm shadow-sm">
                                                     {doc.full_name?.substring(0, 2).toUpperCase()}
@@ -401,6 +436,15 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                     </div>
                 </div>
             </DialogContent>
+
+            <DoctorDetailModal
+                isOpen={!!selectedViewDoctor}
+                onClose={() => setSelectedViewDoctor(null)}
+                doctor={selectedViewDoctor}
+                salesPlans={viewDoctorPlans}
+                salesFacts={viewDoctorFacts}
+                bonusPayments={viewDoctorBonuses}
+            />
         </Dialog>
     );
 }
