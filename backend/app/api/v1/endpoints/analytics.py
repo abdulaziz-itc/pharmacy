@@ -19,7 +19,13 @@ async def get_global_realtime_dashboard(
     """
     Returns real-time O(1) aggregated global statistics without heavy joins.
     """
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR]:
+    if current_user.role not in [
+        UserRole.DIRECTOR, 
+        UserRole.DEPUTY_DIRECTOR, 
+        UserRole.PRODUCT_MANAGER, 
+        UserRole.FIELD_FORCE_MANAGER, 
+        UserRole.REGIONAL_MANAGER
+    ]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
     if not month:
@@ -31,7 +37,20 @@ async def get_global_realtime_dashboard(
         func.sum(DoctorMonthlyStat.paid_amount).label('total_revenue'),
         func.sum(DoctorMonthlyStat.bonus_amount).label('total_bonus_accrued'),
         func.sum(DoctorMonthlyStat.paid_quantity).label('total_items_sold')
-    ).where(
+    )
+    
+    if current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+        from app.crud.crud_user import get_descendant_ids
+        from app.models.crm import Doctor
+        rep_ids = await get_descendant_ids(db, current_user.id)
+        if not rep_ids:
+            rep_ids = [-1]
+        
+        query = query.join(Doctor, Doctor.id == DoctorMonthlyStat.doctor_id).where(
+            Doctor.assigned_rep_id.in_(rep_ids)
+        )
+        
+    query = query.where(
         (DoctorMonthlyStat.month == month) &
         (DoctorMonthlyStat.year == year)
     )

@@ -15,45 +15,61 @@ export default function ReservationsPage() {
         queryKey: ['reservations'],
         queryFn: async () => {
             const response = await api.get('/sales/reservations/');
-            return response.data;
+            // Backend may return plain array or paginated {items: [...]}
+            return Array.isArray(response.data) ? response.data : (response.data?.items || response.data || []);
         }
     });
 
-    const columns = [
-        { header: 'ID', accessor: 'id' },
+    const columns: any[] = [
         {
+            accessorKey: 'id',
+            header: 'ID',
+        },
+        {
+            id: 'type',
             header: 'Тип',
-            accessor: (row: any) => row.med_org_id ? 'Складской отпуск' : 'Свободная продажа'
+            cell: ({ row }: any) => row.original.med_org_id ? 'Складской отпуск' : 'Свободная продажа',
         },
         {
+            id: 'recipient',
             header: 'Получатель',
-            accessor: (row: any) => row.med_org?.name || row.doctor?.full_name || 'Не указан'
+            cell: ({ row }: any) => row.original.med_org?.name || row.original.doctor?.full_name || row.original.customer_name || 'Не указан',
         },
         {
+            id: 'created_by',
             header: 'Создал',
-            accessor: (row: any) => row.med_rep?.username || 'Система'
+            cell: ({ row }: any) => row.original.created_by?.full_name || row.original.created_by?.username || 'Система',
         },
         {
+            accessorKey: 'status',
             header: 'Статус',
-            accessor: (row: any) => {
+            cell: ({ row }: any) => {
                 const statusMap: any = {
-                    pending: "Ожидает",
-                    confirmed: "Подтверждено",
-                    cancelled: "Отменено"
+                    pending: 'Ожидает',
+                    approved: 'Подтверждено',
+                    confirmed: 'Подтверждено',
+                    cancelled: 'Отменено',
                 };
-                return statusMap[row.status] || row.status;
-            }
+                return statusMap[row.original.status] || row.original.status;
+            },
         },
         {
+            id: 'date',
             header: 'Дата создания',
-            accessor: (row: any) => new Date(row.created_at).toLocaleDateString('ru-RU', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            })
-        }
+            cell: ({ row }: any) => {
+                const d = row.original.date || row.original.created_at;
+                if (!d) return '—';
+                return new Date(d).toLocaleDateString('ru-RU', {
+                    year: 'numeric', month: 'long', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit',
+                });
+            },
+        },
+        {
+            id: 'total',
+            header: 'Сумма',
+            cell: ({ row }: any) => (row.original.total_amount || 0).toLocaleString() + ' UZS',
+        },
     ];
     return (
         <PageContainer>

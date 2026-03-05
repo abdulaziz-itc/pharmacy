@@ -10,10 +10,11 @@ from app.models.sales import (
 )
 from app.schemas.sales import (
     PlanCreate, ReservationCreate, ReservationUpdate, PaymentCreate,
-    DoctorFactAssignmentCreate, BonusPaymentCreate
+    DoctorFactAssignmentCreate, BonusPaymentCreate, ReservationDataUpdate
 )
 from app.models.product import Product
 from app.models.crm import Doctor, MedicalOrganization
+from app.models.warehouse import Warehouse
 
 async def create_plan(db: AsyncSession, obj_in: PlanCreate) -> Plan:
     # Check if a plan already exists for this exact combination
@@ -138,12 +139,19 @@ async def create_reservation(db: AsyncSession, obj_in: ReservationCreate, user_i
         )
         items_db.append(db_item)
 
+    # Apply NDS
+    nds_multiplier = 1 + (obj_in.nds_percent / 100.0)
+    total_amount = total_amount * nds_multiplier
+
     db_obj = Reservation(
         created_by_id=user_id,
         customer_name=obj_in.customer_name,
         med_org_id=obj_in.med_org_id,
+        warehouse_id=obj_in.warehouse_id if hasattr(obj_in, 'warehouse_id') else None,
         description=obj_in.description,
         validity_date=obj_in.validity_date,
+        is_bonus_eligible=obj_in.is_bonus_eligible,
+        nds_percent=obj_in.nds_percent,
         total_amount=total_amount,
         status=ReservationStatus.PENDING,
         items=items_db
@@ -156,7 +164,15 @@ async def create_reservation(db: AsyncSession, obj_in: ReservationCreate, user_i
 async def get_reservation(db: AsyncSession, id: int) -> Optional[Reservation]:
     result = await db.execute(
         select(Reservation)
-        .options(selectinload(Reservation.items).selectinload(ReservationItem.product), selectinload(Reservation.created_by))
+        .options(
+            selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
+            selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
+            selectinload(Reservation.created_by),
+            selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(Reservation.invoice)
+        )
         .where(Reservation.id == id)
     )
     return result.scalars().first()
@@ -164,7 +180,15 @@ async def get_reservation(db: AsyncSession, id: int) -> Optional[Reservation]:
 async def get_reservations(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Reservation]:
     result = await db.execute(
         select(Reservation)
-        .options(selectinload(Reservation.items), selectinload(Reservation.created_by))
+        .options(
+            selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
+            selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
+            selectinload(Reservation.created_by),
+            selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(Reservation.invoice)
+        )
         .order_by(Reservation.date.desc())
         .offset(skip).limit(limit)
     )
@@ -173,8 +197,9 @@ async def get_reservations(db: AsyncSession, skip: int = 0, limit: int = 100) ->
 async def update_reservation_status(db: AsyncSession, db_obj: Reservation, status: ReservationStatus) -> Reservation:
     db_obj.status = status
     
-    # If confirmed, create Invoice automatically
-    if status == ReservationStatus.CONFIRMED and not db_obj.invoice:
+    # If confirmed (approved), create Invoice automatically
+    if status == ReservationStatus.APPROVED and not db_obj.invoice:
+        from app.models.sales import Invoice, InvoiceStatus # Ensure imports
         invoice = Invoice(
             reservation_id=db_obj.id,
             total_amount=db_obj.total_amount,
@@ -185,6 +210,65 @@ async def update_reservation_status(db: AsyncSession, db_obj: Reservation, statu
     await db.commit()
     await db.refresh(db_obj)
     return db_obj
+
+async def update_reservation_data(db: AsyncSession, reservation_id: int, obj_in: ReservationDataUpdate) -> Optional[Reservation]:
+    result = await db.execute(
+        select(Reservation).options(
+            selectinload(Reservation.created_by),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(Reservation.warehouse),
+            selectinload(Reservation.invoice).selectinload(Invoice.payments),
+            selectinload(Reservation.items).selectinload(ReservationItem.product)
+        ).where(Reservation.id == reservation_id)
+    )
+    reservation = result.scalars().first()
+    if not reservation:
+        return None
+    
+    # Ensure Invoice exists if we're updating invoice fields
+    if not reservation.invoice and (obj_in.factura_number is not None or obj_in.realization_date is not None):
+        reservation.invoice = Invoice(
+            reservation_id=reservation.id,
+            factura_number=f"INV-{reservation.id}-{int(datetime.now().timestamp())}",
+            total_amount=reservation.total_amount,
+            paid_amount=0
+        )
+        db.add(reservation.invoice)
+
+    # Update Invoice fields
+    if reservation.invoice:
+        if obj_in.factura_number is not None:
+            reservation.invoice.factura_number = obj_in.factura_number
+        if obj_in.realization_date is not None:
+            reservation.invoice.realization_date = obj_in.realization_date
+            
+    # Update ReservationItems discount
+    if obj_in.discount_percent is not None:
+        for item in reservation.items:
+            item.discount_percent = obj_in.discount_percent
+            # Recalculate total_price: price * quantity * (1 - discount/100)
+            item.total_price = item.price * item.quantity * (1 - item.discount_percent / 100)
+        
+        # Recalculate reservation total_amount
+        reservation.total_amount = sum(item.total_price for item in reservation.items)
+        if reservation.invoice:
+            reservation.invoice.total_amount = reservation.total_amount
+
+    await db.commit()
+    
+    # Re-fetch with all relationships to ensure serialization works
+    result = await db.execute(
+        select(Reservation).options(
+            selectinload(Reservation.created_by),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(Reservation.warehouse),
+            selectinload(Reservation.invoice).selectinload(Invoice.payments),
+            selectinload(Reservation.items).selectinload(ReservationItem.product)
+        ).where(Reservation.id == reservation_id)
+    )
+    return result.scalars().first()
 
 # Invoices
 async def get_invoices(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Invoice]:
@@ -299,6 +383,107 @@ async def get_doctor_fact_assignments(
         query = query.where(DoctorFactAssignment.med_rep_id == med_rep_id)
     result = await db.execute(query)
     return result.scalars().all()
+
+async def return_reservation_items(db: AsyncSession, reservation_id: int, obj_in: "ReservationReturnCreate", user_id: int):
+    from app.models.sales import ReservationStatus, Reservation, ReservationItem, InvoiceStatus, UnassignedSale
+    from app.models.crm import MedicalOrganizationStock
+    from app.models.warehouse import Stock, StockMovement, StockMovementType
+    from fastapi import HTTPException
+    
+    # 1. Get Reservation
+    query = select(Reservation).options(
+        selectinload(Reservation.items),
+        selectinload(Reservation.invoice)
+    ).where(Reservation.id == reservation_id)
+    result = await db.execute(query)
+    reservation = result.scalar_one_or_none()
+    
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+        
+    # Process returns
+    returned_amount_total = 0.0
+    for return_req in obj_in.items:
+        # Find the item
+        res_item = next((item for item in reservation.items if item.product_id == return_req.product_id), None)
+        if not res_item:
+            continue
+            
+        if return_req.quantity <= 0:
+            continue
+            
+        # Ensure we don't return more than what was un-returned
+        available_to_return = res_item.quantity - res_item.returned_quantity
+        actual_return_qty = min(return_req.quantity, available_to_return)
+        
+        if actual_return_qty <= 0:
+            continue
+            
+        res_item.returned_quantity += actual_return_qty
+        
+        # Calculate reduction in price
+        reduction = (actual_return_qty * res_item.price) * (1 - res_item.discount_percent / 100)
+        res_item.total_price -= reduction
+        returned_amount_total += reduction
+        
+        # Return to Warehouse Stock
+        if reservation.warehouse_id:
+            stk_query = select(Stock).where(
+                (Stock.warehouse_id == reservation.warehouse_id) & 
+                (Stock.product_id == return_req.product_id)
+            )
+            stk_res = await db.execute(stk_query)
+            warehouse_stock = stk_res.scalar_one_or_none()
+            if warehouse_stock:
+                warehouse_stock.quantity += actual_return_qty
+                
+                # Audit log movement
+                movement = StockMovement(
+                    stock_id=warehouse_stock.id,
+                    movement_type=StockMovementType.RETURN,
+                    quantity_change=actual_return_qty,
+                    reference_id=reservation.id
+                )
+                db.add(movement)
+                
+        # Remove from MedicalOrganizationStock if approved
+        if reservation.status == ReservationStatus.APPROVED and reservation.med_org_id:
+            pharm_stk_query = select(MedicalOrganizationStock).where(
+                (MedicalOrganizationStock.med_org_id == reservation.med_org_id) &
+                (MedicalOrganizationStock.product_id == return_req.product_id)
+            )
+            pharm_stk_res = await db.execute(pharm_stk_query)
+            pharm_stock = pharm_stk_res.scalar_one_or_none()
+            if pharm_stock:
+                pharm_stock.quantity -= actual_return_qty
+                if pharm_stock.quantity < 0:
+                    pharm_stock.quantity = 0
+
+    # Apply global reductions
+    if returned_amount_total > 0:
+        deduction_with_nds = returned_amount_total * (1 + (reservation.nds_percent / 100.0))
+        reservation.total_amount -= deduction_with_nds
+        if reservation.invoice:
+            reservation.invoice.total_amount -= deduction_with_nds
+            # Update Invoice Status
+            if reservation.invoice.paid_amount >= reservation.invoice.total_amount and reservation.invoice.total_amount > 0:
+                reservation.invoice.status = InvoiceStatus.PAID
+                
+        # Update UnassignedSale records
+        if reservation.invoice:
+            unassigned_query = select(UnassignedSale).where(UnassignedSale.invoice_id == reservation.invoice.id)
+            unassigned_res = await db.execute(unassigned_query)
+            unassigned_sales = unassigned_res.scalars().all()
+            for return_req in obj_in.items:
+                usale = next((u for u in unassigned_sales if u.product_id == return_req.product_id), None)
+                if usale:
+                    usale.total_quantity -= return_req.quantity
+                    if usale.total_quantity < 0:
+                        usale.total_quantity = 0
+
+    await db.commit()
+    await db.refresh(reservation)
+    return reservation
 
 # Bonus Payments
 async def create_bonus_payment(db: AsyncSession, obj_in: BonusPaymentCreate) -> BonusPayment:

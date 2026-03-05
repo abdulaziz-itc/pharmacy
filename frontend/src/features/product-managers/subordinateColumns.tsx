@@ -1,4 +1,4 @@
-import { type ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, Edit, Trash2, ArrowRightLeft } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import {

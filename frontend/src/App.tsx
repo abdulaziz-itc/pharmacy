@@ -15,8 +15,14 @@ import StatsPage from './features/stats/StatsPage';
 import ManufacturerPage from './features/manufacturers/ManufacturerPage';
 import ProductManagerPage from './features/product-managers/ProductManagerPage';
 import ProductManagerDetailPage from './features/product-managers/ProductManagerDetailPage';
+import DeputyDirectorsPage from './features/deputy-directors/DeputyDirectorsPage';
+import ReportsPage from './features/reports/ReportsPage';
+import AuditPage from './features/audit/AuditPage';
+import HeadOfOrdersPage from './features/head-of-orders/HeadOfOrdersPage';
+import HeadOfOrdersManagementPage from './features/head-of-orders/ManagementPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import { useAuthStore } from './store/authStore';
+import { Toaster } from 'sonner';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token);
@@ -25,8 +31,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
   return <>{children}</>;
 }
-
-import { Toaster } from 'sonner';
 
 function App() {
   return (
@@ -44,6 +48,8 @@ function App() {
             }
           >
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/deputy-directors" element={<DeputyDirectorsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/product-managers" element={<ProductManagerPage />} />
             <Route path="/product-managers/:id" element={<ProductManagerDetailPage />} />
             <Route path="/products" element={<ProductPage />} />
@@ -58,6 +64,9 @@ function App() {
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/debtors" element={<DebtorsPage />} />
             <Route path="/stats" element={<StatsPage />} />
+            <Route path="/audit" element={<AuditPage />} />
+            <Route path="/head-of-orders" element={<HeadOfOrdersPage />} />
+            <Route path="/head-of-orders-management" element={<HeadOfOrdersManagementPage />} />
           </Route>
 
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

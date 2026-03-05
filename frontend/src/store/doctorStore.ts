@@ -92,7 +92,7 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
             const y = year ?? get().selectedYear;
 
             const [rawDoctors, allBonusPayments, allPlans, products] = await Promise.all([
-                getDoctors(),
+                getDoctors({ limit: 10000 }),
                 getBonusPayments(),
                 getPlans(m, y),
                 axiosInstance.get('/products/').then(res => res.data)
@@ -193,6 +193,7 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
                     specialty_obj: d.specialty,
                     category: d.category,
                     assigned_rep: d.assigned_rep,
+                    is_active: d.is_active ?? true,
                 };
             });
 

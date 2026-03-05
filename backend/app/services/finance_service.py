@@ -38,71 +38,53 @@ class FinancialService:
                 else:
                     invoice.status = InvoiceStatus.PARTIAL
                 
-                # 2. Create Payment Record
+                # 2. Create Payment Record (Postupleniya)
                 payment = Payment(
                     invoice_id=invoice.id,
                     amount=obj_in.amount,
                     payment_type=obj_in.payment_type,
                     processed_by_id=processor_id,
-                    allocated_doctor_id=obj_in.allocated_doctor_id # Can be null if MedRep hasn't allocated yet
+                    comment=obj_in.comment
                 )
                 db.add(payment)
-                await db.flush() # Need payment ID for Ledger
+                await db.flush() 
                 
-                # 3. Calculate Bonus & Stats (Pro-rata or Item-level logic)
-                # For simplicity in this demo, we assume the payment applies proportionally
-                # or triggers stats. If it's fully paid, we process all items.
-                # In production, specific items from an invoice might be mapped.
+                # 3. Update UnassignedSale paid quantities (Pro-rata logic)
+                # We calculate what percentage of the invoice is now paid
+                total_paid_ratio = min(1.0, invoice.paid_amount / invoice.total_amount)
                 
-                if invoice.status == InvoiceStatus.PAID and obj_in.allocated_doctor_id:
-                    # Fetch reservation items to calculate bonus
-                    items_query = select(ReservationItem, Product.marketing_expense).join(Product).where(
-                        ReservationItem.reservation_id == invoice.reservation_id
-                    )
-                    items_result = await db.execute(items_query)
-                    items = items_result.all()
+                from app.models.sales import UnassignedSale
+                unassigned_query = select(UnassignedSale).where(UnassignedSale.invoice_id == invoice.id)
+                unassigned_result = await db.execute(unassigned_query)
+                unassigned_records = unassigned_result.scalars().all()
+                
+                for rec in unassigned_records:
+                    # New paid quantity based on total paid ratio
+                    new_paid_qty = int(rec.total_quantity * total_paid_ratio)
+                    rec.paid_quantity = new_paid_qty
+                
+                # 4. Decrement Pharmacy Stock on 100% payment (Ostatki Aptek)
+                if invoice.status == InvoiceStatus.PAID:
+                    from app.models.crm import MedicalOrganizationStock
+                    from app.models.sales import Reservation, ReservationItem
+                    from sqlalchemy.orm import selectinload
                     
-                    month = datetime.utcnow().month
-                    year = datetime.utcnow().year
+                    # Fetch reservation items to know what to decrement
+                    res_query = select(Reservation).options(selectinload(Reservation.items)).where(Reservation.id == invoice.reservation_id)
+                    res_result = await db.execute(res_query)
+                    reservation = res_result.scalar_one_or_none()
                     
-                    for item, marketing_expense in items:
-                        # 3a. Update Real-Time Counter
-                        stat_query = select(DoctorMonthlyStat).where(
-                            (DoctorMonthlyStat.doctor_id == obj_in.allocated_doctor_id) &
-                            (DoctorMonthlyStat.product_id == item.product_id) &
-                            (DoctorMonthlyStat.month == month) &
-                            (DoctorMonthlyStat.year == year)
-                        )
-                        stat_res = await db.execute(stat_query)
-                        stat = stat_res.scalar_one_or_none()
-                        
-                        earned_bonus = item.quantity * marketing_expense
-                        
-                        if stat:
-                            stat.paid_quantity += item.quantity
-                            stat.paid_amount += item.total_price
-                            stat.bonus_amount += earned_bonus
-                        else:
-                            new_stat = DoctorMonthlyStat(
-                                doctor_id=obj_in.allocated_doctor_id,
-                                product_id=item.product_id,
-                                month=month, year=year,
-                                paid_quantity=item.quantity,
-                                paid_amount=item.total_price,
-                                bonus_amount=earned_bonus
-                            )
-                            db.add(new_stat)
+                    if reservation:
+                        for item in reservation.items:
+                            stk_query = select(MedicalOrganizationStock).where(
+                                (MedicalOrganizationStock.med_org_id == reservation.med_org_id) &
+                                (MedicalOrganizationStock.product_id == item.product_id)
+                            ).with_for_update()
+                            stk_result = await db.execute(stk_query)
+                            pharm_stock = stk_result.scalar_one_or_none()
                             
-                        # 3b. Add to Bonus Ledger (Accrual)
-                        accrual = BonusLedger(
-                            doctor_id=obj_in.allocated_doctor_id,
-                            amount=earned_bonus, # Positive
-                            ledger_type=LedgerType.ACCRUAL,
-                            invoice_item_id=item.id,
-                            payment_id=payment.id,
-                            notes=f"Bonus for product {item.product_id}"
-                        )
-                        db.add(accrual)
+                            if pharm_stock:
+                                pharm_stock.quantity = max(0, pharm_stock.quantity - item.quantity)
                 
                 await db.commit()
                 return payment
@@ -110,3 +92,73 @@ class FinancialService:
             except Exception as e:
                 await transaction.rollback()
                 raise HTTPException(status_code=500, detail=f"Failed to process payment: {str(e)}")
+
+    @staticmethod
+    async def assign_unassigned_sale(db: AsyncSession, med_rep_id: int, unassigned_id: int, doctor_id: int, quantity: int):
+        """
+        MedRep assigns a paid (but unassigned) product quantity to a specific doctor.
+        Triggers:
+        1. DoctorFactAssignment creation
+        2. BonusLedger accrual
+        """
+        from app.models.sales import UnassignedSale, DoctorFactAssignment
+        from app.models.ledger import BonusLedger, LedgerType
+        from app.models.product import Product
+
+        async with db.begin_nested() as transaction:
+            try:
+                # 1. Fetch unassigned record
+                query = select(UnassignedSale).where(
+                    (UnassignedSale.id == unassigned_id) & 
+                    (UnassignedSale.med_rep_id == med_rep_id)
+                ).with_for_update()
+                result = await db.execute(query)
+                rec = result.scalar_one_or_none()
+
+                if not rec:
+                    raise HTTPException(status_code=404, detail="Unassigned record not found or not owned by you")
+
+                available = rec.paid_quantity - rec.assigned_quantity
+                if quantity > available:
+                    raise HTTPException(status_code=400, detail=f"Only {available} units available for assignment")
+
+                # 2. Fetch product for marketing_expense
+                prod_query = select(Product).where(Product.id == rec.product_id)
+                prod_result = await db.execute(prod_query)
+                product = prod_result.scalar_one()
+
+                # 3. Create Fact Assignment
+                now = datetime.utcnow()
+                fact = DoctorFactAssignment(
+                    med_rep_id=med_rep_id,
+                    doctor_id=doctor_id,
+                    product_id=rec.product_id,
+                    quantity=quantity,
+                    month=now.month,
+                    year=now.year
+                )
+                db.add(fact)
+                await db.flush()
+
+                # 4. Create Bonus Ledger (Pro-rata bonus realization)
+                bonus_amount = quantity * (product.marketing_expense or 0)
+                accrual = BonusLedger(
+                    doctor_id=doctor_id,
+                    amount=bonus_amount,
+                    ledger_type=LedgerType.ACCRUAL,
+                    payment_id=None, # This is an assignment, not a direct payment record
+                    notes=f"Bonus assigned from Invoice #{rec.invoice_id} ({quantity} units)"
+                )
+                db.add(accrual)
+
+                # 5. Update Record
+                rec.assigned_quantity += quantity
+                
+                await db.commit()
+                return fact
+            except HTTPException:
+                await transaction.rollback()
+                raise
+            except Exception as e:
+                await transaction.rollback()
+                raise HTTPException(status_code=500, detail=f"Assignment failed: {str(e)}")

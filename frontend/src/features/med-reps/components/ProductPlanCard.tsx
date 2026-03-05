@@ -30,6 +30,8 @@ interface Plan {
     };
     target_amount: number;
     target_quantity: number;
+    month?: number;
+    year?: number;
 }
 
 interface Fact {
@@ -238,6 +240,14 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
     };
 
 
+    // Filter plans by selected month/year
+    const filteredPlans = React.useMemo(() =>
+        plans.filter(p => {
+            if (!p.month && !p.year) return true; // no month info — show always
+            return p.month === currentMonth && p.year === currentYear;
+        }),
+        [plans, currentMonth, currentYear]);
+
     // Group by product first to get the unified stats
     const productStats = React.useMemo(() => {
         const stats = new Map<number, {
@@ -259,7 +269,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             }>
         }>();
 
-        plans.forEach(p => {
+        filteredPlans.forEach(p => {
             if (!p.product) return;
             const pid = p.product.id;
             const current = stats.get(pid) || {
@@ -332,7 +342,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
         });
 
         return Array.from(stats.values());
-    }, [plans, facts]);
+    }, [filteredPlans, facts]);
 
     // Calculate totals based on the aggregated productStats
     const totalPlanQuantity = productStats.reduce((sum, p) => sum + Math.max(p.mainPlanQty, p.doctorPlans.reduce((acc, d) => acc + d.planQty, 0)), 0);
@@ -613,8 +623,8 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                         </SelectTrigger>
                                         <SelectContent className="rounded-xl border-slate-200 max-h-[200px]">
                                             {doctors.map(d => (
-                                                <SelectItem key={d.id} value={d.id.toString()} className={`font-medium ${!d.is_active ? 'text-slate-400 opacity-70' : ''}`}>
-                                                    {d.full_name} {!d.is_active && "(Faol emas)"}
+                                                <SelectItem key={d.id} value={d.id.toString()} className={`font-medium ${d.is_active === false ? 'text-slate-400 opacity-70' : ''}`}>
+                                                    {d.full_name} {d.is_active === false && "(Faol emas)"}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -812,7 +822,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                                     Имя доктора ({docPlan.doctorName})
                                                     {(() => {
                                                         const doc = doctors.find(d => d.id === docPlan.doctorId);
-                                                        return doc && !doc.is_active ? <span className="opacity-70">(Faol emas)</span> : null;
+                                                        return doc && doc.is_active === false ? <span className="opacity-70">(Faol emas)</span> : null;
                                                     })()}
                                                 </div>
                                                 <div className="flex items-center gap-6 shrink-0 text-[13px] text-emerald-900/80">

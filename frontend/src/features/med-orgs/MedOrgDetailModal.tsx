@@ -3,7 +3,7 @@ import {
     Dialog,
     DialogContent,
 } from "../../components/ui/dialog";
-import { Building2, MapPin, User, Globe, Tag, Info, X, Edit2, Check, Package, Users, Phone } from "lucide-react";
+import { Building2, MapPin, User, Globe, Tag, Info, X, Edit2, Check, Package, Users, Phone, ShoppingCart } from "lucide-react";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { getDoctors, updateDoctor } from "../../api/crm";
 import { DoctorDetailModal } from "../med-reps/components/DoctorDetailModal";
 import { getPlans, getSaleFacts, getBonusPayments } from "../../api/sales";
+import { CreateReservationModal } from "../head-of-orders/CreateReservationModal";
 
 // Fix Leaflet icon issue
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -53,6 +54,7 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
     const [viewDoctorFacts, setViewDoctorFacts] = useState<any[]>([]);
     const [viewDoctorBonuses, setViewDoctorBonuses] = useState<any[]>([]);
     const [isLoadingDocView, setIsLoadingDocView] = useState(false);
+    const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
 
     useEffect(() => {
         if (org && isOpen) {
@@ -63,6 +65,7 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                 brand: org.brand || '',
                 contact_phone: org.contact_phone || '',
                 director_name: org.director_name || '',
+                inn: org.inn || '',
             });
             setIsEditing(false);
 
@@ -182,6 +185,13 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                         >
                             <X className="w-5 h-5" />
                         </button>
+                        <button
+                            onClick={() => setIsReservationModalOpen(true)}
+                            className="p-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center gap-2 px-4 shadow-lg shadow-emerald-500/20"
+                        >
+                            <ShoppingCart className="w-4 h-4" />
+                            <span className="text-xs font-bold uppercase tracking-wider">Bron Yaratish</span>
+                        </button>
                     </div>
 
                     <div className="flex items-center gap-8">
@@ -237,11 +247,12 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                 {/* Content Section */}
                 <div className="px-10 -mt-10 pb-10 space-y-8 relative z-10">
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                         {[
                             { label: "Бренд", field: 'brand', icon: Tag, color: "text-emerald-600", bg: "bg-emerald-50" },
                             { label: "Директор", field: 'director_name', icon: User, color: "text-blue-600", bg: "bg-blue-50" },
                             { label: "Телефон", field: 'contact_phone', icon: Phone, color: "text-indigo-600", bg: "bg-indigo-50" },
+                            { label: "ИНН", field: 'inn', icon: Info, color: "text-violet-600", bg: "bg-violet-50" },
                             { label: "Представитель", value: org.assigned_reps?.[0]?.full_name || 'Не назначен', icon: Globe, color: "text-amber-600", bg: "bg-amber-50" },
                         ].map((item, i) => (
                             <div key={i} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm transition-all duration-300 group">
@@ -444,6 +455,18 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                 salesPlans={viewDoctorPlans}
                 salesFacts={viewDoctorFacts}
                 bonusPayments={viewDoctorBonuses}
+            />
+
+            <CreateReservationModal
+                isOpen={isReservationModalOpen}
+                onClose={() => setIsReservationModalOpen(false)}
+                onSuccess={() => {
+                    // Optionally refresh stock/etc
+                    fetchOrgStock(org.id).then(data => setStock(data));
+                }}
+                initialOrgId={org.id}
+                initialOrgType={org.org_type}
+                initialMedRepId={org.assigned_reps?.[0]?.id}
             />
         </Dialog>
     );

@@ -10,6 +10,7 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { updateUser } from '../../../api/user';
 import { type SubordinateUser } from '../subordinateColumns';
+import { toast } from 'sonner';
 
 interface EditSubordinateModalProps {
     isOpen: boolean;
@@ -52,11 +53,16 @@ export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditS
             }
 
             await updateUser(user.id, updatePayload);
+            toast.success('Данные успешно сохранены!');
             onSuccess();
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to update user:', error);
-            // Optionally could show an error toast here
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error('Произошла ошибка при сохранении данных');
+            }
         } finally {
             setIsLoading(false);
         }

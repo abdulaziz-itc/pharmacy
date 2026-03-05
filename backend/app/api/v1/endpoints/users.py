@@ -1,6 +1,6 @@
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
 from pydantic.networks import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +26,7 @@ async def read_users(
     """
     Retrieve users. Only for specific roles (e.g., DEPUTY_DIRECTOR).
     """
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR]:
+    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     users = await crud_user.get_multi(
@@ -40,6 +40,7 @@ async def create_user(
     db: AsyncSession = Depends(deps.get_db),
     user_in: UserCreate,
     current_user: User = Depends(deps.get_current_user),
+    request: Request,
 ) -> Any:
     """
     Create new user.
@@ -60,6 +61,12 @@ async def create_user(
             detail="The user with this username already exists in the system.",
         )
     user = await crud_user.create(db, obj_in=user_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "CREATE", "User", user.id,
+        f"Yangi foydalanuvchi yaratildi: {user.username} ({user.role})",
+        request
+    )
     return user
 
 @router.put("/{user_id}", response_model=UserSchema)
@@ -69,6 +76,7 @@ async def update_user(
     user_id: int,
     user_in: UserUpdate,
     current_user: User = Depends(deps.get_current_user),
+    request: Request,
 ) -> Any:
     """
     Update a user.
@@ -131,6 +139,12 @@ async def update_user(
             )
             
     user = await crud_user.update(db, db_obj=user, obj_in=user_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "UPDATE", "User", user.id,
+        f"Foydalanuvchi ma'lumotlari yangilandi: {user.username}",
+        request
+    )
     return user
 
 @router.get("/me", response_model=UserSchema)
@@ -171,6 +185,11 @@ async def get_med_reps(
         filtered = [u for u in filtered if username.lower() in u.username.lower()]
     if full_name:
         filtered = [u for u in filtered if full_name.lower() in u.full_name.lower()]
+        
+    from app.crud.crud_user import get_descendant_ids
+    if current_user.role in [UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.PRODUCT_MANAGER]:
+        descendant_ids = await get_descendant_ids(db, current_user.id)
+        filtered = [u for u in filtered if u.id in descendant_ids]
     
     # Build response with manager name
     result = []
@@ -193,6 +212,7 @@ class ReassignRequest(BaseModel):
 
 @router.post("/reassign")
 async def reassign_user_dependencies(
+    request: Request,
     req: ReassignRequest,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
@@ -227,63 +247,87 @@ async def reassign_user_dependencies(
         from app.models.sales import Plan, DoctorFactAssignment, BonusPayment
         import datetime
         from sqlalchemy import update, delete
-        
-        # 1. Reassign Doctors
+
+        # 1. Transfer Doctors to new rep
         await db.execute(
             update(Doctor)
             .where(Doctor.assigned_rep_id == req.from_user_id)
             .values(assigned_rep_id=req.to_user_id)
         )
-        
-        # 2. Reassign Organizations (Many to Many)
-        # Fetch orgs assigned to the 'from' user
+
+        # 2. Transfer Organizations (pharmacies) to new rep as-is
         orgs_query = await db.execute(
             select(medrep_organization.c.organization_id)
             .where(medrep_organization.c.user_id == req.from_user_id)
         )
         org_ids = [row[0] for row in orgs_query.all()]
-        
+
         if org_ids:
-            # Check if 'to' user already has any of these orgs to prevent PK violations
             existing_orgs_query = await db.execute(
                 select(medrep_organization.c.organization_id)
-                .where(medrep_organization.c.user_id == req.to_user_id, medrep_organization.c.organization_id.in_(org_ids))
+                .where(
+                    medrep_organization.c.user_id == req.to_user_id,
+                    medrep_organization.c.organization_id.in_(org_ids)
+                )
             )
             existing_org_ids = [row[0] for row in existing_orgs_query.all()]
-            
             org_ids_to_add = [oid for oid in org_ids if oid not in existing_org_ids]
-            
-            # Delete from old
+
+            # Remove from old rep
             await db.execute(
                 delete(medrep_organization)
                 .where(medrep_organization.c.user_id == req.from_user_id)
             )
-            
-            # Insert to new
+            # Assign to new rep
             if org_ids_to_add:
-                values = [{"user_id": req.to_user_id, "organization_id": oid} for oid in org_ids_to_add]
-                await db.execute(medrep_organization.insert().values(values))
-                
-        # 3. Reassign ALL Plans (Historical and Future)
-        await db.execute(
-            update(Plan)
-            .where(Plan.med_rep_id == req.from_user_id)
-            .values(med_rep_id=req.to_user_id)
-        )
-        
-        # 4. Reassign Doctor Facts
-        await db.execute(
-            update(DoctorFactAssignment)
-            .where(DoctorFactAssignment.med_rep_id == req.from_user_id)
-            .values(med_rep_id=req.to_user_id)
-        )
+                await db.execute(
+                    medrep_organization.insert().values(
+                        [{"user_id": req.to_user_id, "organization_id": oid} for oid in org_ids_to_add]
+                    )
+                )
 
-        # 5. Reassign Bonus Payments (incl. Pre-investments)
-        await db.execute(
-            update(BonusPayment)
-            .where(BonusPayment.med_rep_id == req.from_user_id)
-            .values(med_rep_id=req.to_user_id)
+        # 3. Plans/Facts/Bonuses history stays with old rep.
+        #    Only DELETE doctor-specific plans that have NO fact recorded.
+        #    (Plans with a fact = real historical data → keep with old rep)
+        #    General (no doctor_id) plans also stay with old rep.
+
+        # Fetch all doctor-assigned plans for old rep
+        doctor_plans_result = await db.execute(
+            select(Plan).where(
+                Plan.med_rep_id == req.from_user_id,
+                Plan.doctor_id != None
+            )
         )
+        doctor_plans = doctor_plans_result.scalars().all()
+
+        # Fetch all doctor fact assignments for old rep
+        facts_result = await db.execute(
+            select(DoctorFactAssignment).where(
+                DoctorFactAssignment.med_rep_id == req.from_user_id
+            )
+        )
+        facts = facts_result.scalars().all()
+        # Set of (doctor_id, product_id) combos that have an actual fact
+        fact_keys = {(f.doctor_id, f.product_id) for f in facts}
+
+        # Delete plans that have NO recorded fact (empty future plans)
+        plans_to_delete = [
+            p.id for p in doctor_plans
+            if (p.doctor_id, p.product_id) not in fact_keys
+        ]
+        if plans_to_delete:
+            await db.execute(
+                delete(Plan).where(Plan.id.in_(plans_to_delete))
+            )
+
+        # Everything else (general plans, all facts, all bonuses) stays
+        # with old rep — no update needed.
         
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "REASSIGN", "User", req.from_user_id,
+        f"Vakolatlar o'tkazildi: {from_user.username} -> {to_user.username}",
+        request
+    )
     await db.commit()
     return {"msg": "Successfully transferred all dependencies."}

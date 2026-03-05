@@ -17,25 +17,43 @@ import {
     ChevronLeft,
     ChevronRight,
     ImagePlus,
+    Activity,
+    Warehouse,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuthStore } from '../store/authStore';
 
-const sidebarItems = [
-    { icon: LayoutDashboard, label: 'Дашборд', href: '/dashboard' },
-    { icon: UserCheck, label: 'Менеджеры продукта', href: '/product-managers' },
-    { icon: Users, label: 'Мед представители', href: '/med-reps' },
-    { icon: Package, label: 'Продукты', href: '/products' },
-    { icon: Map, label: 'Регионы', href: '/regions' },
-    { icon: Building2, label: 'Организации', href: '/med-orgs' },
-    { icon: Factory, label: 'Производители', href: '/manufacturers' },
-    { icon: Stethoscope, label: 'Врачи', href: '/doctors' },
-    { icon: CalendarRange, label: 'Брони', href: '/reservations' },
-    { icon: FileText, label: 'Инвойсы', href: '/invoices' },
-    { icon: Wallet, label: 'Платежи', href: '/payments' },
-    { icon: CreditCard, label: 'Дебиторы', href: '/debtors' },
-    { icon: PieChart, label: 'Статистика', href: '/stats' },
-];
+const getSidebarItems = (role?: string, userId?: number) => {
+    const allItems = [
+        { icon: LayoutDashboard, label: 'Дашборд', href: '/dashboard', roles: ['admin', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'med_rep', 'head_of_orders'] },
+        { icon: PieChart, label: 'Расширенные отчеты', href: '/reports', roles: ['admin', 'director'] },
+        { icon: UserCheck, label: 'Зам. Директора', href: '/deputy-directors', roles: ['admin', 'director'] },
+        { icon: UserCheck, label: 'Склад-менеджеры', href: '/head-of-orders-management', roles: ['admin', 'director'] },
+        { icon: UserCheck, label: 'Моя команда', href: `/product-managers/${userId}`, roles: ['product_manager'] },
+        { icon: UserCheck, label: 'Менеджеры продукта', href: '/product-managers', roles: ['admin', 'director', 'deputy_director'] },
+        { icon: Users, label: 'Мед представители', href: '/med-reps', roles: ['admin', 'director', 'deputy_director', 'product_manager'] },
+        { icon: Package, label: 'Продукты', href: '/products', roles: ['admin', 'director', 'deputy_director', 'product_manager'] },
+        { icon: Map, label: 'Регионы', href: '/regions', roles: ['admin', 'director', 'deputy_director', 'product_manager'] },
+        { icon: Building2, label: 'Организации', href: '/med-orgs', roles: ['admin', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager'] },
+        { icon: Factory, label: 'Производители', href: '/manufacturers', roles: ['admin', 'director', 'deputy_director'] },
+        { icon: Stethoscope, label: 'Врачи', href: '/doctors', roles: ['admin', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'med_rep'] },
+        { icon: CalendarRange, label: 'Брони', href: '/reservations', roles: ['admin', 'director', 'deputy_director'] },
+        { icon: FileText, label: 'Инвойсы', href: '/invoices', roles: ['admin', 'director', 'deputy_director'] },
+        { icon: Wallet, label: 'Платежи', href: '/payments', roles: ['admin', 'director', 'deputy_director'] },
+        { icon: CreditCard, label: 'Дебиторы', href: '/debtors', roles: ['admin', 'director', 'deputy_director'] },
+        { icon: PieChart, label: 'Статистика', href: '/stats', roles: ['admin', 'director', 'deputy_director'] },
+        { icon: Activity, label: 'Audit (Log)', href: '/audit', roles: ['admin', 'director'] },
+        // Head of Orders
+        { icon: Factory, label: 'Произв. компании', href: '/head-of-orders?tab=manufacturers', roles: ['head_of_orders'] },
+        { icon: CalendarRange, label: 'Брони', href: '/head-of-orders?tab=reservations', roles: ['head_of_orders'] },
+        { icon: FileText, label: 'Фактура', href: '/head-of-orders?tab=invoices', roles: ['head_of_orders'] },
+        { icon: Building2, label: 'Оптовые компании', href: '/head-of-orders?tab=wholesale', roles: ['head_of_orders'] },
+        { icon: PieChart, label: 'Отчеты', href: '/head-of-orders?tab=reports', roles: ['head_of_orders'] },
+    ];
+
+    if (!role) return [];
+    return allItems.filter(item => item.roles.includes(role));
+};
 
 export function Sidebar() {
     const location = useLocation();
@@ -63,10 +81,12 @@ export function Sidebar() {
         fileInputRef.current?.click();
     };
 
+    const currentSidebarItems = getSidebarItems(user?.role, user?.id);
+
     return (
         <div
             className={cn(
-                "flex flex-col h-full shrink-0 z-20 transition-all duration-500 ease-in-out relative",
+                "flex flex-col h-full shrink-0 z-20 transition-all duration-500 ease-in-out relative overflow-hidden",
                 "bg-gradient-to-b from-[#0f172a] via-[#1e1b4b] to-[#0f172a]",
                 "shadow-[4px_0_24px_-2px_rgba(99,102,241,0.15)]",
                 collapsed ? "w-20" : "w-64"
@@ -152,12 +172,18 @@ export function Sidebar() {
 
             {/* Navigation */}
             <nav className={cn(
-                "flex-1 py-4 space-y-0.5 overflow-y-auto custom-scrollbar",
+                "flex-1 py-4 space-y-0.5 overflow-y-hidden",
                 collapsed ? "px-2" : "px-3"
             )}>
-                {sidebarItems.map((item) => {
+                {currentSidebarItems.map((item) => {
                     const Icon = item.icon;
-                    const isActive = location.pathname.startsWith(item.href);
+                    const fullPath = location.pathname + location.search;
+                    // For tab-based links (containing ?tab=), match full URL; otherwise match pathname prefix
+                    const isCurrentlyActive = item.href.includes('?')
+                        ? fullPath === item.href
+                        : (item.href === '/product-managers'
+                            ? location.pathname === item.href
+                            : location.pathname.startsWith(item.href));
 
                     return (
                         <Link
@@ -167,7 +193,7 @@ export function Sidebar() {
                             className={cn(
                                 "group flex items-center rounded-xl transition-all duration-300 relative",
                                 collapsed ? "px-0 py-3 justify-center" : "px-4 py-2.5",
-                                isActive
+                                isCurrentlyActive
                                     ? "bg-gradient-to-r from-indigo-600/90 to-violet-600/80 text-white shadow-lg shadow-indigo-600/25"
                                     : "text-slate-400 hover:bg-white/5 hover:text-white"
                             )}
@@ -175,14 +201,14 @@ export function Sidebar() {
                             <Icon className={cn(
                                 "shrink-0 transition-all duration-300",
                                 collapsed ? "w-5 h-5" : "w-5 h-5 mr-3",
-                                isActive
+                                isCurrentlyActive
                                     ? "text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]"
                                     : "text-slate-500 group-hover:text-indigo-400"
                             )} />
                             {!collapsed && (
                                 <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>
                             )}
-                            {isActive && (
+                            {isCurrentlyActive && (
                                 <div className={cn(
                                     "rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.5)]",
                                     collapsed

@@ -18,7 +18,7 @@ async def get_dashboard_stats(
     current_user: Any = Depends(deps.get_current_user),
 ) -> Any:
     # 1. Total Sales (Confirmed Reservations)
-    total_sales_query = select(func.sum(Reservation.total_amount)).where(Reservation.status == ReservationStatus.CONFIRMED)
+    total_sales_query = select(func.sum(Reservation.total_amount)).where(Reservation.status == ReservationStatus.APPROVED)
     total_sales_result = await db.execute(total_sales_query)
     total_sales = total_sales_result.scalar() or 0.0
 
@@ -67,7 +67,7 @@ async def get_dashboard_stats(
             desc=f"Заказ на сумму {r.total_amount:,.0f} сум",
             amount=f"+{r.total_amount:,.0f} сум",
             time="Сегодня",
-            color="green" if r.status == ReservationStatus.CONFIRMED else "orange"
+            color="green" if r.status == ReservationStatus.APPROVED else "orange"
         ))
 
     # Sort and limit activities

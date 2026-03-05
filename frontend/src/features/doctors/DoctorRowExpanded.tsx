@@ -38,6 +38,16 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
     const [loading, setLoading] = React.useState(true);
     const [tab, setTab] = React.useState<'plans' | 'bonuses'>('plans');
 
+    // Bonus history filter
+    const [bonusShowAll, setBonusShowAll] = React.useState(true);
+    const [bonusFilterMonth, setBonusFilterMonth] = React.useState(new Date().getMonth() + 1);
+    const [bonusFilterYear, setBonusFilterYear] = React.useState(new Date().getFullYear());
+
+    const filteredBonusRows = React.useMemo(() => {
+        if (bonusShowAll) return bonusRows;
+        return bonusRows.filter(b => b.for_month === bonusFilterMonth && b.for_year === bonusFilterYear);
+    }, [bonusRows, bonusShowAll, bonusFilterMonth, bonusFilterYear]);
+
     React.useEffect(() => {
         const load = async () => {
             setLoading(true);
@@ -99,6 +109,7 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
                 const productIds = [...new Set([
                     ...Object.keys(planMap).map(Number),
                     ...Object.keys(factMap).map(Number),
+                    ...Object.keys(bonusByProduct).map(Number),
                 ])];
 
                 setRows(productIds.map(pid => ({
@@ -119,7 +130,7 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
     }, [doctor.id, month, year]);
 
     const fmt = (n: number) => new Intl.NumberFormat('ru-RU').format(n);
-    const totalBonus = bonusRows.reduce((s, b) => s + b.amount, 0);
+    const totalBonus = filteredBonusRows.reduce((s, b) => s + b.amount, 0);
 
     return (
         <div className="bg-slate-50/50 p-6 shadow-inner border-y border-slate-100">
@@ -207,11 +218,44 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
                         <div className="p-8 text-center text-sm text-slate-400 font-medium">Нет бонусных выплат для данного врача</div>
                     ) : (
                         <div>
+                            {/* Filter controls */}
+                            <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-2 flex-wrap bg-white">
+                                <button
+                                    onClick={() => setBonusShowAll(prev => !prev)}
+                                    className={`h-7 px-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all ${bonusShowAll
+                                            ? 'bg-fuchsia-600 text-white border-fuchsia-600'
+                                            : 'bg-white text-slate-500 border-slate-200 hover:border-fuchsia-300'
+                                        }`}
+                                >
+                                    За всё время
+                                </button>
+                                {!bonusShowAll && (
+                                    <>
+                                        <select
+                                            className="h-7 px-2 rounded-xl border border-slate-200 bg-white text-[10px] font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/30"
+                                            value={bonusFilterMonth}
+                                            onChange={(e) => setBonusFilterMonth(parseInt(e.target.value))}
+                                        >
+                                            {MONTHS_RU.map((m, i) => (
+                                                <option key={i + 1} value={i + 1}>{m}</option>
+                                            ))}
+                                        </select>
+                                        <input
+                                            type="number"
+                                            className="h-7 w-16 rounded-xl border border-slate-200 bg-white text-[10px] font-bold text-slate-600 text-center focus:outline-none focus:ring-2 focus:ring-fuchsia-400/30"
+                                            value={bonusFilterYear}
+                                            onChange={(e) => setBonusFilterYear(parseInt(e.target.value) || new Date().getFullYear())}
+                                        />
+                                    </>
+                                )}
+                            </div>
                             {/* Total strip */}
                             <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-4 bg-fuchsia-50/50">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Итого выплачено</span>
                                 <span className="text-base font-black text-fuchsia-700">{fmt(totalBonus)} UZS</span>
-                                <span className="ml-2 text-[10px] font-semibold text-slate-400">за все периоды</span>
+                                <span className="ml-2 text-[10px] font-semibold text-slate-400">
+                                    {bonusShowAll ? 'за все периоды' : `${MONTHS_RU[bonusFilterMonth - 1]} ${bonusFilterYear}`}
+                                </span>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-auto min-w-full text-sm text-left table-auto">
@@ -232,7 +276,7 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {bonusRows.map(b => (
+                                        {filteredBonusRows.map(b => (
                                             <tr key={b.id} className="hover:bg-fuchsia-50/20 transition-colors">
                                                 <td className="px-3 py-3">
                                                     <span className="font-bold text-fuchsia-700 text-xs">

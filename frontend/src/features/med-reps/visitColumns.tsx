@@ -1,4 +1,4 @@
-import { type ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { format } from "date-fns"
 
 export interface Visit {

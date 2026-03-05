@@ -95,7 +95,7 @@ export default function DashboardPage() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <MetricCard
                     title="Общие продажи"
-                    value={`${stats?.total_sales.toLocaleString()} сум`}
+                    value={`${stats?.total_sales?.toLocaleString() ?? 0} сум`}
                     change={stats?.total_sales_change}
                     isUp={true}
                     icon={TrendingUp}
@@ -103,7 +103,7 @@ export default function DashboardPage() {
                 />
                 <MetricCard
                     title="Количество проданных товаров"
-                    value={stats?.active_doctors.toLocaleString()}
+                    value={stats?.active_doctors?.toLocaleString() ?? 0}
                     change={stats?.active_doctors_change}
                     isUp={true}
                     icon={Users}
@@ -111,7 +111,7 @@ export default function DashboardPage() {
                 />
                 <MetricCard
                     title="Начисленные бонусы"
-                    value={`${stats?.pending_reservations.toLocaleString()} сум`}
+                    value={`${stats?.pending_reservations?.toLocaleString() ?? 0} сум`}
                     change={stats?.pending_reservations_label}
                     isUp={false}
                     icon={CalendarClock}
@@ -120,7 +120,7 @@ export default function DashboardPage() {
                 />
                 <MetricCard
                     title="Дебиторская задолженность"
-                    value={`${stats?.total_debt.toLocaleString()} сум`}
+                    value={`${stats?.total_debt?.toLocaleString() ?? 0} сум`}
                     change={stats?.total_debt_change}
                     isUp={false}
                     icon={Wallet}
@@ -160,7 +160,7 @@ export default function DashboardPage() {
                             />
                         </svg>
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                            <p className="text-4xl font-black text-blue-600 drop-shadow-sm tracking-tight">{stats?.growth_peak}</p>
+                            <p className="text-4xl font-black text-blue-600 drop-shadow-sm tracking-tight">{stats?.growth_peak ?? "0%"}</p>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Пик роста</p>
                         </div>
                     </CardContent>
@@ -174,7 +174,7 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent className="pt-6">
                         <div className="space-y-6">
-                            {stats?.recent_activities.map((activity, index) => (
+                            {stats?.recent_activities?.map((activity, index) => (
                                 <ActivityItem
                                     key={index}
                                     title={activity.title}

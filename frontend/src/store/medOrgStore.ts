@@ -16,12 +16,15 @@ export interface MedicalOrganization {
     assigned_reps?: any[];
     assigned_rep_ids?: number[];
     contact_phone?: string;
+    inn?: string;
 }
 
 interface MedOrgStore {
     medOrgs: MedicalOrganization[];
+    pharmacyStocks: any[];
     isLoading: boolean;
     fetchMedOrgs: (regionId?: number) => Promise<void>;
+    fetchPharmacyStocks: () => Promise<void>;
     createMedOrg: (data: Partial<MedicalOrganization>) => Promise<void>;
     updateMedOrg: (id: number, data: Partial<MedicalOrganization>) => Promise<void>;
     fetchOrgStock: (id: number) => Promise<any[]>;
@@ -30,11 +33,23 @@ interface MedOrgStore {
 
 export const useMedOrgStore = create<MedOrgStore>((set) => ({
     medOrgs: [],
+    pharmacyStocks: [],
     isLoading: false,
+    fetchPharmacyStocks: async () => {
+        set({ isLoading: true });
+        try {
+            const response = await axiosInstance.get('/domain/crm/pharmacy-stocks/');
+            set({ pharmacyStocks: response.data, isLoading: false });
+        } catch (error) {
+            console.error('Error fetching pharmacy stocks:', error);
+            set({ isLoading: false });
+        }
+    },
     fetchMedOrgs: async (regionId) => {
         set({ isLoading: true });
         try {
-            const params = regionId ? { region_id: regionId } : {};
+            const params: any = { limit: 10000 };
+            if (regionId) params.region_id = regionId;
             const response = await axiosInstance.get('/crm/med-orgs/', { params });
             set({ medOrgs: response.data, isLoading: false });
         } catch (error) {
@@ -46,7 +61,7 @@ export const useMedOrgStore = create<MedOrgStore>((set) => ({
         set({ isLoading: true });
         try {
             await axiosInstance.post('/crm/med-orgs/', data);
-            const response = await axiosInstance.get('/crm/med-orgs/');
+            const response = await axiosInstance.get('/crm/med-orgs/', { params: { limit: 10000 } });
             set({ medOrgs: response.data, isLoading: false });
         } catch (error) {
             console.error('Error creating med org:', error);
@@ -80,7 +95,7 @@ export const useMedOrgStore = create<MedOrgStore>((set) => ({
     },
     fetchOrgDoctors: async (id) => {
         try {
-            const response = await axiosInstance.get(`/crm/doctors/?med_org_id=${id}`);
+            const response = await axiosInstance.get(`/crm/doctors/?med_org_id=${id}&limit=10000`);
             return response.data;
         } catch (error) {
             console.error('Error fetching org doctors:', error);

@@ -9,6 +9,7 @@ import { MedRepNotificationsTable } from './components/MedRepNotificationsTable'
 import { ProductPlanCard } from './components/ProductPlanCard';
 import { BonusPaymentsCard } from './components/BonusPaymentsCard';
 import { ReassignUserModal } from './ReassignUserModal';
+import { UnassignedSalesSection } from './components/UnassignedSalesSection';
 import { Button } from '../../components/ui/button';
 import { ArrowRightLeft } from 'lucide-react';
 import { getDoctors, getMedOrgs } from '../../api/crm';
@@ -48,13 +49,12 @@ export default function MedRepDetailPage() {
                 setMedRep(currentRep);
 
                 // Fetch Doctors & filter by assigned_rep_id
-                const allDoctors = await getDoctors();
-                const repDoctors = allDoctors.filter((d: any) => d.assigned_rep_id === repId);
+                const repDoctors = await getDoctors({ rep_id: repId, limit: 1000 });
                 setDoctors(repDoctors);
 
-                // Fetch Med Orgs & filter by assigned_reps array
-                const allOrgs = await getMedOrgs();
-                const repPharmacies = allOrgs.filter((o: any) => o.assigned_reps?.some((r: any) => r.id === repId) && o.org_type === 'pharmacy');
+                // Fetch Med Orgs & filter by assigned_reps array and type
+                const allOrgs = await getMedOrgs({ rep_id: repId, limit: 1000 });
+                const repPharmacies = allOrgs.filter((o: any) => o.org_type === 'pharmacy');
                 setPharmacies(repPharmacies);
 
                 // Fetch Visit Plans
@@ -264,6 +264,16 @@ export default function MedRepDetailPage() {
                                 console.error(e);
                                 alert("Ошибка назначения факта");
                             }
+                        }}
+                    />
+                </div>
+
+                <div className="lg:col-span-2 transition-all duration-300 hover:translate-y-[-4px]">
+                    <UnassignedSalesSection
+                        medRepId={parseInt(id || "0")}
+                        doctors={doctors}
+                        onSuccess={() => {
+                            // Optionally refetch bonuses or other data
                         }}
                     />
                 </div>

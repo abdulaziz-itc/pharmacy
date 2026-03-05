@@ -47,7 +47,7 @@ export const medRepColumns = (
                 </span>
             ),
             cell: ({ row }) => {
-                const isActive = row.original.is_active;
+                const isActive = row.original.is_active !== false;
                 return (
                     <span className={`font-medium ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
                         {row.getValue("role")} {!isActive && "(Faol emas)"}
@@ -73,7 +73,7 @@ export const medRepColumns = (
             ),
             cell: ({ row }) => {
                 const medRep = row.original
-                const isActive = medRep.is_active
+                const isActive = medRep.is_active !== false
 
                 return (
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>

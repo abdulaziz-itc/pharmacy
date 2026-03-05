@@ -66,3 +66,21 @@ async def update(
     await db.commit()
     await db.refresh(db_obj)
     return db_obj
+
+async def get_descendant_ids(db: AsyncSession, user_id: int) -> List[int]:
+    """Get all subordinate IDs (recursively) for a given user."""
+    all_users = (await db.execute(select(User))).scalars().all()
+    manager_to_subs = {}
+    for u in all_users:
+        if u.manager_id:
+            manager_to_subs.setdefault(u.manager_id, []).append(u.id)
+            
+    descendant_ids = []
+    
+    def dfs(uid: int):
+        for sub_id in manager_to_subs.get(uid, []):
+            descendant_ids.append(sub_id)
+            dfs(sub_id)
+            
+    dfs(user_id)
+    return descendant_ids

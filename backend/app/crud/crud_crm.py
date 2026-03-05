@@ -63,6 +63,7 @@ async def get_med_orgs(
     name: Optional[str] = None,
     region_id: Optional[int] = None,
     rep_id: Optional[int] = None,
+    rep_ids: Optional[List[int]] = None,
 ) -> List[MedicalOrganization]:
     query = select(MedicalOrganization).options(
         selectinload(MedicalOrganization.region),
@@ -74,7 +75,11 @@ async def get_med_orgs(
     if region_id:
         query = query.where(MedicalOrganization.region_id == region_id)
     if rep_id:
+        from app.models.user import User
         query = query.where(MedicalOrganization.assigned_reps.any(User.id == rep_id))
+    if rep_ids:
+        from app.models.user import User
+        query = query.where(MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids)))
         
     result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()
@@ -149,6 +154,7 @@ async def get_doctors(
     specialty_id: Optional[int] = None,
     med_org_id: Optional[int] = None,
     rep_id: Optional[int] = None,
+    rep_ids: Optional[List[int]] = None,
 ) -> List[Doctor]:
     query = select(Doctor).options(
         selectinload(Doctor.region),
@@ -169,6 +175,8 @@ async def get_doctors(
         query = query.where(Doctor.med_org_id == med_org_id)
     if rep_id:
         query = query.where(Doctor.assigned_rep_id == rep_id)
+    if rep_ids:
+        query = query.where(Doctor.assigned_rep_id.in_(rep_ids))
         
     result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()

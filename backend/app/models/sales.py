@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Date, Enum, DateTime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Date, Enum, DateTime, Boolean, Text
 from sqlalchemy.orm import relationship
 import enum
 from datetime import datetime
@@ -48,6 +48,8 @@ class Invoice(Base): # Factura
     status = Column(String, default=InvoiceStatus.DRAFT, index=True)
     currency = Column(String, default="UZS")
     reservation_id = Column(Integer, ForeignKey("reservation.id"), unique=True)
+    factura_number = Column(String, nullable=True)
+    realization_date = Column(DateTime, nullable=True)
     
     reservation = relationship("Reservation", back_populates="invoice")
     payments = relationship("Payment", back_populates="invoice")
@@ -64,7 +66,9 @@ class Reservation(Base): # Bron
     
     status = Column(String, default=ReservationStatus.PENDING, index=True)
     total_amount = Column(Float, default=0.0)
+    nds_percent = Column(Float, default=12.0)
     description = Column(String, nullable=True)
+    is_bonus_eligible = Column(Boolean, default=True)
     
     created_by = relationship("User", backref="reservations_created")
     med_org = relationship("MedicalOrganization", backref="reservations")
@@ -78,6 +82,7 @@ class ReservationItem(Base):
     product_id = Column(Integer, ForeignKey("product.id"))
     manufacturer_id = Column(Integer, ForeignKey("manufacturer.id"), nullable=True) 
     quantity = Column(Integer, nullable=False)
+    returned_quantity = Column(Integer, default=0, nullable=False)
     price = Column(Float, nullable=False) 
     discount_percent = Column(Float, default=0.0)
     total_price = Column(Float, default=0.0) 
@@ -93,6 +98,7 @@ class Payment(Base): # Postupleniya
     amount = Column(Float, nullable=False)
     date = Column(DateTime, default=datetime.utcnow)
     payment_type = Column(String, default=PaymentType.BANK)
+    comment = Column(Text, nullable=True)
     processed_by_id = Column(Integer, ForeignKey("user.id")) 
     allocated_doctor_id = Column(Integer, ForeignKey("doctor.id"), nullable=True) 
     
@@ -138,3 +144,21 @@ class BonusPayment(Base):
     med_rep = relationship("User", foreign_keys=[med_rep_id])
     doctor = relationship("Doctor", foreign_keys=[doctor_id])
     product = relationship("Product", foreign_keys=[product_id])
+
+class UnassignedSale(Base):
+    """
+    Tracks paid product quantities from facturas that haven't been assigned to a doctor (bonus) yet.
+    """
+    __tablename__ = "unassigned_sale"
+    id = Column(Integer, primary_key=True, index=True)
+    invoice_id = Column(Integer, ForeignKey("invoice.id"), index=True)
+    med_rep_id = Column(Integer, ForeignKey("user.id"), index=True)
+    product_id = Column(Integer, ForeignKey("product.id"), index=True)
+    
+    total_quantity = Column(Integer, nullable=False)
+    paid_quantity = Column(Integer, default=0) # updated based on factura payment %
+    assigned_quantity = Column(Integer, default=0) # quantity assigned to doctors
+    
+    invoice = relationship("Invoice")
+    med_rep = relationship("User")
+    product = relationship("Product")

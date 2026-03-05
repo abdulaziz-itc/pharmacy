@@ -1,6 +1,17 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export const UserRole = {
+    ADMIN: 'admin',
+    DIRECTOR: 'director',
+    DEPUTY_DIRECTOR: 'deputy_director',
+    HEAD_OF_ORDERS: 'head_of_orders',
+    PRODUCT_MANAGER: 'product_manager',
+    FIELD_FORCE_MANAGER: 'field_force_manager',
+    REGIONAL_MANAGER: 'regional_manager',
+    MED_REP: 'med_rep'
+} as const;
+
 export interface User {
     id: number;
     username: string;

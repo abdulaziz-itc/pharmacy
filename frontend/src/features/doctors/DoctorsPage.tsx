@@ -12,6 +12,7 @@ import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { useMemo, useState } from 'react';
 import type { Doctor } from '../../store/doctorStore';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 
 export default function DoctorsPage() {
     const {
@@ -25,6 +26,8 @@ export default function DoctorsPage() {
     const { fetchProducts } = useProductStore();
 
     const filteredDoctors = getFilteredDoctors();
+    const activeDoctors = filteredDoctors.filter(d => d.is_active !== false);
+    const archivedDoctors = filteredDoctors.filter(d => d.is_active === false);
 
     const currentUser = useAuthStore((state) => state.user);
     const canToggle = currentUser?.role && ['admin', 'director', 'deputy_director', 'product_manager'].includes(currentUser.role);
@@ -76,27 +79,69 @@ export default function DoctorsPage() {
                 description="Управление связями с врачами и мониторинг выполнения планов."
             />
 
-            <DataTable
-                columns={doctorTableColumns}
-                data={filteredDoctors}
-                searchColumn="name"
-                topContent={<DoctorStats />}
-                filters={
-                    <DoctorFilters
-                        month={selectedMonth}
-                        year={selectedYear}
-                        onMonthChange={handleMonthChange}
-                        onYearChange={handleYearChange}
+            <Tabs defaultValue="active" className="w-full">
+                <TabsList className="mb-4 bg-white border border-slate-200 shadow-sm w-fit p-1 rounded-xl">
+                    <TabsTrigger
+                        value="active"
+                        className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
+                    >
+                        Активные
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="archive"
+                        className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
+                    >
+                        Архив
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="active" className="mt-0 outline-none">
+                    <DataTable
+                        columns={doctorTableColumns}
+                        data={activeDoctors}
+                        searchColumn="name"
+                        topContent={<DoctorStats />}
+                        filters={
+                            <DoctorFilters
+                                month={selectedMonth}
+                                year={selectedYear}
+                                onMonthChange={handleMonthChange}
+                                onYearChange={handleYearChange}
+                            />
+                        }
+                        renderSubComponent={({ row }) => (
+                            <DoctorRowExpanded
+                                doctor={row.original}
+                                month={selectedMonth}
+                                year={selectedYear}
+                            />
+                        )}
                     />
-                }
-                renderSubComponent={({ row }) => (
-                    <DoctorRowExpanded
-                        doctor={row.original}
-                        month={selectedMonth}
-                        year={selectedYear}
+                </TabsContent>
+
+                <TabsContent value="archive" className="mt-0 outline-none">
+                    <DataTable
+                        columns={doctorTableColumns}
+                        data={archivedDoctors}
+                        searchColumn="name"
+                        filters={
+                            <DoctorFilters
+                                month={selectedMonth}
+                                year={selectedYear}
+                                onMonthChange={handleMonthChange}
+                                onYearChange={handleYearChange}
+                            />
+                        }
+                        renderSubComponent={({ row }) => (
+                            <DoctorRowExpanded
+                                doctor={row.original}
+                                month={selectedMonth}
+                                year={selectedYear}
+                            />
+                        )}
                     />
-                )}
-            />
+                </TabsContent>
+            </Tabs>
         </PageContainer>
     );
 }

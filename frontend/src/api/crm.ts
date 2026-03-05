@@ -9,6 +9,7 @@ export interface MedicalOrganization {
     brand?: string;
     director_name?: string;
     assigned_reps?: any[];
+    inn?: string;
 }
 
 export interface Doctor {
@@ -22,15 +23,15 @@ export interface Doctor {
     med_org?: MedicalOrganization;
 }
 
-export const getMedOrgs = async () => {
-    const response = await axiosInstance.get('/crm/med-orgs/');
+export const getMedOrgs = async (params?: Record<string, any>) => {
+    const response = await axiosInstance.get('/crm/med-orgs/', { params });
     return response.data;
 };
 
 export const getMedicalOrganizations = getMedOrgs;
 
-export const getDoctors = async () => {
-    const response = await axiosInstance.get('/crm/doctors/');
+export const getDoctors = async (params?: Record<string, any>) => {
+    const response = await axiosInstance.get('/crm/doctors/', { params });
     return response.data;
 };
 

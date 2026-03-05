@@ -1,6 +1,6 @@
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -26,10 +26,19 @@ async def create_category(
     db: AsyncSession = Depends(deps.get_db),
     category_in: CategoryCreate,
     current_user: User = Depends(deps.get_current_user),
+    request: Request,
 ) -> Any:
     if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
-    return await crud_product.create_category(db, obj_in=category_in)
+    
+    category = await crud_product.create_category(db, obj_in=category_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "CREATE", "Category", category.id,
+        f"Mahsulot kategoriyasi yaratildi: {category.name}",
+        request
+    )
+    return category
 
 @router.put("/categories/{id}", response_model=Category)
 async def update_category(
@@ -38,6 +47,7 @@ async def update_category(
     id: int,
     category_in: CategoryUpdate,
     current_user: User = Depends(deps.get_current_user),
+    request: Request,
 ) -> Any:
     if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
@@ -46,7 +56,14 @@ async def update_category(
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
         
-    return await crud_product.update_category(db, db_obj=category, obj_in=category_in)
+    updated_category = await crud_product.update_category(db, db_obj=category, obj_in=category_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "UPDATE", "Category", updated_category.id,
+        f"Mahsulot kategoriyasi tahrirlandi: {updated_category.name}",
+        request
+    )
+    return updated_category
 
 # Manufacturers
 @router.get("/manufacturers/", response_model=List[Manufacturer])
@@ -64,10 +81,19 @@ async def create_manufacturer(
     db: AsyncSession = Depends(deps.get_db),
     manufacturer_in: ManufacturerCreate,
     current_user: User = Depends(deps.get_current_user),
+    request: Request,
 ) -> Any:
     if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
-    return await crud_product.create_manufacturer(db, obj_in=manufacturer_in)
+    
+    manufacturer = await crud_product.create_manufacturer(db, obj_in=manufacturer_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "CREATE", "Manufacturer", manufacturer.id,
+        f"Ishlab chiqaruvchi yaratildi: {manufacturer.name}",
+        request
+    )
+    return manufacturer
 
 @router.put("/manufacturers/{id}", response_model=Manufacturer)
 async def update_manufacturer(
@@ -76,10 +102,19 @@ async def update_manufacturer(
     id: int,
     manufacturer_in: ManufacturerUpdate,
     current_user: User = Depends(deps.get_current_user),
+    request: Request,
 ) -> Any:
     if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     manufacturer = await crud_product.get_manufacturer(db, id=id)
     if not manufacturer:
         raise HTTPException(status_code=404, detail="Manufacturer not found")
-    return await crud_product.update_manufacturer(db, db_obj=manufacturer, obj_in=manufacturer_in)
+    
+    updated_manufacturer = await crud_product.update_manufacturer(db, db_obj=manufacturer, obj_in=manufacturer_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "UPDATE", "Manufacturer", updated_manufacturer.id,
+        f"Ishlab chiqaruvchi tahrirlandi: {updated_manufacturer.name}",
+        request
+    )
+    return updated_manufacturer

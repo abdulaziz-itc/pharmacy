@@ -1,4 +1,4 @@
-import { type ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { Pencil } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import type { Manufacturer } from "../../store/manufacturerStore"

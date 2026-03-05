@@ -1,4 +1,4 @@
-import { type ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, MapPin, ChevronDown, ChevronRight, MoreHorizontal, UserMinus, UserPlus } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import {

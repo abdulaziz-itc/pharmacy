@@ -42,6 +42,7 @@ class MedicalOrganization(Base):
     region_id = Column(Integer, ForeignKey("region.id"))
     org_type = Column(String, default=MedicalOrganizationType.CLINIC)
     brand = Column(String, nullable=True)
+    inn = Column(String, nullable=True)
     director_name = Column(String, nullable=True)
     contact_phone = Column(String, nullable=True)
     
@@ -75,6 +76,17 @@ class Doctor(Base):
     category = relationship("DoctorCategory", back_populates="doctors")
     med_org = relationship("MedicalOrganization", back_populates="doctors")
     assigned_rep = relationship("User", backref="assigned_doctors")
+
+
+class MedicalOrganizationStock(Base):
+    __tablename__ = "med_org_stock"
+    id = Column(Integer, primary_key=True, index=True)
+    med_org_id = Column(Integer, ForeignKey("medicalorganization.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("product.id"), nullable=False)
+    quantity = Column(Integer, default=0)
+
+    med_org = relationship("MedicalOrganization", backref="stocks")
+    product = relationship("Product")
 
 class Notification(Base):
     id = Column(Integer, primary_key=True, index=True)

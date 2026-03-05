@@ -34,6 +34,7 @@ export default function LoginPage() {
     const setAuth = useAuthStore((state) => state.setAuth);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -53,7 +54,11 @@ export default function LoginPage() {
             const user = await authService.getMe();
             setAuth(user, data.access_token);
 
-            navigate('/dashboard');
+            if (user.role === 'head_of_orders') {
+                navigate('/head-of-orders');
+            } else {
+                navigate('/dashboard');
+            }
         } catch (err) {
             setError('Неверное имя пользователя или пароль');
         } finally {
@@ -117,14 +122,21 @@ export default function LoginPage() {
                                             <FormControl>
                                                 <div className="relative group">
                                                     <div className="absolute left-3.5 top-3 text-slate-500 group-focus-within:text-blue-400 transition-colors">
-                                                        <Loader2 className="w-4 h-4" />
+                                                        <Lock className="w-4 h-4" />
                                                     </div>
                                                     <Input
-                                                        type="password"
+                                                        type={showPassword ? "text" : "password"}
                                                         placeholder="••••••••"
-                                                        className="bg-slate-900/50 border-slate-800 text-white placeholder:text-slate-700 pl-10 h-12 rounded-xl focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                                                        className="bg-slate-900/50 border-slate-800 text-white placeholder:text-slate-700 pl-10 pr-10 h-12 rounded-xl focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
                                                         {...field}
                                                     />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowPassword(!showPassword)}
+                                                        className="absolute right-3.5 top-3 text-slate-500 hover:text-blue-400 transition-colors cursor-pointer"
+                                                    >
+                                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                    </button>
                                                 </div>
                                             </FormControl>
                                             <FormMessage className="text-[10px] uppercase font-bold text-red-400" />
@@ -160,4 +172,4 @@ export default function LoginPage() {
     );
 }
 
-import { Package, Users } from 'lucide-react';
+import { Package, Users, Eye, EyeOff, Lock } from 'lucide-react';

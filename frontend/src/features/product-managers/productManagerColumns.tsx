@@ -1,4 +1,4 @@
-import { type ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { Link } from "react-router-dom"
 import type { ProductManager } from "../../store/productManagerStore"
 
@@ -15,7 +15,8 @@ import {
 
 export const getManagerColumns = (
     onTransfer?: (user: ProductManager) => void,
-    onToggleActive?: (user: ProductManager) => void
+    onToggleActive?: (user: ProductManager) => void,
+    onEdit?: (user: ProductManager) => void
 ): ColumnDef<ProductManager>[] => [
         {
             id: "index",
@@ -94,12 +95,21 @@ export const getManagerColumns = (
                                 </DropdownMenuItem>
                             )}
 
+                            {onEdit && (
+                                <DropdownMenuItem
+                                    onClick={() => onEdit(user)}
+                                    className="rounded-xl focus:bg-blue-50 focus:text-blue-600 cursor-pointer transition-colors px-3 py-2.5"
+                                >
+                                    <span className="font-medium text-blue-600">Редактировать</span>
+                                </DropdownMenuItem>
+                            )}
+
                             {onToggleActive && (
                                 <DropdownMenuItem
                                     onClick={() => onToggleActive(user)}
                                     className={`rounded-xl cursor-pointer transition-colors px-3 py-2.5 ${user.is_active !== false
-                                            ? "focus:bg-red-50 focus:text-red-600 text-red-500"
-                                            : "focus:bg-emerald-50 focus:text-emerald-600 text-emerald-500"
+                                        ? "focus:bg-red-50 focus:text-red-600 text-red-500"
+                                        : "focus:bg-emerald-50 focus:text-emerald-600 text-emerald-500"
                                         }`}
                                 >
                                     <span className="font-medium">

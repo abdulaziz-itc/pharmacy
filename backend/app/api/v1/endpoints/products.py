@@ -1,6 +1,6 @@
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -38,13 +38,22 @@ async def create_product(
     db: AsyncSession = Depends(deps.get_db),
     product_in: ProductCreate,
     current_user: User = Depends(deps.get_current_user),
+    request: Request,
 ) -> Any:
     """
     Create new product.
     """
     if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
-    return await crud_product.create_product(db, obj_in=product_in)
+    
+    product = await crud_product.create_product(db, obj_in=product_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "CREATE", "Product", product.id,
+        f"Yangi mahsulot yaratildi: {product.name}",
+        request
+    )
+    return product
 
 @router.get("/{id}", response_model=Product)
 async def read_product(
@@ -68,6 +77,7 @@ async def update_product(
     id: int,
     product_in: ProductUpdate,
     current_user: User = Depends(deps.get_current_user),
+    request: Request,
 ) -> Any:
     """
     Update a product.
@@ -78,6 +88,19 @@ async def update_product(
     product = await crud_product.get_product(db, id=id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return await crud_product.update_product(db, db_obj=product, obj_in=product_in)
+        
+    updated_product = await crud_product.update_product(db, db_obj=product, obj_in=product_in)
+    from app.services.audit_service import log_action
+    
+    status_msg = ""
+    if product_in.is_active is not None and product.is_active != product_in.is_active:
+        status_msg = f" (Holati: {'Faol' if product_in.is_active else 'Nofaol'} qilindi)"
+        
+    await log_action(
+        db, current_user, "UPDATE", "Product", updated_product.id,
+        f"Mahsulot tahrirlandi: {updated_product.name}{status_msg}",
+        request
+    )
+    return updated_product
 
 

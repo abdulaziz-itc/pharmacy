@@ -1,0 +1,252 @@
+from typing import Any, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+import logging
+
+logger = logging.getLogger(__name__)
+
+from app.api import deps
+from app.models.user import User, UserRole
+from app.models.warehouse import Warehouse, Stock
+from app.models.sales import Reservation, Invoice, Payment, ReservationStatus
+from app.schemas.sales import Reservation as ReservationSchema, Invoice as InvoiceSchema, Payment as PaymentSchema, ReservationDataUpdate
+from app.crud import crud_sales
+from app.services.reservation_service import ReservationService
+from app.services.finance_service import FinancialService
+from app.services.audit_service import log_action
+
+router = APIRouter()
+
+from app.schemas.warehouse import WarehouseCreate, StockFulfillment, Warehouse as WarehouseSchema
+
+# --- Warehouse Management ---
+
+@router.get("/warehouses/", response_model=List[WarehouseSchema])
+async def get_warehouses(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(select(Warehouse).options(selectinload(Warehouse.stocks)))
+    return result.scalars().all()
+
+@router.post("/warehouses/", response_model=WarehouseSchema)
+async def create_warehouse(
+    warehouse_in: WarehouseCreate,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    db_obj = Warehouse(**warehouse_in.dict())
+    db.add(db_obj)
+    await db.commit()
+    await db.refresh(db_obj)
+
+    await log_action(
+        db, current_user, "CREATE", "Warehouse", db_obj.id,
+        f"Yangi ombor yaratildi: {db_obj.name}",
+        request
+    )
+    return db_obj
+
+@router.post("/warehouses/{id}/fulfill")
+async def fulfill_stock(
+    id: int,
+    fulfillment_in: StockFulfillment,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Add stock to a warehouse (Prixod)."""
+    if current_user.role not in [UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # 1. Check if stock record exists
+    stock_query = select(Stock).where(
+        (Stock.warehouse_id == id) & 
+        (Stock.product_id == fulfillment_in.product_id)
+    ).with_for_update()
+    
+    result = await db.execute(stock_query)
+    stock = result.scalar_one_or_none()
+    
+    if stock:
+        old_qty = stock.quantity
+        stock.quantity += fulfillment_in.quantity
+    else:
+        old_qty = 0
+        stock = Stock(
+            warehouse_id=id,
+            product_id=fulfillment_in.product_id,
+            quantity=fulfillment_in.quantity
+        )
+        db.add(stock)
+
+    # 2. Record movement
+    from app.models.warehouse import StockMovement, StockMovementType
+    await db.flush()
+    
+    movement = StockMovement(
+        stock_id=stock.id,
+        movement_type=StockMovementType.PURCHASE,
+        quantity_change=fulfillment_in.quantity
+    )
+    db.add(movement)
+    await db.commit()
+
+    # 3. Audit log
+    await log_action(
+        db, current_user, "CREATE", "StockFulfillment", stock.id,
+        f"Omborga prixod: Ombor #{id}, Mahsulot #{fulfillment_in.product_id}, "
+        f"Miqdor: +{fulfillment_in.quantity} (Oldingi: {old_qty} → Yangi: {stock.quantity})",
+        request
+    )
+
+    return {"ok": True, "new_quantity": stock.quantity}
+
+# --- Reservation Management ---
+
+@router.get("/reservations/", response_model=List[ReservationSchema])
+async def list_reservations(
+    status: Optional[str] = None,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    from sqlalchemy.orm import selectinload
+    from app.models.sales import ReservationItem
+    from app.models.product import Product
+    from app.models.warehouse import Warehouse
+    from app.models.crm import MedicalOrganization
+    try:
+        query = select(Reservation).options(
+            selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
+            selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
+            selectinload(Reservation.created_by),
+            selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by)
+        ).order_by(Reservation.date.desc())
+        if status:
+            query = query.where(Reservation.status == status)
+        result = await db.execute(query)
+        return result.scalars().all()
+    except Exception as e:
+        logger.error(f"Error listing reservations: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/reservations/{id}/activate", response_model=ReservationSchema)
+async def activate_reservation(
+    id: int,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Activate a reservation: Lock stock and create Factura."""
+    if current_user.role not in [UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    try:
+        reservation = await ReservationService.activate_reservation(db, id)
+
+        await log_action(
+            db, current_user, "UPDATE", "Reservation", id,
+            f"Bron #{id} aktivlashtirildi (Mijoz: {reservation.customer_name}, "
+            f"Summa: {reservation.total_amount:,.0f} UZS). Faktura avtomatik yaratildi.",
+            request
+        )
+        return reservation
+    except Exception as e:
+        logger.error(f"Error activating reservation {id}: {str(e)}", exc_info=True)
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.delete("/reservations/{id}")
+async def delete_reservation(
+    id: int,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Delete a reservation if it's not active."""
+    # Use Service for proper stock restoration
+    await ReservationService.cancel_reservation(db, id)
+
+    await log_action(
+        db, current_user, "DELETE", "Reservation", id,
+        f"Bron #{id} o'chirildi va tovarlar skladga qaytarildi.",
+        request
+    )
+    return {"ok": True}
+
+@router.patch("/reservations/{id}/data", response_model=ReservationSchema)
+async def update_reservation_data(
+    id: int,
+    obj_in: ReservationDataUpdate,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Update reservation data like invoice number, date, or discount."""
+    if current_user.role not in [UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    reservation = await crud_sales.update_reservation_data(db, id, obj_in)
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    await log_action(
+        db, current_user, "UPDATE", "Reservation", id,
+        f"Bron ma'lumotlari yangilandi: Faktura #{obj_in.factura_number or '? '}, "
+        f"Sana: {obj_in.realization_date or '? '}, Chegirma: {obj_in.discount_percent or '? '}%",
+        request
+    )
+    return reservation
+
+# --- Payments (Postupleniya) ---
+
+@router.post("/payments/", response_model=PaymentSchema)
+async def create_payment(
+    obj_in: Any,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    if current_user.role not in [UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    payment = await FinancialService.process_payment(db, obj_in, current_user.id)
+
+    await log_action(
+        db, current_user, "CREATE", "Payment", payment.id,
+        f"To'lov qabul qilindi: Faktura #{getattr(obj_in, 'invoice_id', '?')}, "
+        f"Summa: {getattr(obj_in, 'amount', 0):,.0f} UZS, "
+        f"Tur: {getattr(obj_in, 'payment_type', '?')}",
+        request
+    )
+    return payment
+
+
+# --- Invoices (Fakturalar) ---
+
+@router.get("/invoices/", response_model=List[InvoiceSchema])
+async def list_invoices(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """List all invoices for Head of Orders."""
+    from sqlalchemy.orm import selectinload
+    from app.models.sales import Invoice as InvoiceModel
+    result = await db.execute(
+        select(InvoiceModel).options(
+            selectinload(InvoiceModel.reservation),
+            selectinload(InvoiceModel.payments),
+        ).order_by(InvoiceModel.id.desc())
+    )
+    return result.scalars().all()
+

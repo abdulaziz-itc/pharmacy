@@ -7,12 +7,14 @@ import { PageHeader } from '../../components/PageHeader';
 import AddProductManagerModal from './AddProductManagerModal';
 import { useAuthStore } from '../../store/authStore';
 import { ReassignUserModal } from '../med-reps/ReassignUserModal';
+import { EditManagerModal } from './EditManagerModal';
 import { toast } from 'sonner';
 
 export default function ProductManagerPage() {
     const { productManagers, fetchProductManagers } = useProductManagerStore();
     const [isModalOpen, setIsModalOpen] = React.useState(false);
     const [transferUser, setTransferUser] = React.useState<ProductManager | null>(null);
+    const [editingManager, setEditingManager] = React.useState<ProductManager | null>(null);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const currentUser = useAuthStore((state) => state.user);
@@ -41,7 +43,8 @@ export default function ProductManagerPage() {
 
     const columns = React.useMemo(() => getManagerColumns(
         canReassign ? (user) => setTransferUser(user) : undefined,
-        canReassign ? handleToggleActive : undefined
+        canReassign ? handleToggleActive : undefined,
+        canReassign ? (user) => setEditingManager(user) : undefined
     ), [canReassign]);
 
     React.useEffect(() => {
@@ -75,6 +78,13 @@ export default function ProductManagerPage() {
                 fromUserId={transferUser?.id || 0}
                 fromUserName={transferUser?.full_name || "Unknown"}
                 role={transferUser?.role || "product_manager"}
+            />
+
+            <EditManagerModal
+                isOpen={!!editingManager}
+                onClose={() => setEditingManager(null)}
+                manager={editingManager}
+                onSuccess={() => fetchProductManagers()}
             />
         </PageContainer>
     );
