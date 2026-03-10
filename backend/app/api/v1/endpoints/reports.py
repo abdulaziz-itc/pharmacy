@@ -160,7 +160,7 @@ async def get_comprehensive_reports(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "REPORT_DOWNLOAD", "Analytics", 0,
-        f"Kompleks hisobot yuklandi: {start_date} dan {end_date} gacha, davr: {period}",
+        f"Загружен комплексный отчет: с {start_date} по {end_date}, период: {period}",
         request
     )
 

@@ -10,15 +10,27 @@ from app.models.user import User
 
 router = APIRouter()
 
+
+async def _get_plan_with_relations(db: AsyncSession, plan_id: int) -> VisitPlan:
+    """Re-fetch a visit plan with all relationships eagerly loaded."""
+    result = await db.execute(
+        select(VisitPlan)
+        .options(
+            selectinload(VisitPlan.doctor),
+            selectinload(VisitPlan.med_org)
+        )
+        .where(VisitPlan.id == plan_id)
+    )
+    return result.scalar_one_or_none()
+
+
 @router.get("/", response_model=List[VisitPlanSchema])
 async def get_visit_plans(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
     med_rep_id: Optional[int] = None,
 ) -> Any:
-    """
-    Retrieve visit plans.
-    """
+    """Retrieve visit plans."""
     query = select(VisitPlan).options(
         selectinload(VisitPlan.doctor),
         selectinload(VisitPlan.med_org)
@@ -27,9 +39,10 @@ async def get_visit_plans(
         query = query.where(VisitPlan.med_rep_id == med_rep_id)
     elif current_user.role == "med_rep":
         query = query.where(VisitPlan.med_rep_id == current_user.id)
-        
+
     result = await db.execute(query)
     return result.scalars().all()
+
 
 @router.post("/", response_model=VisitPlanSchema)
 async def create_visit_plan(
@@ -38,9 +51,7 @@ async def create_visit_plan(
     visit_plan_in: VisitPlanCreate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """
-    Create new visit plan.
-    """
+    """Create new visit plan."""
     db_obj = VisitPlan(
         **visit_plan_in.dict(),
         med_rep_id=current_user.id
@@ -48,7 +59,9 @@ async def create_visit_plan(
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
-    return db_obj
+    # Re-fetch with relationships to avoid async lazy-load error
+    return await _get_plan_with_relations(db, db_obj.id)
+
 
 @router.put("/{plan_id}", response_model=VisitPlanSchema)
 async def update_visit_plan(
@@ -58,38 +71,35 @@ async def update_visit_plan(
     visit_plan_in: VisitPlanUpdate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """
-    Update a visit plan.
-    """
+    """Update a visit plan."""
     result = await db.execute(select(VisitPlan).where(VisitPlan.id == plan_id))
     db_obj = result.scalar_one_or_none()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Visit plan not found")
-    
+
     update_data = visit_plan_in.dict(exclude_unset=True)
     for field in update_data:
         setattr(db_obj, field, update_data[field])
-    
+
     db.add(db_obj)
     await db.commit()
-    await db.refresh(db_obj)
-    return db_obj
+    # Re-fetch with relationships to avoid async lazy-load error
+    return await _get_plan_with_relations(db, plan_id)
 
-@router.delete("/{plan_id}", response_model=VisitPlanSchema)
+
+@router.delete("/{plan_id}")
 async def delete_visit_plan(
     *,
     db: AsyncSession = Depends(deps.get_db),
     plan_id: int,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """
-    Delete a visit plan.
-    """
+    """Delete a visit plan."""
     result = await db.execute(select(VisitPlan).where(VisitPlan.id == plan_id))
     db_obj = result.scalar_one_or_none()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Visit plan not found")
-    
+
     await db.delete(db_obj)
     await db.commit()
-    return db_obj
+    return {"ok": True, "id": plan_id}

@@ -21,7 +21,7 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClos
 
     const handleSubmit = async () => {
         if (!amount || parseFloat(amount) <= 0) {
-            toast.error("To'g'ri summa kiriting");
+            toast.error("Введите корректную сумму");
             return;
         }
         try {
@@ -32,11 +32,11 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClos
                 payment_type: paymentType,
                 comment: comment
             });
-            toast.success("To'lov muvaffaqiyatli kiritildi");
+            toast.success("Платёж успешно добавлен");
             onSuccess();
             onClose();
         } catch (error: any) {
-            toast.error(error.response?.data?.detail || "To'lovni saqlashda xatolik");
+            toast.error(error.response?.data?.detail || "Ошибка при сохранении платежа");
         } finally {
             setIsSubmitting(false);
         }
@@ -48,43 +48,62 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClos
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>To'lov Kiritish (INV-{invoice.id})</DialogTitle>
+                    <DialogTitle>Поступление (INV-{invoice.id})</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="flex justify-between text-sm py-2 border-b">
-                        <span className="text-muted-foreground">Umumiy summa:</span>
+                        <span className="text-muted-foreground">Общая сумма:</span>
                         <span className="font-bold">{invoice.total_amount.toLocaleString()} UZS</span>
                     </div>
                     <div className="flex justify-between text-sm py-2 border-b">
-                        <span className="text-muted-foreground">Qolgan summa:</span>
+                        <span className="text-muted-foreground">Остаток:</span>
                         <span className="font-bold text-red-600">{(invoice.total_amount - (invoice.paid_amount || 0)).toLocaleString()} UZS</span>
                     </div>
 
                     <div className="grid gap-2">
-                        <label className="text-sm font-medium">To'lov summasi</label>
+                        <label className="text-sm font-medium">Сумма платежа</label>
                         <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-4 text-[10px] font-bold border-blue-200 text-blue-700 hover:bg-blue-50 rounded-lg"
+                                onClick={() => setAmount(invoice.total_amount.toString())}
+                            >
+                                100%
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-4 text-[10px] font-bold border-blue-200 text-blue-700 hover:bg-blue-50 rounded-lg"
+                                onClick={() => setAmount((invoice.total_amount * 0.5).toString())}
+                            >
+                                50%
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="grid gap-2">
-                        <label className="text-sm font-medium">To'lov turi</label>
+                        <label className="text-sm font-medium">Тип оплаты</label>
                         <Select value={paymentType} onValueChange={setPaymentType}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="bank">Bank o'tkazmasi</SelectItem>
-                                <SelectItem value="cash">Naqd pul</SelectItem>
+                                <SelectItem value="bank">Банковский перевод</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
                     <div className="grid gap-2">
-                        <label className="text-sm font-medium">Izoh (Comment)</label>
-                        <Input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Misol: Check #12345" />
+                        <label className="text-sm font-medium">Комментарий</label>
+                        <Input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Пример: Чек #12345" />
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>Bekor qilish</Button>
+                    <Button variant="outline" onClick={onClose}>Отмена</Button>
                     <Button onClick={handleSubmit} disabled={isSubmitting}>
-                        {isSubmitting ? "Saqlanmoqda..." : "Tasdiqlash"}
+                        {isSubmitting ? "Сохранение..." : "Подтвердить"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

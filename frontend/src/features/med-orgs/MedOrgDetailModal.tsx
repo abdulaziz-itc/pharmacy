@@ -55,6 +55,7 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
     const [viewDoctorBonuses, setViewDoctorBonuses] = useState<any[]>([]);
     const [isLoadingDocView, setIsLoadingDocView] = useState(false);
     const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+    const [geocodedAddress, setGeocodedAddress] = useState<string | null>(null);
 
     useEffect(() => {
         if (org && isOpen) {
@@ -68,6 +69,22 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                 inn: org.inn || '',
             });
             setIsEditing(false);
+
+            // Reverse geocode lat/lng if present
+            if (org.latitude && org.longitude) {
+                setGeocodedAddress(null);
+                fetch(
+                    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${org.latitude}&lon=${org.longitude}&accept-language=uz,ru`,
+                    { headers: { 'Accept-Language': 'uz,ru' } }
+                )
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.display_name) setGeocodedAddress(data.display_name);
+                    })
+                    .catch(() => { });
+            } else {
+                setGeocodedAddress(null);
+            }
 
             // Fetch extra data
             setIsLoadingData(true);
@@ -228,11 +245,12 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                                             <SelectItem value="clinic">Клиника</SelectItem>
                                             <SelectItem value="hospital">Больница</SelectItem>
                                             <SelectItem value="lechebniy">Лечебное Учреждение</SelectItem>
+                                            <SelectItem value="wholesale" className="text-indigo-600 font-bold">Оптовая компания</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 ) : (
                                     <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-500/30">
-                                        {org.org_type === 'pharmacy' ? 'Аптека' : org.org_type === 'clinic' ? 'Клиника' : org.org_type === 'hospital' ? 'Больница' : 'Леч. Учреждение'}
+                                        {org.org_type === 'pharmacy' ? 'Аптека' : org.org_type === 'clinic' ? 'Клиника' : org.org_type === 'hospital' ? 'Больница' : org.org_type === 'wholesale' ? 'Оптовая компания' : 'Леч. Учреждение'}
                                     </span>
                                 )}
                                 <span className="flex items-center gap-1.5 text-slate-400 text-xs font-bold uppercase tracking-widest">
@@ -308,7 +326,9 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                                                     className="font-bold text-slate-800"
                                                 />
                                             ) : (
-                                                <p className="text-sm font-bold text-slate-800 leading-relaxed">{org.address || "Адрес не указан"}</p>
+                                                <p className="text-sm font-bold text-slate-800 leading-relaxed">
+                                                    {geocodedAddress || org.address || "Адрес не указан"}
+                                                </p>
                                             )}
                                         </div>
                                     </div>

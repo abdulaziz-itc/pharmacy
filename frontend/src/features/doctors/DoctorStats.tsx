@@ -35,6 +35,14 @@ export default function DoctorStats() {
                 </div>
                 <div className="hidden lg:block w-px h-10 bg-slate-100"></div>
                 <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">План Общ. (Сум)</span>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-slate-900 leading-none">{doctors.reduce((acc, doc) => acc + (doc.totalPlanSum || 0), 0).toLocaleString()}</span>
+                        <span className="text-xs text-slate-500 font-bold">сум</span>
+                    </div>
+                </div>
+                <div className="hidden lg:block w-px h-10 bg-slate-100"></div>
+                <div className="flex flex-col">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Факт Общ.</span>
                     <div className="flex items-center gap-3">
                         <div className="flex items-baseline gap-1">

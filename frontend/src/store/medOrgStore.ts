@@ -17,6 +17,8 @@ export interface MedicalOrganization {
     assigned_rep_ids?: number[];
     contact_phone?: string;
     inn?: string;
+    latitude?: number | null;
+    longitude?: number | null;
 }
 
 interface MedOrgStore {

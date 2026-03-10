@@ -48,6 +48,9 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     const [selectedOrg, setSelectedOrg] = useState<string>(initialOrgId?.toString() || '');
     const [selectedWh, setSelectedWh] = useState<string>('');
     const [isBonusEligible, setIsBonusEligible] = useState(true);
+    const [isTovarSkidka, setIsTovarSkidka] = useState(false);
+    const [eligibleInvoices, setEligibleInvoices] = useState<any[]>([]);
+    const [selectedSourceInvoice, setSelectedSourceInvoice] = useState<string>('');
     const [ndsPercent, setNdsPercent] = useState<number>(12);
     const [items, setItems] = useState<any[]>([{ product_id: '', quantity: 1, price: 0 }]);
 
@@ -57,6 +60,10 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
             setSelectedMedRep('');
             setSelectedOrg('');
             setSelectedWh('');
+            setIsBonusEligible(true);
+            setIsTovarSkidka(false);
+            setEligibleInvoices([]);
+            setSelectedSourceInvoice('');
             setItems([{ product_id: '', quantity: 1, price: 0 }]);
             fetchInitialData();
             fetchProducts();
@@ -95,6 +102,18 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
         }
     };
 
+    const fetchEligibleInvoices = async (orgId: string) => {
+        if (!orgId) return;
+        try {
+            const resp = await axiosInstance.get('/sales/invoices/eligible-for-tovar-skidka', {
+                params: { med_org_id: orgId }
+            });
+            setEligibleInvoices(resp.data || []);
+        } catch {
+            toast.error('Ошибка загрузки счетов для товарной скидки');
+        }
+    };
+
     // Compute stock map from all warehouses: product_id → total quantity
     const stockMap = warehouses.reduce((acc: Record<number, number>, wh: any) => {
         (wh.stocks || []).forEach((s: any) => {
@@ -105,6 +124,9 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
 
     const handleNext = () => {
         if (step === 2) fetchOrgs(selectedMedRep, orgType);
+        if (step === 3 && isTovarSkidka && eligibleInvoices.length === 0) {
+            fetchEligibleInvoices(selectedOrg);
+        }
         setStep(s => s + 1);
     };
 
@@ -133,6 +155,8 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                 med_org_id: parseInt(selectedOrg),
                 warehouse_id: parseInt(selectedWh),
                 is_bonus_eligible: isBonusEligible,
+                is_tovar_skidka: isTovarSkidka,
+                source_invoice_id: isTovarSkidka ? parseInt(selectedSourceInvoice) : null,
                 nds_percent: ndsPercent,
                 items: items.map(it => ({
                     product_id: parseInt(it.product_id),
@@ -158,7 +182,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
 
     const canNext = step === 1 ? !!orgType
         : step === 2 ? !!selectedMedRep
-            : step === 3 ? (!!selectedOrg && !!selectedWh)
+            : step === 3 ? (!!selectedOrg && !!selectedWh && (!isTovarSkidka || !!selectedSourceInvoice))
                 : false;
 
     const repName = (r: any) => [r.first_name, r.last_name].filter(Boolean).join(' ') || r.full_name || r.username || `#${r.id}`;
@@ -333,8 +357,49 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                 </Select>
                             </div>
 
+                            {/* Товарная скидка Toggle */}
+                            <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                                <div>
+                                    <p className="text-sm font-semibold text-indigo-900 font-bold">Товарная скидка</p>
+                                    <p className="text-xs text-indigo-600">Оплата за счет промо-суммы другого счета</p>
+                                </div>
+                                <Switch
+                                    checked={isTovarSkidka}
+                                    onCheckedChange={(v) => {
+                                        setIsTovarSkidka(v);
+                                        if (v) {
+                                            setIsBonusEligible(false);
+                                            fetchEligibleInvoices(selectedOrg);
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            {/* Source Invoice Selection */}
+                            {isTovarSkidka && (
+                                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Выберите счет-фактуру для списания</label>
+                                    <Select value={selectedSourceInvoice} onValueChange={setSelectedSourceInvoice}>
+                                        <SelectTrigger className="border-indigo-200 rounded-xl h-10 bg-white">
+                                            <SelectValue placeholder="Выберите оплаченный счет..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {eligibleInvoices.length === 0 ? (
+                                                <div className="p-4 text-center text-slate-400 text-sm italic">
+                                                    Нет счетов с доступной промо-суммой
+                                                </div>
+                                            ) : eligibleInvoices.map((inv: any) => (
+                                                <SelectItem key={inv.id} value={inv.id.toString()}>
+                                                    Счет №{inv.id} (Доступно: {inv.promo_balance?.toLocaleString()} UZS)
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+
                             {/* Бонус */}
-                            <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                            <div className={`flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-xl transition-opacity ${isTovarSkidka ? 'opacity-50 pointer-events-none' : ''}`}>
                                 <div>
                                     <p className="text-sm font-semibold text-amber-900">Начислять бонус?</p>
                                     <p className="text-xs text-amber-600">Маркетинговая сумма запишется как бонус представителю</p>
@@ -364,6 +429,28 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                     <Plus className="w-3.5 h-3.5" /> Добавить
                                 </button>
                             </div>
+
+                            {isTovarSkidka && selectedSourceInvoice && (
+                                <div className={`p-3 rounded-xl border flex items-center justify-between transition-all ${totalAmount > (eligibleInvoices.find(inv => inv.id.toString() === selectedSourceInvoice)?.promo_balance || 0)
+                                    ? 'bg-red-50 border-red-200 animate-pulse'
+                                    : 'bg-indigo-50 border-indigo-200'
+                                    }`}>
+                                    <div>
+                                        <p className="text-xs font-semibold text-slate-600 uppercase">Доступная промо-сумма:</p>
+                                        <p className={`text-sm font-bold ${totalAmount > (eligibleInvoices.find(inv => inv.id.toString() === selectedSourceInvoice)?.promo_balance || 0)
+                                            ? 'text-red-600'
+                                            : 'text-indigo-700'
+                                            }`}>
+                                            {(eligibleInvoices.find(inv => inv.id.toString() === selectedSourceInvoice)?.promo_balance || 0).toLocaleString()} UZS
+                                        </p>
+                                    </div>
+                                    {totalAmount > (eligibleInvoices.find(inv => inv.id.toString() === selectedSourceInvoice)?.promo_balance || 0) && (
+                                        <p className="text-[10px] text-red-500 font-bold max-w-[150px] text-right leading-tight">
+                                            Сумма брони превышает доступный лимит!
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                                 {items.map((it, idx) => (
@@ -468,7 +555,11 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                     ) : (
                         <button
                             onClick={handleSubmit}
-                            disabled={loading || items.length === 0}
+                            disabled={
+                                loading ||
+                                items.length === 0 ||
+                                (isTovarSkidka && totalAmount > (eligibleInvoices.find(inv => inv.id.toString() === selectedSourceInvoice)?.promo_balance || 0))
+                            }
                             className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-all shadow-md shadow-emerald-200"
                         >
                             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}

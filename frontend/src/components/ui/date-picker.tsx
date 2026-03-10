@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { format, parseISO } from "date-fns"
+import { format, parseISO, isValid } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ru } from "date-fns/locale"
@@ -16,8 +16,9 @@ export interface DatePickerProps {
 
 export function DatePicker({ date, setDate, placeholder = "Выберите дату", className, formatStr = "PPP" }: DatePickerProps) {
     // Handle both Date objects and string inputs for robust native behavior
-    const parsedDate = typeof date === 'string' ? parseISO(date) : date;
-    const dateString = parsedDate ? format(parsedDate, 'yyyy-MM-dd') : '';
+    const parsedDate = typeof date === 'string' ? parseISO(date) : (date instanceof Date ? date : undefined);
+    const isValidDate = parsedDate && isValid(parsedDate);
+    const dateString = isValidDate ? format(parsedDate, 'yyyy-MM-dd') : '';
 
     return (
         <div className={cn(
@@ -29,7 +30,7 @@ export function DatePicker({ date, setDate, placeholder = "Выберите да
 
             {/* Visual Fake Input for nice text formatting */}
             <div className="ml-2 flex-grow pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">
-                {parsedDate ? format(parsedDate, formatStr, { locale: ru }) : <span className="text-slate-400">{placeholder}</span>}
+                {isValidDate ? format(parsedDate, formatStr, { locale: ru }) : <span className="text-slate-400">{placeholder}</span>}
             </div>
 
             {/* Real Native Hidden Input positioned over everything */}
@@ -37,6 +38,7 @@ export function DatePicker({ date, setDate, placeholder = "Выберите да
                 type="date"
                 value={dateString}
                 onClick={(e) => {
+                    e.stopPropagation(); // Prevent clicks from bubbling up to parents
                     try {
                         // Force picker to open when clicking anywhere on the input element
                         (e.target as HTMLInputElement).showPicker();

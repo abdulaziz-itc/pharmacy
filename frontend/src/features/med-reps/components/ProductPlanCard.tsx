@@ -40,6 +40,9 @@ interface Fact {
     doctor_id?: number;
     amount: number;
     quantity: number;
+    month?: number;
+    year?: number;
+    date?: string;
 }
 
 interface ProductPlanCardProps {
@@ -68,9 +71,14 @@ interface ProductPlanCardProps {
         year: number;
     }) => Promise<void>;
     doctors?: any[];
+    bonusBalance?: number;
 }
+const MONTHS_RU = [
+    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+];
 
-export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan, onAssignFact, doctors = [] }: ProductPlanCardProps) {
+export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan, onAssignFact, doctors = [], bonusBalance }: ProductPlanCardProps) {
     const [currentMonth, setCurrentMonth] = React.useState<number>(new Date().getMonth() + 1);
     const [currentYear, setCurrentYear] = React.useState<number>(new Date().getFullYear());
     const [isAddOpen, setIsAddOpen] = React.useState(false);
@@ -301,8 +309,20 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             stats.set(pid, current);
         });
 
+        // Filter facts by selected month/year
+        const filteredFacts = facts.filter(f => {
+            if (f.month && f.year) {
+                return f.month === currentMonth && f.year === currentYear;
+            }
+            if (f.date) {
+                const d = new Date(f.date);
+                return (d.getMonth() + 1) === currentMonth && d.getFullYear() === currentYear;
+            }
+            return false;
+        });
+
         // Add doctors who might only have facts, not plans
-        facts.forEach(f => {
+        filteredFacts.forEach(f => {
             if (f.doctor_id) {
                 const doc = doctors.find(d => d.id === f.doctor_id);
                 if (doc) {
@@ -325,7 +345,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             }
         });
 
-        facts.forEach(f => {
+        filteredFacts.forEach(f => {
             if (stats.has(f.product_id)) {
                 const current = stats.get(f.product_id)!;
                 if (f.doctor_id) {
@@ -353,7 +373,16 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
     const totalSalary = useMemo(() => {
         let sum = 0;
         facts.forEach(f => {
-            if (!f.doctor_id) {
+            // Filter by date first
+            let match = false;
+            if (f.month && f.year) {
+                match = f.month === currentMonth && f.year === currentYear;
+            } else if (f.date) {
+                const d = new Date(f.date);
+                match = (d.getMonth() + 1) === currentMonth && d.getFullYear() === currentYear;
+            }
+
+            if (match && !f.doctor_id) {
                 const product = products.find(p => p.id === f.product_id);
                 if (product) {
                     sum += f.quantity * (product.salary_expense || 0);
@@ -361,25 +390,36 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             }
         });
         return sum;
-    }, [facts, products]);
+    }, [facts, products, currentMonth, currentYear]);
 
     const totalBonus = useMemo(() => {
         let totalMarketing = 0;
         let doctorMarketing = 0;
 
         facts.forEach(f => {
-            const product = products.find(p => p.id === f.product_id);
-            if (product) {
-                if (!f.doctor_id) {
-                    totalMarketing += f.quantity * (product.marketing_expense || 0);
-                } else {
-                    doctorMarketing += f.quantity * (product.marketing_expense || 0);
+            // Filter by date first
+            let match = false;
+            if (f.month && f.year) {
+                match = f.month === currentMonth && f.year === currentYear;
+            } else if (f.date) {
+                const d = new Date(f.date);
+                match = (d.getMonth() + 1) === currentMonth && d.getFullYear() === currentYear;
+            }
+
+            if (match) {
+                const product = products.find(p => p.id === f.product_id);
+                if (product) {
+                    if (!f.doctor_id) {
+                        totalMarketing += f.quantity * (product.marketing_expense || 0);
+                    } else {
+                        doctorMarketing += f.quantity * (product.marketing_expense || 0);
+                    }
                 }
             }
         });
 
         return Math.max(0, totalMarketing - doctorMarketing);
-    }, [facts, products]);
+    }, [facts, products, currentMonth, currentYear]);
 
 
     return (
@@ -394,12 +434,8 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="rounded-xl border-slate-200">
-                                {[
-                                    [1, 'Январь'], [2, 'Февраль'], [3, 'Март'], [4, 'Апрель'],
-                                    [5, 'Май'], [6, 'Июнь'], [7, 'Июль'], [8, 'Август'],
-                                    [9, 'Сентябрь'], [10, 'Октябрь'], [11, 'Ноябрь'], [12, 'Декабрь']
-                                ].map(([num, name]) => (
-                                    <SelectItem key={num} value={num.toString()} className="text-xs font-medium">{name as string}</SelectItem>
+                                {MONTHS_RU.map((name, i) => (
+                                    <SelectItem key={i + 1} value={(i + 1).toString()} className="text-xs font-medium">{name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -572,12 +608,8 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent className="rounded-xl border-slate-200">
-                                                {[
-                                                    [1, 'Январь'], [2, 'Февраль'], [3, 'Март'], [4, 'Апрель'],
-                                                    [5, 'Май'], [6, 'Июнь'], [7, 'Июль'], [8, 'Август'],
-                                                    [9, 'Сентябрь'], [10, 'Октябрь'], [11, 'Ноябрь'], [12, 'Декабрь']
-                                                ].map(([num, name]) => (
-                                                    <SelectItem key={num} value={num.toString()} className="font-medium">{name as string}</SelectItem>
+                                                {MONTHS_RU.map((name, i) => (
+                                                    <SelectItem key={i + 1} value={(i + 1).toString()} className="font-medium">{name}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
@@ -624,7 +656,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                         <SelectContent className="rounded-xl border-slate-200 max-h-[200px]">
                                             {doctors.map(d => (
                                                 <SelectItem key={d.id} value={d.id.toString()} className={`font-medium ${d.is_active === false ? 'text-slate-400 opacity-70' : ''}`}>
-                                                    {d.full_name} {d.is_active === false && "(Faol emas)"}
+                                                    {d.full_name} {d.is_active === false && "(Архив)"}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -712,7 +744,9 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                         </div>
                         <div className="flex justify-between items-center max-w-xs">
                             <span className="text-fuchsia-400 text-xs font-bold uppercase tracking-widest">Бонус (Остаток):</span>
-                            <span className="text-xl font-black text-fuchsia-400">{new Intl.NumberFormat('ru-RU').format(totalBonus)} UZS</span>
+                            <span className="text-xl font-black text-fuchsia-400">
+                                {new Intl.NumberFormat('ru-RU').format(bonusBalance !== undefined ? bonusBalance : totalBonus)} UZS
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -745,8 +779,9 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                             <div key={idx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                                 {/* Product Main Row (Dynamic styling based on percentage) */}
                                 {(() => {
+                                    const totalFactForProduct = stat.mainFactQty + stat.doctorPlans.reduce((acc, d) => acc + d.factQty, 0);
                                     const planQty = Math.max(stat.mainPlanQty, 1); // Avoid division by zero
-                                    const percent = Math.round((stat.mainFactQty / planQty) * 100);
+                                    const percent = Math.round((totalFactForProduct / planQty) * 100);
                                     let bgClass = "bg-slate-50 border-b border-slate-200"; // Default
                                     let textClass = "text-slate-900";
                                     let iconColor = "text-slate-500 hover:text-slate-700 hover:bg-slate-200";
@@ -804,7 +839,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                                     <p className="text-[12px] font-medium tracking-tight opacity-80">План: {stat.mainPlanQty}</p>
                                                 </div>
                                                 <div className="text-left min-w-[70px]">
-                                                    <p className="text-[12px] font-medium tracking-tight opacity-80">Факт: {stat.mainFactQty}</p>
+                                                    <p className="text-[12px] font-medium tracking-tight opacity-80">Факт: {stat.mainFactQty + stat.doctorPlans.reduce((acc, d) => acc + d.factQty, 0)}</p>
                                                 </div>
                                                 <div className="text-left min-w-[80px]">
                                                     <p className="text-[12px] font-medium tracking-tight opacity-80">Вакант: {vacantQty}</p>
@@ -822,7 +857,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                                     Имя доктора ({docPlan.doctorName})
                                                     {(() => {
                                                         const doc = doctors.find(d => d.id === docPlan.doctorId);
-                                                        return doc && doc.is_active === false ? <span className="opacity-70">(Faol emas)</span> : null;
+                                                        return doc && doc.is_active === false ? <span className="opacity-70">(Архив)</span> : null;
                                                     })()}
                                                 </div>
                                                 <div className="flex items-center gap-6 shrink-0 text-[13px] text-emerald-900/80">

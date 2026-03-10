@@ -10,7 +10,7 @@ from app.api import deps
 from app.models.user import User, UserRole
 from app.models.warehouse import Warehouse, Stock
 from app.models.sales import Reservation, Invoice, Payment, ReservationStatus
-from app.schemas.sales import Reservation as ReservationSchema, Invoice as InvoiceSchema, Payment as PaymentSchema, ReservationDataUpdate
+from app.schemas.sales import Reservation as ReservationSchema, Invoice as InvoiceSchema, Payment as PaymentSchema, PaymentCreate, ReservationDataUpdate
 from app.crud import crud_sales
 from app.services.reservation_service import ReservationService
 from app.services.finance_service import FinancialService
@@ -46,9 +46,16 @@ async def create_warehouse(
     await db.commit()
     await db.refresh(db_obj)
 
+    # Re-fetch with eager loaded stocks to avoid async lazy-load 500 error
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(Warehouse).options(selectinload(Warehouse.stocks)).where(Warehouse.id == db_obj.id)
+    )
+    db_obj = result.scalar_one()
+
     await log_action(
         db, current_user, "CREATE", "Warehouse", db_obj.id,
-        f"Yangi ombor yaratildi: {db_obj.name}",
+        f"Создан новый склад: {db_obj.name}",
         request
     )
     return db_obj
@@ -101,8 +108,8 @@ async def fulfill_stock(
     # 3. Audit log
     await log_action(
         db, current_user, "CREATE", "StockFulfillment", stock.id,
-        f"Omborga prixod: Ombor #{id}, Mahsulot #{fulfillment_in.product_id}, "
-        f"Miqdor: +{fulfillment_in.quantity} (Oldingi: {old_qty} → Yangi: {stock.quantity})",
+        f"Приход на склад: Склад #{id}, Продукт #{fulfillment_in.product_id}, "
+        f"Кол-во: +{fulfillment_in.quantity} (Было: {old_qty} → Стало: {stock.quantity})",
         request
     )
 
@@ -155,8 +162,8 @@ async def activate_reservation(
 
         await log_action(
             db, current_user, "UPDATE", "Reservation", id,
-            f"Bron #{id} aktivlashtirildi (Mijoz: {reservation.customer_name}, "
-            f"Summa: {reservation.total_amount:,.0f} UZS). Faktura avtomatik yaratildi.",
+            f"Бронь #{id} активирована (Клиент: {reservation.customer_name}, "
+            f"Сумма: {reservation.total_amount:,.0f} UZS). Счет-фактура создана автоматически.",
             request
         )
         return reservation
@@ -179,7 +186,7 @@ async def delete_reservation(
 
     await log_action(
         db, current_user, "DELETE", "Reservation", id,
-        f"Bron #{id} o'chirildi va tovarlar skladga qaytarildi.",
+        f"Бронь #{id} удалена, товары возвращены на склад.",
         request
     )
     return {"ok": True}
@@ -199,11 +206,11 @@ async def update_reservation_data(
     reservation = await crud_sales.update_reservation_data(db, id, obj_in)
     if not reservation:
         raise HTTPException(status_code=404, detail="Reservation not found")
-
+    
     await log_action(
         db, current_user, "UPDATE", "Reservation", id,
-        f"Bron ma'lumotlari yangilandi: Faktura #{obj_in.factura_number or '? '}, "
-        f"Sana: {obj_in.realization_date or '? '}, Chegirma: {obj_in.discount_percent or '? '}%",
+        f"Данные брони обновлены: Счет-фактура #{obj_in.factura_number or '? '}, "
+        f"Дата: {obj_in.realization_date or '? '}, Скидка: {obj_in.discount_percent or '? '}%",
         request
     )
     return reservation
@@ -212,7 +219,7 @@ async def update_reservation_data(
 
 @router.post("/payments/", response_model=PaymentSchema)
 async def create_payment(
-    obj_in: Any,
+    obj_in: PaymentCreate,
     request: Request,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
@@ -224,9 +231,9 @@ async def create_payment(
 
     await log_action(
         db, current_user, "CREATE", "Payment", payment.id,
-        f"To'lov qabul qilindi: Faktura #{getattr(obj_in, 'invoice_id', '?')}, "
-        f"Summa: {getattr(obj_in, 'amount', 0):,.0f} UZS, "
-        f"Tur: {getattr(obj_in, 'payment_type', '?')}",
+        f"Оплата принята: Счет-фактура #{obj_in.invoice_id}, "
+        f"Сумма: {obj_in.amount:,.0f} UZS, "
+        f"Тип: {obj_in.payment_type}",
         request
     )
     return payment
@@ -241,12 +248,31 @@ async def list_invoices(
 ) -> Any:
     """List all invoices for Head of Orders."""
     from sqlalchemy.orm import selectinload
-    from app.models.sales import Invoice as InvoiceModel
-    result = await db.execute(
-        select(InvoiceModel).options(
-            selectinload(InvoiceModel.reservation),
-            selectinload(InvoiceModel.payments),
-        ).order_by(InvoiceModel.id.desc())
-    )
-    return result.scalars().all()
+    from app.models.sales import Invoice as InvoiceModel, ReservationItem, Reservation, Payment
+    from app.models.product import Product
+    from app.models.crm import MedicalOrganization
+    from app.models.warehouse import Warehouse as WarehouseModel
+    
+    try:
+        result = await db.execute(
+            select(InvoiceModel)
+            .join(InvoiceModel.reservation)
+            .where(Reservation.status.in_(["approved", "paid", "partial"]))
+            .options(
+                selectinload(InvoiceModel.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
+                selectinload(InvoiceModel.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+                selectinload(InvoiceModel.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
+                selectinload(InvoiceModel.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
+                selectinload(InvoiceModel.reservation).selectinload(Reservation.created_by),
+                selectinload(InvoiceModel.reservation).selectinload(Reservation.warehouse).selectinload(WarehouseModel.stocks),
+                selectinload(InvoiceModel.reservation).selectinload(Reservation.invoice),
+                selectinload(InvoiceModel.payments).selectinload(Payment.processed_by),
+            ).order_by(InvoiceModel.id.desc())
+        )
+        return result.scalars().all()
+    except Exception as e:
+        import traceback
+        trace = traceback.format_exc()
+        print("API ERROR:", trace)
+        raise HTTPException(status_code=400, detail=str(e) + "\n" + trace)
 

@@ -53,6 +53,8 @@ class MedicalOrganizationBase(BaseModel):
     inn: Optional[str] = None
     director_name: Optional[str] = None
     contact_phone: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class MedicalOrganizationCreate(MedicalOrganizationBase):
     inn: str
@@ -68,6 +70,8 @@ class MedicalOrganizationUpdate(BaseModel):
     director_name: Optional[str] = None
     contact_phone: Optional[str] = None
     assigned_rep_ids: Optional[List[int]] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class MedicalOrganization(MedicalOrganizationBase):
     id: int

@@ -9,15 +9,18 @@ import { MedRepNotificationsTable } from './components/MedRepNotificationsTable'
 import { ProductPlanCard } from './components/ProductPlanCard';
 import { BonusPaymentsCard } from './components/BonusPaymentsCard';
 import { ReassignUserModal } from './ReassignUserModal';
-import { UnassignedSalesSection } from './components/UnassignedSalesSection';
+import { MedRepBonusDashboard } from './components/MedRepBonusDashboard';
 import { Button } from '../../components/ui/button';
-import { ArrowRightLeft } from 'lucide-react';
+import { ArrowRightLeft, Wallet } from 'lucide-react';
 import { getDoctors, getMedOrgs } from '../../api/crm';
 import { getPlans, getSaleFacts, createDoctorFact, getBonusPayments, createBonusPayment, updateBonusPayment } from '../../api/sales';
+import { getMedRepBonusBalance } from '../../api/orders-management';
 import { getUsers } from '../../api/user';
 import { getVisitPlans } from '../../api/visit-plans';
 import { getNotifications } from '../../api/notifications';
 import { useProductStore } from '../../store/productStore';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { toast } from 'sonner';
 
 export default function MedRepDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -31,6 +34,7 @@ export default function MedRepDetailPage() {
     const [salesPlans, setSalesPlans] = React.useState<any[]>([]);
     const [salesFacts, setSalesFacts] = React.useState<any[]>([]);
     const [bonusPayments, setBonusPayments] = React.useState<any[]>([]);
+    const [bonusBalance, setBonusBalance] = React.useState<number>(0);
     const [isReassignModalOpen, setIsReassignModalOpen] = React.useState(false);
     const { products, fetchProducts } = useProductStore();
 
@@ -92,6 +96,9 @@ export default function MedRepDetailPage() {
                 const bonuses = await getBonusPayments(repId);
                 setBonusPayments(bonuses);
 
+                const balanceData = await getMedRepBonusBalance(repId);
+                setBonusBalance(balanceData.balance);
+
             } catch (error) {
                 console.error("Failed to fetch Med Rep details:", error);
             } finally {
@@ -138,13 +145,28 @@ export default function MedRepDetailPage() {
                             </div>
                         </div>
 
-                        <Button
-                            onClick={() => setIsReassignModalOpen(true)}
-                            className="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 font-bold rounded-xl shadow-sm h-11 px-5"
-                        >
-                            <ArrowRightLeft className="w-4 h-4 mr-2" />
-                            Передать территорию
-                        </Button>
+                        <div className="flex items-center gap-3">
+                            <Button
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-bold rounded-xl shadow-sm h-11 px-5"
+                                onClick={() => {
+                                    const bonusTab = document.querySelector('[value="bonus"]');
+                                    if (bonusTab) (bonusTab as HTMLElement).click();
+                                    window.scrollTo({ top: 400, behavior: 'smooth' });
+                                }}
+                            >
+                                <Wallet className="w-4 h-4 mr-2" />
+                                Бонус: {bonusBalance.toLocaleString('ru-RU')} UZS
+                            </Button>
+
+                            <Button
+                                onClick={() => setIsReassignModalOpen(true)}
+                                className="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 font-bold rounded-xl shadow-sm h-11 px-5"
+                            >
+                                <ArrowRightLeft className="w-4 h-4 mr-2" />
+                                Передать территорию
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -161,163 +183,177 @@ export default function MedRepDetailPage() {
                 role="med_rep"
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-20">
-                {/* 1. Doctors Plan */}
-                <div className="transition-all duration-300 hover:translate-y-[-4px]">
-                    <DoctorPlansTable data={doctorPlans} />
-                </div>
+            <div className="pb-20">
+                <Tabs defaultValue="overview" className="space-y-6">
+                    <TabsList className="bg-slate-100/50 p-1 rounded-xl h-auto flex flex-wrap gap-2 w-full justify-start overflow-x-auto border border-blue-100 shadow-sm">
+                        <TabsTrigger value="overview" className="rounded-lg px-4 py-2.5 text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all whitespace-nowrap">Управление</TabsTrigger>
+                        <TabsTrigger value="bonus" className="rounded-lg px-4 py-2.5 text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all whitespace-nowrap">Личный бонусный баланс</TabsTrigger>
+                        <TabsTrigger value="doctors" className="rounded-lg px-4 py-2.5 text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all whitespace-nowrap">Врачи</TabsTrigger>
+                        <TabsTrigger value="pharmacies" className="rounded-lg px-4 py-2.5 text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all whitespace-nowrap">Аптеки</TabsTrigger>
+                    </TabsList>
 
-                {/* 2. Pharmacy Plan */}
-                <div className="transition-all duration-300 hover:translate-y-[-4px]">
-                    <PharmacyPlansTable data={pharmacyPlans} />
-                </div>
+                    <TabsContent value="overview" className="m-0 focus-visible:outline-none focus-visible:ring-0">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* 1. Doctors Plan */}
+                            <div className="transition-all duration-300 hover:translate-y-[-4px]">
+                                <DoctorPlansTable data={doctorPlans} />
+                            </div>
 
-                {/* 3. Pharmacies */}
-                <div className="transition-all duration-300 hover:translate-y-[-4px]">
-                    <MedRepPharmaciesTable data={pharmacies} medRepId={id} />
-                </div>
+                            {/* 2. Pharmacy Plan */}
+                            <div className="transition-all duration-300 hover:translate-y-[-4px]">
+                                <PharmacyPlansTable data={pharmacyPlans} />
+                            </div>
 
-                {/* 4. Doctors */}
-                <div className="transition-all duration-300 hover:translate-y-[-4px]">
-                    <MedRepDoctorsTable
-                        data={doctors.map(d => ({
-                            id: d.id,
-                            fullName: d.full_name,
-                            specialty: d.specialty?.name || "",
-                            organization: d.med_org?.name || "",
-                            category: d.category?.name || "A",
-                            rawDoctor: d // Pass the original object for the modal
-                        }))}
-                        salesPlans={salesPlans}
-                        salesFacts={salesFacts} // Pass facts down here
-                        bonusPayments={bonusPayments}
-                    />
-                </div>
+                            {/* Product Plan */}
+                            <div className="lg:col-span-2 transition-all duration-300 hover:translate-y-[-4px]">
+                                <ProductPlanCard
+                                    plans={salesPlans}
+                                    facts={salesFacts}
+                                    doctors={doctors}
+                                    onAddPlan={async (planData) => {
+                                        try {
+                                            const repId = parseInt(id || "0");
+                                            await import('../../api/sales').then(m => m.createPlan({
+                                                med_rep_id: repId,
+                                                product_id: planData.product_id,
+                                                doctor_id: planData.doctor_id,
+                                                target_quantity: planData.target_quantity,
+                                                target_amount: planData.target_amount,
+                                                month: planData.month,
+                                                year: planData.year
+                                            }));
+                                            const updatedPlans = await import('../../api/sales').then(m => m.getPlans(undefined, undefined, repId));
+                                            setSalesPlans(updatedPlans);
+                                        } catch (e) {
+                                            console.error(e);
+                                            alert("Ошибка сохранения плана");
+                                        }
+                                    }}
+                                    onEditPlan={async (planId, planData) => {
+                                        try {
+                                            const repId = parseInt(id || "0");
+                                            await import('../../api/sales').then(m => m.updatePlan(planId, {
+                                                target_quantity: planData.target_quantity,
+                                                target_amount: planData.target_amount,
+                                                month: planData.month,
+                                                year: planData.year
+                                            }));
+                                            const updatedPlans = await import('../../api/sales').then(m => m.getPlans(undefined, undefined, repId));
+                                            setSalesPlans(updatedPlans);
+                                        } catch (e) {
+                                            console.error(e);
+                                            alert("Ошибка обновления плана");
+                                        }
+                                    }}
+                                    onAssignFact={async (factData) => {
+                                        try {
+                                            const repId = parseInt(id || "0");
+                                            await createDoctorFact({
+                                                med_rep_id: repId,
+                                                doctor_id: factData.doctor_id,
+                                                product_id: factData.product_id,
+                                                quantity: factData.quantity,
+                                                month: factData.month,
+                                                year: factData.year
+                                            });
+                                            const updatedFacts = await getSaleFacts(repId);
+                                            setSalesFacts(updatedFacts);
 
-                {/* 5. Notifications & 6. Product Plan (Side by Side) */}
-                <div className="transition-all duration-300 hover:translate-y-[-4px]">
-                    <MedRepNotificationsTable data={notifications.map((n: any) => ({
-                        id: n.id,
-                        topic: n.topic,
-                        date: n.created_at.split('T')[0],
-                        status: n.status === 'read' ? 'Прочитано' : 'Новое',
-                        doctorPharmacy: n.related_entity_name || "-"
-                    }))} />
-                </div>
+                                            // Update bonus balance after assigning fact
+                                            const balanceData = await getMedRepBonusBalance(repId);
+                                            setBonusBalance(balanceData.balance);
+                                        } catch (e) {
+                                            console.error(e);
+                                            alert("Ошибка назначения факта");
+                                        }
+                                    }}
+                                    bonusBalance={bonusBalance}
+                                />
+                            </div>
 
-                <div className="transition-all duration-300 hover:translate-y-[-4px]">
-                    <ProductPlanCard
-                        plans={salesPlans}
-                        facts={salesFacts}
-                        doctors={doctors}
-                        onAddPlan={async (planData) => {
-                            try {
-                                const repId = parseInt(id || "0");
-                                await import('../../api/sales').then(m => m.createPlan({
-                                    med_rep_id: repId,
-                                    product_id: planData.product_id,
-                                    doctor_id: planData.doctor_id,
-                                    target_quantity: planData.target_quantity,
-                                    target_amount: planData.target_amount,
-                                    month: planData.month,
-                                    year: planData.year
-                                }));
-                                // Refetch completely to merge duplicates and include product relation
-                                const updatedPlans = await import('../../api/sales').then(m => m.getPlans(undefined, undefined, repId));
-                                setSalesPlans(updatedPlans);
-                            } catch (e) {
-                                console.error(e);
-                                alert("Ошибка сохранения плана");
-                            }
-                        }}
-                        onEditPlan={async (planId, planData) => {
-                            try {
-                                const repId = parseInt(id || "0");
-                                await import('../../api/sales').then(m => m.updatePlan(planId, {
-                                    target_quantity: planData.target_quantity,
-                                    target_amount: planData.target_amount,
-                                    month: planData.month,
-                                    year: planData.year
-                                }));
-                                // Refetch completely to merge duplicates and include product relation
-                                const updatedPlans = await import('../../api/sales').then(m => m.getPlans(undefined, undefined, repId));
-                                setSalesPlans(updatedPlans);
-                            } catch (e) {
-                                console.error(e);
-                                alert("Ошибка обновления плана");
-                            }
-                        }}
-                        onAssignFact={async (factData) => {
-                            try {
-                                const repId = parseInt(id || "0");
-                                await createDoctorFact({
-                                    med_rep_id: repId,
-                                    doctor_id: factData.doctor_id,
-                                    product_id: factData.product_id,
-                                    quantity: factData.quantity,
-                                    month: factData.month,
-                                    year: factData.year
-                                });
-                                const updatedFacts = await getSaleFacts(repId);
-                                setSalesFacts(updatedFacts);
-                            } catch (e) {
-                                console.error(e);
-                                alert("Ошибка назначения факта");
-                            }
-                        }}
-                    />
-                </div>
+                            {/* Notifications */}
+                            <div className="lg:col-span-2 transition-all duration-300 hover:translate-y-[-4px]">
+                                <MedRepNotificationsTable data={notifications.map((n: any) => ({
+                                    id: n.id,
+                                    topic: n.topic,
+                                    date: n.created_at.split('T')[0],
+                                    status: n.status === 'read' ? 'Прочитано' : 'Новое',
+                                    doctorPharmacy: n.related_entity_name || "-"
+                                }))} />
+                            </div>
 
-                <div className="lg:col-span-2 transition-all duration-300 hover:translate-y-[-4px]">
-                    <UnassignedSalesSection
-                        medRepId={parseInt(id || "0")}
-                        doctors={doctors}
-                        onSuccess={() => {
-                            // Optionally refetch bonuses or other data
-                        }}
-                    />
-                </div>
+                            {/* Bonus Payments Card */}
+                            <div className="lg:col-span-2 transition-all duration-300 hover:translate-y-[-4px]">
+                                <BonusPaymentsCard
+                                    bonusPayments={bonusPayments}
+                                    salesFacts={salesFacts}
+                                    salesPlans={salesPlans}
+                                    doctors={doctors.map((d: any) => ({ id: d.id, full_name: d.full_name }))}
+                                    products={products.filter(p => p.is_active).map(p => ({ id: p.id, name: p.name }))}
+                                    onAddBonusPayment={async (data) => {
+                                        try {
+                                            const repId = parseInt(id || "0");
+                                            await createBonusPayment({
+                                                med_rep_id: repId,
+                                                amount: data.amount,
+                                                for_month: data.for_month,
+                                                for_year: data.for_year,
+                                                paid_date: data.paid_date,
+                                                doctor_id: data.doctor_id,
+                                                product_id: data.product_id,
+                                                notes: data.notes
+                                            });
+                                            const updated = await getBonusPayments(repId);
+                                            setBonusPayments(updated);
+                                        } catch (e) {
+                                            console.error(e);
+                                            alert("Ошибка записи выплаты бонуса");
+                                        }
+                                    }}
+                                    onEditBonusPayment={async (bpId, data) => {
+                                        try {
+                                            const repId = parseInt(id || "0");
+                                            await updateBonusPayment(bpId, data);
+                                            const updated = await getBonusPayments(repId);
+                                            setBonusPayments(updated);
+                                        } catch (e) {
+                                            console.error(e);
+                                            alert("Ошибка обновления выплаты");
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </TabsContent>
 
-                {/* Bonus Payments Card — full width */}
-                <div className="lg:col-span-2 transition-all duration-300 hover:translate-y-[-4px]">
-                    <BonusPaymentsCard
-                        bonusPayments={bonusPayments}
-                        salesPlans={salesPlans}
-                        doctors={doctors.map((d: any) => ({ id: d.id, full_name: d.full_name }))}
-                        products={products.filter(p => p.is_active).map(p => ({ id: p.id, name: p.name }))}
-                        onAddBonusPayment={async (data) => {
-                            try {
-                                const repId = parseInt(id || "0");
-                                await createBonusPayment({
-                                    med_rep_id: repId,
-                                    amount: data.amount,
-                                    for_month: data.for_month,
-                                    for_year: data.for_year,
-                                    paid_date: data.paid_date,
-                                    doctor_id: data.doctor_id,
-                                    product_id: data.product_id,
-                                    notes: data.notes
-                                });
-                                const updated = await getBonusPayments(repId);
-                                setBonusPayments(updated);
-                            } catch (e) {
-                                console.error(e);
-                                alert("Ошибка записи выплаты бонуса");
-                            }
-                        }}
-                        onEditBonusPayment={async (bpId, data) => {
-                            try {
-                                const repId = parseInt(id || "0");
-                                await updateBonusPayment(bpId, data);
-                                const updated = await getBonusPayments(repId);
-                                setBonusPayments(updated);
-                            } catch (e) {
-                                console.error(e);
-                                alert("Ошибка обновления выплаты");
-                            }
-                        }}
-                    />
-                </div>
+                    <TabsContent value="bonus" className="m-0 focus-visible:outline-none focus-visible:ring-0">
+                        <MedRepBonusDashboard doctors={doctors} medRepId={parseInt(id || "0")} />
+                    </TabsContent>
+
+                    <TabsContent value="doctors" className="m-0 focus-visible:outline-none focus-visible:ring-0">
+                        <MedRepDoctorsTable
+                            data={doctors.map(d => ({
+                                id: d.id,
+                                fullName: d.full_name,
+                                specialty: d.specialty?.name || "",
+                                organization: d.med_org?.name || "",
+                                category: d.category?.name || "A",
+                                rawDoctor: d // Pass the original object for the modal
+                            }))}
+                            salesPlans={salesPlans}
+                            salesFacts={salesFacts} // Pass facts down here
+                            bonusPayments={bonusPayments}
+                            products={products}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="pharmacies" className="m-0 focus-visible:outline-none focus-visible:ring-0">
+                        <MedRepPharmaciesTable data={pharmacies} medRepId={id} />
+                    </TabsContent>
+                </Tabs>
+            </div>
+            <div className="transition-all duration-300 hover:translate-y-[-4px]">
+
             </div>
         </PageContainer >
     );

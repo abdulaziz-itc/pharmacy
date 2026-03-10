@@ -4,6 +4,7 @@ export interface AuditLog {
     id: number;
     user_id: number;
     username: string;
+    full_name?: string;
     action: string;
     entity_type: string;
     entity_id: number;
@@ -31,5 +32,10 @@ export const getAuditLogs = async (filters: AuditLogFilters = {}) => {
 
 export const getAuditActions = async () => {
     const response = await axiosInstance.get('/audit/audit-logs/actions/');
+    return response.data;
+};
+
+export const clearAuditLogs = async () => {
+    const response = await axiosInstance.delete('/audit/audit-logs/');
     return response.data;
 };

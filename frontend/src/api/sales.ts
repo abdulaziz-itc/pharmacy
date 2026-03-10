@@ -10,6 +10,7 @@ export interface Plan {
     year: number;
     target_amount: number;
     target_quantity: number;
+    fact_quantity?: number;
 }
 
 export interface SaleFact {
@@ -47,8 +48,8 @@ export interface BonusPayment {
     product?: { id: number; name: string };
 }
 
-export const getPlans = async (month?: number, year?: number, med_rep_id?: number, doctor_id?: number) => {
-    const params: any = {};
+export const getPlans = async (month?: number, year?: number, med_rep_id?: number, doctor_id?: number, skip: number = 0, limit: number = 100) => {
+    const params: any = { skip, limit };
     if (month) params.month = month;
     if (year) params.year = year;
     if (med_rep_id) params.med_rep_id = med_rep_id;
@@ -62,15 +63,15 @@ export const createPlan = async (planData: Omit<Plan, 'id'>) => {
     return response.data;
 };
 
-export const getSaleFacts = async (med_rep_id?: number) => {
-    const params: any = {};
+export const getSaleFacts = async (med_rep_id?: number, skip: number = 0, limit: number = 100) => {
+    const params: any = { skip, limit };
     if (med_rep_id) params.med_rep_id = med_rep_id;
     const response = await axiosInstance.get('/sales/facts/', { params });
     return response.data;
 };
 
-export const getDoctorFacts = async (med_rep_id?: number, doctor_id?: number) => {
-    const params: any = {};
+export const getDoctorFacts = async (med_rep_id?: number, doctor_id?: number, skip: number = 0, limit: number = 100) => {
+    const params: any = { skip, limit };
     if (med_rep_id) params.med_rep_id = med_rep_id;
     if (doctor_id) params.doctor_id = doctor_id;
     const response = await axiosInstance.get('/sales/doctor-facts/', { params });
@@ -92,8 +93,8 @@ export const deletePlan = async (id: number) => {
     return response.data;
 };
 
-export const getBonusPayments = async (med_rep_id?: number) => {
-    const params: any = {};
+export const getBonusPayments = async (med_rep_id?: number, skip: number = 0, limit: number = 100) => {
+    const params: any = { skip, limit };
     if (med_rep_id) params.med_rep_id = med_rep_id;
     const response = await axiosInstance.get('/sales/bonus-payments/', { params });
     return response.data;

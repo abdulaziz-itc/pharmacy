@@ -20,12 +20,11 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 
 from app.api.v1.endpoints import (
-    orders, payments, analytics, users_domain, reports, audit,
+    orders, analytics, users_domain, reports, audit,
     head_of_orders, medrep_sales, pharmacy_stocks
 )
 
 api_router.include_router(orders.router, prefix="/domain/orders", tags=["domain_orders"])
-api_router.include_router(payments.router, prefix="/domain/payments", tags=["domain_payments"])
 api_router.include_router(analytics.router, prefix="/domain/analytics", tags=["domain_analytics"])
 api_router.include_router(reports.router, prefix="/domain/analytics/reports", tags=["domain_reports"])
 api_router.include_router(users_domain.router, prefix="/domain/users", tags=["domain_users"])

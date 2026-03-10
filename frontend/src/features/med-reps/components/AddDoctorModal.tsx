@@ -12,12 +12,12 @@ import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { createDoctor, getSpecialties, getDoctorCategories, getMedicalOrganizations, getRegions } from "../../../api/crm";
+import { createDoctor, createSpecialty, getSpecialties, getDoctorCategories, getMedicalOrganizations, getRegions } from "../../../api/crm";
 import { useParams } from "react-router-dom";
-import { User, Phone, Mail, Calendar, MapPin, Stethoscope, Building2, Award } from "lucide-react";
+import { User, Phone, Mail, Calendar, MapPin, Stethoscope, Building2, Award, Plus } from "lucide-react";
 import { DatePicker } from "../../../components/ui/date-picker";
 
 // Fix Leaflet icon issue
@@ -32,6 +32,15 @@ let DefaultIcon = L.icon({
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
+
+// Flies the map to given coordinates when they change
+function MapMover({ center }: { center: [number, number] | null }) {
+    const map = useMap();
+    useEffect(() => {
+        if (center) map.flyTo(center, 16, { duration: 1 });
+    }, [center, map]);
+    return null;
+}
 
 interface AddDoctorModalProps {
     isOpen: boolean;
@@ -68,6 +77,7 @@ export function AddDoctorModal({ isOpen, onClose, onSuccess }: AddDoctorModalPro
 
     const [position, setPosition] = useState<[number, number] | null>(null); // [lat, lng]
     const [address, setAddress] = useState("");
+    const [mapCenter, setMapCenter] = useState<[number, number]>([41.2995, 69.2401]);
 
     // Data State
     const [specialties, setSpecialties] = useState<any[]>([]);
@@ -76,6 +86,22 @@ export function AddDoctorModal({ isOpen, onClose, onSuccess }: AddDoctorModalPro
     const [regions, setRegions] = useState<any[]>([]);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Inline specialty creation
+    const [newSpecialtyName, setNewSpecialtyName] = useState("");
+    const [isCreatingSpecialty, setIsCreatingSpecialty] = useState(false);
+
+    // When org is selected, auto-apply its location to the map
+    const handleMedOrgChange = (value: string) => {
+        setMedOrgId(value);
+        const org = medOrgs.find((m: any) => m.id.toString() === value);
+        if (org && org.latitude && org.longitude) {
+            const coords: [number, number] = [org.latitude, org.longitude];
+            setPosition(coords);
+            setMapCenter(coords);
+            if (org.address) setAddress(org.address);
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -261,7 +287,7 @@ export function AddDoctorModal({ isOpen, onClose, onSuccess }: AddDoctorModalPro
                                 </Select>
                             </div>
 
-                            <div className="relative md:col-span-2">
+                            <div className="relative md:col-span-2 space-y-2">
                                 <Select value={specialtyId} onValueChange={setSpecialtyId}>
                                     <SelectTrigger className="h-12 bg-slate-50 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-2xl font-bold text-slate-600">
                                         <SelectValue placeholder="Специальность" />
@@ -272,10 +298,54 @@ export function AddDoctorModal({ isOpen, onClose, onSuccess }: AddDoctorModalPro
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                {/* Inline add specialty */}
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        placeholder="Добавить специальность..."
+                                        value={newSpecialtyName}
+                                        onChange={(e) => setNewSpecialtyName(e.target.value)}
+                                        className="h-10 bg-slate-50 border-slate-200 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 rounded-xl font-medium text-slate-700 text-sm"
+                                        onKeyDown={async (e) => {
+                                            if (e.key === 'Enter' && newSpecialtyName.trim()) {
+                                                e.preventDefault();
+                                                setIsCreatingSpecialty(true);
+                                                try {
+                                                    const created = await createSpecialty(newSpecialtyName.trim());
+                                                    setSpecialties((prev: any[]) => [...prev, created]);
+                                                    setSpecialtyId(created.id.toString());
+                                                    setNewSpecialtyName("");
+                                                } catch { /* ignore */ } finally {
+                                                    setIsCreatingSpecialty(false);
+                                                }
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        disabled={!newSpecialtyName.trim() || isCreatingSpecialty}
+                                        onClick={async () => {
+                                            if (!newSpecialtyName.trim()) return;
+                                            setIsCreatingSpecialty(true);
+                                            try {
+                                                const created = await createSpecialty(newSpecialtyName.trim());
+                                                setSpecialties((prev: any[]) => [...prev, created]);
+                                                setSpecialtyId(created.id.toString());
+                                                setNewSpecialtyName("");
+                                            } catch { /* ignore */ } finally {
+                                                setIsCreatingSpecialty(false);
+                                            }
+                                        }}
+                                        className="shrink-0 h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all shadow-lg shadow-emerald-500/20"
+                                    >
+                                        {isCreatingSpecialty
+                                            ? <span className="animate-spin text-xs">⟳</span>
+                                            : <Plus className="w-4 h-4" />}
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="relative md:col-span-3">
-                                <Select value={medOrgId} onValueChange={setMedOrgId}>
+                                <Select value={medOrgId} onValueChange={handleMedOrgChange}>
                                     <SelectTrigger className="h-12 bg-slate-50 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-2xl font-bold text-slate-600">
                                         <SelectValue placeholder="Медицинская Организация" />
                                     </SelectTrigger>
@@ -299,7 +369,7 @@ export function AddDoctorModal({ isOpen, onClose, onSuccess }: AddDoctorModalPro
                         <div className="bg-slate-50 p-2 rounded-3xl border border-slate-100 relative group overflow-hidden">
                             <div className="h-[240px] w-full rounded-2xl overflow-hidden relative z-0">
                                 <MapContainer
-                                    center={[41.2995, 69.2401]}
+                                    center={mapCenter}
                                     zoom={13}
                                     style={{ height: "100%", width: "100%" }}
                                     zoomControl={false}
@@ -307,6 +377,7 @@ export function AddDoctorModal({ isOpen, onClose, onSuccess }: AddDoctorModalPro
                                 >
                                     <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
                                     <LocationMarker setPosition={setPosition} position={position} />
+                                    <MapMover center={position} />
                                 </MapContainer>
 
                                 {/* Floating Address Input */}

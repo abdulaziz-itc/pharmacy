@@ -21,6 +21,7 @@ class InvoiceStatus(str, enum.Enum):
 class PaymentType(str, enum.Enum):
     CASH = "cash"
     BANK = "bank"
+    OTHER = "other"
 
 class Plan(Base):
     id = Column(Integer, primary_key=True, index=True)
@@ -50,8 +51,9 @@ class Invoice(Base): # Factura
     reservation_id = Column(Integer, ForeignKey("reservation.id"), unique=True)
     factura_number = Column(String, nullable=True)
     realization_date = Column(DateTime, nullable=True)
+    promo_balance = Column(Float, default=0.0) # Marketing balance available for tovar_skidka
     
-    reservation = relationship("Reservation", back_populates="invoice")
+    reservation = relationship("Reservation", back_populates="invoice", foreign_keys=[reservation_id])
     payments = relationship("Payment", back_populates="invoice")
 
 class Reservation(Base): # Bron
@@ -69,12 +71,15 @@ class Reservation(Base): # Bron
     nds_percent = Column(Float, default=12.0)
     description = Column(String, nullable=True)
     is_bonus_eligible = Column(Boolean, default=True)
+    is_tovar_skidka = Column(Boolean, default=False)
+    source_invoice_id = Column(Integer, ForeignKey("invoice.id"), nullable=True)
     
     created_by = relationship("User", backref="reservations_created")
     med_org = relationship("MedicalOrganization", backref="reservations")
     warehouse = relationship("Warehouse", backref="reservations")
     items = relationship("ReservationItem", back_populates="reservation", cascade="all, delete-orphan")
-    invoice = relationship("Invoice", uselist=False, back_populates="reservation")
+    invoice = relationship("Invoice", uselist=False, back_populates="reservation", foreign_keys="Invoice.reservation_id")
+    source_invoice = relationship("Invoice", foreign_keys=[source_invoice_id])
 
 class ReservationItem(Base):
     id = Column(Integer, primary_key=True, index=True)
@@ -116,6 +121,7 @@ class DoctorFactAssignment(Base):
     doctor_id = Column(Integer, ForeignKey("doctor.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("product.id"), nullable=False)
     quantity = Column(Integer, default=0, nullable=False)
+    amount = Column(Float, nullable=True)
     month = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -9,6 +9,7 @@ class MedicalOrganizationType(str, enum.Enum):
     PHARMACY = "pharmacy"
     LECHEBNIY = "lechebniy"
     HOSPITAL = "hospital"
+    WHOLESALE = "wholesale"
 
 # Association table for MedRep to Organization (Many-to-Many)
 medrep_organization = Table(
@@ -45,6 +46,9 @@ class MedicalOrganization(Base):
     inn = Column(String, nullable=True)
     director_name = Column(String, nullable=True)
     contact_phone = Column(String, nullable=True)
+    credit_balance = Column(Float, default=0.0)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     
     # Replaced assigned_rep_id with many-to-many relationship
     assigned_reps = relationship("User", secondary=medrep_organization, backref="assigned_organizations")

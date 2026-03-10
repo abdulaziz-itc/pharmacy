@@ -17,12 +17,16 @@ async def list_unassigned_sales(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """List all paid but unassigned product quantities for the current MedRep."""
-    query = select(UnassignedSale).options(selectinload(UnassignedSale.product)).where(
+    from app.models.sales import Invoice, Reservation
+    from app.models.product import Product as ProductModel
+    query = select(UnassignedSale).options(
+        selectinload(UnassignedSale.product).selectinload(ProductModel.manufacturers),
+        selectinload(UnassignedSale.product).selectinload(ProductModel.category),
+        selectinload(UnassignedSale.invoice).selectinload(Invoice.reservation).selectinload(Reservation.med_org)
+    ).where(
         UnassignedSale.med_rep_id == current_user.id
     )
     # We only show those that have something to assign
-    # UnassignedSale.paid_quantity > UnassignedSale.assigned_quantity
     query = query.where(UnassignedSale.paid_quantity > UnassignedSale.assigned_quantity)
     
     result = await db.execute(query)

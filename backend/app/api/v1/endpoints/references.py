@@ -35,7 +35,7 @@ async def create_category(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Category", category.id,
-        f"Mahsulot kategoriyasi yaratildi: {category.name}",
+        f"Создана категория продукта: {category.name}",
         request
     )
     return category
@@ -60,7 +60,7 @@ async def update_category(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "UPDATE", "Category", updated_category.id,
-        f"Mahsulot kategoriyasi tahrirlandi: {updated_category.name}",
+        f"Категория продукта изменена: {updated_category.name}",
         request
     )
     return updated_category
@@ -90,7 +90,7 @@ async def create_manufacturer(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Manufacturer", manufacturer.id,
-        f"Ishlab chiqaruvchi yaratildi: {manufacturer.name}",
+        f"Создан производитель: {manufacturer.name}",
         request
     )
     return manufacturer
@@ -114,7 +114,7 @@ async def update_manufacturer(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "UPDATE", "Manufacturer", updated_manufacturer.id,
-        f"Ishlab chiqaruvchi tahrirlandi: {updated_manufacturer.name}",
+        f"Производитель изменен: {updated_manufacturer.name}",
         request
     )
     return updated_manufacturer

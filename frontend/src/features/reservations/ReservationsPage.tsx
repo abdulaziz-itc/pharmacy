@@ -70,6 +70,36 @@ export default function ReservationsPage() {
             header: 'Сумма',
             cell: ({ row }: any) => (row.original.total_amount || 0).toLocaleString() + ' UZS',
         },
+        {
+            id: 'actions',
+            header: '',
+            cell: ({ row }: any) => {
+                const isPending = row.original.status === 'pending';
+                if (!isPending) return null;
+
+                const handleCancel = async () => {
+                    if (!confirm('Вы уверены, что хотите отменить эту бронь? Освобожденный товар вернется на склад.')) return;
+                    try {
+                        await api.delete(`/sales/reservations/${row.original.id}`);
+                        refetch();
+                    } catch (error) {
+                        console.error('Failed to cancel reservation:', error);
+                        alert('Ошибка при отмене брони.');
+                    }
+                };
+
+                return (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={handleCancel}
+                    >
+                        Отменить
+                    </Button>
+                );
+            }
+        }
     ];
     return (
         <PageContainer>

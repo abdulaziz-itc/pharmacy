@@ -23,7 +23,7 @@ export function PaymentModal({ isOpen, onClose, availableInvoices, onSuccess }: 
     const [form, setForm] = useState({
         invoice_id: 0,
         amount: "",
-        payment_type: "cash"
+        payment_type: "bank"
     });
 
     const selectedInvoice = availableInvoices.find(i => i.id === form.invoice_id);
@@ -57,14 +57,14 @@ export function PaymentModal({ isOpen, onClose, availableInvoices, onSuccess }: 
                             <Banknote className="w-6 h-6 text-white" />
                         </div>
                         <DialogTitle className="text-xl font-bold text-white text-center leading-tight">
-                            Проводка платежа
+                            Оформить оплату
                         </DialogTitle>
                     </div>
                 </DialogHeader>
 
                 <div className="p-6 space-y-6">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Выбор Инвойса</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Выбор фактуры</label>
                         <select
                             value={form.invoice_id}
                             onChange={(e) => {
@@ -74,22 +74,22 @@ export function PaymentModal({ isOpen, onClose, availableInvoices, onSuccess }: 
                             }}
                             className="w-full h-12 px-4 rounded-xl border border-slate-100 bg-slate-50/50 focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/5 transition-all font-bold text-slate-700 outline-none truncate"
                         >
-                            <option value={0}>Выберите ожидающий инвойс...</option>
+                            <option value={0}>Выберите ожидаемую фактуру...</option>
                             {availableInvoices.map((inv) => (
                                 <option key={inv.id} value={inv.id}>
-                                    ID {inv.id} - {inv.med_org?.name || "Свободная продажа"} - {inv.total_amount_due.toLocaleString()} сум
+                                    ID {inv.id} - {inv.med_org?.name || "Прямая продажа"} - {inv.total_amount_due.toLocaleString()} сум
                                 </option>
                             ))}
                         </select>
                         {selectedInvoice && (
                             <p className="text-xs text-green-600 mt-2 font-bold px-1 bg-green-50 p-2 rounded-lg inline-block">
-                                К оплате: {selectedInvoice.total_amount_due.toLocaleString()} сум
+                                Ожидается к оплате: {selectedInvoice.total_amount_due.toLocaleString()} сум
                             </p>
                         )}
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Сумма поступления (Сум)</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Сумма оплаты (Сум)</label>
                         <Input
                             type="number"
                             min={1}
@@ -103,40 +103,18 @@ export function PaymentModal({ isOpen, onClose, availableInvoices, onSuccess }: 
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Способ оплаты</label>
-                        <div className="grid grid-cols-3 gap-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Тип оплаты</label>
+                        <div className="grid grid-cols-1 gap-2">
                             <button
                                 type="button"
-                                onClick={() => setForm({ ...form, payment_type: 'cash' })}
+                                onClick={() => setForm({ ...form, payment_type: 'bank' })}
                                 className={cn(
                                     "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all",
-                                    form.payment_type === 'cash' ? "border-green-500 bg-green-50 text-green-700" : "border-slate-100 bg-white text-slate-500 hover:border-green-200"
-                                )}
-                            >
-                                <Banknote className="w-5 h-5 mb-1" />
-                                <span className="text-[10px] font-bold uppercase">Наличные</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setForm({ ...form, payment_type: 'card' })}
-                                className={cn(
-                                    "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all",
-                                    form.payment_type === 'card' ? "border-green-500 bg-green-50 text-green-700" : "border-slate-100 bg-white text-slate-500 hover:border-green-200"
-                                )}
-                            >
-                                <CreditCard className="w-5 h-5 mb-1" />
-                                <span className="text-[10px] font-bold uppercase">Карта</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setForm({ ...form, payment_type: 'transfer' })}
-                                className={cn(
-                                    "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all",
-                                    form.payment_type === 'transfer' ? "border-green-500 bg-green-50 text-green-700" : "border-slate-100 bg-white text-slate-500 hover:border-green-200"
+                                    form.payment_type === 'bank' ? "border-green-500 bg-green-50 text-green-700" : "border-slate-100 bg-white text-slate-500 hover:border-green-200"
                                 )}
                             >
                                 <Landmark className="w-5 h-5 mb-1" />
-                                <span className="text-[10px] font-bold uppercase">Перевод</span>
+                                <span className="text-[10px] font-bold uppercase">Банковский перевод</span>
                             </button>
                         </div>
                     </div>

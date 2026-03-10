@@ -15,6 +15,7 @@ import StatsPage from './features/stats/StatsPage';
 import ManufacturerPage from './features/manufacturers/ManufacturerPage';
 import ProductManagerPage from './features/product-managers/ProductManagerPage';
 import ProductManagerDetailPage from './features/product-managers/ProductManagerDetailPage';
+import AdminBonusApprovalPage from "./features/reports/AdminBonusApprovalPage";
 import DeputyDirectorsPage from './features/deputy-directors/DeputyDirectorsPage';
 import ReportsPage from './features/reports/ReportsPage';
 import AuditPage from './features/audit/AuditPage';
@@ -50,6 +51,7 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/deputy-directors" element={<DeputyDirectorsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/bonuses" element={<AdminBonusApprovalPage />} />
             <Route path="/product-managers" element={<ProductManagerPage />} />
             <Route path="/product-managers/:id" element={<ProductManagerDetailPage />} />
             <Route path="/products" element={<ProductPage />} />

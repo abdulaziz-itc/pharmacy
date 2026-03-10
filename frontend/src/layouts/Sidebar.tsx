@@ -26,6 +26,7 @@ import { useAuthStore } from '../store/authStore';
 const getSidebarItems = (role?: string, userId?: number) => {
     const allItems = [
         { icon: LayoutDashboard, label: 'Дашборд', href: '/dashboard', roles: ['admin', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'med_rep', 'head_of_orders'] },
+        { icon: Wallet, label: 'Бонусы МП', href: '/bonuses', roles: ['admin', 'director', 'deputy_director'] },
         { icon: PieChart, label: 'Расширенные отчеты', href: '/reports', roles: ['admin', 'director'] },
         { icon: UserCheck, label: 'Зам. Директора', href: '/deputy-directors', roles: ['admin', 'director'] },
         { icon: UserCheck, label: 'Склад-менеджеры', href: '/head-of-orders-management', roles: ['admin', 'director'] },
@@ -42,7 +43,7 @@ const getSidebarItems = (role?: string, userId?: number) => {
         { icon: Wallet, label: 'Платежи', href: '/payments', roles: ['admin', 'director', 'deputy_director'] },
         { icon: CreditCard, label: 'Дебиторы', href: '/debtors', roles: ['admin', 'director', 'deputy_director'] },
         { icon: PieChart, label: 'Статистика', href: '/stats', roles: ['admin', 'director', 'deputy_director'] },
-        { icon: Activity, label: 'Audit (Log)', href: '/audit', roles: ['admin', 'director'] },
+        { icon: Activity, label: 'Журнал аудита', href: '/audit', roles: ['admin', 'director', 'deputy_director'] },
         // Head of Orders
         { icon: Factory, label: 'Произв. компании', href: '/head-of-orders?tab=manufacturers', roles: ['head_of_orders'] },
         { icon: CalendarRange, label: 'Брони', href: '/head-of-orders?tab=reservations', roles: ['head_of_orders'] },

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
     Plus, RefreshCw, Receipt, CheckCircle, Trash2,
     DollarSign, Factory, CalendarRange, FileText, Building2, PieChart,
@@ -17,10 +17,187 @@ import { getWarehouses, fulfillStock, activateReservation, deleteReservation, ge
 import { useProductStore } from '@/store/productStore';
 import { AddPaymentModal } from './AddPaymentModal';
 import { CreateReservationModal } from './CreateReservationModal';
-import { DatePicker } from '@/components/ui/date-picker';
+import { DateInput } from '@/components/ui/date-input';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import axiosInstance from '@/api/axios';
+
+
+const ModernStatsBar: React.FC<{
+    stats: {
+        totalAmount: number;
+        paidAmount: number;
+        debtAmount: number;
+        resCount: number;
+        tovarSkidkaCount?: number;
+        tovarSkidkaAmount?: number;
+    };
+    promoAmount: number;
+    countLabel?: string;
+    showPromo?: boolean;
+}> = ({ stats, promoAmount, countLabel = "Кол-во (Брони)", showPromo = true }) => {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            {/* Total Realization */}
+            <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-slate-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center shadow-lg shadow-slate-900/20">
+                            <TrendingUp className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Общая продажа</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-slate-900">{stats.totalAmount.toLocaleString()}</span>
+                        <span className="text-[10px] font-bold text-slate-400">СУМ</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Paid Amount */}
+            <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                            <CheckCircle className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Оплачено</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-emerald-600">{stats.paidAmount.toLocaleString()}</span>
+                        <span className="text-[10px] font-bold text-slate-400">СУМ</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Debt Amount */}
+            <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-rose-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-2xl bg-rose-500 flex items-center justify-center shadow-lg shadow-rose-500/20">
+                            <DollarSign className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Задолженность</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-rose-600">{stats.debtAmount.toLocaleString()}</span>
+                        <span className="text-[10px] font-bold text-slate-400">СУМ</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Promo Amount */}
+            <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-2xl bg-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                            <PieChart className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Расходы на промо</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-purple-600">{promoAmount.toLocaleString()}</span>
+                        <span className="text-[10px] font-bold text-slate-400">СУМ</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Resource Count */}
+            <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <Package className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{countLabel}</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-blue-600">{stats.resCount}</span>
+                        <span className="text-[10px] font-bold text-slate-400">ШТ.</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Tovar Skidka Stats (Conditionally shown) */}
+            {stats.tovarSkidkaCount !== undefined && (
+                <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-orange-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-2xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+                                <DollarSign className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-[#f97316]">Товарная скидка</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-xl font-black text-slate-900">{(stats.tovarSkidkaAmount || 0).toLocaleString()}</span>
+                                <span className="text-[9px] font-bold text-slate-400 tracking-tighter">СУМ</span>
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-sm font-black text-orange-600">{stats.tovarSkidkaCount}</span>
+                                <span className="text-[9px] font-bold text-slate-400">ШТ.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+const useDragScroll = () => {
+    const ref = React.useRef<HTMLDivElement>(null);
+    const isPressed = React.useRef(false);
+    const startX = React.useRef(0);
+    const startScrollLeft = React.useRef(0);
+    const [isDragging, setIsDragging] = React.useState(false);
+
+    const onMouseDown = (e: React.MouseEvent) => {
+        if (!ref.current || e.button !== 0) return;
+        isPressed.current = true;
+        startX.current = e.pageX - ref.current.offsetLeft;
+        startScrollLeft.current = ref.current.scrollLeft;
+    };
+
+    const onMouseLeave = () => {
+        isPressed.current = false;
+        setIsDragging(false);
+    };
+
+    const onMouseUp = () => {
+        isPressed.current = false;
+        setIsDragging(false);
+    };
+
+    const onMouseMove = (e: React.MouseEvent) => {
+        if (!isPressed.current || !ref.current) return;
+        const x = e.pageX - ref.current.offsetLeft;
+        const deltaX = x - startX.current;
+        // Only activate drag after moving more than 5px to avoid interfering with clicks
+        if (Math.abs(deltaX) > 5) {
+            e.preventDefault();
+            setIsDragging(true);
+            ref.current.scrollLeft = startScrollLeft.current - deltaX * 2;
+        }
+    };
+
+    return {
+        ref,
+        onMouseDown,
+        onMouseLeave,
+        onMouseUp,
+        onMouseMove,
+        isDragging
+    };
+};
+
 
 const ITEMS_PER_PAGE = 10;
 
@@ -77,6 +254,18 @@ const HeadOfOrdersPage: React.FC = () => {
     const [medOrgs, setMedOrgs] = useState<any[]>([]);
     const [orgSearch, setOrgSearch] = useState('');
 
+    // ----- Filter option lists (loaded independently from API so they work even with empty DB) -----
+    const [filterMedReps, setFilterMedReps] = useState<string[]>([]);
+    const [filterCompanies, setFilterCompanies] = useState<string[]>([]);
+    // Org types are a fixed enum — hardcoded so they never depend on data
+    const FILTER_ORG_TYPES: { value: string; label: string }[] = [
+        { value: 'clinic', label: 'Klinika' },
+        { value: 'pharmacy', label: 'Dorixona' },
+        { value: 'hospital', label: 'Kasalxona' },
+        { value: 'lechebniy', label: 'Lechebniy' },
+        { value: 'wholesale', label: 'Ulgurji' },
+    ];
+
     // ----- Modals -----
     const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -97,24 +286,84 @@ const HeadOfOrdersPage: React.FC = () => {
     const [editDiscount, setEditDiscount] = useState(0);
     const [editMode, setEditMode] = useState<'factura' | 'date' | 'discount'>('factura');
 
+    // Confirmation for activation
+    const [showActivateConfirm, setShowActivateConfirm] = useState<number | null>(null);
+    // Confirmation for deletion
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+
+
     // Filter states
     const [dateStart, setDateStart] = useState('');
     const [dateEnd, setDateEnd] = useState('');
     const [selectedMedRep, setSelectedMedRep] = useState('all');
     const [selectedCompany, setSelectedCompany] = useState('all');
     const [selectedType, setSelectedType] = useState('all');
+    const [selectedInvoiceType, setSelectedInvoiceType] = useState('all'); // 'all', 'regular', 'tovar_skidka'
     const [invNumSearch, setInvNumSearch] = useState('');
 
     const [loading, setLoading] = useState(false);
     const { products, fetchProducts } = useProductStore();
 
-    // products belonging to selected prixod manufacturer
+    const reservationsScroll = useDragScroll();
+    const invoicesScroll = useDragScroll();
+
+    const filteredReservationsPending = reservations.filter(r => {
+        // Only show pending status in Reservations tab
+        const isPending = !['approved', 'partial', 'paid'].includes(r.status);
+        if (!isPending) return false;
+
+        const matchesSearch = (r.med_org?.name || '').toLowerCase().includes(resSearch.toLowerCase()) ||
+            (r.invoice?.invoice_number || '').toLowerCase().includes(resSearch.toLowerCase());
+        return matchesSearch;
+    });
+
+    // --- Helper: Calculate Promo for a reservation ---
+    const calculatePromo = (res: any) => {
+        if (!res?.is_bonus_eligible) return 0;
+        return (res.items || []).reduce((acc: number, item: any) => {
+            const marketingExpense = item.product?.marketing_expense || 0;
+            return acc + (item.quantity * marketingExpense);
+        }, 0);
+    };
+
     const prixodMfrProducts = prixodMfr
         ? (products || []).filter((p: any) =>
             p.manufacturers?.some((m: any) => m.id == prixodMfr.id) ||
             p.manufacturer_id == prixodMfr.id
         )
         : [];
+
+    // Filter option aliases (same lists reused for both invoices and reservations tabs)
+    const medReps = filterMedReps;
+    const companiesList = filterCompanies;
+    const orgTypes = FILTER_ORG_TYPES.map(t => t.value);
+    const resMedReps = filterMedReps;
+    const resCompanies = filterCompanies;
+    const resOrgTypes = FILTER_ORG_TYPES.map(t => t.value);
+
+    // Load filter dropdowns once on mount — independent of tab/data so they survive empty DB
+    useEffect(() => {
+        const loadFilterOptions = async () => {
+            try {
+                // Med Reps
+                const usersRes = await axiosInstance.get('/users/', { params: { limit: 1000 } });
+                const users: any[] = usersRes.data?.items || usersRes.data || [];
+                const medRepNames = users
+                    .filter((u: any) => u.role === 'med_rep')
+                    .map((u: any) => u.full_name)
+                    .filter(Boolean);
+                setFilterMedReps(medRepNames);
+            } catch { /* silently ignore */ }
+
+            try {
+                // Companies (Med Orgs)
+                const orgsRes = await axiosInstance.get('/crm/med-orgs/', { params: { limit: 1000 } });
+                const orgs: any[] = orgsRes.data?.items || orgsRes.data || [];
+                setFilterCompanies(orgs.map((o: any) => o.name).filter(Boolean));
+            } catch { /* silently ignore */ }
+        };
+        loadFilterOptions();
+    }, []);
 
     useEffect(() => {
         fetchProducts();
@@ -177,6 +426,7 @@ const HeadOfOrdersPage: React.FC = () => {
         } catch { }
     };
 
+
     const handleCreateWarehouse = async () => {
         if (!newWhName.trim()) return;
         setNewWhLoading(true);
@@ -203,25 +453,38 @@ const HeadOfOrdersPage: React.FC = () => {
 
     const handleDownloadFactura = async (res: any) => {
         try {
-            const orgName = res.med_org?.name || 'nomalum_korxona';
+            const orgName = (res.med_org?.name || res.customer_name) || 'nomalum_korxona';
             const orgInn = res.med_org?.inn || 'inn_yoq';
-            const rawDate = res.invoice?.realization_date || res.invoice?.created_at;
+            const rawDate = res.invoice?.realization_date || res.date;
             const dateStr = rawDate ? format(new Date(rawDate), 'dd.MM.yyyy') : 'sana_yoq';
 
-            const sanitizedName = `${orgName}_${orgInn}_${dateStr}`.replace(/[\\/:*?"<>|]/g, '');
-            const filename = `${sanitizedName}.xlsx`;
+            const sanitizedOrgName = orgName.replace(/[/\\:*?"<>|]/g, '').trim();
+            const filename = `${sanitizedOrgName}_${orgInn}_${dateStr}.xlsx`;
 
             const response = await axiosInstance.get(`/sales/reservations/${res.id}/export`, {
                 responseType: 'blob'
             });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+
+            // Try to get filename from server headers first
+            const disposition = response.headers['content-disposition'];
+            let finalFilename = filename;
+            if (disposition && disposition.indexOf('filename*=UTF-8\'\'') !== -1) {
+                finalFilename = decodeURIComponent(disposition.split('filename*=UTF-8\'\'')[1]);
+            } else if (disposition && disposition.indexOf('filename=') !== -1) {
+                finalFilename = disposition.split('filename=')[1].replace(/['"]/g, '');
+            }
+
+            const blob = new Blob([response.data], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', filename);
+            link.download = finalFilename;
             document.body.appendChild(link);
             link.click();
-            link.parentNode?.removeChild(link);
-            window.URL.revokeObjectURL(url);
+            document.body.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(url), 200);
         } catch (error) {
             toast.error("Ошибка при скачивании файла");
             console.error(error);
@@ -276,7 +539,7 @@ const HeadOfOrdersPage: React.FC = () => {
     const loadMedOrgs = async () => {
         setLoading(true);
         try {
-            const res = await axiosInstance.get('/crm/organizations/?limit=300');
+            const res = await axiosInstance.get('/crm/med-orgs/?limit=300');
             const data = res.data?.items || res.data || [];
             setMedOrgs(data);
         } catch { toast.error("Ошибка загрузки организаций"); }
@@ -303,14 +566,33 @@ const HeadOfOrdersPage: React.FC = () => {
     };
 
     const handleActivate = async (id: number) => {
-        try { await activateReservation(id); toast.success("Bron aktiv qilindi"); loadReservations(); }
+        setLoading(true);
+        try {
+            await activateReservation(id);
+            toast.success("Bron aktiv qilindi (Бронь активирована)");
+            setShowActivateConfirm(null);
+            loadReservations();
+            loadInvoices();
+        }
         catch (e: any) { toast.error(e.response?.data?.detail || "Xatolik"); }
+        finally { setLoading(false); }
     };
 
     const handleDeleteRes = async (id: number) => {
-        if (!confirm("O'chirishni tasdiqlaysizmi?")) return;
-        try { await deleteReservation(id); toast.success("O'chirildi"); loadReservations(); }
-        catch { toast.error("Ошибка при удалении"); }
+        setShowDeleteConfirm(id);
+    };
+
+    const confirmDeleteRes = async () => {
+        if (!showDeleteConfirm) return;
+        const id = showDeleteConfirm;
+        setShowDeleteConfirm(null);
+        try {
+            await deleteReservation(id);
+            toast.success("Bron o'chirildi, dorilar omborga qaytarildi! ✅");
+            loadReservations();
+        } catch (e: any) {
+            toast.error(e?.response?.data?.detail || "O'chirishda xato yuz berdi");
+        }
     };
 
     // Pagination for manufacturer products
@@ -373,12 +655,85 @@ const HeadOfOrdersPage: React.FC = () => {
         }
     };
 
-    const filteredRes = reservations.filter(r =>
-        (r.med_org?.name || '').toLowerCase().includes(resSearch.toLowerCase()) ||
-        (r.invoice?.invoice_number || '').toLowerCase().includes(resSearch.toLowerCase())
+    const allFilteredReservations = reservations.filter(res => {
+        // Date Filter (using res.date or created_at)
+        const resDate = res.date || res.created_at;
+        if (dateStart && new Date(resDate) < new Date(dateStart)) return false;
+        if (dateEnd && new Date(resDate) > new Date(dateEnd)) return false;
+
+        // Med Rep Filter
+        const repName = res.med_org?.assigned_reps?.[0]?.full_name;
+        if (selectedMedRep !== 'all' && repName !== selectedMedRep) return false;
+
+        // Company Filter
+        if (selectedCompany !== 'all' && res.med_org?.name !== selectedCompany) return false;
+
+        // Type Filter
+        if (selectedType !== 'all' && res.med_org?.org_type !== selectedType) return false;
+
+        // Invoice Type Filter (Regular vs Tovar Skidka)
+        if (selectedInvoiceType === 'regular' && res.is_tovar_skidka) return false;
+        if (selectedInvoiceType === 'tovar_skidka' && !res.is_tovar_skidka) return false;
+
+        return true;
+    });
+
+    const filteredInv = invoices.filter(inv => {
+        const res = inv.reservation;
+        if (!res) return false;
+
+        // Date Filter (using realization_date if available, else created date)
+        const realizationDate = inv.realization_date || inv.created_at;
+        if (dateStart && new Date(realizationDate) < new Date(dateStart)) return false;
+        if (dateEnd && new Date(realizationDate) > new Date(dateEnd)) return false;
+
+        // Med Rep Filter
+        const repName = res.med_org?.assigned_reps?.[0]?.full_name;
+        if (selectedMedRep !== 'all' && repName !== selectedMedRep) return false;
+
+        // Company Filter
+        if (selectedCompany !== 'all' && res.med_org?.name !== selectedCompany) return false;
+
+        // Type Filter
+        if (selectedType !== 'all' && res.med_org?.org_type !== selectedType) return false;
+
+        // Invoice Type Filter (Regular vs Tovar Skidka)
+        if (selectedInvoiceType === 'regular' && res.is_tovar_skidka) return false;
+        if (selectedInvoiceType === 'tovar_skidka' && !res.is_tovar_skidka) return false;
+
+        // Search Filter
+        const matchesSearch = invNumSearch ? (inv.factura_number || '').toLowerCase().includes(invNumSearch.toLowerCase()) : true;
+        return matchesSearch;
+    });
+
+    // --- Stats Calculation ---
+    // Use ALL filtered items for global stats, but tab-specific for table view
+    const stats = {
+        totalAmount: filteredInv.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0),
+        paidAmount: filteredInv.reduce((sum, inv) => {
+            const invoicePaymentsSum = (inv.payments || []).reduce((pAcc: number, p: any) => pAcc + (Number(p.amount) || 0), 0);
+            return sum + invoicePaymentsSum;
+        }, 0),
+        debtAmount: filteredInv.reduce((sum, inv) => {
+            const total = Number(inv.total_amount) || 0;
+            const paid = (inv.payments || []).reduce((pAcc: number, p: any) => pAcc + (Number(p.amount) || 0), 0);
+            return sum + (total - paid);
+        }, 0),
+        resCount: allFilteredReservations.length,
+        resPendingCount: allFilteredReservations.filter(r => r.status === 'pending').length,
+        resActiveCount: allFilteredReservations.filter(r => ['approved', 'partial', 'paid'].includes(r.status)).length,
+        paidInvoicesCount: filteredInv.filter(i => i.status === 'paid').length,
+        partialInvoicesCount: filteredInv.filter(i => i.status === 'partial').length,
+        tovarSkidkaCount: allFilteredReservations.filter(r => r.is_tovar_skidka).length,
+        tovarSkidkaAmount: allFilteredReservations.filter(r => r.is_tovar_skidka).reduce((sum, r) => sum + (r.total_amount || 0), 0),
+    };
+
+
+
+    const filteredOrgs = medOrgs.filter(o =>
+        o.org_type === 'wholesale' &&
+        o.name?.toLowerCase().includes(orgSearch.toLowerCase())
     );
-    const filteredInv = invoices.filter(i => String(i.id).includes(invSearch) || String(i.reservation_id).includes(invSearch));
-    const filteredOrgs = medOrgs.filter(o => o.name?.toLowerCase().includes(orgSearch.toLowerCase()));
 
     return (
         <div className="flex flex-col h-full bg-white">
@@ -543,98 +898,96 @@ const HeadOfOrdersPage: React.FC = () => {
                         {/* --- MODERN FILTER BAR --- */}
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
                             <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Дата начала</label>
-                                    <Input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} className="h-9 text-xs rounded-xl border-slate-200" />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Дата конца</label>
-                                    <Input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} className="h-9 text-xs rounded-xl border-slate-200" />
-                                </div>
+                                {/* Date Start */}
                                 <div className="flex flex-col">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">МЕД. ПРЕДСТАВИТЕЛЬ</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ДАТА НАЧАЛА</p>
+                                    <DateInput value={dateStart} onChange={setDateStart} placeholder="Начало" />
+                                </div>
+                                {/* Date End */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ДАТА КОНЦА</p>
+                                    <DateInput value={dateEnd} onChange={setDateEnd} placeholder="Конец" />
+                                </div>
+                                {/* Med Rep */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">МЕД. РЕП</p>
                                     <Select value={selectedMedRep} onValueChange={setSelectedMedRep}>
-                                        <SelectTrigger className="w-[180px] bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
+                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
                                             <SelectValue placeholder="Все" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Все</SelectItem>
+                                            {resMedReps.map(rep => (
+                                                <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
-
-                                {/* Company Filter */}
+                                {/* Company */}
                                 <div className="flex flex-col">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ВЫБЕРИТЕ КОМПАНИЮ</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">КОМПАНИЯ</p>
                                     <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                                        <SelectTrigger className="w-[180px] bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
+                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
                                             <SelectValue placeholder="Все" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Все</SelectItem>
+                                            {resCompanies.map(c => (
+                                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
-
-                                {/* Type Filter */}
+                                {/* Type */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ТИП</p>
                                     <Select value={selectedType} onValueChange={setSelectedType}>
-                                        <SelectTrigger className="w-[120px] bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
+                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
                                             <SelectValue placeholder="Все" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Все</SelectItem>
+                                            {FILTER_ORG_TYPES.map(t => (
+                                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
-
-                                {/* Invoice Search */}
+                                {/* Invoice Type Filter */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ТИП ФАКТУРЫ</p>
+                                    <Select value={selectedInvoiceType} onValueChange={setSelectedInvoiceType}>
+                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
+                                            <SelectValue placeholder="Все" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Все</SelectItem>
+                                            <SelectItem value="regular">Обычная</SelectItem>
+                                            <SelectItem value="tovar_skidka">Товарная скидка</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {/* Invoice number search */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">НОМЕР СЧЕТА</p>
                                     <Input
                                         value={invNumSearch}
                                         onChange={e => setInvNumSearch(e.target.value)}
                                         placeholder="000"
-                                        className="w-[120px] bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm"
+                                        className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm"
                                     />
                                 </div>
                                 <Button className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest w-full shadow-sm mt-auto">ПОИСК</Button>
                             </div>
                         </div>
 
-                        {/* --- MODERN STATS BAR --- */}
-                        <div className="bg-slate-100/60 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/50 mb-4 flex flex-wrap items-center gap-4 shadow-inner">
-                            <div className="flex flex-col">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">Кол-во С/Ф</span>
-                                <span className="text-sm font-black text-slate-700">{filteredRes.length}</span>
-                            </div>
-                            <div className="h-8 w-px bg-slate-200 mx-2" />
-                            <div className="flex flex-col">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">Общая сумма реализации</span>
-                                <span className="text-sm font-black text-slate-700">0 сум</span>
-                            </div>
-
-                            <div className="flex-1" />
-
-                            <div className="flex gap-2">
-                                <div className="px-5 py-2.5 bg-emerald-500/15 border border-emerald-500/20 rounded-xl flex flex-col items-center min-w-[140px]">
-                                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">ПОСТУПЛЕНИЕ: 0 СУМ</span>
-                                </div>
-                                <div className="px-5 py-2.5 bg-orange-500/15 border border-orange-500/20 rounded-xl flex flex-col items-center min-w-[140px]">
-                                    <span className="text-[9px] font-black text-orange-600 uppercase tracking-tighter">ДЕБИТОР: 0 СУМ</span>
-                                </div>
-                                <div className="px-5 py-2.5 bg-purple-500/15 border border-purple-500/20 rounded-xl flex flex-col items-center min-w-[140px]">
-                                    <span className="text-[9px] font-black text-purple-600 uppercase tracking-tighter">ПРОМО: 0 СУМ</span>
-                                </div>
-                                <div className="px-5 py-2.5 bg-blue-500/15 border border-blue-500/20 rounded-xl flex flex-col items-center min-w-[140px]">
-                                    <span className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">СУММА БРОНИ: 0 СУМ</span>
-                                </div>
-                                <div className="px-5 py-2.5 bg-rose-500/15 border border-rose-500/20 rounded-xl flex flex-col items-center min-w-[140px]">
-                                    <span className="text-[9px] font-black text-rose-600 uppercase tracking-tighter">ПРОС ДЕБИТОРКА: 0 СУМ</span>
-                                </div>
-                            </div>
-                        </div>
+                        <ModernStatsBar
+                            stats={{
+                                ...stats,
+                                resCount: filteredReservationsPending.length
+                            }}
+                            promoAmount={filteredReservationsPending.reduce((s, r) => s + calculatePromo(r), 0)}
+                        />
 
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-black text-slate-800 tracking-tight">Брони</h2>
@@ -649,9 +1002,16 @@ const HeadOfOrdersPage: React.FC = () => {
                         </div>
 
                         <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xl shadow-slate-200/50">
-                            <div className="overflow-x-auto">
+                            <div
+                                ref={reservationsScroll.ref}
+                                onMouseDown={reservationsScroll.onMouseDown}
+                                onMouseLeave={reservationsScroll.onMouseLeave}
+                                onMouseUp={reservationsScroll.onMouseUp}
+                                onMouseMove={reservationsScroll.onMouseMove}
+                                className={`overflow-auto max-h-[70vh] ${reservationsScroll.isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+                            >
                                 <table className="min-w-[1400px] w-full text-[10px] whitespace-nowrap border-separate border-spacing-0">
-                                    <thead>
+                                    <thead className="sticky top-0 z-20">
                                         <tr className="bg-slate-50 border-b border-slate-200">
                                             <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
                                             <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Дата реализации</th>
@@ -672,32 +1032,33 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">История</th>
                                             <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Список</th>
                                             <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Скачать</th>
+                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">Удалить</th>
                                             <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">Тип фактуры</th>
                                             <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Тип К/А</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredRes.length === 0 ? (
+                                        {filteredReservationsPending.length === 0 ? (
                                             <tr>
-                                                <td colSpan={23} className="text-center py-20 bg-white">
-                                                    <div className="flex flex-col items-center gap-3">
-                                                        <div className="p-4 bg-slate-50 rounded-full text-slate-300">
-                                                            <Search className="w-8 h-8" />
-                                                        </div>
+                                                <td colSpan={22} className="text-center py-20 bg-white">
+                                                    <div className="flex flex-col items-center gap-3 opacity-20">
+                                                        <Search className="w-8 h-8" />
                                                         <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Брони не найдены</p>
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ) : filteredRes.map((res, idx) => {
+                                        ) : filteredReservationsPending.map((res, idx) => {
                                             const discount = res.items?.[0]?.discount_percent || 0;
                                             const manufacturer = res.items?.[0]?.product?.manufacturers?.[0]?.name || '—';
                                             const region = res.med_org?.region?.name || '—';
                                             const paidAmount = res.invoice?.paid_amount || 0;
-                                            const totalAmount = res.invoice?.total_amount || 0;
+                                            const totalAmount = res.invoice?.total_amount || res.total_amount || 0;
                                             const debt = totalAmount - paidAmount;
                                             const medRepName = res.med_org?.assigned_reps?.[0]?.full_name || '—';
-                                            const orgType = res.med_org?.org_type || '—';
+                                            const promoVal = calculatePromo(res);
                                             const inn = res.med_org?.inn || '—';
+                                            const orgType = res.med_org?.org_type || '—';
 
                                             return (
                                                 <tr key={res.id} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors group">
@@ -714,7 +1075,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'factura')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{res.invoice?.total_amount?.toLocaleString() || 0}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{totalAmount.toLocaleString()}</td>
                                                     <td className="px-3 py-4 font-black">
                                                         <div className="flex items-center gap-1 text-slate-800 tracking-tight">
                                                             <span>{res.med_org?.name || '—'}</span>
@@ -729,11 +1090,11 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'discount')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 font-bold text-slate-500 text-center">{res.created_at ? format(new Date(res.created_at), 'dd/MM/yyyy') : '—'}</td>
+                                                    <td className="px-3 py-4 font-bold text-slate-500 text-center">{res.date ? format(new Date(res.date), 'dd/MM/yyyy') : '—'}</td>
                                                     <td className="px-3 py-4 text-center">
                                                         <div className="flex justify-center">
                                                             <button
-                                                                onClick={() => handleActivate(res.id)}
+                                                                onClick={() => setShowActivateConfirm(res.id)}
                                                                 className={`w-8 h-4 rounded-full relative transition-colors ${res.status === 'approved' ? 'bg-emerald-500' : 'bg-slate-300'}`}
                                                             >
                                                                 <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all shadow-sm ${res.status === 'approved' ? 'right-0.5' : 'left-0.5'}`} />
@@ -741,7 +1102,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
-                                                    <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">0</td>
+                                                    <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">{promoVal.toLocaleString()}</td>
                                                     <td className="px-3 py-4 text-center">
                                                         <button
                                                             onClick={() => { setSelectedResForReturn(res); setReturnQuantities({}); setShowReturnModal(true); }}
@@ -754,13 +1115,14 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     <td className="px-3 py-4 text-center">
                                                         <Button
                                                             onClick={() => { setSelectedInvoice(res.invoice); setIsPaymentModalOpen(true); }}
-                                                            className="h-8 bg-slate-100 hover:bg-blue-600 text-slate-600 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all px-4"
+                                                            disabled={res.status !== 'approved' && res.status !== 'paid' && res.status !== 'partial'}
+                                                            className="h-8 bg-slate-100 hover:bg-blue-600 text-slate-600 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all px-4 disabled:opacity-50"
                                                         >
-                                                            ПОСТУПЛЕНИЕ
+                                                            ПОСТУПЛЕНИЕ {res.status !== 'approved' && res.status !== 'paid' && res.status !== 'partial' ? '(Ждёт одобрения)' : ''}
                                                         </Button>
                                                     </td>
                                                     <td className="px-3 py-4 text-center">
-                                                        <button onClick={() => { setSelectedResForHistory(res); setShowPaymentHistoryModal(true); }} className="p-1.5 hover:bg-indigo-100 hover:text-indigo-600 rounded-lg transition-colors text-slate-400">
+                                                        <button onClick={() => { setSelectedResForHistory(res.invoice || res); setShowPaymentHistoryModal(true); }} className="p-1.5 hover:bg-indigo-100 hover:text-indigo-600 rounded-lg transition-colors text-slate-400">
                                                             <Eye className="w-4 h-4" />
                                                         </button>
                                                     </td>
@@ -774,7 +1136,21 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             <Download className="w-4 h-4" />
                                                         </button>
                                                     </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteRes(res.id); }}
+                                                            className="p-1.5 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-lg transition-all"
+                                                            title="Удалить бронь"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
                                                     <td className="px-3 py-4 font-black text-slate-800 tracking-tight">{medRepName}</td>
+                                                    <td className="px-3 py-4">
+                                                        <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase tracking-wider ${res.is_tovar_skidka ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                            {res.is_tovar_skidka ? 'Товарная скидка' : 'Обычная'}
+                                                        </span>
+                                                    </td>
                                                     <td className="px-3 py-4 font-black text-slate-600 uppercase text-[9px] tracking-widest italic">{orgType}</td>
                                                 </tr>
                                             );
@@ -789,77 +1165,277 @@ const HeadOfOrdersPage: React.FC = () => {
 
             {
                 tab === 'invoices' && (
-                    <div className="flex-1 p-6 bg-white overflow-y-auto">
-                        <div className="flex items-center justify-between mb-4 gap-4">
-                            <h2 className="text-lg font-semibold text-slate-800 shrink-0">Фактуры</h2>
-                            <div className="relative flex-1 max-w-sm">
-                                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                <Input value={invSearch} onChange={e => setInvSearch(e.target.value)}
-                                    placeholder="По ID..."
-                                    className="pl-9 border-slate-200" />
-                            </div>
-                            <Button onClick={loadInvoices} variant="outline" size="sm" className="border-slate-200">
-                                <RefreshCw className="w-4 h-4" />
-                            </Button>
-                        </div>
-
-                        {/* Quick stats */}
-                        <div className="grid grid-cols-3 gap-4 mb-6">
-                            {[
-                                { label: "Всего оплачено", value: `${invoices.filter(i => i.status === 'paid').length} шт.`, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                                { label: "Частично оплачено", value: `${invoices.filter(i => i.status === 'partial').length} шт.`, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-                                { label: "Всего фактур", value: `${invoices.length} шт.`, color: 'text-blue-600', bg: 'bg-blue-50' },
-                            ].map(s => (
-                                <div key={s.label} className={`${s.bg} rounded-xl p-4 border border-slate-100`}>
-                                    <p className="text-xs text-slate-500 mb-1">{s.label}</p>
-                                    <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                    <div className="flex-1 p-4 bg-slate-50/50 overflow-auto">
+                        <div className="flex items-center justify-between mb-4 px-2">
+                            <h2 className="text-xl font-bold text-slate-800">Фактуры (Одобрено)</h2>
+                            <div className="flex items-center gap-3">
+                                <Button onClick={loadInvoices} variant="outline" size="sm" className="rounded-xl border-slate-200">
+                                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Обновить
+                                </Button>
+                                <div className="relative w-64">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <Input
+                                        value={invSearch}
+                                        onChange={e => setInvSearch(e.target.value)}
+                                        placeholder="Поиск..."
+                                        className="pl-9 rounded-xl border-slate-200 bg-white shadow-sm h-10"
+                                    />
                                 </div>
-                            ))}
+                            </div>
                         </div>
 
-                        <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="bg-slate-50 border-b border-slate-200">
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">№ С/Ф</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">ID брони</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Итого</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Оплачено</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Остаток</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Статус</th>
-                                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Оплата</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredInv.length === 0 ? (
-                                        <tr><td colSpan={7} className="text-center py-12 text-slate-400">Фактуры отсутствуют</td></tr>
-                                    ) : filteredInv.map(inv => (
-                                        <tr key={inv.id} className="border-b border-slate-50 hover:bg-slate-50">
-                                            <td className="px-4 py-3 text-sm font-bold text-slate-800">INV-{inv.id}</td>
-                                            <td className="px-4 py-3 text-sm text-slate-500">#{inv.reservation_id}</td>
-                                            <td className="px-4 py-3 text-sm font-semibold">{inv.total_amount?.toLocaleString()} UZS</td>
-                                            <td className="px-4 py-3 text-sm text-emerald-600 font-semibold">{inv.paid_amount?.toLocaleString()} UZS</td>
-                                            <td className="px-4 py-3 text-sm text-red-500 font-semibold">
-                                                {((inv.total_amount || 0) - (inv.paid_amount || 0)).toLocaleString()} UZS
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor[inv.status] || 'bg-gray-100 text-gray-700'}`}>
-                                                    {inv.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                {inv.status !== 'paid' && inv.status !== 'cancelled' && (
-                                                    <Button size="sm"
-                                                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
-                                                        onClick={() => { setSelectedInvoice(inv); setIsPaymentModalOpen(true); }}>
-                                                        <DollarSign className="w-3 h-3 mr-1" /> Оплата
-                                                    </Button>
-                                                )}
-                                            </td>
+                        {/* FILTER BAR */}
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
+                            <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+                                {/* Date Start */}
+                                <div className="space-y-1.5">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ДАТА НАЧАЛА</p>
+                                    <DateInput value={dateStart} onChange={setDateStart} placeholder="Начало" />
+                                </div>
+                                {/* Date End */}
+                                <div className="space-y-1.5">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ДАТА КОНЦА</p>
+                                    <DateInput value={dateEnd} onChange={setDateEnd} placeholder="Конец" />
+                                </div>
+                                {/* Med Rep */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">МЕД. ПРЕДСТАВИТЕЛЬ</p>
+                                    <Select value={selectedMedRep} onValueChange={setSelectedMedRep}>
+                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
+                                            <SelectValue placeholder="Все" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Все</SelectItem>
+                                            {medReps.map(rep => (
+                                                <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {/* Company */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ВЫБЕРИТЕ КОМПАНИЮ</p>
+                                    <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
+                                            <SelectValue placeholder="Все" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Все</SelectItem>
+                                            {companiesList.map(c => (
+                                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {/* Type */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ТИП</p>
+                                    <Select value={selectedType} onValueChange={setSelectedType}>
+                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
+                                            <SelectValue placeholder="Все" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Все</SelectItem>
+                                            {FILTER_ORG_TYPES.map(t => (
+                                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {/* Invoice Type Filter */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ТИП ФАКТУРЫ</p>
+                                    <Select value={selectedInvoiceType} onValueChange={setSelectedInvoiceType}>
+                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
+                                            <SelectValue placeholder="Все" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Все</SelectItem>
+                                            <SelectItem value="regular">Обычная</SelectItem>
+                                            <SelectItem value="tovar_skidka">Товарная скидка</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {/* Account Number */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">НОМЕР СЧЕТА</p>
+                                    <Input
+                                        value={invNumSearch}
+                                        onChange={e => setInvNumSearch(e.target.value)}
+                                        placeholder="000"
+                                        className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm"
+                                    />
+                                </div>
+                                <Button className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest w-full shadow-sm mt-auto">ПОИСК</Button>
+                            </div>
+                        </div>
+
+                        <ModernStatsBar
+                            stats={{
+                                ...stats,
+                                resCount: filteredInv.length,
+                                tovarSkidkaCount: filteredInv.filter(i => i.reservation?.is_tovar_skidka).length,
+                                tovarSkidkaAmount: filteredInv.filter(i => i.reservation?.is_tovar_skidka).reduce((sum, i) => sum + (i.total_amount || 0), 0)
+                            }}
+                            promoAmount={filteredInv.reduce((s, inv) => s + calculatePromo(inv.reservation), 0)}
+                            countLabel="Кол-во (Фактуры)"
+                            showPromo={false}
+                        />
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+                            <div
+                                ref={invoicesScroll.ref}
+                                onMouseDown={invoicesScroll.onMouseDown}
+                                onMouseLeave={invoicesScroll.onMouseLeave}
+                                onMouseUp={invoicesScroll.onMouseUp}
+                                onMouseMove={invoicesScroll.onMouseMove}
+                                className={`overflow-auto max-h-[70vh] ${invoicesScroll.isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+                            >
+                                <table className="min-w-[1400px] w-full text-[10px] whitespace-nowrap border-separate border-spacing-0">
+                                    <thead className="sticky top-0 z-20">
+                                        <tr className="bg-slate-50 border-b border-slate-200">
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Дата реализации</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Номер С/Ф</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Сумма С/Ф</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Контрагент</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Поступление</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Дебитор</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Скидка %</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Дата брони</th>
+                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Одобрено</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Производитель</th>
+                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Промо</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Возвратить</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Регион</th>
+                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Поступление</th>
+                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">История</th>
+                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Список</th>
+                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Скачать</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic text-rose-500">Удалить</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">Тип фактуры</th>
+                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Тип К/А</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {filteredInv.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={22} className="py-20 text-center">
+                                                    <div className="flex flex-col items-center gap-3 opacity-20">
+                                                        <Receipt className="w-12 h-12" />
+                                                        <p className="font-black uppercase tracking-tighter text-xl text-slate-900">Фактуры отсутствуют</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ) : (filteredInv as any[]).map((inv, idx) => {
+                                            const res = inv.reservation || {};
+                                            const paidAmount = (inv.payments || []).reduce((acc: number, p: any) => acc + p.amount, 0);
+                                            const debt = (inv.total_amount || 0) - paidAmount;
+                                            const discount = res.items?.[0]?.discount_percent || 0;
+                                            const region = res.med_org?.region?.name || '—';
+                                            const medRepName = res.med_org?.assigned_reps?.[0]?.full_name || '—';
+                                            const orgType = res.med_org?.org_type || '—';
+                                            const manufacturer = res.items?.[0]?.product?.manufacturers?.[0]?.name || '—';
+                                            const inn = res.med_org?.inn || '—';
+                                            const promoVal = calculatePromo(res);
+
+                                            return (
+                                                <tr key={inv.id} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors group">
+                                                    <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
+                                                    <td className="px-3 py-4">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="font-black text-slate-700 tracking-tight">{inv.realization_date ? format(new Date(inv.realization_date), 'dd/MM/yyyy') : (inv.created_at ? format(new Date(inv.created_at), 'dd/MM/yyyy') : '—')}</span>
+                                                            <Pencil onClick={() => handleOpenInvoiceEdit(res, 'date')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-4">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="font-black text-slate-700 tracking-tight">{inv.factura_number || '—'}</span>
+                                                            <Pencil onClick={() => handleOpenInvoiceEdit(res, 'factura')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{inv.total_amount?.toLocaleString() || 0}</td>
+                                                    <td className="px-3 py-4 font-black">
+                                                        <div className="flex items-center gap-1 text-slate-800 tracking-tight">
+                                                            <span>{res.med_org?.name || '—'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{inn}</td>
+                                                    <td className="px-3 py-4 font-black text-emerald-600 text-center">{paidAmount.toLocaleString()}</td>
+                                                    <td className="px-3 py-4 font-black text-rose-600 text-center">{debt.toLocaleString()}</td>
+                                                    <td className="px-3 py-4 font-black text-center">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <span className="text-slate-700">{discount}%</span>
+                                                            <Pencil onClick={() => handleOpenInvoiceEdit(res, 'discount')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-4 font-bold text-slate-500 text-center">{res.date ? format(new Date(res.date), 'dd/MM/yyyy') : '—'}</td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <div className="flex justify-center">
+                                                            <button
+                                                                className={`w-8 h-4 rounded-full relative transition-colors ${res.status === 'approved' || res.status === 'paid' || res.status === 'partial' ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                                                            >
+                                                                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all shadow-sm ${res.status === 'approved' || res.status === 'paid' || res.status === 'partial' ? 'right-0.5' : 'left-0.5'}`} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
+                                                    <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">{promoVal.toLocaleString()}</td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <button
+                                                            onClick={() => { setSelectedResForReturn(res); setReturnQuantities({}); setShowReturnModal(true); }}
+                                                            className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-all"
+                                                        >
+                                                            <RefreshCw className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-3 py-4 font-bold text-slate-600">{region}</td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <Button
+                                                            onClick={() => { setSelectedInvoice(inv); setIsPaymentModalOpen(true); }}
+                                                            className="h-8 bg-slate-100 hover:bg-blue-600 text-slate-600 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all px-4"
+                                                        >
+                                                            ПОСТУПЛЕНИЕ
+                                                        </Button>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <button onClick={() => { setSelectedResForHistory(inv); setShowPaymentHistoryModal(true); }} className="p-1.5 hover:bg-indigo-100 hover:text-indigo-600 rounded-lg transition-colors text-slate-400">
+                                                            <Eye className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <button onClick={() => { setSelectedResItems(res.items || []); setShowProductListModal(true); }} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-400">
+                                                            <Eye className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <button onClick={() => handleDownloadFactura(res)} className="p-1.5 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-colors text-slate-400 cursor-pointer">
+                                                            <Download className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteRes(res.id); }}
+                                                            className="p-1.5 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-lg transition-all"
+                                                            title="Удалить бронь"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-3 py-4 font-black text-slate-800 tracking-tight">{medRepName}</td>
+                                                    <td className="px-3 py-4">
+                                                        <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase tracking-wider ${res.is_tovar_skidka ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                            {res.is_tovar_skidka ? 'Товарная скидка' : 'Обычная'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-3 py-4 font-black text-slate-600 uppercase text-[9px] tracking-widest italic">{orgType}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )
@@ -888,21 +1464,36 @@ const HeadOfOrdersPage: React.FC = () => {
                             {filteredOrgs.map(org => (
                                 <div key={org.id}
                                     className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
-                                    <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-start justify-between mb-3 border-b border-slate-50 pb-3">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
                                                 <Building2 className="w-5 h-5 text-indigo-600" />
                                             </div>
                                             <div>
                                                 <p className="font-semibold text-slate-800 text-sm">{org.name}</p>
-                                                <p className="text-xs text-slate-400">{org.org_type || 'Организация'}</p>
+                                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{org.org_type || 'Организация'}</p>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-xs text-slate-500">📞 {org.phone || '—'}</p>
+
+                                    <div className="flex flex-col gap-1.5 mt-2">
+                                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                                            <span className="opacity-50">📞</span> {org.contact_phone || '—'}
+                                        </p>
+                                        {org.credit_balance > 0 && (
+                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 w-fit">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                <span className="text-[10px] font-black uppercase tracking-wider">Кредиторка: {org.credit_balance?.toLocaleString()} UZS</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between mt-4">
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{org.inn ? `ИНН: ${org.inn}` : ''}</p>
+                                        </div>
                                         <Button size="sm" variant="outline"
-                                            className="border-blue-200 text-blue-600 hover:bg-blue-50 text-xs"
+                                            className="border-blue-200 text-blue-600 hover:bg-blue-50 text-[10px] font-bold uppercase tracking-wider h-8"
                                             onClick={() => setIsReservationModalOpen(true)}>
                                             <Plus className="w-3 h-3 mr-1" /> Бронь
                                         </Button>
@@ -929,9 +1520,9 @@ const HeadOfOrdersPage: React.FC = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                             {[
-                                { label: 'Всего броней', value: reservations.length, sub: `Ожидает: ${reservations.filter(r => r.status === 'pending').length}  |  Актив.: ${reservations.filter(r => r.status === 'approved').length}`, color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-100', Icon: CalendarRange },
-                                { label: "Всего оплат", value: `${invoices.reduce((s, i) => s + (i.paid_amount || 0), 0).toLocaleString()} UZS`, sub: `${invoices.filter(i => i.status === 'paid').length} полностью оплачено`, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100', Icon: DollarSign },
-                                { label: 'Задолженность', value: `${invoices.reduce((s, i) => s + Math.max(0, (i.total_amount || 0) - (i.paid_amount || 0)), 0).toLocaleString()} UZS`, sub: `${invoices.filter(i => i.status === 'partial').length} частично оплачено`, color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-100', Icon: TrendingUp },
+                                { label: 'Всего броней', value: stats.resCount, sub: `Ожидает: ${stats.resPendingCount}  |  Актив.: ${stats.resActiveCount}`, color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-100', Icon: CalendarRange },
+                                { label: "Всего оплат", value: `${stats.paidAmount.toLocaleString()} UZS`, sub: `${stats.paidInvoicesCount} полностью оплачено`, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100', Icon: DollarSign },
+                                { label: 'Задолженность', value: `${stats.debtAmount.toLocaleString()} UZS`, sub: `${stats.partialInvoicesCount} частично оплачено`, color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-100', Icon: TrendingUp },
                             ].map(c => (
                                 <div key={c.label} className={`${c.bg} ${c.border} border rounded-xl p-5`}>
                                     <div className="flex items-center gap-2 mb-3">
@@ -964,8 +1555,10 @@ const HeadOfOrdersPage: React.FC = () => {
                                         <div className="space-y-1">
                                             {wh.stocks.map((s: any) => (
                                                 <div key={s.id} className="flex justify-between text-sm border-b border-slate-50 pb-1 last:border-0">
-                                                    <span className="text-slate-500">Продукт #{s.product_id}</span>
-                                                    <span className="font-bold text-slate-800">{s.quantity} шт.</span>
+                                                    <span className="text-slate-500">
+                                                        {s.product?.name || products.find((p: any) => p.id === s.product_id)?.name || `Продукт #${s.product_id}`}
+                                                    </span>
+                                                    <span className="font-bold text-slate-800 tracking-tight">{s.quantity} шт.</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -984,6 +1577,8 @@ const HeadOfOrdersPage: React.FC = () => {
             ============================================================ */}
             <Dialog open={!!editProduct} onOpenChange={v => { if (!v) { setEditProduct(null); setEditQty(''); } }}>
                 <DialogContent className="max-w-sm rounded-2xl shadow-2xl p-0 overflow-hidden border-0">
+                    <DialogTitle className="sr-only">Изменить количество</DialogTitle>
+                    <DialogDescription className="sr-only">Модальное окно для изменения количества продуктов.</DialogDescription>
                     {/* Header */}
                     <div className="bg-gradient-to-br from-slate-700 to-slate-900 px-6 py-5 text-white">
                         <div className="flex items-center gap-2 mb-1">
@@ -1077,6 +1672,8 @@ const HeadOfOrdersPage: React.FC = () => {
 
             <Dialog open={showPrixodModal} onOpenChange={(v) => { setShowPrixodModal(v); if (!v) { setPrixodMfr(null); setPrixodProd(''); setPrixodQty(''); } }}>
                 <DialogContent className="max-w-md rounded-2xl shadow-2xl p-0 overflow-hidden border-0">
+                    <DialogTitle className="sr-only">Приход Товара</DialogTitle>
+                    <DialogDescription className="sr-only">Окно для оформления прихода товара от производителя.</DialogDescription>
                     {/* Header */}
                     <div className="bg-gradient-to-br from-blue-600 to-indigo-700 px-6 py-5 text-white">
                         <div className="flex items-center gap-2 mb-1">
@@ -1186,11 +1783,80 @@ const HeadOfOrdersPage: React.FC = () => {
                 onClose={() => setIsReservationModalOpen(false)}
                 onSuccess={loadReservations}
             />
+
+            {/* Confirmation for Activation */}
+            <Dialog open={!!showActivateConfirm} onOpenChange={v => { if (!v) setShowActivateConfirm(null); }}>
+                <DialogContent className="max-w-md rounded-2xl shadow-2xl p-0 overflow-hidden border-0">
+                    <DialogTitle className="sr-only">Подтверждение активации</DialogTitle>
+                    <DialogDescription className="sr-only">Вы действительно хотите активировать эту бронь?</DialogDescription>
+                    <div className="p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                                <CheckCircle className="w-6 h-6 text-blue-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800">Подтвердите активацию</h3>
+                                <p className="text-sm text-slate-500">Вы действительно хотите активировать эту бронь? Это действие создаст фактуру и заблокирует товар на складе.</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <Button variant="outline" className="rounded-xl" onClick={() => setShowActivateConfirm(null)} disabled={loading}>
+                                Отмена
+                            </Button>
+                            <Button
+                                className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6"
+                                onClick={() => showActivateConfirm && handleActivate(showActivateConfirm)}
+                                disabled={loading}
+                            >
+                                {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                                Да, активировать
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Confirmation for Delete */}
+            <Dialog open={!!showDeleteConfirm} onOpenChange={v => { if (!v) setShowDeleteConfirm(null); }}>
+                <DialogContent className="max-w-md rounded-2xl shadow-2xl p-0 overflow-hidden border-0">
+                    <DialogTitle className="sr-only">Bronni o'chirish</DialogTitle>
+                    <DialogDescription className="sr-only">Bronni o'chirishni tasdiqlang</DialogDescription>
+                    <div className="p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                                <Trash2 className="w-6 h-6 text-red-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800">Bronni o'chirish</h3>
+                                <p className="text-sm text-slate-500 mt-0.5">
+                                    Bron #{showDeleteConfirm} o'chiriladi. Barcha dorilar <span className="font-semibold text-slate-700">omborga qaytariladi</span>.
+                                    Bu amalni ortga qaytarib bo'lmaydi.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <Button variant="outline" className="rounded-xl" onClick={() => setShowDeleteConfirm(null)}>
+                                Bekor qilish
+                            </Button>
+                            <Button
+                                className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6"
+                                onClick={confirmDeleteRes}
+                            >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Ha, o'chirish
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* ============================================================
                 HISTORY OF RECEIPTS MODAL
             ============================================================ */}
             <Dialog open={showHistoryModal} onOpenChange={setShowHistoryModal}>
                 <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-0 shadow-2xl">
+                    <DialogTitle className="sr-only">Оформить Отгрузку</DialogTitle>
+                    <DialogDescription className="sr-only">Модальное окно для оформления отгрузки.</DialogDescription>
                     <div className="bg-slate-900 px-6 py-5 text-white flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <History className="w-5 h-5 text-slate-400" />
@@ -1223,6 +1889,8 @@ const HeadOfOrdersPage: React.FC = () => {
             ============================================================ */}
             <Dialog open={showProductListModal} onOpenChange={setShowProductListModal}>
                 <DialogContent className="max-w-3xl rounded-3xl p-0 overflow-hidden border-0 shadow-2xl">
+                    <DialogTitle className="sr-only">Список продуктов брони</DialogTitle>
+                    <DialogDescription className="sr-only">Просмотр списка заказанных продуктов.</DialogDescription>
                     <div className="bg-slate-900 px-6 py-5 text-white flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <List className="w-5 h-5 text-slate-400" />
@@ -1298,6 +1966,8 @@ const HeadOfOrdersPage: React.FC = () => {
             ============================================================ */}
             <Dialog open={showReturnModal} onOpenChange={setShowReturnModal}>
                 <DialogContent className="max-w-3xl rounded-3xl p-0 overflow-hidden border-0 shadow-2xl">
+                    <DialogTitle className="sr-only">Возврат товара</DialogTitle>
+                    <DialogDescription className="sr-only">Модальное окно оформления возврата продуктов.</DialogDescription>
                     <div className="bg-rose-600 px-6 py-5 text-white flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <RefreshCw className="w-5 h-5 text-rose-200" />
@@ -1373,7 +2043,7 @@ const HeadOfOrdersPage: React.FC = () => {
                             <div>
                                 <h2 className="text-xl font-black tracking-tight uppercase">История поступлений</h2>
                                 <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-0.5 opacity-80">
-                                    Накладная: {selectedResForHistory?.invoice?.invoice_number || '—'}
+                                    Номер накладной: {selectedResForHistory?.invoice_number || selectedResForHistory?.invoice?.invoice_number || '—'}
                                 </p>
                             </div>
                         </div>
@@ -1387,12 +2057,12 @@ const HeadOfOrdersPage: React.FC = () => {
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Сумма</th>
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Метод</th>
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Дата</th>
-                                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Кассир</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Кто принимал</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {(selectedResForHistory?.invoice?.payments || []).length > 0 ? (
-                                        selectedResForHistory.invoice.payments.map((p: any, i: number) => (
+                                    {((selectedResForHistory?.payments || selectedResForHistory?.invoice?.payments) || []).length > 0 ? (
+                                        ((selectedResForHistory?.payments || selectedResForHistory?.invoice?.payments) || []).map((p: any, i: number) => (
                                             <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <span className="text-sm font-black text-emerald-600">
@@ -1401,11 +2071,11 @@ const HeadOfOrdersPage: React.FC = () => {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider">
-                                                        {p.payment_method === 'cash' ? 'Наличные' : p.payment_method === 'card' ? 'Карта' : 'Перечисление'}
+                                                        {p.payment_type === 'bank' ? 'Bank orqali' : p.payment_type}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-xs font-bold text-slate-500">
-                                                    {format(new Date(p.payment_date), 'dd.MM.yyyy HH:mm')}
+                                                    {(p.payment_date || p.date) ? format(new Date(p.payment_date || p.date), 'dd.MM.yyyy HH:mm') : '—'}
                                                 </td>
                                                 <td className="px-6 py-4 text-xs font-bold text-slate-700">
                                                     {p.processed_by?.full_name || '—'}
@@ -1438,6 +2108,8 @@ const HeadOfOrdersPage: React.FC = () => {
             ============================================================ */}
             <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
                 <DialogContent className="max-w-md rounded-[32px] p-0 overflow-hidden border-0 shadow-3xl bg-white">
+                    <DialogTitle className="sr-only">Детали фактуры</DialogTitle>
+                    <DialogDescription className="sr-only">Изменение данных счет-фактуры.</DialogDescription>
                     <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 text-white flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
@@ -1472,10 +2144,11 @@ const HeadOfOrdersPage: React.FC = () => {
                         {editMode === 'date' && (
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Дата реализации</label>
-                                <DatePicker
-                                    date={editRealizationDate}
-                                    setDate={(d) => setEditRealizationDate(d)}
-                                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white transition-all font-bold px-4"
+                                <DateInput
+                                    value={editRealizationDate ? String(editRealizationDate).substring(0, 10) : ''}
+                                    onChange={(val) => setEditRealizationDate(val)}
+                                    placeholder="Дата реализации"
+                                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50"
                                 />
                             </div>
                         )}

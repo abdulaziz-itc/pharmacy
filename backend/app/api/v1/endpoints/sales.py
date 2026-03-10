@@ -1,23 +1,34 @@
 from typing import Any, List, Optional, Dict
 import io
 import logging
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.crud import crud_sales
+from app.models.sales import Reservation, ReservationItem, Invoice, InvoiceStatus, ReservationStatus, Payment
 from app.models.user import User, UserRole
+from app.models.crm import MedicalOrganization, Region
+from app.models.product import Product
+from app.models.warehouse import Warehouse
 from app.schemas.sales import (
     Plan, PlanCreate, 
-    Reservation, ReservationCreate, ReservationUpdate,
-    Invoice, Payment, PaymentCreate,
-    DoctorFactAssignment, DoctorFactAssignmentCreate, SaleFact,
-    BonusPayment, BonusPaymentCreate, BonusPaymentUpdate
+    Reservation as ReservationSchema, ReservationCreate, ReservationUpdate,
+    Invoice as InvoiceSchema, Payment as PaymentSchema, PaymentCreate,
+    DoctorFactAssignment as DoctorFactAssignmentSchema, DoctorFactAssignmentCreate, SaleFact,
+    BonusPayment as BonusPaymentSchema, BonusPaymentCreate, BonusPaymentUpdate,
+    ReservationReturnCreate, BonusAllocationCreate
 )
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+import traceback
 
 router = APIRouter()
 
@@ -34,7 +45,7 @@ async def create_plan(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Plan", plan.id,
-        f"Plan yaratildi: {plan.target_quantity} dona, Oy: {plan.month}/{plan.year}",
+        f"План создан: {plan.target_quantity} шт., Месяц: {plan.month}/{plan.year}",
         request
     )
     return plan
@@ -69,7 +80,7 @@ async def update_plan(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "UPDATE", "Plan", updated_plan.id,
-        f"Plan tahrirlandi: ID {id}",
+        f"План изменен: ID {id}",
         request
     )
     return updated_plan
@@ -90,14 +101,14 @@ async def delete_plan(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "DELETE", "Plan", id,
-        f"Plan o'chirildi: ID {id}",
+        f"План удален: ID {id}",
         request
     )
     return {"ok": True}
 
 
 # Reservations (Bron)
-@router.post("/reservations/", response_model=Reservation)
+@router.post("/reservations/", response_model=ReservationSchema)
 async def create_reservation(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -105,16 +116,44 @@ async def create_reservation(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    reservation = await crud_sales.create_reservation(db, obj_in=reservation_in, user_id=current_user.id)
+    # Use the service that locks and deducts stock
+    from app.services.reservation_service import ReservationService
+    reservation = await ReservationService.create_reservation_with_stock_lock(
+        db=db, 
+        obj_in=reservation_in, 
+        user_id=current_user.id
+    )
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Reservation", reservation.id,
-        f"Bron yaratildi: ID {reservation.id}, Summa: {getattr(reservation, 'total_amount', 0) or 0:,.0f} UZS",
+        f"Бронь создана (Склад зарезервирован): ID {reservation.id}, Сумма: {getattr(reservation, 'total_amount', 0) or 0:,.0f} UZS",
         request
     )
     return reservation
 
-@router.get("/reservations/", response_model=List[Reservation])
+@router.delete("/reservations/{id}")
+async def delete_reservation(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request,
+) -> Any:
+    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.MED_REP, UserRole.DIRECTOR]:
+        raise HTTPException(status_code=403, detail="Not enough permissions to delete reservations.")
+    
+    from app.services.reservation_service import ReservationService
+    await ReservationService.cancel_reservation(db=db, reservation_id=id)
+    
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "DELETE", "Reservation", id,
+        f"Бронь отменена (Склад восстановлен): ID {id}",
+        request
+    )
+    return {"ok": True, "message": "Reservation cancelled and stock restored."}
+
+@router.get("/reservations/", response_model=List[ReservationSchema])
 async def read_reservations(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -123,7 +162,71 @@ async def read_reservations(
 ) -> Any:
     return await crud_sales.get_reservations(db, skip=skip, limit=limit)
 
-@router.patch("/reservations/{id}/status", response_model=Reservation)
+@router.get("/reservations/{id}")
+async def read_reservation(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    try:
+        query = select(Reservation).options(
+            selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
+            selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(Reservation.created_by),
+            selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+            selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by)
+        ).where(Reservation.id == id)
+        
+        result = await db.execute(query)
+        reservation = result.scalar_one_or_none()
+        
+        if not reservation:
+            raise HTTPException(status_code=404, detail="Reservation not found")
+        
+        # Manually serialize to avoid Pydantic issues with lazy loading
+        inv = reservation.invoice
+        resp = {
+            "id": reservation.id,
+            "customer_name": reservation.customer_name,
+            "date": reservation.date.isoformat() if reservation.date else None,
+            "total_amount": reservation.total_amount,
+            "nds_percent": reservation.nds_percent,
+            "status": reservation.status,
+            "created_by": {"id": reservation.created_by.id, "full_name": reservation.created_by.full_name} if reservation.created_by else None,
+            "med_org": {"id": reservation.med_org.id, "name": reservation.med_org.name, "inn": getattr(reservation.med_org, "inn", None)} if reservation.med_org else None,
+            "items": [
+                {
+                    "id": item.id,
+                    "quantity": item.quantity,
+                    "price": item.price,
+                    "total_price": item.total_price,
+                    "product": {"id": item.product.id, "name": item.product.name} if item.product else None
+                }
+                for item in (reservation.items or [])
+            ],
+            "invoice": {
+                "id": inv.id,
+                "total_amount": inv.total_amount,
+                "paid_amount": inv.paid_amount,
+                "status": inv.status,
+                "realization_date": inv.realization_date.isoformat() if inv.realization_date else None,
+                "payments": [
+                    {"id": p.id, "amount": p.amount, "date": p.date.isoformat() if p.date else None}
+                    for p in (inv.payments or [])
+                ]
+            } if inv else None
+        }
+        return resp
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
+
+@router.patch("/reservations/{id}/status", response_model=ReservationSchema)
 async def update_reservation_status(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -135,30 +238,33 @@ async def update_reservation_status(
     if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
-    reservation = await crud_sales.get_reservation(db, id=id)
-    if not reservation:
-        raise HTTPException(status_code=404, detail="Reservation not found")
-        
-    updated_reservation = await crud_sales.update_reservation_status(db, db_obj=reservation, status=status_update.status)
+    if status_update.status == ReservationStatus.APPROVED:
+        from app.services.reservation_service import ReservationService
+        updated_reservation = await ReservationService.activate_reservation(db, id)
+    else:
+        reservation = await crud_sales.get_reservation(db, id=id)
+        if not reservation:
+            raise HTTPException(status_code=404, detail="Reservation not found")
+        updated_reservation = await crud_sales.update_reservation_status(db, db_obj=reservation, status=status_update.status)
+    
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "UPDATE_STATUS", "Reservation", id,
-        f"Bron holati o'zgartirildi: {status_update.status}",
+        f"Статус брони изменен: {status_update.status}",
         request
     )
     return updated_reservation
 
 # Invoices (Factura)
-@router.post("/reservations/{id}/return", response_model=Reservation)
+@router.post("/reservations/{id}/return", response_model=ReservationSchema)
 async def map_return_reservation_items(
     *,
     db: AsyncSession = Depends(deps.get_db),
     id: int,
-    return_in: "ReservationReturnCreate",
+    return_in: ReservationReturnCreate,
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    from app.schemas.sales import ReservationReturnCreate
     reservation = await crud_sales.return_reservation_items(
         db=db, 
         reservation_id=id, 
@@ -169,13 +275,13 @@ async def map_return_reservation_items(
     items_count = sum(r.quantity for r in return_in.items)
     await log_action(
         db, current_user, "RETURN", "Reservation", id,
-        f"Bron bo'yicha vozvrat qilindi: {items_count} ta mahsulot qaytdi.",
+        f"Возврат по брони: возвращено {items_count} товаров.",
         request
     )
     return reservation
 
 # Invoices (Factura)
-@router.get("/invoices/", response_model=List[Invoice])
+@router.get("/invoices/", response_model=List[InvoiceSchema])
 async def read_invoices(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -184,8 +290,42 @@ async def read_invoices(
 ) -> Any:
     return await crud_sales.get_invoices(db, skip=skip, limit=limit)
 
+@router.get("/invoices/eligible-for-tovar-skidka", response_model=List[InvoiceSchema])
+async def get_eligible_invoices_for_tovar_skidka(
+    med_org_id: int,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Get invoices that are 100% paid and have unused promo balance.
+    Filtered by medical organization.
+    """
+    try:
+        query = select(Invoice).join(
+            Reservation, Invoice.reservation_id == Reservation.id
+        ).options(
+            selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
+            selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
+            selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(Invoice.reservation).selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+            selectinload(Invoice.reservation).selectinload(Reservation.created_by),
+            selectinload(Invoice.payments).selectinload(Payment.processed_by)
+        ).where(
+            Reservation.med_org_id == med_org_id,
+            Invoice.status == InvoiceStatus.PAID,
+            Invoice.promo_balance > 0
+        )
+        result = await db.execute(query)
+        return result.scalars().all()
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        logger.error(f"Error in get_eligible_invoices_for_tovar_skidka: {error_detail}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # Payments
-@router.post("/payments/", response_model=Payment)
+@router.post("/payments/", response_model=PaymentSchema)
 async def create_payment(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -193,11 +333,12 @@ async def create_payment(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    payment = await crud_sales.create_payment(db, obj_in=payment_in, user_id=current_user.id)
+    from app.services.finance_service import FinancialService
+    payment = await FinancialService.process_payment(db, obj_in=payment_in, processor_id=current_user.id)
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Payment", payment.id,
-        f"To'lov qabul qilindi: {payment.amount:,.0f} UZS, Turi: {payment.type}",
+        f"Оплата принята: {payment.amount:,.0f} UZS",
         request
     )
     return payment
@@ -211,19 +352,20 @@ async def read_facts(
 ) -> Any:
     return await crud_sales.get_facts(db, med_rep_id=med_rep_id)
 
-@router.get("/doctor-facts/", response_model=List[DoctorFactAssignment])
+@router.get("/doctor-facts/", response_model=List[DoctorFactAssignmentSchema])
 async def read_doctor_facts(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
     med_rep_id: int = None,
+    doctor_id: int = None,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     return await crud_sales.get_doctor_fact_assignments(
-        db, skip=skip, limit=limit, med_rep_id=med_rep_id
+        db, skip=skip, limit=limit, med_rep_id=med_rep_id, doctor_id=doctor_id
     )
 
-@router.post("/doctor-facts/", response_model=DoctorFactAssignment)
+@router.post("/doctor-facts/", response_model=DoctorFactAssignmentSchema)
 async def create_doctor_fact(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -235,13 +377,13 @@ async def create_doctor_fact(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "DoctorFact", fact.id,
-        f"Vrach fakti biriktirildi: {fact.quantity} dona",
+        f"Факт врача прикреплен: {fact.quantity} шт.",
         request
     )
     return fact
 
 # Bonus Payments
-@router.get("/bonus-payments/", response_model=List[BonusPayment])
+@router.get("/bonus-payments/", response_model=List[BonusPaymentSchema])
 async def read_bonus_payments(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -253,7 +395,7 @@ async def read_bonus_payments(
         db, skip=skip, limit=limit, med_rep_id=med_rep_id
     )
 
-@router.post("/bonus-payments/", response_model=BonusPayment)
+@router.post("/bonus-payments/", response_model=BonusPaymentSchema)
 async def create_bonus_payment(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -271,12 +413,12 @@ async def create_bonus_payment(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "BonusPayment", payment.id,
-        f"Bonus to'landi: {payment.amount:,.0f} UZS",
+        f"Бонус выплачен: {payment.amount:,.0f} UZS",
         request
     )
     return payment
 
-@router.patch("/bonus-payments/{payment_id}/", response_model=BonusPayment)
+@router.patch("/bonus-payments/{payment_id}/", response_model=BonusPaymentSchema)
 async def update_bonus_payment(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -295,13 +437,10 @@ async def update_bonus_payment(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "UPDATE", "BonusPayment", result.id,
-        f"Bonus to'lovi tahrirlandi: ID {payment_id}",
+        f"Выплата бонуса изменена: ID {payment_id}",
         request
     )
     return result
-
-import io
-from fastapi.responses import StreamingResponse
 
 @router.get("/reservations/{id}/export")
 async def export_reservation_excel(
@@ -310,10 +449,6 @@ async def export_reservation_excel(
     id: int,
     current_user: User = Depends(deps.get_current_user),
 ):
-    import openpyxl
-    import traceback
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    
     try:
         reservation = await crud_sales.get_reservation(db, id=id)
         if not reservation:
@@ -421,11 +556,12 @@ async def export_reservation_excel(
             
         # Totals
         discount_val = 0.0
+        # If any item has a discount, we use it (or reservation-level if we had one)
         if reservation.items and len(reservation.items) > 0:
-            discount_val = reservation.items[0].discount_percent or 0.0
+            discount_val = next((it.discount_percent for it in reservation.items if it.discount_percent), 0.0)
             
         discounted_total = subtotal_plain * (1 - discount_val / 100.0)
-        nds_percent = reservation.nds_percent or 0.0
+        nds_percent = reservation.nds_percent if reservation.nds_percent is not None else 12.0
         nds_total = discounted_total * (1 + nds_percent / 100.0)
         
         cell_sub = ws.cell(row=row_idx, column=8, value=subtotal_plain)
@@ -444,18 +580,341 @@ async def export_reservation_excel(
         cell_nds.font = font_bold
         cell_nds.alignment = Alignment(horizontal='right')
         
+        org_name = (reservation.med_org.name if reservation.med_org else reservation.customer_name) or "N/A"
+        org_inn = reservation.med_org.inn if reservation.med_org and reservation.med_org.inn else "no_inn"
+        realization_date = reservation.invoice.realization_date if reservation.invoice and reservation.invoice.realization_date else reservation.date
+        date_str = realization_date.strftime("%d.%m.%Y") if realization_date else "no_date"
+        
+        # Sanitize for filename: remove truly illegal chars like / \ : * ? " < > |
+        # We preserve spaces, dots, and Unicode (Cyrillic) characters
+        illegal_chars = '/\\:*?"<>|'
+        safe_org_name = "".join([c for c in org_name if c not in illegal_chars]).strip()
+        filename = f"{safe_org_name}_{org_inn}_{date_str}.xlsx"
+        encoded_filename = urllib.parse.quote(filename)
+        
         stream = io.BytesIO()
         wb.save(stream)
         stream.seek(0)
         
-        filename = f"Factura_{reservation.id}.xlsx"
         return StreamingResponse(
             stream, 
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={
+                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
         )
     except Exception as e:
-        logger.error(f"Error exporting reservation {id}: {str(e)}", exc_info=True)
+        logger.error(f"Error exporting reservation {id}: {traceback.format_exc()}")
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# MedRep Bonus Balance System
+
+@router.get("/bonuses/history/{med_rep_id}")
+async def get_bonus_history(
+    med_rep_id: int,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Alias for get_medrep_bonus_balance to match frontend expectations.
+    """
+    return await get_medrep_bonus_balance(med_rep_id=med_rep_id, db=db, current_user=current_user)
+
+@router.get("/bonus-balance/")
+async def get_medrep_bonus_balance(
+    med_rep_id: Optional[int] = None,
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Get the current bonus balance and transaction history for a MedRep.
+    If med_rep_id is not provided, uses current_user.id.
+    Managers and Directors can view any MedRep's balance.
+    """
+    try:
+        target_id = med_rep_id if med_rep_id is not None else current_user.id
+        
+        # Permission check
+        # MedReps can only see their own balance
+        if current_user.role == UserRole.MED_REP and target_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You can only view your own balance")
+        
+        # Non-MedReps must be managers/directors to view balances
+        allowed_roles = [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.ADMIN]
+        if current_user.role not in allowed_roles and current_user.role != UserRole.MED_REP:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        from app.services.finance_service import FinancialService
+        from app.models.ledger import BonusLedger, LedgerType
+        from app.models.sales import Reservation, ReservationItem, Invoice
+        # Calculate usable balance (Paid accruals - offsets)
+        balance = await FinancialService.get_medrep_bonus_balance(db, target_id)
+        
+
+        
+        all_entries_res = await db.execute(select(BonusLedger).where(BonusLedger.user_id == target_id))
+        all_entries = all_entries_res.scalars().all()
+        
+        total_accrued = 0.0
+        total_paid = 0.0
+        total_allocated = 0.0
+        
+        for e in all_entries:
+            if e.ledger_type == LedgerType.ACCRUAL:
+                total_accrued += e.amount
+                if e.is_paid:
+                    total_paid += e.amount
+            elif e.ledger_type == LedgerType.OFFSET:
+                total_allocated += abs(e.amount)
+        
+        # Get history (all transactions)
+        query = select(BonusLedger).options(
+            selectinload(BonusLedger.doctor),
+            selectinload(BonusLedger.product),
+            selectinload(BonusLedger.payment),
+            selectinload(BonusLedger.invoice_item).selectinload(ReservationItem.reservation).selectinload(Reservation.invoice)
+        ).where(BonusLedger.user_id == target_id)
+        
+        # Filter by month/year if provided
+        if month and year:
+            query = query.where(BonusLedger.target_month == month, BonusLedger.target_year == year)
+        else:
+            # Default: last 30 days
+            from datetime import datetime, timedelta
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            query = query.where(BonusLedger.created_at >= thirty_days_ago)
+            
+        query = query.order_by(BonusLedger.created_at.desc())
+        
+        result = await db.execute(query)
+        history = result.scalars().all()
+        
+        import re
+        from app.models.sales import Invoice
+        invoice_ids = set()
+        for h in history:
+            if getattr(h, 'payment', None) and getattr(h.payment, 'invoice_id', None):
+                invoice_ids.add(h.payment.invoice_id)
+            elif h.notes:
+                match = re.search(r'#(?:СФ-)?(\d+)', h.notes)
+                if match:
+                    invoice_ids.add(int(match.group(1)))
+                    
+        invoice_to_reservation = {}
+        if invoice_ids:
+            inv_query = select(Invoice.id, Invoice.reservation_id).where(Invoice.id.in_(invoice_ids))
+            inv_result = await db.execute(inv_query)
+            for inv_id, res_id in inv_result.all():
+                invoice_to_reservation[inv_id] = res_id
+        
+        # Map to dictionaries to avoid JSON serialization errors
+        history_data = []
+        for h in history:
+            inv_id = None
+            res_id = None
+            
+            if getattr(h, 'invoice_item', None) and getattr(h.invoice_item, 'reservation', None):
+                res_id = h.invoice_item.reservation.id
+                if getattr(h.invoice_item.reservation, 'invoice', None):
+                    inv_id = h.invoice_item.reservation.invoice.id
+                    
+            if not res_id:
+                if getattr(h, 'payment', None) and getattr(h.payment, 'invoice_id', None):
+                    inv_id = h.payment.invoice_id
+                elif h.notes:
+                    match = re.search(r'#(?:СФ-)?(\d+)', h.notes)
+                    if match:
+                        inv_id = int(match.group(1))
+                
+                if inv_id and inv_id in invoice_to_reservation:
+                    res_id = invoice_to_reservation[inv_id]
+
+            history_data.append({
+                "id": h.id,
+                "amount": h.amount,
+                "ledger_type": h.ledger_type,
+                "is_paid": h.is_paid,
+                "target_month": h.target_month,
+                "target_year": h.target_year,
+                "notes": h.notes,
+                "created_at": h.created_at.isoformat() if h.created_at else None,
+                "doctor": {
+                    "id": h.doctor.id,
+                    "full_name": h.doctor.full_name
+                } if h.doctor else None,
+                "product": {
+                    "id": h.product.id,
+                    "name": h.product.name
+                } if getattr(h, 'product', None) else None,
+                "payment_id": h.payment_id,
+                "invoice_id": inv_id,
+                "reservation_id": res_id
+            })
+        
+        return {
+            "balance": balance,
+            "total_accrued": total_accrued,
+            "total_paid": total_paid,
+            "total_allocated": total_allocated,
+            "history": history_data
+        }
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
+
+@router.post("/allocate-bonus/")
+async def allocate_bonus(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    alloc_in: BonusAllocationCreate,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Любой авторизованный пользователь может распределять бонусы врачам.
+    """
+    try:
+        from app.services.finance_service import FinancialService
+        
+        # Если указан med_rep_id — дебетуем баланс указанного медпреда (для admin/director), иначе текущего пользователя
+        effective_med_rep_id = alloc_in.med_rep_id if alloc_in.med_rep_id else current_user.id
+        
+        result = await FinancialService.allocate_bonus(
+            db=db,
+            med_rep_id=effective_med_rep_id,
+            doctor_id=alloc_in.doctor_id,
+            product_id=alloc_in.product_id,
+            quantity=alloc_in.quantity,
+            target_month=alloc_in.target_month,
+            target_year=alloc_in.target_year,
+            notes=alloc_in.notes
+        )
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
+
+# ==========================================
+# Admin Bonus Approvals (Director/Admin)
+# ==========================================
+
+from pydantic import BaseModel
+
+class BonusSummary(BaseModel):
+    med_rep_id: int
+    med_rep_name: str
+    accrued: float # Начислено всего
+    paid: float    # Выплачено директором
+    remainder: float # Остаток к выплате
+    allocated: float # Распределено врачам
+
+class BonusPayRequest(BaseModel):
+    med_rep_id: int
+    amount_to_pay: float # How much of the remainder to pay now
+
+@router.get("/admin/bonuses/summary", response_model=List[BonusSummary])
+async def get_admin_bonus_summary(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Returns a summary of bonuses for all MedReps.
+    Only accessible by Director, Deputy Director, Admin.
+    """
+    allowed_roles = {UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
+    if current_user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    from app.models.user import User
+    from app.models.ledger import BonusLedger, LedgerType
+    
+    # Get all medreps
+    medreps_result = await db.execute(select(User).where(User.role == UserRole.MED_REP, User.is_active == True))
+    medreps = medreps_result.scalars().all()
+    
+    summaries = []
+    for rep in medreps:
+        ledger_res = await db.execute(select(BonusLedger).where(BonusLedger.user_id == rep.id))
+        entries = ledger_res.scalars().all()
+        
+        accrued = 0.0
+        paid = 0.0
+        allocated = 0.0
+        
+        for e in entries:
+            if e.ledger_type == LedgerType.ACCRUAL:
+                accrued += e.amount
+                if e.is_paid:
+                    paid += e.amount
+            elif e.ledger_type == LedgerType.OFFSET:
+                allocated += abs(e.amount)
+                
+        remainder = accrued - paid
+        
+        summaries.append(BonusSummary(
+            med_rep_id=rep.id,
+            med_rep_name=rep.full_name,
+            accrued=accrued,
+            paid=paid,
+            remainder=remainder,
+            allocated=allocated
+        ))
+        
+    return summaries
+
+@router.post("/admin/bonuses/pay")
+async def pay_medrep_bonus(
+    request_data: BonusPayRequest,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+) -> Any:
+    """
+    Marks unpaid ACCRUAL records as paid up to the requested amount.
+    """
+    allowed_roles = {UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
+    if current_user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        
+    from app.models.ledger import BonusLedger, LedgerType
+    
+    # Get unpaid accruals for this medrep, sorted by oldest first
+    query = select(BonusLedger).where(
+        BonusLedger.user_id == request_data.med_rep_id,
+        BonusLedger.ledger_type == LedgerType.ACCRUAL,
+        BonusLedger.is_paid == False
+    ).order_by(BonusLedger.id.asc())
+    
+    result = await db.execute(query)
+    unpaid_entries = result.scalars().all()
+    
+    amount_remaining_to_pay = request_data.amount_to_pay
+    actual_paid = 0.0
+    
+    for entry in unpaid_entries:
+        if amount_remaining_to_pay <= 0:
+            break
+            
+        # We pay the entry as long as it's <= our remaining amount to pay
+        if entry.amount <= amount_remaining_to_pay:
+            entry.is_paid = True
+            amount_remaining_to_pay -= entry.amount
+            actual_paid += entry.amount
+            
+    await db.commit()
+    
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "UPDATE", "BonusLedger", request_data.med_rep_id,
+        f"Выплачен бонус МП: {actual_paid:,.0f} UZS",
+        request
+    )
+        
+    return {"message": "Успешно выплачено", "paid_amount": actual_paid}

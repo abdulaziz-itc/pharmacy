@@ -55,6 +55,11 @@ export const getSpecialties = async () => {
     return response.data;
 };
 
+export const createSpecialty = async (name: string): Promise<DoctorSpecialty> => {
+    const response = await axiosInstance.post('/crm/doctor-specialties/', { name });
+    return response.data;
+};
+
 export const getDoctorCategories = async () => {
     const response = await axiosInstance.get('/crm/doctor-categories/');
     return response.data;

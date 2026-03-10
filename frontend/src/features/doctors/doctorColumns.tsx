@@ -1,5 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MapPin, ChevronDown, ChevronRight, MoreHorizontal, UserMinus, UserPlus } from "lucide-react"
+import { ArrowUpDown, MapPin, ChevronDown, ChevronRight, MoreHorizontal, Archive, RefreshCw } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import {
     DropdownMenu,
@@ -90,7 +90,7 @@ export const getDoctorColumns = (onToggleActive?: (doctor: Doctor) => void): Col
                     </div>
                     <div className="truncate">
                         <div className="font-bold text-slate-900 leading-tight truncate">
-                            {name} {row.original.is_active === false && "(Faol emas)"}
+                            {name} {row.original.is_active === false && "(Архив)"}
                         </div>
                         <div className="text-[9px] text-slate-400 font-medium mt-0.5">Специалист</div>
                     </div>
@@ -280,7 +280,7 @@ export const getDoctorColumns = (onToggleActive?: (doctor: Doctor) => void): Col
                         <DropdownMenuLabel>Действия</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                            className={isActive ? "text-red-600" : "text-emerald-600"}
+                            className={isActive ? "text-red-500" : "text-emerald-600"}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onToggleActive(doctor);
@@ -288,13 +288,13 @@ export const getDoctorColumns = (onToggleActive?: (doctor: Doctor) => void): Col
                         >
                             {isActive ? (
                                 <>
-                                    <UserMinus className="mr-2 h-4 w-4" />
-                                    Деактивировать
+                                    <Archive className="mr-2 h-4 w-4" />
+                                    В архив
                                 </>
                             ) : (
                                 <>
-                                    <UserPlus className="mr-2 h-4 w-4" />
-                                    Активировать
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    Восстановить
                                 </>
                             )}
                         </DropdownMenuItem>

@@ -1,7 +1,7 @@
 from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.models.sales import (
@@ -66,7 +66,16 @@ async def create_plan(db: AsyncSession, obj_in: PlanCreate) -> Plan:
     return res.scalars().first()
 
 async def get_plans(db: AsyncSession, skip: int = 0, limit: int = 100, month: int = None, year: int = None, med_rep_id: int = None, doctor_id: int = None) -> List[Plan]:
-    query = select(Plan).options(
+    # Subquery to calculate total quantity from DoctorFactAssignment for each plan
+    fact_subquery = select(func.coalesce(func.sum(DoctorFactAssignment.quantity), 0)).where(
+        DoctorFactAssignment.med_rep_id == Plan.med_rep_id,
+        DoctorFactAssignment.doctor_id == Plan.doctor_id,
+        DoctorFactAssignment.product_id == Plan.product_id,
+        DoctorFactAssignment.month == Plan.month,
+        DoctorFactAssignment.year == Plan.year
+    ).scalar_subquery().label("fact_quantity")
+
+    query = select(Plan, fact_subquery).options(
         selectinload(Plan.med_org),
         selectinload(Plan.doctor).selectinload(Doctor.region),
         selectinload(Plan.doctor).selectinload(Doctor.specialty),
@@ -77,6 +86,7 @@ async def get_plans(db: AsyncSession, skip: int = 0, limit: int = 100, month: in
         selectinload(Plan.product).selectinload(Product.manufacturers),
         selectinload(Plan.med_rep)
     ).offset(skip).limit(limit)
+    
     if month:
         query = query.where(Plan.month == month)
     if year:
@@ -85,8 +95,16 @@ async def get_plans(db: AsyncSession, skip: int = 0, limit: int = 100, month: in
         query = query.where(Plan.med_rep_id == med_rep_id)
     if doctor_id:
         query = query.where(Plan.doctor_id == doctor_id)
+        
     result = await db.execute(query)
-    return result.scalars().all()
+    rows = result.all()
+    
+    plans = []
+    for plan_obj, fact_qty in rows:
+        plan_obj.fact_quantity = fact_qty
+        plans.append(plan_obj)
+        
+    return plans
 
 async def get_plan(db: AsyncSession, id: int) -> Optional[Plan]:
     query = select(Plan).options(
@@ -171,7 +189,7 @@ async def get_reservation(db: AsyncSession, id: int) -> Optional[Reservation]:
             selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
             selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
             selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
-            selectinload(Reservation.invoice)
+            selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by)
         )
         .where(Reservation.id == id)
     )
@@ -187,7 +205,7 @@ async def get_reservations(db: AsyncSession, skip: int = 0, limit: int = 100) ->
             selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
             selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
             selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
-            selectinload(Reservation.invoice)
+            selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by)
         )
         .order_by(Reservation.date.desc())
         .offset(skip).limit(limit)
@@ -196,17 +214,6 @@ async def get_reservations(db: AsyncSession, skip: int = 0, limit: int = 100) ->
 
 async def update_reservation_status(db: AsyncSession, db_obj: Reservation, status: ReservationStatus) -> Reservation:
     db_obj.status = status
-    
-    # If confirmed (approved), create Invoice automatically
-    if status == ReservationStatus.APPROVED and not db_obj.invoice:
-        from app.models.sales import Invoice, InvoiceStatus # Ensure imports
-        invoice = Invoice(
-            reservation_id=db_obj.id,
-            total_amount=db_obj.total_amount,
-            status=InvoiceStatus.UNPAID
-        )
-        db.add(invoice)
-    
     await db.commit()
     await db.refresh(db_obj)
     return db_obj
@@ -241,7 +248,7 @@ async def update_reservation_data(db: AsyncSession, reservation_id: int, obj_in:
         if obj_in.factura_number is not None:
             reservation.invoice.factura_number = obj_in.factura_number
         if obj_in.realization_date is not None:
-            reservation.invoice.realization_date = obj_in.realization_date
+            reservation.invoice.realization_date = obj_in.realization_date.replace(tzinfo=None)
             
     # Update ReservationItems discount
     if obj_in.discount_percent is not None:
@@ -260,12 +267,13 @@ async def update_reservation_data(db: AsyncSession, reservation_id: int, obj_in:
     # Re-fetch with all relationships to ensure serialization works
     result = await db.execute(
         select(Reservation).options(
+            selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
+            selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
             selectinload(Reservation.created_by),
+            selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
             selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
             selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
-            selectinload(Reservation.warehouse),
-            selectinload(Reservation.invoice).selectinload(Invoice.payments),
-            selectinload(Reservation.items).selectinload(ReservationItem.product)
+            selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by)
         ).where(Reservation.id == reservation_id)
     )
     return result.scalars().first()
@@ -274,7 +282,15 @@ async def update_reservation_data(db: AsyncSession, reservation_id: int, obj_in:
 async def get_invoices(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Invoice]:
     result = await db.execute(
         select(Invoice)
-        .options(selectinload(Invoice.reservation))
+        .options(
+            selectinload(Invoice.payments).selectinload(Payment.processed_by),
+            selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
+            selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
+            selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(Invoice.reservation).selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+            selectinload(Invoice.reservation).selectinload(Reservation.created_by)
+        )
         .order_by(Invoice.date.desc())
         .offset(skip).limit(limit)
     )
@@ -338,7 +354,9 @@ async def get_facts(db: AsyncSession, med_rep_id: Optional[int] = None) -> List[
             fact_id_counter += 1
             
     # Also fetch doctor fact assignments
-    query_assignments = select(DoctorFactAssignment)
+    query_assignments = select(DoctorFactAssignment).options(
+        selectinload(DoctorFactAssignment.product)
+    )
     if med_rep_id:
         query_assignments = query_assignments.where(DoctorFactAssignment.med_rep_id == med_rep_id)
     
@@ -347,13 +365,21 @@ async def get_facts(db: AsyncSession, med_rep_id: Optional[int] = None) -> List[
     
     # Each assignment is basically a fact transferred to a doctor. We can add them as separate facts
     for a in assignments:
+        if a.amount is not None:
+            fact_amount = a.amount
+        else:
+            product_price = a.product.price if a.product else 0.0
+            fact_amount = product_price * a.quantity
+
         facts.append({
             "id": fact_id_counter,
             "med_rep_id": a.med_rep_id,
             "doctor_id": a.doctor_id,
             "product_id": a.product_id,
             "date": a.created_at.isoformat(),
-            "amount": 0.0, # Will be calculated via expense
+            "month": a.month,
+            "year": a.year,
+            "amount": float(fact_amount),
             "quantity": a.quantity
         })
         fact_id_counter += 1
@@ -362,25 +388,46 @@ async def get_facts(db: AsyncSession, med_rep_id: Optional[int] = None) -> List[
 
 # DoctorFactAssignments
 async def create_doctor_fact_assignment(db: AsyncSession, obj_in: DoctorFactAssignmentCreate) -> DoctorFactAssignment:
+    # If amount is not provided, fallback to standard product price
+    amount = obj_in.amount
+    if amount is None:
+        from app.models.product import Product
+        product = await db.execute(select(Product).where(Product.id == obj_in.product_id))
+        product_obj = product.scalar_one_or_none()
+        if product_obj:
+            amount = product_obj.price * obj_in.quantity
+
     db_obj = DoctorFactAssignment(
         med_rep_id=obj_in.med_rep_id,
         doctor_id=obj_in.doctor_id,
         product_id=obj_in.product_id,
         quantity=obj_in.quantity,
+        amount=amount,
         month=obj_in.month,
         year=obj_in.year
     )
     db.add(db_obj)
     await db.commit()
-    await db.refresh(db_obj)
-    return db_obj
+    from app.models.product import Product
+    query = select(DoctorFactAssignment).options(
+        selectinload(DoctorFactAssignment.product).selectinload(Product.category),
+        selectinload(DoctorFactAssignment.product).selectinload(Product.manufacturers)
+    ).where(DoctorFactAssignment.id == db_obj.id)
+    result = await db.execute(query)
+    return result.scalar_one()
 
 async def get_doctor_fact_assignments(
-    db: AsyncSession, skip: int = 0, limit: int = 100, med_rep_id: Optional[int] = None
+    db: AsyncSession, skip: int = 0, limit: int = 100, med_rep_id: Optional[int] = None, doctor_id: Optional[int] = None
 ) -> List[DoctorFactAssignment]:
-    query = select(DoctorFactAssignment).offset(skip).limit(limit)
+    from app.models.product import Product
+    query = select(DoctorFactAssignment).options(
+        selectinload(DoctorFactAssignment.product).selectinload(Product.category),
+        selectinload(DoctorFactAssignment.product).selectinload(Product.manufacturers)
+    ).offset(skip).limit(limit)
     if med_rep_id:
         query = query.where(DoctorFactAssignment.med_rep_id == med_rep_id)
+    if doctor_id:
+        query = query.where(DoctorFactAssignment.doctor_id == doctor_id)
     result = await db.execute(query)
     return result.scalars().all()
 

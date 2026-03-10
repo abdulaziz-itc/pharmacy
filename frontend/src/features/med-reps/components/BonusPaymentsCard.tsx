@@ -34,6 +34,7 @@ interface Doctor {
 interface Product {
     id: number;
     name: string;
+    marketing_expense?: number;
 }
 
 interface Plan {
@@ -44,6 +45,7 @@ interface Plan {
 
 interface BonusPaymentsCardProps {
     bonusPayments?: BonusPayment[];
+    salesFacts?: any[];
     earnedBonus?: number;
     doctors?: Doctor[];
     products?: Product[];
@@ -190,6 +192,7 @@ function BonusForm({
 
 export function BonusPaymentsCard({
     bonusPayments = [],
+    salesFacts = [],
     earnedBonus = 0,
     doctors = [],
     products = [],
@@ -264,7 +267,22 @@ export function BonusPaymentsCard({
     }, [editDoctorId, salesPlans, products]);
 
     const totalPaid = displayedBonusPayments.reduce((sum, bp) => sum + bp.amount, 0);
-    const totalPredinvest = displayedBonusPayments.reduce((sum, bp) => sum + Math.max(0, bp.amount - earnedBonus), 0);
+
+    const totalFactPart = displayedBonusPayments.reduce((sum, bp) => {
+        const itemEarned = salesFacts.filter(f => {
+            const m = f.month || (f.created_at ? new Date(f.created_at).getMonth() + 1 : (f.date ? new Date(f.date).getMonth() + 1 : 0));
+            const y = f.year || (f.created_at ? new Date(f.created_at).getFullYear() : (f.date ? new Date(f.date).getFullYear() : 0));
+            return m === bp.for_month && y === bp.for_year && (!bp.product_id || f.product_id === bp.product_id) && (!bp.doctor_id || f.doctor_id === bp.doctor_id);
+        }).reduce((s, f) => {
+            const p = products.find(prod => prod.id === f.product_id);
+            return s + (f.quantity * (p?.marketing_expense || 0));
+        }, 0);
+
+        return sum + Math.min(bp.amount, itemEarned);
+    }, 0);
+
+    const totalPredinvest = totalPaid - totalFactPart;
+    const totalFact = totalFactPart;
 
     const getDoctor = (id?: number) => doctors.find(d => d.id === id);
     const getProduct = (id?: number) => products.find(p => p.id === id);
@@ -318,8 +336,8 @@ export function BonusPaymentsCard({
                         <button
                             onClick={() => setShowAll(prev => !prev)}
                             className={`h-8 px-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all ${showAll
-                                    ? 'bg-fuchsia-600 text-white border-fuchsia-600 shadow-md shadow-fuchsia-200'
-                                    : 'bg-white text-slate-500 border-slate-200 hover:border-fuchsia-300'
+                                ? 'bg-fuchsia-600 text-white border-fuchsia-600 shadow-md shadow-fuchsia-200'
+                                : 'bg-white text-slate-500 border-slate-200 hover:border-fuchsia-300'
                                 }`}
                         >
                             За всё время
@@ -424,7 +442,7 @@ export function BonusPaymentsCard({
                 </div>
                 <div className="relative z-10">
                     <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Бонус (факт)</p>
-                    <p className="text-2xl font-black text-emerald-400">{new Intl.NumberFormat('ru-RU').format(earnedBonus)}</p>
+                    <p className="text-2xl font-black text-emerald-400">{new Intl.NumberFormat('ru-RU').format(totalFact)}</p>
                     <p className="text-[10px] text-slate-400 mt-0.5">UZS</p>
                 </div>
                 <div className="relative z-10">
@@ -458,7 +476,17 @@ export function BonusPaymentsCard({
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                                 {displayedBonusPayments.map(bp => {
-                                    const predinvest = Math.max(0, bp.amount - earnedBonus);
+                                    const itemEarned = salesFacts.filter(f => {
+                                        const m = f.month || (f.created_at ? new Date(f.created_at).getMonth() + 1 : (f.date ? new Date(f.date).getMonth() + 1 : 0));
+                                        const y = f.year || (f.created_at ? new Date(f.created_at).getFullYear() : (f.date ? new Date(f.date).getFullYear() : 0));
+                                    }).reduce((s, f) => {
+                                        const p = products.find(prod => prod.id === f.product_id);
+                                        return s + (f.quantity * (p?.marketing_expense || 0));
+                                    }, 0);
+
+                                    const itemFact = Math.min(bp.amount, itemEarned);
+                                    const itemPred = Math.max(0, bp.amount - itemEarned);
+
                                     const doctor = getDoctor(bp.doctor_id);
                                     const product = getProduct(bp.product_id);
                                     return (
@@ -484,12 +512,12 @@ export function BonusPaymentsCard({
                                                 {new Intl.NumberFormat('ru-RU').format(bp.amount)}
                                             </td>
                                             <td className="py-3 pr-3 text-right text-slate-600 font-semibold">
-                                                {new Intl.NumberFormat('ru-RU').format(earnedBonus)}
+                                                {itemFact > 0 ? new Intl.NumberFormat('ru-RU').format(itemFact) : <span className="text-slate-300">—</span>}
                                             </td>
                                             <td className="py-3 pr-3 text-right">
-                                                {predinvest > 0 ? (
+                                                {itemPred > 0 ? (
                                                     <span className="font-black text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
-                                                        {new Intl.NumberFormat('ru-RU').format(predinvest)}
+                                                        {new Intl.NumberFormat('ru-RU').format(itemPred)}
                                                     </span>
                                                 ) : (
                                                     <span className="text-slate-300">—</span>

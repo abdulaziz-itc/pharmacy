@@ -12,6 +12,7 @@ export interface Doctor {
     specialty: string;
     organization: string;
     totalPlan: number;
+    totalPlanSum: number;
     fact: number;
     factReceived: number;
     factPercent: number;
@@ -93,17 +94,22 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
 
             const [rawDoctors, allBonusPayments, allPlans, products] = await Promise.all([
                 getDoctors({ limit: 10000 }),
-                getBonusPayments(),
-                getPlans(m, y),
+                getBonusPayments(undefined, 0, 10000),
+                getPlans(m, y, undefined, undefined, 0, 10000),
                 axiosInstance.get('/products/').then(res => res.data)
             ]);
 
-            // Fetch doctor facts for the selected month/year to calculate profit
-            const doctorFacts = await getDoctorFacts(undefined, undefined);
+            // Fetch doctor facts with a large limit to avoid missing data
+            const doctorFacts = await getDoctorFacts(undefined, undefined, 0, 10000);
             const filteredFacts = doctorFacts.filter((f: any) => {
-                if (!f.date) return false;
-                const d = new Date(f.date);
-                return d.getMonth() + 1 === m && d.getFullYear() === y;
+                // Support both (month, year) and (date) formats as in DoctorRowExpanded
+                if (f.month !== undefined && f.year !== undefined) {
+                    return f.month === m && f.year === y;
+                } else if (f.date) {
+                    const d = new Date(f.date);
+                    return d.getMonth() + 1 === m && d.getFullYear() === y;
+                }
+                return false;
             });
 
             // Product margins map
@@ -135,6 +141,8 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
             // Use latest plan per (doctor_id, product_id) to avoid double-counting duplicates
             const sortedPlans = [...allPlans].sort((a: any, b: any) => b.id - a.id);
             const planByDoctorProduct: Record<number, Record<number, number>> = {};
+            const planByDoctor: Record<number, number> = {};
+            const planSumByDoctor: Record<number, number> = {};
 
             // Map doctors to their assigned med rep ID for efficient lookup
             const doctorToRep: Record<number, number> = {};
@@ -156,16 +164,52 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
                 if (!planByDoctorProduct[did]) planByDoctorProduct[did] = {};
                 if (planByDoctorProduct[did][pid] === undefined) {
                     planByDoctorProduct[did][pid] = p.target_quantity ?? 0;
+                    planByDoctor[did] = (planByDoctor[did] ?? 0) + (p.target_quantity ?? 0);
+                    planSumByDoctor[did] = (planSumByDoctor[did] ?? 0) + (p.target_amount ?? 0);
                 }
             }
-            const planByDoctor: Record<number, number> = {};
-            for (const [did, prodMap] of Object.entries(planByDoctorProduct)) {
-                planByDoctor[Number(did)] = Object.values(prodMap).reduce((s, v) => s + v, 0);
+            // The previous block already calculates planByDoctor and planSumByDoctor
+            // This block is redundant if the above loop correctly aggregates.
+            // Keeping it for now as it was in the original code, but it might be a source of confusion.
+            // const planByDoctor: Record<number, number> = {};
+            // for (const [did, prodMap] of Object.entries(planByDoctorProduct)) {
+            //     planByDoctor[Number(did)] = Object.values(prodMap).reduce((s, v) => s + v, 0);
+            // }
+
+            // Aggregate fact, revenue and earned bonus per doctor
+            const factByDoctor: Record<number, number> = {};
+            const revenueByDoctor: Record<number, number> = {};
+            const earnedBonusByDoctor: Record<number, number> = {};
+
+            const productExpense: Record<number, number> = {};
+            const productPrice: Record<number, number> = {};
+            for (const p of products) {
+                productExpense[p.id] = p.marketing_expense ?? 0;
+                productPrice[p.id] = p.price ?? 0;
+            }
+
+            for (const f of filteredFacts) {
+                const did = f.doctor_id;
+                const pid = f.product_id;
+                const qty = f.quantity ?? 0;
+                if (!did || !pid) continue;
+
+                factByDoctor[did] = (factByDoctor[did] ?? 0) + qty;
+                revenueByDoctor[did] = (revenueByDoctor[did] ?? 0) + qty * (productPrice[pid] ?? 0);
+                earnedBonusByDoctor[did] = (earnedBonusByDoctor[did] ?? 0) + qty * (productExpense[pid] ?? 0);
             }
 
             const mapped: Doctor[] = rawDoctors.map((d: any) => {
                 const paid = bonusByDoctor[d.id] ?? 0;
+                const earned = earnedBonusByDoctor[d.id] ?? 0;
+                const fact = factByDoctor[d.id] ?? 0;
+                const revenue = revenueByDoctor[d.id] ?? 0;
+
+                const bonusFact = Math.min(paid, earned);
+                const preInvest = Math.max(0, paid - earned);
+                const balance = Math.max(0, earned - paid);
                 const profit = profitByDoctor[d.id] ?? 0;
+
                 return {
                     id: d.id,
                     name: d.full_name ?? '',
@@ -177,13 +221,14 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
                     specialty: d.specialty?.name ?? '',
                     organization: d.med_org?.name ?? '',
                     totalPlan: planByDoctor[d.id] ?? 0,
-                    fact: 0,
-                    factReceived: 0,
-                    factPercent: 0,
-                    bonus: 0,
+                    totalPlanSum: planSumByDoctor[d.id] ?? 0,
+                    fact: fact,
+                    factReceived: revenue,
+                    factPercent: 0, // Calculated in columns
+                    bonus: earned,
                     bonusPaid: paid,
-                    bonusBalance: 0,
-                    preInvest: paid,
+                    bonusBalance: balance,
+                    preInvest: preInvest,
                     netProfit: profit,
                     region_id: d.region_id,
                     specialty_id: d.specialty_id,

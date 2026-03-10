@@ -88,3 +88,23 @@ async def get_audit_actions(
         raise HTTPException(status_code=403, detail="Not enough permissions")
     result = await db.execute(select(distinct(AuditLog.action)).where(AuditLog.action != None))
     return [row[0] for row in result.all()]
+
+
+@router.delete("/audit-logs/")
+async def delete_audit_logs(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Clear all audit logs. Only accessible by Director and Admin.
+    """
+    from fastapi import HTTPException
+    from sqlalchemy import delete
+    
+    if current_user.role not in [UserRole.DIRECTOR, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not enough permissions to clear logs.")
+    
+    await db.execute(delete(AuditLog))
+    await db.commit()
+    
+    return {"message": "All audit logs have been cleared."}

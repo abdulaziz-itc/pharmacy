@@ -26,7 +26,7 @@ async def read_users(
     """
     Retrieve users. Only for specific roles (e.g., DEPUTY_DIRECTOR).
     """
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     users = await crud_user.get_multi(
@@ -45,7 +45,7 @@ async def create_user(
     """
     Create new user.
     """
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     # If the creator is a Product Manager, enforce themselves as the manager if they are creating a subordinate
@@ -64,7 +64,7 @@ async def create_user(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "User", user.id,
-        f"Yangi foydalanuvchi yaratildi: {user.username} ({user.role})",
+        f"Создан новый пользователь: {user.username} ({user.role})",
         request
     )
     return user
@@ -85,7 +85,7 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
         
     if current_user.role == UserRole.PRODUCT_MANAGER:
@@ -142,7 +142,7 @@ async def update_user(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "UPDATE", "User", user.id,
-        f"Foydalanuvchi ma'lumotlari yangilandi: {user.username}",
+        f"Данные пользователя изменены: {user.username}",
         request
     )
     return user
@@ -326,7 +326,7 @@ async def reassign_user_dependencies(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "REASSIGN", "User", req.from_user_id,
-        f"Vakolatlar o'tkazildi: {from_user.username} -> {to_user.username}",
+        f"Полномочия переданы: {from_user.username} -> {to_user.username}",
         request
     )
     await db.commit()

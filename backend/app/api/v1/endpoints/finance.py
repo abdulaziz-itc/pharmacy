@@ -5,8 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 
 from app.api import deps
-from app.models.sales import Invoice, InvoiceStatus
+from app.models.sales import Invoice, InvoiceStatus, Plan, Reservation, ReservationStatus
 from app.models.user import User, UserRole
+from app.models.crm import Doctor
+from app.models.ledger import DoctorMonthlyStat
 
 router = APIRouter()
 
@@ -47,7 +49,7 @@ async def read_global_stats(
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     # Total Sales (Confirmed Reservations)
-    total_sales_query = select(func.sum(Reservation.total_amount)).where(Reservation.status == "confirmed")
+    total_sales_query = select(func.sum(Reservation.total_amount)).where(Reservation.status == ReservationStatus.APPROVED)
     total_sales_result = await db.execute(total_sales_query)
     total_sales = total_sales_result.scalar() or 0.0
     

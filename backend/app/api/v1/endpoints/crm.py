@@ -44,7 +44,7 @@ async def create_region(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Region", region.id,
-        f"Yangi viloyat/shahar qo'shildi: {region.name}",
+        f"Добавлен новый регион: {region.name}",
         request
     )
     return region
@@ -73,7 +73,7 @@ async def create_specialty(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Specialty", specialty.id,
-        f"Vrach mutaxassisligi qo'shildi: {specialty.name}",
+        f"Добавлена специальность врача: {specialty.name}",
         request
     )
     return specialty
@@ -102,7 +102,7 @@ async def create_doctor_category(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "DoctorCategory", category.id,
-        f"Vrach kategoriyasi qo'shildi: {category.name}",
+        f"Добавлена категория врача: {category.name}",
         request
     )
     return category
@@ -156,7 +156,7 @@ async def create_med_org(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "MedicalOrganization", med_org.id,
-        f"Tashkilot (Apteka/Klinika) qo'shildi: {med_org.name}",
+        f"Добавлена организация: {med_org.name}",
         request
     )
     return med_org
@@ -181,7 +181,7 @@ async def update_med_org(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "UPDATE", "MedicalOrganization", updated_med_org.id,
-        f"Tashkilot ma'lumotlari yangilandi: {updated_med_org.name}",
+        f"Данные организации изменены: {updated_med_org.name}",
         request
     )
     return updated_med_org
@@ -268,7 +268,7 @@ async def create_doctor(
     doctor = await crud_crm.create_doctor(db, obj_in=doctor_in)
     from app.services.audit_service import log_action
     await log_action(db, current_user, "CREATE", "Doctor", doctor.id,
-                     f"Yangi vrach qo'shildi: {doctor.full_name}", request)
+                     f"Добавлен новый врач: {doctor.full_name}", request)
     return doctor
 
 @router.put("/doctors/{id}", response_model=Doctor)
@@ -339,10 +339,10 @@ async def update_doctor(
     
     status_change_msg = ""
     if doctor_in.is_active is not None and doctor.is_active != doctor_in.is_active:
-        status_change_msg = f" (Holati: {'Faol' if doctor_in.is_active else 'Nofaol'} qilingan)"
+        status_change_msg = f" (Статус: {'Активен' if doctor_in.is_active else 'Неактивен'})"
         
     await log_action(db, current_user, "UPDATE", "Doctor", updated_doctor.id,
-                     f"Vrach ma'lumotlari yangilandi: {updated_doctor.full_name}{status_change_msg}", request)
+                     f"Данные врача изменены: {updated_doctor.full_name}{status_change_msg}", request)
     return updated_doctor
 
 
@@ -389,7 +389,7 @@ async def delete_doctor(
     
     from app.services.audit_service import log_action
     await log_action(db, current_user, "DELETE", "Doctor", id,
-                     f"Vrach bazadan o'chirildi: {doc_name}", request)
+                     f"Врач удален из базы: {doc_name}", request)
                      
     await db.commit()
     return {"ok": True}

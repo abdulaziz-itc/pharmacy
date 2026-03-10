@@ -30,7 +30,7 @@ async def create_reservation_endpoint(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Reservation", reservation.id,
-        f"Rezervatsiya (Bron) yaratildi (Sklad band qilindi): ID {reservation.id}",
+        f"Бронь создана (Склад зарезервирован): ID {reservation.id}",
         request
     )
     return reservation

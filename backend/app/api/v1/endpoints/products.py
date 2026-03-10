@@ -50,7 +50,7 @@ async def create_product(
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Product", product.id,
-        f"Yangi mahsulot yaratildi: {product.name}",
+        f"Создан новый продукт: {product.name}",
         request
     )
     return product
@@ -94,11 +94,11 @@ async def update_product(
     
     status_msg = ""
     if product_in.is_active is not None and product.is_active != product_in.is_active:
-        status_msg = f" (Holati: {'Faol' if product_in.is_active else 'Nofaol'} qilindi)"
+        status_msg = f" (Статус: {'Активен' if product_in.is_active else 'Неактивен'})"
         
     await log_action(
         db, current_user, "UPDATE", "Product", updated_product.id,
-        f"Mahsulot tahrirlandi: {updated_product.name}{status_msg}",
+        f"Продукт изменен: {updated_product.name}{status_msg}",
         request
     )
     return updated_product

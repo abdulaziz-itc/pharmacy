@@ -156,6 +156,7 @@ export function AddMedOrgModal({ isOpen, onClose, defaultRepId, defaultOrgType }
                                         <SelectItem value="clinic" className="font-bold cursor-pointer rounded-xl mx-1 my-0.5 focus:bg-blue-50 focus:text-blue-600">Клиника</SelectItem>
                                         <SelectItem value="hospital" className="font-bold cursor-pointer rounded-xl mx-1 my-0.5 focus:bg-blue-50 focus:text-blue-600">Больница / Госпиталь</SelectItem>
                                         <SelectItem value="lechebniy" className="font-bold cursor-pointer rounded-xl mx-1 my-0.5 focus:bg-blue-50 focus:text-blue-600">Лечебное Учреждение</SelectItem>
+                                        <SelectItem value="wholesale" className="font-bold cursor-pointer rounded-xl mx-1 my-0.5 focus:bg-blue-50 focus:text-blue-600 text-indigo-600">Оптовая компания / Дистрибьютор</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

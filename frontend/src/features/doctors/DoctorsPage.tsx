@@ -26,7 +26,7 @@ export default function DoctorsPage() {
     const { fetchProducts } = useProductStore();
 
     const filteredDoctors = getFilteredDoctors();
-    const activeDoctors = filteredDoctors.filter(d => d.is_active !== false);
+    const activeDoctors = filteredDoctors.filter(d => d.is_active === true);
     const archivedDoctors = filteredDoctors.filter(d => d.is_active === false);
 
     const currentUser = useAuthStore((state) => state.user);

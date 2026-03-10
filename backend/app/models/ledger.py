@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum, Date
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum, Date, Boolean
 from sqlalchemy.orm import relationship
 import enum
 from datetime import datetime
@@ -21,19 +21,28 @@ class BonusLedger(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=True) # For MedRep
     doctor_id = Column(Integer, ForeignKey("doctor.id"), nullable=True) # For Doctor
+    product_id = Column(Integer, ForeignKey("product.id"), nullable=True) # For specific product allocation
     
     amount = Column(Float, nullable=False) # Positive is Credit (earned), Negative is Debit (paid out / advance)
     ledger_type = Column(String, nullable=False, default=LedgerType.ACCRUAL)
     
+    # NEW logic: True = paid to MedRep's actual balance. False = pending accrual from fact.
+    is_paid = Column(Boolean, default=False, nullable=False)
+    
     # Context references
     invoice_item_id = Column(Integer, ForeignKey("reservationitem.id"), nullable=True)
     payment_id = Column(Integer, ForeignKey("payment.id"), nullable=True)
+    
+    # Target period for assigned bonuses
+    target_month = Column(Integer, nullable=True)
+    target_year = Column(Integer, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     notes = Column(String, nullable=True)
 
     user = relationship("User")
     doctor = relationship("Doctor")
+    product = relationship("Product")
     invoice_item = relationship("ReservationItem")
     payment = relationship("Payment")
 
