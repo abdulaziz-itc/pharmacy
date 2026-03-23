@@ -4,10 +4,17 @@ import { Button } from '../../components/ui/button';
 import { Check, X, ClipboardList, RefreshCcw, AlertTriangle } from 'lucide-react';
 import { warehouseApi, type DeletionRequest } from '../../api/warehouse';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 
 export default function DeletionApprovalPage() {
   const [data, setData] = useState<DeletionRequest>({ reservations: [], invoices: [], return_requests: [] });
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -121,9 +128,13 @@ export default function DeletionApprovalPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {data.reservations.length > 0 ? (
+                    {data.reservations.length > 0 ? (
                     data.reservations.map((res: any) => (
-                      <tr key={res.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <tr 
+                        key={res.id} 
+                        className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                        onClick={() => setSelectedItem({ type: 'reservation', data: res })}
+                      >
                         <td className="px-6 py-4">
                           <div className="font-bold text-slate-900">#{res.id}</div>
                           <div className="text-[10px] font-medium text-slate-500">{new Date(res.date).toLocaleDateString()}</div>
@@ -192,7 +203,11 @@ export default function DeletionApprovalPage() {
                 <tbody className="divide-y divide-slate-100">
                   {data.invoices.length > 0 ? (
                     data.invoices.map((inv: any) => (
-                      <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <tr 
+                        key={inv.id} 
+                        className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                        onClick={() => setSelectedItem({ type: 'invoice', data: inv })}
+                      >
                         <td className="px-6 py-4">
                           <div className="font-bold text-slate-900">#{inv.id}</div>
                           <div className="text-[10px] font-medium text-slate-500">Документ: {inv.factura_number || 'Б/Н'}</div>
@@ -263,7 +278,11 @@ export default function DeletionApprovalPage() {
                 <tbody className="divide-y divide-slate-100">
                   {data.return_requests && data.return_requests.length > 0 ? (
                     data.return_requests.map((res: any) => (
-                      <tr key={`return-${res.id}`} className="hover:bg-slate-50/50 transition-colors group">
+                      <tr 
+                        key={`return-${res.id}`} 
+                        className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                        onClick={() => setSelectedItem({ type: 'return', data: res })}
+                      >
                         <td className="px-6 py-4">
                           <div className="font-bold text-slate-900">#{res.id}</div>
                           <div className="text-[10px] font-medium text-slate-500">{new Date(res.date).toLocaleDateString()}</div>
@@ -323,6 +342,98 @@ export default function DeletionApprovalPage() {
           )}
         </div>
       )}
+
+      {/* Details Modal */}
+      <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0 border-none shadow-2xl rounded-[32px]">
+          <DialogHeader className="bg-slate-800 p-8 text-white">
+            <DialogTitle className="text-2xl font-bold tracking-tight">
+              {selectedItem?.type === 'invoice' ? 'Детали фактуры' : 
+               selectedItem?.type === 'return' ? 'Детали возврата' : 'Детали брони'}
+              <span className="ml-3 text-slate-400 font-medium">#{selectedItem?.data?.id}</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="p-8">
+            <div className="grid grid-cols-2 gap-8 mb-8">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Клиент</p>
+                <p className="font-bold text-slate-900">{selectedItem?.data?.customer_name || selectedItem?.data?.reservation?.customer_name}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Организация</p>
+                <p className="font-bold text-slate-900">
+                  {selectedItem?.data?.med_org?.name || selectedItem?.data?.reservation?.med_org?.name || '---'}
+                </p>
+              </div>
+              {selectedItem?.type === 'invoice' && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Номер фактуры</p>
+                  <p className="font-bold text-slate-900">{selectedItem?.data?.factura_number || '---'}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Дата</p>
+                <p className="font-bold text-slate-900">
+                  {new Date(selectedItem?.data?.date).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-black uppercase tracking-widest text-slate-400">Товары</h4>
+              <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-100">
+                      <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Название</th>
+                      <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-400">Кол-во</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Цена</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Итого</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(selectedItem?.type === 'invoice' ? selectedItem?.data?.reservation?.items : selectedItem?.data?.items)?.map((item: any) => (
+                      <tr key={item.id}>
+                        <td className="px-4 py-3 font-bold text-slate-700 text-sm">
+                          {item.product?.name}
+                        </td>
+                        <td className="px-4 py-3 text-center font-black text-blue-600">
+                          {item.quantity}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-slate-500">
+                          {item.price?.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-slate-900">
+                          {item.total_price?.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-50/50 font-bold border-t border-slate-100">
+                      <td colSpan={3} className="px-4 py-3 text-right text-slate-500 uppercase tracking-widest text-[10px]">Всего:</td>
+                      <td className="px-4 py-3 text-right text-slate-900">
+                        {(selectedItem?.data?.total_amount || selectedItem?.data?.reservation?.total_amount)?.toLocaleString()} UZS
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+            
+            <div className="mt-8 flex justify-end">
+              <Button 
+                onClick={() => setSelectedItem(null)}
+                variant="outline"
+                className="rounded-xl px-8 h-12 font-bold bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+              >
+                Закрыть
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 }

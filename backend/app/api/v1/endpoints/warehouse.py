@@ -123,7 +123,7 @@ async def get_deletion_requests(
         # Reservations pending deletion
         res_query = select(Reservation).options(
             selectinload(Reservation.med_org),
-            # warehouse_id is a direct column, no need for selectinload(Reservation.warehouse) if using Lite schema's warehouse_id
+            selectinload(Reservation.items).selectinload(ReservationItem.product)
         ).where(Reservation.is_deletion_pending == True)
         res_result = await db.execute(res_query)
         reservations = res_result.scalars().all()
@@ -133,6 +133,7 @@ async def get_deletion_requests(
             Reservation, Invoice.reservation_id == Reservation.id
         ).options(
             selectinload(Invoice.reservation).selectinload(Reservation.med_org),
+            selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product)
         ).where(Invoice.is_deletion_pending == True)
         inv_result = await db.execute(inv_query)
         invoices = inv_result.scalars().all()
@@ -140,6 +141,7 @@ async def get_deletion_requests(
         # Pending returns
         ret_query = select(Reservation).options(
             selectinload(Reservation.med_org),
+            selectinload(Reservation.items).selectinload(ReservationItem.product)
         ).where(Reservation.is_return_pending == True)
         ret_result = await db.execute(ret_query)
         return_requests = ret_result.scalars().all()

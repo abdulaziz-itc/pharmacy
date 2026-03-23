@@ -178,6 +178,7 @@ class ReservationLite(ReservationBase):
     med_org: Optional[MedicalOrganizationLite] = None
     warehouse_id: int
     created_by_id: int
+    items: List[ReservationItem] = []
     
     class Config:
         from_attributes = True
