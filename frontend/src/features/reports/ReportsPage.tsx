@@ -31,6 +31,18 @@ import * as XLSX from 'xlsx';
 import { DataTable } from '../../components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '../../components/ui/badge';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '../../components/ui/select';
+import {
+    getDaysInMonth,
+    setMonth,
+    setYear
+} from 'date-fns';
 
 type ReportItem = {
     doctor_id: number;
@@ -54,18 +66,28 @@ type ReportsResponse = {
 export default function ReportsPage() {
     const [period, setPeriod] = React.useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
     const [searchQuery, setSearchQuery] = React.useState('');
+    const [selectedMonth, setSelectedMonth] = React.useState<number>(new Date().getMonth());
+    const [selectedYear, setSelectedYear] = React.useState<number>(new Date().getFullYear());
+
+    const months = [
+        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+    ];
+
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
     const dateRange = React.useMemo(() => {
-        const now = new Date();
+        const baseDate = new Date(selectedYear, selectedMonth, 1);
         switch (period) {
-            case 'daily': return { start: startOfDay(now), end: endOfDay(now) };
-            case 'weekly': return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
-            case 'monthly': return { start: startOfMonth(now), end: endOfMonth(now) };
-            case 'quarterly': return { start: startOfQuarter(now), end: endOfQuarter(now) };
-            case 'yearly': return { start: startOfYear(now), end: endOfYear(now) };
-            default: return { start: startOfMonth(now), end: endOfMonth(now) };
+            case 'daily': return { start: startOfDay(baseDate), end: endOfDay(baseDate) };
+            case 'weekly': return { start: startOfWeek(baseDate, { weekStartsOn: 1 }), end: endOfWeek(baseDate, { weekStartsOn: 1 }) };
+            case 'monthly': return { start: startOfMonth(baseDate), end: endOfMonth(baseDate) };
+            case 'quarterly': return { start: startOfQuarter(baseDate), end: endOfQuarter(baseDate) };
+            case 'yearly': return { start: startOfYear(baseDate), end: endOfYear(baseDate) };
+            default: return { start: startOfMonth(baseDate), end: endOfMonth(baseDate) };
         }
-    }, [period]);
+    }, [period, selectedMonth, selectedYear]);
 
     const { data, isLoading } = useQuery<ReportsResponse>({
         queryKey: ['reports', period, dateRange],
@@ -193,26 +215,52 @@ export default function ReportsPage() {
                 </div>
             </div>
 
-            {/* Timeframe Selector */}
-            <div className="bg-slate-100 p-1.5 rounded-[2rem] flex items-center gap-1 mb-8 w-fit shadow-inner">
-                {[
-                    { id: 'daily', label: 'День' },
-                    { id: 'weekly', label: 'Неделя' },
-                    { id: 'monthly', label: 'Месяц' },
-                    { id: 'quarterly', label: 'Квартал' },
-                    { id: 'yearly', label: 'Год' }
-                ].map((t) => (
-                    <button
-                        key={t.id}
-                        onClick={() => setPeriod(t.id as any)}
-                        className={`px-6 py-3 rounded-3xl font-bold text-sm transition-all ${period === t.id
-                            ? 'bg-white text-blue-600 shadow-md'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        {t.label}
-                    </button>
-                ))}
+            <div className="flex flex-wrap items-center gap-4 mb-8">
+                {/* Timeframe Selector */}
+                <div className="bg-slate-100 p-1.5 rounded-[2rem] flex items-center gap-1 w-fit shadow-inner">
+                    {[
+                        { id: 'daily', label: 'День' },
+                        { id: 'weekly', label: 'Неделя' },
+                        { id: 'monthly', label: 'Месяц' },
+                        { id: 'quarterly', label: 'Квартал' },
+                        { id: 'yearly', label: 'Год' }
+                    ].map((t) => (
+                        <button
+                            key={t.id}
+                            onClick={() => setPeriod(t.id as any)}
+                            className={`px-6 py-3 rounded-3xl font-bold text-sm transition-all ${period === t.id
+                                ? 'bg-white text-blue-600 shadow-md'
+                                : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-[2rem] shadow-inner">
+                    <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+                        <SelectTrigger className="w-[140px] h-11 bg-white border-none rounded-3xl font-bold text-blue-600 shadow-sm focus:ring-0">
+                            <SelectValue placeholder="Месяц" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {months.map((m, i) => (
+                                <SelectItem key={i} value={i.toString()}>{m}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+                        <SelectTrigger className="w-[100px] h-11 bg-white border-none rounded-3xl font-bold text-blue-600 shadow-sm focus:ring-0">
+                            <SelectValue placeholder="Год" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {years.map((y) => (
+                                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
             {/* Summary Cards */}
