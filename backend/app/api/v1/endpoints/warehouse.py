@@ -108,10 +108,7 @@ async def add_stock(
     )
     return {"ok": True, "new_quantity": stock.quantity}
 
-from app.schemas.sales import DeletionRequests
-from fastapi import Response
-
-@router.get("/deletion-requests", response_model=DeletionRequests)
+@router.get("/deletion-requests", response_model=Any)
 async def get_deletion_requests(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
@@ -122,6 +119,8 @@ async def get_deletion_requests(
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     try:
+        from app.schemas.sales import DeletionRequests, ApprovalReservationSchema, ApprovalInvoiceSchema
+        
         # Reservations pending deletion
         res_query = (
             select(Reservation)
@@ -133,7 +132,6 @@ async def get_deletion_requests(
         )
         res_result = await db.execute(res_query)
         reservations = res_result.scalars().all()
-        logging.info(f"RETURNING {len(reservations)} reservations for deletion: {[r.id for r in reservations]}")
         
         # Invoices pending deletion (Facturas)
         inv_query = (
@@ -152,7 +150,6 @@ async def get_deletion_requests(
         # SUPER DEEP DEBUG
         all_inv_ids = await db.execute(select(Invoice.id))
         actual_ids_in_db = [r[0] for r in all_inv_ids.all()]
-        logging.info(f"FETCH: Found {len(invoices)} invoices. All IDs in DB: {actual_ids_in_db}")
         
         # Pending returns
         ret_query = (
@@ -166,24 +163,26 @@ async def get_deletion_requests(
         ret_result = await db.execute(ret_query)
         return_requests = ret_result.scalars().all()
 
-        from app.schemas.sales import ApprovalReservationSchema, ApprovalInvoiceSchema
-        
         # DEBUG: Embed real ID and the full available list in factura_number
         debug_invoices = []
         for i in invoices:
             schema = ApprovalInvoiceSchema.from_orm(i)
+            # Use the actual string to avoid any schema issues
             schema.factura_number = f"DB_ID:{i.id} | ALL:{actual_ids_in_db} | {i.factura_number}"
-            debug_invoices.append(schema)
+            debug_invoices.append(schema.dict())
 
         import time
         return {
-            "reservations": [ApprovalReservationSchema.from_orm(r) for r in reservations],
+            "reservations": [ApprovalReservationSchema.from_orm(r).dict() for r in reservations],
             "invoices": debug_invoices,
-            "return_requests": [ApprovalReservationSchema.from_orm(r) for r in return_requests],
+            "return_requests": [ApprovalReservationSchema.from_orm(r).dict() for r in return_requests],
             "debug_timestamp": time.time()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        logging.error(f"FETCH FAILED: {str(e)}", exc_info=True)
+        # Return the actual error to the client for debugging
+        raise HTTPException(status_code=500, detail=f"FETCH FAILED: {str(e)} | TRACE: {traceback.format_exc()[-200:]}")
 
 @router.post("/deletion-requests/{entity_type}/{entity_id}/approve")
 async def approve_deletion(
