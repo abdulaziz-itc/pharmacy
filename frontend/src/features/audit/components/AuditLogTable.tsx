@@ -74,6 +74,7 @@ const columns: ColumnDef<AuditLog>[] = [
                 'REASSIGN': { label: 'ПЕРЕДАЧА', color: 'bg-amber-100 text-amber-700 border-amber-200' },
                 'REPORT_DOWNLOAD': { label: 'СКАЧИВАНИЕ', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
                 'UPDATE_STATUS': { label: 'ОБН. СТАТУСА', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+                'RESERVATION_MODIFIED': { label: '⚠️ ИЗМЕНЕНИЕ ЦЕНЫ/БОНУСА', color: 'bg-red-100 text-red-800 border-red-300 font-extrabold shadow-sm' },
             };
             const info = actionLabels[row.original.action] || { label: row.original.action, color: 'bg-slate-100 text-slate-700' };
             return (

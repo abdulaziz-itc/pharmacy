@@ -21,7 +21,7 @@ api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboar
 
 from app.api.v1.endpoints import (
     orders, analytics, users_domain, reports, audit,
-    head_of_orders, medrep_sales, pharmacy_stocks
+    head_of_orders, medrep_sales, pharmacy_stocks, warehouse
 )
 
 api_router.include_router(orders.router, prefix="/domain/orders", tags=["domain_orders"])
@@ -32,3 +32,4 @@ api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(head_of_orders.router, prefix="/domain/orders/management", tags=["head_of_orders"])
 api_router.include_router(medrep_sales.router, prefix="/sales/medrep", tags=["medrep_sales"])
 api_router.include_router(pharmacy_stocks.router, prefix="/domain/crm/pharmacy-stocks", tags=["pharmacy_stocks"])
+api_router.include_router(warehouse.router, prefix="/domain/warehouse", tags=["warehouse"])

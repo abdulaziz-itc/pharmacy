@@ -64,6 +64,37 @@ export function DataTable<TData, TValue>({
     const headerRef = React.useRef<HTMLDivElement>(null)
     const bodyRef = React.useRef<HTMLDivElement>(null)
 
+    // Drag to scroll logic
+    const [isMouseDown, setIsMouseDown] = React.useState(false);
+    const [startX, setStartX] = React.useState(0);
+    const [scrollLeftState, setScrollLeftState] = React.useState(0);
+
+    const onMouseDown = (e: React.MouseEvent) => {
+        if (!bodyRef.current) return;
+        setIsMouseDown(true);
+        // Add active class to body for cursor changing
+        bodyRef.current.classList.add('cursor-grabbing');
+        bodyRef.current.classList.add('select-none');
+        setStartX(e.pageX - bodyRef.current.offsetLeft);
+        setScrollLeftState(bodyRef.current.scrollLeft);
+    };
+
+    const handleMouseUpOrLeave = () => {
+        setIsMouseDown(false);
+        if (bodyRef.current) {
+            bodyRef.current.classList.remove('cursor-grabbing');
+            bodyRef.current.classList.remove('select-none');
+        }
+    };
+
+    const onMouseMove = (e: React.MouseEvent) => {
+        if (!isMouseDown || !bodyRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - bodyRef.current.offsetLeft;
+        const walk = (x - startX) * 1.5; // multiplier for scroll speed
+        bodyRef.current.scrollLeft = scrollLeftState - walk;
+    };
+
     const table = useReactTable({
         data,
         columns,
@@ -248,7 +279,11 @@ export function DataTable<TData, TValue>({
             <div
                 ref={bodyRef}
                 onScroll={handleScroll}
-                className="overflow-x-auto bg-white border-x border-b border-slate-200 rounded-b-3xl shadow-2xl shadow-slate-200/50 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent"
+                onMouseDown={onMouseDown}
+                onMouseLeave={handleMouseUpOrLeave}
+                onMouseUp={handleMouseUpOrLeave}
+                onMouseMove={onMouseMove}
+                className="overflow-x-auto bg-white border-x border-b border-slate-200 rounded-b-3xl shadow-2xl shadow-slate-200/50 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent cursor-grab active:cursor-grabbing"
                 style={{ scrollbarGutter: 'stable' }}
             >
                 <Table className="w-full table-fixed border-none">

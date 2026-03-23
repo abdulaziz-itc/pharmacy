@@ -31,6 +31,13 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
     const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Calculate Predinvest
+    const predinvestAmount = React.useMemo(() => {
+        return history
+            .filter(h => h.ledger_type === 'accrual' && h.notes === 'Аванс (Предынвест)')
+            .reduce((sum, h) => sum + h.amount, 0);
+    }, [history]);
+
     // Allocation State
     const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
     const [doctorId, setDoctorId] = useState<string>("");
@@ -43,6 +50,7 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
     const [notes, setNotes] = useState<string>("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedPlanMarketing, setSelectedPlanMarketing] = useState<number>(0);
+    const [overrideMarketingAmount, setOverrideMarketingAmount] = useState<string>("");
 
     // History Filter State
     const [filterMonth, setFilterMonth] = useState<string>("");
@@ -107,8 +115,9 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
         fetchPlans();
     }, [doctorId, targetMonth, targetYear, medRepId, isAllocateModalOpen]);
 
-    const computedAmount = quantity && selectedPlanMarketing
-        ? parseInt(quantity) * selectedPlanMarketing
+    const currentMarketing = overrideMarketingAmount ? parseFloat(overrideMarketingAmount) : selectedPlanMarketing;
+    const computedAmount = quantity && currentMarketing
+        ? parseInt(quantity) * currentMarketing
         : 0;
 
     const handleAllocate = async () => {
@@ -134,12 +143,14 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                 quantity: qty,
                 target_month: parseInt(targetMonth),
                 target_year: parseInt(targetYear),
+                amount_per_unit: overrideMarketingAmount ? parseFloat(overrideMarketingAmount) : undefined,
                 notes: notes
             });
             toast.success(`Бонус ${result.amount?.toLocaleString('ru-RU')} UZS успешно выплачен!`);
             setIsAllocateModalOpen(false);
             setQuantity("");
             setProductId("");
+            setOverrideMarketingAmount("");
             setNotes("");
             setSelectedPlanMarketing(0);
             loadData();
@@ -408,6 +419,11 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                             <h2 className="text-4xl font-bold">
                                 {balance.toLocaleString('ru-RU')} <span className="text-xl text-blue-200">UZS</span>
                             </h2>
+                            {predinvestAmount > 0 && (
+                                <p className="text-sm text-blue-200 mt-2 font-medium bg-blue-800/30 inline-block px-3 py-1 rounded-xl border border-blue-500/30 shadow-sm">
+                                    в том числе аванс: <span className="font-bold text-white">{predinvestAmount.toLocaleString('ru-RU')} UZS</span>
+                                </p>
+                            )}
                         </div>
                         <Button
                             variant="secondary"
@@ -633,7 +649,22 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                                 </SelectContent>
                             </Select>
                             {productId && selectedPlanMarketing > 0 && (
-                                <p className="text-[11px] text-slate-500">РАСХОДЫ НА МАРКЕТИНГ: <span className="font-bold text-blue-700">{selectedPlanMarketing.toLocaleString('ru-RU')} UZS / шт.</span></p>
+                                <div className="space-y-2 mt-2">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Бонус за ед. (UZS)</label>
+                                        <span className="text-[10px] text-slate-400">По умолчанию: {selectedPlanMarketing.toLocaleString()}</span>
+                                    </div>
+                                    <Input
+                                        type="number"
+                                        placeholder={selectedPlanMarketing.toString()}
+                                        value={overrideMarketingAmount}
+                                        onChange={e => setOverrideMarketingAmount(e.target.value)}
+                                        className="h-8 text-sm border-blue-100 focus:border-blue-400"
+                                    />
+                                    <p className="text-[10px] text-slate-400 font-medium italic">
+                                        Вы можете изменить сумму бонуса для этого распределения.
+                                    </p>
+                                </div>
                             )}
                         </div>
 
@@ -663,7 +694,7 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                                     {computedAmount.toLocaleString('ru-RU')} <span className="text-sm font-normal">UZS</span>
                                 </p>
                                 <p className="text-[11px] text-slate-400 mt-1">
-                                    {quantity} шт. × {selectedPlanMarketing.toLocaleString('ru-RU')} UZS
+                                    {quantity} шт. × {currentMarketing.toLocaleString('ru-RU')} UZS
                                 </p>
                                 {computedAmount > balance && (
                                     <p className="text-xs font-bold text-red-600 mt-1">Недостаточно средств на балансе!</p>

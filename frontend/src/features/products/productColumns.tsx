@@ -18,8 +18,12 @@ import { Switch } from "../../components/ui/switch"
 
 export const createColumns = (
     onEdit: (product: Product) => void,
-    onStatusChange: (id: number, newStatus: "active" | "inactive") => void
-): ColumnDef<Product>[] => [
+    onStatusChange: (id: number, newStatus: "active" | "inactive") => void,
+    role?: string
+): ColumnDef<Product>[] => {
+    const isMedRep = role === 'med_rep';
+
+    const cols: ColumnDef<Product>[] = [
         {
             id: "index",
             header: "#",
@@ -67,6 +71,16 @@ export const createColumns = (
             cell: ({ row }) => {
                 const isActive = row.getValue("is_active") as boolean
 
+                if (isMedRep) {
+                    return (
+                        <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-bold ${isActive ? "text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg" : "text-slate-400 bg-slate-50 px-2 py-1 rounded-lg"}`}>
+                                {isActive ? "АКТИВЕН" : "НЕАКТИВЕН"}
+                            </span>
+                        </div>
+                    )
+                }
+
                 return (
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <Switch
@@ -113,33 +127,41 @@ export const createColumns = (
                     </span>
                 );
             },
-        },
-        {
-            id: "add_expenses",
-            header: () => <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center block">ВНЕСТИ<br />РАСХОДЫ</span>,
-            cell: () => (
-                <div className="flex justify-center">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50">
-                        <Wallet className="h-4 w-4" />
-                    </Button>
-                </div>
-            ),
-        },
-        {
-            id: "edit",
-            header: () => <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center block">ИЗМЕНИТЬ</span>,
-            cell: ({ row }) => (
-                <div className="flex justify-center">
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
-                        onClick={() => onEdit(row.original)}
-                    >
-                        <Pencil className="h-4 w-4" />
-                    </Button>
-                </div>
-            ),
-        },
-    ]
+        }
+    ];
+
+    if (!isMedRep) {
+        cols.push(
+            {
+                id: "add_expenses",
+                header: () => <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center block">ВНЕСТИ<br />РАСХОДЫ</span>,
+                cell: () => (
+                    <div className="flex justify-center">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50">
+                            <Wallet className="h-4 w-4" />
+                        </Button>
+                    </div>
+                ),
+            },
+            {
+                id: "edit",
+                header: () => <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center block">ИЗМЕНИТЬ</span>,
+                cell: ({ row }) => (
+                    <div className="flex justify-center">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                            onClick={() => onEdit(row.original)}
+                        >
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                    </div>
+                ),
+            }
+        );
+    }
+
+    return cols;
+};

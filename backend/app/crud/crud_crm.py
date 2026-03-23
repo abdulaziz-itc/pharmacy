@@ -166,7 +166,7 @@ async def get_doctors(
     )
     
     if name:
-        query = query.where(Doctor.name.ilike(f"%{name}%"))
+        query = query.where(Doctor.full_name.ilike(f"%{name}%"))
     if region_id:
         query = query.where(Doctor.region_id == region_id)
     if specialty_id:
@@ -178,6 +178,7 @@ async def get_doctors(
     if rep_ids:
         query = query.where(Doctor.assigned_rep_id.in_(rep_ids))
         
+
     result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()
 

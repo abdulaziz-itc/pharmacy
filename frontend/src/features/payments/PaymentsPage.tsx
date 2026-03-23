@@ -15,7 +15,7 @@ export default function PaymentsPage() {
     const { data: invoices, isLoading, refetch } = useQuery({
         queryKey: ['invoices'],
         queryFn: async () => {
-            const response = await api.get('/domain/payments/invoices/');
+            const response = await api.get('/domain/orders/management/invoices/');
             return response.data;
         }
     });
@@ -28,7 +28,11 @@ export default function PaymentsPage() {
         },
         {
             header: 'Сумма Позиций',
-            accessor: (row: any) => `${row.total_amount_due.toLocaleString()} сум`
+            accessor: (row: any) => `${row.total_amount.toLocaleString()} сум`
+        },
+        {
+            header: 'Остаток',
+            accessor: (row: any) => `${(row.total_amount - row.paid_amount).toLocaleString()} сум`
         },
         {
             header: 'Статус Оплаты',

@@ -56,6 +56,8 @@ export default function LoginPage() {
 
             if (user.role === 'head_of_orders') {
                 navigate('/head-of-orders');
+            } else if (user.role === 'med_rep') {
+                navigate(`/med-reps/${user.id}`);
             } else {
                 navigate('/dashboard');
             }

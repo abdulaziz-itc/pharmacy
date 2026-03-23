@@ -11,7 +11,7 @@ import {
     Plus, RefreshCw, Receipt, CheckCircle, Trash2,
     DollarSign, Factory, CalendarRange, FileText, Building2, PieChart,
     TrendingUp, Warehouse, Search, ChevronLeft, ChevronRight, Package, Pencil,
-    History, List, Download, User as UserIcon, MapPin, Eye, Edit3
+    History, List, Download, User as UserIcon, MapPin, Eye, Edit3, AlertTriangle, RotateCcw
 } from 'lucide-react';
 import { getWarehouses, fulfillStock, activateReservation, deleteReservation, getReservations, getInvoices, createWarehouse } from '@/api/orders-management';
 import { useProductStore } from '@/store/productStore';
@@ -21,135 +21,9 @@ import { DateInput } from '@/components/ui/date-input';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import axiosInstance from '@/api/axios';
+import { ModernStatsBar } from '@/components/ui/ModernStatsBar';
 
 
-const ModernStatsBar: React.FC<{
-    stats: {
-        totalAmount: number;
-        paidAmount: number;
-        debtAmount: number;
-        resCount: number;
-        tovarSkidkaCount?: number;
-        tovarSkidkaAmount?: number;
-    };
-    promoAmount: number;
-    countLabel?: string;
-    showPromo?: boolean;
-}> = ({ stats, promoAmount, countLabel = "Кол-во (Брони)", showPromo = true }) => {
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-            {/* Total Realization */}
-            <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-slate-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center shadow-lg shadow-slate-900/20">
-                            <TrendingUp className="w-5 h-5 text-white" />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Общая продажа</span>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-slate-900">{stats.totalAmount.toLocaleString()}</span>
-                        <span className="text-[10px] font-bold text-slate-400">СУМ</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Paid Amount */}
-            <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                            <CheckCircle className="w-5 h-5 text-white" />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Оплачено</span>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-emerald-600">{stats.paidAmount.toLocaleString()}</span>
-                        <span className="text-[10px] font-bold text-slate-400">СУМ</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Debt Amount */}
-            <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-rose-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-2xl bg-rose-500 flex items-center justify-center shadow-lg shadow-rose-500/20">
-                            <DollarSign className="w-5 h-5 text-white" />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Задолженность</span>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-rose-600">{stats.debtAmount.toLocaleString()}</span>
-                        <span className="text-[10px] font-bold text-slate-400">СУМ</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Promo Amount */}
-            <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-2xl bg-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
-                            <PieChart className="w-5 h-5 text-white" />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Расходы на промо</span>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-purple-600">{promoAmount.toLocaleString()}</span>
-                        <span className="text-[10px] font-bold text-slate-400">СУМ</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Resource Count */}
-            <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                            <Package className="w-5 h-5 text-white" />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{countLabel}</span>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-blue-600">{stats.resCount}</span>
-                        <span className="text-[10px] font-bold text-slate-400">ШТ.</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Tovar Skidka Stats (Conditionally shown) */}
-            {stats.tovarSkidkaCount !== undefined && (
-                <div className="relative overflow-hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
-                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-orange-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-2xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
-                                <DollarSign className="w-5 h-5 text-white" />
-                            </div>
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-[#f97316]">Товарная скидка</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-xl font-black text-slate-900">{(stats.tovarSkidkaAmount || 0).toLocaleString()}</span>
-                                <span className="text-[9px] font-bold text-slate-400 tracking-tighter">СУМ</span>
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-sm font-black text-orange-600">{stats.tovarSkidkaCount}</span>
-                                <span className="text-[9px] font-bold text-slate-400">ШТ.</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
 
 
 const useDragScroll = () => {
@@ -321,7 +195,8 @@ const HeadOfOrdersPage: React.FC = () => {
     const calculatePromo = (res: any) => {
         if (!res?.is_bonus_eligible) return 0;
         return (res.items || []).reduce((acc: number, item: any) => {
-            const marketingExpense = item.product?.marketing_expense || 0;
+            // Use the item-level marketing_amount if set, otherwise fall back to product's marketing_expense
+            const marketingExpense = item.marketing_amount ?? item.product?.marketing_expense ?? 0;
             return acc + (item.quantity * marketingExpense);
         }, 0);
     };
@@ -446,7 +321,7 @@ const HeadOfOrdersPage: React.FC = () => {
 
     const loadReservations = async () => {
         setLoading(true);
-        try { setReservations(await getReservations()); }
+        try { setReservations(await getReservations('pending')); }
         catch { toast.error("Ошибка загрузки броней"); }
         finally { setLoading(false); }
     };
@@ -613,7 +488,7 @@ const HeadOfOrdersPage: React.FC = () => {
         setReturnLoading(true);
         try {
             await axiosInstance.post(`/sales/reservations/${selectedResForReturn.id}/return`, { items: itemsToReturn });
-            toast.success("Возврат оформлен успешно (Возврат выполнен)");
+            toast.success("Ждет одобрения заведующего склада");
             setShowReturnModal(false);
             setReturnQuantities({});
             loadReservations();
@@ -726,6 +601,7 @@ const HeadOfOrdersPage: React.FC = () => {
         partialInvoicesCount: filteredInv.filter(i => i.status === 'partial').length,
         tovarSkidkaCount: allFilteredReservations.filter(r => r.is_tovar_skidka).length,
         tovarSkidkaAmount: allFilteredReservations.filter(r => r.is_tovar_skidka).reduce((sum, r) => sum + (r.total_amount || 0), 0),
+        pendingResTotal: filteredReservationsPending.reduce((sum, r) => sum + (r.total_amount || 0), 0),
     };
 
 
@@ -736,7 +612,7 @@ const HeadOfOrdersPage: React.FC = () => {
     );
 
     return (
-        <div className="flex flex-col h-full bg-white">
+        <div className="min-h-screen bg-white">
             {/* ---- TABS ---- */}
             <div className="bg-slate-900 px-4 pt-3">
                 <div className="flex gap-1">
@@ -984,9 +860,12 @@ const HeadOfOrdersPage: React.FC = () => {
                         <ModernStatsBar
                             stats={{
                                 ...stats,
+                                totalAmount: stats.pendingResTotal,
                                 resCount: filteredReservationsPending.length
                             }}
                             promoAmount={filteredReservationsPending.reduce((s, r) => s + calculatePromo(r), 0)}
+                            totalLabel="ОБЩАЯ СУММА БРОНИ"
+                            showFinancials={false}
                         />
 
                         <div className="flex justify-between items-center mb-4">
@@ -1001,7 +880,7 @@ const HeadOfOrdersPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xl shadow-slate-200/50">
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl shadow-slate-200/50 mb-4">
                             <div
                                 ref={reservationsScroll.ref}
                                 onMouseDown={reservationsScroll.onMouseDown}
@@ -1011,37 +890,37 @@ const HeadOfOrdersPage: React.FC = () => {
                                 className={`overflow-auto max-h-[70vh] ${reservationsScroll.isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
                             >
                                 <table className="min-w-[1400px] w-full text-[10px] whitespace-nowrap border-separate border-spacing-0">
-                                    <thead className="sticky top-0 z-20">
-                                        <tr className="bg-slate-50 border-b border-slate-200">
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Дата реализации</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Номер С/Ф</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Сумма С/Ф</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Контрагент</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Поступление</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Дебитор</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Скидка %</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Дата брони</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Одобрено</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Производитель</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Промо</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Возвратить</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Регион</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Поступление</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">История</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Список</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Скачать</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">Удалить</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">Тип фактуры</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Тип К/А</th>
+                                    <thead className="sticky top-0 z-30">
+                                        <tr>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СУММА С/Ф</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕБИТОР</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКИДКА %</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА БРОНИ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОДОБРЕНО</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОМО</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕЙСТВИЯ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИСТОРИЯ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СПИСОК</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКАЧАТЬ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">УДАЛИТЬ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">ТИП ФАКТУРЫ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ТИП К/А</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredReservationsPending.length === 0 ? (
                                             <tr>
-                                                <td colSpan={22} className="text-center py-20 bg-white">
+                                                <td colSpan={23} className="text-center py-20 bg-white">
                                                     <div className="flex flex-col items-center gap-3 opacity-20">
                                                         <Search className="w-8 h-8" />
                                                         <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Брони не найдены</p>
@@ -1061,7 +940,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             const orgType = res.med_org?.org_type || '—';
 
                                             return (
-                                                <tr key={res.id} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors group">
+                                                <tr key={res.id} className={`border-b transition-colors group ${res.is_deletion_pending ? 'bg-amber-50 hover:bg-amber-100 border-amber-100' : 'border-slate-50 hover:bg-slate-50/80'}`}>
                                                     <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
                                                     <td className="px-3 py-4">
                                                         <div className="flex items-center gap-1">
@@ -1138,9 +1017,19 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     </td>
                                                     <td className="px-3 py-4 text-center">
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); handleDeleteRes(res.id); }}
-                                                            className="p-1.5 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-lg transition-all"
-                                                            title="Удалить бронь"
+                                                            onClick={(e) => { 
+                                                                e.stopPropagation(); 
+                                                                if (paidAmount > 0) {
+                                                                    toast.error("Невозможно удалить: по этой накладной уже есть оплата.");
+                                                                } else if (res.is_deletion_pending) {
+                                                                    toast.info("Заявка на удаление уже отправлена.");
+                                                                } else {
+                                                                    handleDeleteRes(res.id); 
+                                                                }
+                                                            }}
+                                                            className={`p-1.5 rounded-lg transition-all ${(paidAmount > 0 || res.is_deletion_pending) ? 'text-slate-300 cursor-not-allowed' : 'hover:bg-rose-100 text-slate-400 hover:text-rose-600'}`}
+                                                            title={paidAmount > 0 ? "Невозможно удалить оплаченную фактуру" : "Удалить бронь"}
+                                                            disabled={paidAmount > 0 || res.is_deletion_pending}
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
@@ -1165,7 +1054,7 @@ const HeadOfOrdersPage: React.FC = () => {
 
             {
                 tab === 'invoices' && (
-                    <div className="flex-1 p-4 bg-slate-50/50 overflow-auto">
+                    <div className="bg-slate-50/50">
                         <div className="flex items-center justify-between mb-4 px-2">
                             <h2 className="text-xl font-bold text-slate-800">Фактуры (Одобрено)</h2>
                             <div className="flex items-center gap-3">
@@ -1280,8 +1169,10 @@ const HeadOfOrdersPage: React.FC = () => {
                             promoAmount={filteredInv.reduce((s, inv) => s + calculatePromo(inv.reservation), 0)}
                             countLabel="Кол-во (Фактуры)"
                             showPromo={false}
+                            totalLabel="ОБЩАЯ ПРОДАЖА"
+                            showFinancials={true}
                         />
-                        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl mx-4 mb-4">
                             <div
                                 ref={invoicesScroll.ref}
                                 onMouseDown={invoicesScroll.onMouseDown}
@@ -1291,37 +1182,37 @@ const HeadOfOrdersPage: React.FC = () => {
                                 className={`overflow-auto max-h-[70vh] ${invoicesScroll.isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
                             >
                                 <table className="min-w-[1400px] w-full text-[10px] whitespace-nowrap border-separate border-spacing-0">
-                                    <thead className="sticky top-0 z-20">
-                                        <tr className="bg-slate-50 border-b border-slate-200">
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Дата реализации</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Номер С/Ф</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Сумма С/Ф</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Контрагент</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Поступление</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Дебитор</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Скидка %</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Дата брони</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Одобрено</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Производитель</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Промо</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Возвратить</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Регион</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Поступление</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">История</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Список</th>
-                                            <th className="px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Скачать</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic text-rose-500">Удалить</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">Тип фактуры</th>
-                                            <th className="px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Тип К/А</th>
+                                    <thead className="sticky top-0 z-30">
+                                        <tr>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СУММА С/Ф</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕБИТОР</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКИДКА %</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА БРОНИ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОДОБРЕНО</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОМО</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ВОЗВРАТИТЬ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИСТОРИЯ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СПИСОК</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКАЧАТЬ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic text-rose-500">УДАЛИТЬ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">ТИП ФАКТУРЫ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ТИП К/А</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredInv.length === 0 ? (
                                             <tr>
-                                                <td colSpan={22} className="py-20 text-center">
+                                                <td colSpan={23} className="py-20 text-center">
                                                     <div className="flex flex-col items-center gap-3 opacity-20">
                                                         <Receipt className="w-12 h-12" />
                                                         <p className="font-black uppercase tracking-tighter text-xl text-slate-900">Фактуры отсутствуют</p>
@@ -1341,7 +1232,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             const promoVal = calculatePromo(res);
 
                                             return (
-                                                <tr key={inv.id} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors group">
+                                                <tr key={inv.id} className={`border-b transition-colors group ${res?.is_deletion_pending || inv.is_deletion_pending ? 'bg-amber-50 hover:bg-amber-100 border-amber-100' : 'border-slate-50 hover:bg-slate-50/80'}`}>
                                                     <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
                                                     <td className="px-3 py-4">
                                                         <div className="flex items-center gap-1">
@@ -1383,12 +1274,19 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
                                                     <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">{promoVal.toLocaleString()}</td>
                                                     <td className="px-3 py-4 text-center">
-                                                        <button
-                                                            onClick={() => { setSelectedResForReturn(res); setReturnQuantities({}); setShowReturnModal(true); }}
-                                                            className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-all"
-                                                        >
-                                                            <RefreshCw className="w-4 h-4" />
-                                                        </button>
+                                                        {res.is_return_pending ? (
+                                                            <div className="flex items-center justify-center gap-1.5 p-1.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-100/50" title="Ожидает возврата">
+                                                                <AlertTriangle className="w-4 h-4" />
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => { setSelectedResForReturn(res); setReturnQuantities({}); setShowReturnModal(true); }}
+                                                                className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-all"
+                                                                title="Возврат"
+                                                            >
+                                                                <RefreshCw className="w-4 h-4" />
+                                                            </button>
+                                                        )}
                                                     </td>
                                                     <td className="px-3 py-4 font-bold text-slate-600">{region}</td>
                                                     <td className="px-3 py-4 text-center">
@@ -1416,9 +1314,19 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     </td>
                                                     <td className="px-3 py-4 text-center">
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); handleDeleteRes(res.id); }}
-                                                            className="p-1.5 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-lg transition-all"
-                                                            title="Удалить бронь"
+                                                            onClick={(e) => { 
+                                                                e.stopPropagation(); 
+                                                                if (paidAmount > 0) {
+                                                                    toast.error("Невозможно удалить: по этой накладной уже есть оплата.");
+                                                                } else if (res?.is_deletion_pending || inv.is_deletion_pending) {
+                                                                    toast.info("Заявка на удаление уже отправлена.");
+                                                                } else {
+                                                                    handleDeleteRes(res.id); 
+                                                                }
+                                                            }}
+                                                            className={`p-1.5 rounded-lg transition-all ${(paidAmount > 0 || res?.is_deletion_pending || inv.is_deletion_pending) ? 'text-slate-300 cursor-not-allowed' : 'hover:bg-rose-100 text-slate-400 hover:text-rose-600'}`}
+                                                            title={paidAmount > 0 ? "Невозможно удалить оплаченную фактуру" : "Удалить бронь"}
+                                                            disabled={paidAmount > 0 || res?.is_deletion_pending || inv.is_deletion_pending}
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
@@ -1905,6 +1813,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-widest">Товар</th>
                                         <th className="px-4 py-3 text-center font-black text-slate-400 uppercase tracking-widest">Кол-во</th>
                                         <th className="px-4 py-3 text-right font-black text-slate-400 uppercase tracking-widest">Цена</th>
+                                        <th className="px-4 py-3 text-right font-black text-slate-400 uppercase tracking-widest">Бонус</th>
                                         <th className="px-4 py-3 text-right font-black text-slate-400 uppercase tracking-widest">Итого</th>
                                     </tr>
                                 </thead>
@@ -1933,12 +1842,22 @@ const HeadOfOrdersPage: React.FC = () => {
                                                 <td className="px-4 py-4 text-right font-bold text-slate-600">{(item.product?.price || 0).toLocaleString()}</td>
                                                 <td className="px-4 py-4 text-right">
                                                     <div className="flex flex-col items-end">
+                                                        <span className="font-black text-purple-600">
+                                                            {(actualQty * (item.marketing_amount || item.default_marketing_amount || 0)).toLocaleString()}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 font-bold mt-1">
+                                                            {actualQty} * {(item.marketing_amount || item.default_marketing_amount || 0).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4 text-right">
+                                                    <div className="flex flex-col items-end">
                                                         <span className="px-2 py-1 bg-emerald-50 text-emerald-600 font-black rounded-lg">
                                                             {totalDisplay.toLocaleString()}
                                                         </span>
                                                         {item.returned_quantity > 0 && (
                                                             <span className="text-[10px] text-rose-500 font-bold mt-1 line-through">
-                                                                {(item.quantity * item.product.price).toLocaleString()}
+                                                                {(item.quantity * (item.product?.price || 0)).toLocaleString()}
                                                             </span>
                                                         )}
                                                     </div>
@@ -1949,7 +1868,7 @@ const HeadOfOrdersPage: React.FC = () => {
 
                                     {selectedResItems.length === 0 && (
                                         <tr>
-                                            <td className="px-4 py-12 text-center text-slate-400 font-bold uppercase tracking-widest" colSpan={4}>
+                                            <td className="px-4 py-12 text-center text-slate-400 font-bold uppercase tracking-widest" colSpan={5}>
                                                 Данных нет
                                             </td>
                                         </tr>

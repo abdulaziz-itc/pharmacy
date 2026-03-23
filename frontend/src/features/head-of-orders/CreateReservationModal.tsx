@@ -52,7 +52,8 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     const [eligibleInvoices, setEligibleInvoices] = useState<any[]>([]);
     const [selectedSourceInvoice, setSelectedSourceInvoice] = useState<string>('');
     const [ndsPercent, setNdsPercent] = useState<number>(12);
-    const [items, setItems] = useState<any[]>([{ product_id: '', quantity: 1, price: 0 }]);
+    const [items, setItems] = useState<any[]>([{ product_id: '', quantity: 1, price: 0, marketing_amount: 0 }]);
+    const [showBonusConfirm, setShowBonusConfirm] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -64,7 +65,8 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
             setIsTovarSkidka(false);
             setEligibleInvoices([]);
             setSelectedSourceInvoice('');
-            setItems([{ product_id: '', quantity: 1, price: 0 }]);
+            setItems([{ product_id: '', quantity: 1, price: 0, marketing_amount: 0 }]);
+            setShowBonusConfirm(false);
             fetchInitialData();
             fetchProducts();
         }
@@ -130,23 +132,40 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
         setStep(s => s + 1);
     };
 
-    const addItem = () => setItems([...items, { product_id: '', quantity: 1, price: 0 }]);
+    const addItem = () => setItems([...items, { product_id: '', quantity: 1, price: 0, marketing_amount: 0 }]);
     const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i));
     const updateItem = (i: number, field: string, value: any) => {
         const next = [...items];
         next[i][field] = value;
         if (field === 'product_id') {
             const p = products.find((pr: any) => pr.id.toString() === value);
-            if (p) next[i].price = p.price;
+            if (p) {
+                next[i].price = p.price;
+                next[i].marketing_amount = p.marketing_expense || 0;
+            }
         }
         setItems(next);
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (forceConfirm = false) => {
         if (items.some(it => !it.product_id)) {
             toast.error('Выберите все товары');
             return;
         }
+
+        // Check if any bonus was modified from default
+        const isBonusModified = items.some(it => {
+            if (!it.product_id || !isBonusEligible) return false;
+            const p = products.find((pr: any) => pr.id.toString() === it.product_id);
+            if (!p) return false;
+            return parseFloat(it.marketing_amount) !== (p.marketing_expense || 0);
+        });
+
+        if (isBonusModified && !forceConfirm && !showBonusConfirm) {
+            setShowBonusConfirm(true);
+            return;
+        }
+
         setLoading(true);
         try {
             const org = orgs.find(o => o.id.toString() === selectedOrg);
@@ -162,6 +181,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                     product_id: parseInt(it.product_id),
                     quantity: parseInt(it.quantity),
                     price: parseFloat(it.price),
+                    marketing_amount: parseFloat(it.marketing_amount || 0),
                 })),
             });
             toast.success('Бронь успешно создана!');
@@ -489,13 +509,51 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                             onChange={e => updateItem(idx, 'quantity', e.target.value)}
                                             placeholder="Кол."
                                         />
-                                        <Input
-                                            type="number" min={0}
-                                            className="h-8 w-24 text-xs border-slate-200"
-                                            value={it.price}
-                                            onChange={e => updateItem(idx, 'price', e.target.value)}
-                                            placeholder="Цена"
-                                        />
+                                        <div className="flex flex-col gap-1 items-end">
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-[10px] text-slate-400 font-medium">Цена:</span>
+                                                <Input
+                                                    type="number" min={0}
+                                                    className={`h-8 w-24 text-xs border-slate-200 ${isBonusEligible && it.product_id && (parseFloat(it.price) > (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 1.3 || parseFloat(it.price) < (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 0.7) ? 'border-red-500 text-red-600 bg-red-50' : ''}`}
+                                                    value={it.price}
+                                                    onChange={e => updateItem(idx, 'price', e.target.value)}
+                                                    placeholder="Цена"
+                                                />
+                                            </div>
+                                            {isBonusEligible && it.product_id && (
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Промо (Бонус):</span>
+                                                    <Input
+                                                        type="number" min={0}
+                                                        className={`h-8 w-24 text-xs border-slate-200 ${it.product_id && (parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3) ? 'border-red-500 text-red-600 bg-red-50' : ''}`}
+                                                        value={it.marketing_amount}
+                                                        onChange={e => updateItem(idx, 'marketing_amount', e.target.value)}
+                                                        placeholder="Промо"
+                                                    />
+                                                </div>
+                                            )}
+                                            {isBonusEligible && it.product_id && (
+                                                <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                                                    {(parseFloat(it.price) > (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 1.3 || parseFloat(it.price) < (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 0.7) && (
+                                                        <span className="text-[9px] text-red-500 font-bold leading-none">Недопустимая цена! (max ±30%)</span>
+                                                    )}
+                                                    {(parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3) && (
+                                                        <span className="text-[9px] text-red-500 font-bold leading-none">Max Промо: {(parseFloat(it.price) * 0.3).toLocaleString()} (30% от цены)</span>
+                                                    )}
+                                                    {(() => {
+                                                        const price = parseFloat(it.price);
+                                                        const mkt = parseFloat(it.marketing_amount);
+                                                        if (!price || isNaN(mkt)) return null;
+                                                        const pct = (mkt / price) * 100;
+                                                        return (
+                                                            <span className={`text-[9px] font-medium leading-none ${pct > 0 ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                                                От продукта: {pct.toFixed(1)}%
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            )}
+                                        </div>
                                         <button
                                             onClick={() => removeItem(idx)}
                                             className="p-1.5 mt-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -554,10 +612,18 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                         </button>
                     ) : (
                         <button
-                            onClick={handleSubmit}
+                            onClick={() => handleSubmit()}
                             disabled={
                                 loading ||
                                 items.length === 0 ||
+                                items.some(it => {
+                                    if (!isBonusEligible || !it.product_id) return false;
+                                    const p = products.find(pr => pr.id.toString() === it.product_id);
+                                    if (!p) return false;
+                                    const priceDev = Math.abs(parseFloat(it.price) - p.price) / p.price;
+                                    const mktExceeds = parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3;
+                                    return priceDev > 0.3 || mktExceeds;
+                                }) ||
                                 (isTovarSkidka && totalAmount > (eligibleInvoices.find(inv => inv.id.toString() === selectedSourceInvoice)?.promo_balance || 0))
                             }
                             className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-all shadow-md shadow-emerald-200"
@@ -568,6 +634,38 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                     )}
                 </div>
             </DialogContent>
+
+            {/* Bonus modification confirmation */}
+            <Dialog open={showBonusConfirm} onOpenChange={setShowBonusConfirm}>
+                <DialogContent className="max-w-sm p-0 overflow-hidden border-0 shadow-2xl rounded-2xl">
+                    <div className="bg-amber-500 p-6 text-white text-center">
+                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <Plus className="rotate-45 w-6 h-6" />
+                        </div>
+                        <h3 className="text-lg font-bold">Изменена промо-сумма</h3>
+                        <p className="text-white/80 text-sm mt-1">
+                            Вы изменили размер бонуса вручную. Вы уверены, что хотите продолжить?
+                        </p>
+                    </div>
+                    <div className="p-4 flex gap-3 bg-white">
+                        <button
+                            onClick={() => setShowBonusConfirm(false)}
+                            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors"
+                        >
+                            Отмена
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowBonusConfirm(false);
+                                handleSubmit(true);
+                            }}
+                            className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition-all shadow-md shadow-amber-200"
+                        >
+                            Да, уверен
+                        </button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </Dialog>
     );
 };

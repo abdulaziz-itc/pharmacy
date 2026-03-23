@@ -84,11 +84,8 @@ class FinancialService:
                     # Calculate bonus for this specific payment
                     payment_bonus_amount = 0.0
                     for item in reservation.items:
-                        prod_query = select(Product).where(Product.id == item.product_id)
-                        prod_result = await db.execute(prod_query)
-                        product = prod_result.scalar_one_or_none()
-                        if product and product.marketing_expense:
-                            payment_bonus_amount += (item.quantity * product.marketing_expense) * payment_ratio
+                        if item.marketing_amount:
+                            payment_bonus_amount += (item.quantity * item.marketing_amount) * payment_ratio
                     
                     if payment_bonus_amount > 0 and target_medrep_id:
                         now = datetime.utcnow()
@@ -142,7 +139,7 @@ class FinancialService:
                             
                             # Calculate promo
                             if reservation.is_bonus_eligible:
-                                marketing_expense = item.product.marketing_expense if item.product else 0
+                                marketing_expense = item.marketing_amount or 0
                                 total_promo += item.quantity * marketing_expense
                         
                         # Set initial promo balance for tovar_skidka
@@ -266,7 +263,7 @@ class FinancialService:
                 await db.flush()
 
                 # 4. Create Bonus Ledger (Pro-rata bonus realization)
-                bonus_amount = quantity * (product.marketing_expense or 0)
+                bonus_amount = quantity * (reservation_item.marketing_amount or 0)
                 accrual = BonusLedger(
                     doctor_id=doctor_id,
                     amount=bonus_amount,
@@ -317,7 +314,7 @@ class FinancialService:
         return balance
 
     @staticmethod
-    async def allocate_bonus(db: AsyncSession, med_rep_id: int, doctor_id: int, product_id: int, quantity: int, target_month: int, target_year: int, notes: str = None):
+    async def allocate_bonus(db: AsyncSession, med_rep_id: int, doctor_id: int, product_id: int, quantity: int, target_month: int, target_year: int, amount_per_unit: float = None, notes: str = None):
         """
         MedRep allocates bonus to a doctor based on a product quantity (units × marketing_expense).
         Triggers:
@@ -344,8 +341,8 @@ class FinancialService:
                 if not product:
                     raise HTTPException(status_code=404, detail="Продукт не найден")
 
-                marketing_expense = product.marketing_expense or 0
-                if marketing_expense <= 0:
+                marketing_expense = amount_per_unit if amount_per_unit is not None else (product.marketing_expense or 0)
+                if marketing_expense <= 0 and amount_per_unit is None:
                     raise HTTPException(status_code=400, detail=f"У продукта '{product.name}' не задан расход на маркетинг")
 
                 # 3. Compute the bonus amount

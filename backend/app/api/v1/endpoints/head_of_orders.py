@@ -180,8 +180,41 @@ async def delete_reservation(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """Delete a reservation if it's not active."""
-    # Use Service for proper stock restoration
+    """Delete a reservation if it's not active, or request deletion (Head of Orders)."""
+    from sqlalchemy.orm import selectinload
+    from app.models.sales import Reservation, Invoice
+    res_query = select(Reservation).options(selectinload(Reservation.invoice)).where(Reservation.id == id)
+    res_exc = await db.execute(res_query)
+    reservation = res_exc.scalar_one_or_none()
+    
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    # If Head of Orders, mark for deletion instead of canceling immediately
+    if current_user.role == UserRole.HEAD_OF_ORDERS:
+        from app.models.sales import InvoiceStatus
+        # If reservation has an invoice, mark the invoice for deletion instead
+        # This makes it appear in "Invoices" section for Warehouse approval
+        if reservation.invoice:
+            if reservation.invoice.status == InvoiceStatus.PAID:
+                raise HTTPException(status_code=400, detail="Нельзя удалить оплаченную счет-фактуру. Сначала отмените платежи.")
+                
+            reservation.invoice.is_deletion_pending = True
+            reservation.invoice.deletion_requested_by_id = current_user.id
+        else:
+            reservation.is_deletion_pending = True
+            reservation.deletion_requested_by_id = current_user.id
+        
+        await db.commit()
+        
+        await log_action(
+            db, current_user, "DELETE_REQUESTED", "Reservation", id,
+            f"Запрошено удаление брони #{id}. Ожидает подтверждения склада.",
+            request
+        )
+        return {"ok": True, "message": "Deletion request sent to Warehouse Head."}
+
+    # Director/Admin can still delete immediately
     await ReservationService.cancel_reservation(db, id)
 
     await log_action(

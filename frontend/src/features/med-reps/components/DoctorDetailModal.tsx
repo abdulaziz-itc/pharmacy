@@ -22,9 +22,10 @@ interface DoctorDetailModalProps {
     bonusPayments?: any[];
     products?: any[];
     defaultEditMode?: boolean;
+    readOnly?: boolean;
 }
 
-export function DoctorDetailModal({ isOpen, onClose, onSuccess, doctor, salesPlans, salesFacts, bonusPayments = [], products = [], defaultEditMode = false }: DoctorDetailModalProps) {
+export function DoctorDetailModal({ isOpen, onClose, onSuccess, doctor, salesPlans, salesFacts, bonusPayments = [], products = [], defaultEditMode = false, readOnly = false }: DoctorDetailModalProps) {
     const [isEditing, setIsEditing] = React.useState(false);
     const [editData, setEditData] = React.useState<any>({});
     const [isSaving, setIsSaving] = React.useState(false);
@@ -165,41 +166,43 @@ export function DoctorDetailModal({ isOpen, onClose, onSuccess, doctor, salesPla
                     {/* Header Section */}
                     <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 p-10 pb-20 shrink-0">
                         <div className="absolute top-6 right-6 flex gap-2">
-                            {!isEditing ? (
-                                <button
-                                    onClick={() => setIsEditing(true)}
-                                    className="p-2 rounded-full bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-white transition-all flex items-center gap-2 px-4 shadow-sm"
-                                >
-                                    <Edit2 className="w-4 h-4" />
-                                    <span className="text-xs font-bold uppercase tracking-wider">Редактировать</span>
-                                </button>
-                            ) : (
-                                <>
+                            {!readOnly && (
+                                !isEditing ? (
                                     <button
-                                        onClick={() => {
-                                            setIsEditing(false);
-                                            // Revert changes
-                                            setEditData({
-                                                full_name: doctor.full_name || '',
-                                                specialty: doctor.specialty?.name || '',
-                                                category: doctor.category?.name || '',
-                                                contact1: doctor.contact1 || '',
-                                                med_org_id: doctor.med_org?.id || null,
-                                            });
-                                        }}
-                                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all shadow-sm"
+                                        onClick={() => setIsEditing(true)}
+                                        className="p-2 rounded-full bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-white transition-all flex items-center gap-2 px-4 shadow-sm"
                                     >
-                                        <X className="w-5 h-5" />
+                                        <Edit2 className="w-4 h-4" />
+                                        <span className="text-xs font-bold uppercase tracking-wider">Редактировать</span>
                                     </button>
-                                    <button
-                                        onClick={handleSave}
-                                        disabled={isSaving}
-                                        className="p-2 rounded-full bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-100 transition-all flex items-center gap-2 px-4 shadow-sm"
-                                    >
-                                        <Check className="w-4 h-4" />
-                                        <span className="text-xs font-bold uppercase tracking-wider">{isSaving ? 'Сохранение...' : 'Сохранить'}</span>
-                                    </button>
-                                </>
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                setIsEditing(false);
+                                                // Revert changes
+                                                setEditData({
+                                                    full_name: doctor.full_name || '',
+                                                    specialty: doctor.specialty?.name || '',
+                                                    category: doctor.category?.name || '',
+                                                    contact1: doctor.contact1 || '',
+                                                    med_org_id: doctor.med_org?.id || null,
+                                                });
+                                            }}
+                                            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all shadow-sm"
+                                        >
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={handleSave}
+                                            disabled={isSaving}
+                                            className="p-2 rounded-full bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-100 transition-all flex items-center gap-2 px-4 shadow-sm"
+                                        >
+                                            <Check className="w-4 h-4" />
+                                            <span className="text-xs font-bold uppercase tracking-wider">{isSaving ? 'Сохранение...' : 'Сохранить'}</span>
+                                        </button>
+                                    </>
+                                )
                             )}
                             <button
                                 onClick={onClose}

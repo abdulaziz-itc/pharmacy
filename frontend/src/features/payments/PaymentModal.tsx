@@ -31,7 +31,7 @@ export function PaymentModal({ isOpen, onClose, availableInvoices, onSuccess }: 
     const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
-            await api.post('/domain/payments/postupleniya/', {
+            await api.post('/domain/orders/management/payments/', {
                 invoice_id: form.invoice_id,
                 amount: parseFloat(form.amount || "0"),
                 payment_type: form.payment_type
@@ -70,20 +70,20 @@ export function PaymentModal({ isOpen, onClose, availableInvoices, onSuccess }: 
                             onChange={(e) => {
                                 const id = Number(e.target.value);
                                 const inv = availableInvoices.find(i => i.id === id);
-                                setForm({ ...form, invoice_id: id, amount: inv ? inv.total_amount_due.toString() : "" });
+                                setForm({ ...form, invoice_id: id, amount: inv ? (inv.total_amount - inv.paid_amount).toString() : "" });
                             }}
                             className="w-full h-12 px-4 rounded-xl border border-slate-100 bg-slate-50/50 focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/5 transition-all font-bold text-slate-700 outline-none truncate"
                         >
                             <option value={0}>Выберите ожидаемую фактуру...</option>
                             {availableInvoices.map((inv) => (
                                 <option key={inv.id} value={inv.id}>
-                                    ID {inv.id} - {inv.med_org?.name || "Прямая продажа"} - {inv.total_amount_due.toLocaleString()} сум
+                                    ID {inv.id} - {inv.med_org?.name || "Прямая продажа"} - {(inv.total_amount - inv.paid_amount).toLocaleString()} сум
                                 </option>
                             ))}
                         </select>
                         {selectedInvoice && (
                             <p className="text-xs text-green-600 mt-2 font-bold px-1 bg-green-50 p-2 rounded-lg inline-block">
-                                Ожидается к оплате: {selectedInvoice.total_amount_due.toLocaleString()} сум
+                                Ожидается к оплате: {(selectedInvoice.total_amount - selectedInvoice.paid_amount).toLocaleString()} сум
                             </p>
                         )}
                     </div>
@@ -93,7 +93,7 @@ export function PaymentModal({ isOpen, onClose, availableInvoices, onSuccess }: 
                         <Input
                             type="number"
                             min={1}
-                            max={selectedInvoice?.total_amount_due || 999999999}
+                            max={(selectedInvoice?.total_amount - selectedInvoice?.paid_amount) || 999999999}
                             value={form.amount}
                             onChange={(e) => setForm({ ...form, amount: e.target.value })}
                             className="h-12 text-lg font-black border-slate-200 focus-visible:ring-green-500"

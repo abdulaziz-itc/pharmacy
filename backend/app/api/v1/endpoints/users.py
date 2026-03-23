@@ -32,6 +32,11 @@ async def read_users(
     users = await crud_user.get_multi(
         db, skip=skip, limit=limit, username=username, full_name=full_name
     )
+    
+    if current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+        descendant_ids = await crud_user.get_descendant_ids(db, current_user.id)
+        users = [u for u in users if u.id in descendant_ids]
+        
     return users
 
 @router.post("/", response_model=UserSchema)

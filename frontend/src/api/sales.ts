@@ -109,3 +109,8 @@ export const updateBonusPayment = async (id: number, data: Partial<Omit<BonusPay
     const response = await axiosInstance.patch(`/sales/bonus-payments/${id}/`, data);
     return response.data;
 };
+
+export const getInvoices = async (params: any = {}) => {
+    const response = await axiosInstance.get('/sales/invoices/', { params });
+    return response.data;
+};

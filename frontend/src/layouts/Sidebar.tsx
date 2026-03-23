@@ -33,13 +33,13 @@ const getSidebarItems = (role?: string, userId?: number) => {
         { icon: UserCheck, label: 'Моя команда', href: `/product-managers/${userId}`, roles: ['product_manager'] },
         { icon: UserCheck, label: 'Менеджеры продукта', href: '/product-managers', roles: ['admin', 'director', 'deputy_director'] },
         { icon: Users, label: 'Мед представители', href: '/med-reps', roles: ['admin', 'director', 'deputy_director', 'product_manager'] },
-        { icon: Package, label: 'Продукты', href: '/products', roles: ['admin', 'director', 'deputy_director', 'product_manager'] },
+        { icon: Package, label: 'Продукты', href: '/products', roles: ['admin', 'director', 'deputy_director', 'product_manager', 'med_rep'] },
         { icon: Map, label: 'Регионы', href: '/regions', roles: ['admin', 'director', 'deputy_director', 'product_manager'] },
         { icon: Building2, label: 'Организации', href: '/med-orgs', roles: ['admin', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager'] },
         { icon: Factory, label: 'Производители', href: '/manufacturers', roles: ['admin', 'director', 'deputy_director'] },
         { icon: Stethoscope, label: 'Врачи', href: '/doctors', roles: ['admin', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'med_rep'] },
-        { icon: CalendarRange, label: 'Брони', href: '/reservations', roles: ['admin', 'director', 'deputy_director'] },
-        { icon: FileText, label: 'Инвойсы', href: '/invoices', roles: ['admin', 'director', 'deputy_director'] },
+        { icon: CalendarRange, label: 'Брони', href: '/reservations', roles: ['admin', 'director', 'deputy_director', 'med_rep', 'product_manager'] },
+        { icon: FileText, label: 'Фактура', href: '/invoices', roles: ['admin', 'director', 'deputy_director', 'med_rep', 'product_manager'] },
         { icon: Wallet, label: 'Платежи', href: '/payments', roles: ['admin', 'director', 'deputy_director'] },
         { icon: CreditCard, label: 'Дебиторы', href: '/debtors', roles: ['admin', 'director', 'deputy_director'] },
         { icon: PieChart, label: 'Статистика', href: '/stats', roles: ['admin', 'director', 'deputy_director'] },
@@ -50,6 +50,9 @@ const getSidebarItems = (role?: string, userId?: number) => {
         { icon: FileText, label: 'Фактура', href: '/head-of-orders?tab=invoices', roles: ['head_of_orders'] },
         { icon: Building2, label: 'Оптовые компании', href: '/head-of-orders?tab=wholesale', roles: ['head_of_orders'] },
         { icon: PieChart, label: 'Отчеты', href: '/head-of-orders?tab=reports', roles: ['head_of_orders'] },
+        // Warehouse Management
+        { icon: Warehouse, label: 'Склады', href: '/warehouse', roles: ['admin', 'director', 'head_of_warehouse'] },
+        { icon: Activity, label: 'Удаление (План)', href: '/deletion-approval', roles: ['admin', 'director', 'head_of_warehouse'] },
     ];
 
     if (!role) return [];
@@ -173,7 +176,7 @@ export function Sidebar() {
 
             {/* Navigation */}
             <nav className={cn(
-                "flex-1 py-4 space-y-0.5 overflow-y-hidden",
+                "flex-1 py-4 space-y-0.5 overflow-y-auto sleek-scrollbar",
                 collapsed ? "px-2" : "px-3"
             )}>
                 {currentSidebarItems.map((item) => {

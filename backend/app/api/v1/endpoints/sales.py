@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.crud import crud_sales
+from datetime import datetime
 from app.models.sales import Reservation, ReservationItem, Invoice, InvoiceStatus, ReservationStatus, Payment
 from app.models.user import User, UserRole
 from app.models.crm import MedicalOrganization, Region
@@ -118,15 +119,20 @@ async def create_reservation(
 ) -> Any:
     # Use the service that locks and deducts stock
     from app.services.reservation_service import ReservationService
-    reservation = await ReservationService.create_reservation_with_stock_lock(
+    reservation, mod_summary = await ReservationService.create_reservation_with_stock_lock(
         db=db, 
         obj_in=reservation_in, 
         user_id=current_user.id
     )
+    
+    log_description = f"Бронь создана (Склад зарезервирован): ID {reservation.id}, Сумма: {getattr(reservation, 'total_amount', 0) or 0:,.0f} UZS"
+    if mod_summary:
+        log_description += f" | Изменения: {mod_summary}"
+
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Reservation", reservation.id,
-        f"Бронь создана (Склад зарезервирован): ID {reservation.id}, Сумма: {getattr(reservation, 'total_amount', 0) or 0:,.0f} UZS",
+        log_description,
         request
     )
     return reservation
@@ -139,9 +145,41 @@ async def delete_reservation(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.MED_REP, UserRole.DIRECTOR]:
+    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.MED_REP, UserRole.DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions to delete reservations.")
     
+    # Check if it's head of orders requesting deletion
+    if current_user.role == UserRole.HEAD_OF_ORDERS:
+        from app.models.sales import Reservation, Invoice
+        res_query = select(Reservation).options(selectinload(Reservation.invoice)).where(Reservation.id == id)
+        res_exc = await db.execute(res_query)
+        reservation = res_exc.scalar_one_or_none()
+        
+        if not reservation:
+            raise HTTPException(status_code=404, detail="Reservation not found")
+        
+        # If reservation has an invoice, mark the invoice for deletion instead
+        # This makes it appear in "Invoices" section for Warehouse approval
+        if reservation.invoice:
+            if reservation.invoice.status == InvoiceStatus.PAID:
+                raise HTTPException(status_code=400, detail="Нельзя удалить оплаченную счет-фактуру. Сначала отмените платежи.")
+            
+            reservation.invoice.is_deletion_pending = True
+            reservation.invoice.deletion_requested_by_id = current_user.id
+        else:
+            reservation.is_deletion_pending = True
+            reservation.deletion_requested_by_id = current_user.id
+        
+        await db.commit()
+        
+        from app.services.audit_service import log_action
+        await log_action(
+            db, current_user, "DELETE_REQUESTED", "Reservation", id,
+            f"Запрошено удаление брони #{id}. Ожидает подтверждения склада.",
+            request
+        )
+        return {"ok": True, "message": "Deletion request sent to Warehouse Head."}
+
     from app.services.reservation_service import ReservationService
     await ReservationService.cancel_reservation(db=db, reservation_id=id)
     
@@ -159,8 +197,45 @@ async def read_reservations(
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(deps.get_current_user),
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    med_rep_name: Optional[str] = None,
+    med_org_name: Optional[str] = None,
+    med_org_type: Optional[str] = None,
+    is_tovar_skidka: Optional[bool] = None,
+    inv_num: Optional[str] = None,
+    status: Optional[str] = None
 ) -> Any:
-    return await crud_sales.get_reservations(db, skip=skip, limit=limit)
+    med_rep_ids = None
+    if current_user.role == UserRole.MED_REP:
+        med_rep_id = current_user.id
+    elif current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+        from app.crud import crud_user
+        med_rep_ids = await crud_user.get_descendant_ids(db, current_user.id)
+        if not med_rep_ids:
+            med_rep_ids = [-1]
+        med_rep_id = None
+    else:
+        med_rep_id = None
+    
+    dt_from = datetime.fromisoformat(date_from) if date_from else None
+    dt_to = datetime.fromisoformat(date_to) if date_to else None
+    
+    return await crud_sales.get_reservations(
+        db, 
+        skip=skip, 
+        limit=limit, 
+        med_rep_id=med_rep_id,
+        date_from=dt_from,
+        date_to=dt_to,
+        med_rep_name=med_rep_name,
+        med_org_name=med_org_name,
+        med_org_type=med_org_type,
+        is_tovar_skidka=is_tovar_skidka,
+        inv_num=inv_num,
+        med_rep_ids=med_rep_ids,
+        status=status
+    )
 
 @router.get("/reservations/{id}")
 async def read_reservation(
@@ -202,6 +277,8 @@ async def read_reservation(
                     "id": item.id,
                     "quantity": item.quantity,
                     "price": item.price,
+                    "marketing_amount": item.marketing_amount,
+                    "default_marketing_amount": item.product.marketing_expense if item.product else 0,
                     "total_price": item.total_price,
                     "product": {"id": item.product.id, "name": item.product.name} if item.product else None
                 }
@@ -265,7 +342,7 @@ async def map_return_reservation_items(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    reservation = await crud_sales.return_reservation_items(
+    reservation = await crud_sales.request_return_reservation_items(
         db=db, 
         reservation_id=id, 
         obj_in=return_in, 
@@ -274,8 +351,8 @@ async def map_return_reservation_items(
     from app.services.audit_service import log_action
     items_count = sum(r.quantity for r in return_in.items)
     await log_action(
-        db, current_user, "RETURN", "Reservation", id,
-        f"Возврат по брони: возвращено {items_count} товаров.",
+        db, current_user, "RETURN_REQUESTED", "Reservation", id,
+        f"Запрошен возврат по брони: {items_count} товаров. Ожидает одобрения склада.",
         request
     )
     return reservation
@@ -287,8 +364,45 @@ async def read_invoices(
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(deps.get_current_user),
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    med_rep_name: Optional[str] = None,
+    med_org_name: Optional[str] = None,
+    med_org_type: Optional[str] = None,
+    is_tovar_skidka: Optional[bool] = None,
+    inv_num: Optional[str] = None,
+    status: Optional[str] = None
 ) -> Any:
-    return await crud_sales.get_invoices(db, skip=skip, limit=limit)
+    med_rep_ids = None
+    if current_user.role == UserRole.MED_REP:
+        med_rep_id = current_user.id
+    elif current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+        from app.crud import crud_user
+        med_rep_ids = await crud_user.get_descendant_ids(db, current_user.id)
+        if not med_rep_ids:
+            med_rep_ids = [-1]
+        med_rep_id = None
+    else:
+        med_rep_id = None
+    
+    dt_from = datetime.fromisoformat(date_from) if date_from else None
+    dt_to = datetime.fromisoformat(date_to) if date_to else None
+    
+    return await crud_sales.get_invoices(
+        db, 
+        skip=skip, 
+        limit=limit, 
+        med_rep_id=med_rep_id,
+        date_from=dt_from,
+        date_to=dt_to,
+        med_rep_name=med_rep_name,
+        med_org_name=med_org_name,
+        med_org_type=med_org_type,
+        is_tovar_skidka=is_tovar_skidka,
+        inv_num=inv_num,
+        med_rep_ids=med_rep_ids,
+        status=status
+    )
 
 @router.get("/invoices/eligible-for-tovar-skidka", response_model=List[InvoiceSchema])
 async def get_eligible_invoices_for_tovar_skidka(
@@ -734,6 +848,13 @@ async def get_medrep_bonus_balance(
                 if inv_id and inv_id in invoice_to_reservation:
                     res_id = invoice_to_reservation[inv_id]
 
+            # Extract factura_number from the related invoice if available
+            factura_number = None
+            if getattr(h, 'invoice_item', None) and getattr(h.invoice_item, 'reservation', None):
+                inv_obj = getattr(h.invoice_item.reservation, 'invoice', None)
+                if inv_obj:
+                    factura_number = getattr(inv_obj, 'factura_number', None)
+
             history_data.append({
                 "id": h.id,
                 "amount": h.amount,
@@ -753,7 +874,8 @@ async def get_medrep_bonus_balance(
                 } if getattr(h, 'product', None) else None,
                 "payment_id": h.payment_id,
                 "invoice_id": inv_id,
-                "reservation_id": res_id
+                "reservation_id": res_id,
+                "factura_number": factura_number
             })
         
         return {
@@ -789,6 +911,7 @@ async def allocate_bonus(
             doctor_id=alloc_in.doctor_id,
             product_id=alloc_in.product_id,
             quantity=alloc_in.quantity,
+            amount_per_unit=alloc_in.amount_per_unit,
             target_month=alloc_in.target_month,
             target_year=alloc_in.target_year,
             notes=alloc_in.notes
@@ -810,10 +933,11 @@ from pydantic import BaseModel
 class BonusSummary(BaseModel):
     med_rep_id: int
     med_rep_name: str
-    accrued: float # Начислено всего
+    accrued: float # Начислено всего (Факт)
     paid: float    # Выплачено директором
     remainder: float # Остаток к выплате
     allocated: float # Распределено врачам
+    predinvest: float # Аванс (Предынвест)
 
 class BonusPayRequest(BaseModel):
     med_rep_id: int
@@ -847,16 +971,22 @@ async def get_admin_bonus_summary(
         accrued = 0.0
         paid = 0.0
         allocated = 0.0
+        predinvest = 0.0
         
         for e in entries:
             if e.ledger_type == LedgerType.ACCRUAL:
-                accrued += e.amount
-                if e.is_paid:
+                if e.notes == "Аванс (Предынвест)":
+                    predinvest += e.amount
                     paid += e.amount
+                else:
+                    accrued += e.amount
+                    if e.is_paid:
+                        paid += e.amount
             elif e.ledger_type == LedgerType.OFFSET:
                 allocated += abs(e.amount)
                 
-        remainder = accrued - paid
+        remainder = max(0.0, accrued - paid)
+        # Note: 'paid' here includes both predinvest payments and normal accrued payments.
         
         summaries.append(BonusSummary(
             med_rep_id=rep.id,
@@ -864,7 +994,8 @@ async def get_admin_bonus_summary(
             accrued=accrued,
             paid=paid,
             remainder=remainder,
-            allocated=allocated
+            allocated=allocated,
+            predinvest=predinvest
         ))
         
     return summaries
@@ -907,7 +1038,30 @@ async def pay_medrep_bonus(
             entry.is_paid = True
             amount_remaining_to_pay -= entry.amount
             actual_paid += entry.amount
+        else:
+            # We pay a portion of it by splitting it? 
+            # Actually, standard behavior here is to just mark it as paid if amount covers it.
+            # If the admin wants to pay partial, usually we don't handle partial invoice payments this way.
+            # But the original code just skipped partials. We'll leave it as is to avoid breaking existing logic.
+            pass
             
+    # If there is STILL remaining money to pay, it's an advance payment (Predinvest). 
+    # Create a new BonusLedger entry for this excess.
+    if amount_remaining_to_pay > 0:
+        from datetime import datetime
+        now = datetime.utcnow()
+        predinvest_entry = BonusLedger(
+            user_id=request_data.med_rep_id,
+            amount=amount_remaining_to_pay,
+            ledger_type=LedgerType.ACCRUAL,
+            is_paid=True, # It is immediately paid out
+            target_month=now.month,
+            target_year=now.year,
+            notes=f"Аванс (Предынвест)"
+        )
+        db.add(predinvest_entry)
+        actual_paid += amount_remaining_to_pay
+
     await db.commit()
     
     from app.services.audit_service import log_action

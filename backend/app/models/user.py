@@ -8,6 +8,7 @@ class UserRole(str, enum.Enum):
     DIRECTOR = "director"
     DEPUTY_DIRECTOR = "deputy_director"
     HEAD_OF_ORDERS = "head_of_orders"
+    HEAD_OF_WAREHOUSE = "head_of_warehouse"
     WHOLESALE_MANAGER = "wholesale_manager"
     PRODUCT_MANAGER = "product_manager"
     FIELD_FORCE_MANAGER = "field_force_manager"

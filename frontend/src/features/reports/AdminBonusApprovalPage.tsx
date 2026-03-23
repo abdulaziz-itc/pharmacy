@@ -18,6 +18,7 @@ interface BonusSummary {
     paid: number;
     remainder: number;
     allocated: number;
+    predinvest: number;
 }
 
 export default function AdminBonusApprovalPage() {
@@ -40,6 +41,7 @@ export default function AdminBonusApprovalPage() {
         notes: string;
         invoice_id: number | null;
         reservation_id: number | null;
+        factura_number: string | null;
         doctor: { full_name: string } | null;
         product: { name: string } | null;
     }
@@ -117,11 +119,6 @@ export default function AdminBonusApprovalPage() {
         const amount = parseFloat(payAmount);
         if (isNaN(amount) || amount <= 0) {
             toast.error("Введите корректную сумму");
-            return;
-        }
-
-        if (amount > selectedRep.remainder) {
-            toast.error(`Сумма не может превышать остаток (${selectedRep.remainder.toLocaleString('ru-RU')} UZS)`);
             return;
         }
 
@@ -227,6 +224,7 @@ export default function AdminBonusApprovalPage() {
                             <TableRow className="hover:bg-transparent">
                                 <TableHead className="font-semibold text-slate-700 h-11">Медпредставитель</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11">Начислено (Факт)</TableHead>
+                                <TableHead className="font-semibold text-slate-700 text-right h-11">Аванс</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11">Выплачено</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11">Остаток</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11">Распределено врачам</TableHead>
@@ -236,13 +234,13 @@ export default function AdminBonusApprovalPage() {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                                    <TableCell colSpan={7} className="h-32 text-center text-slate-500">
                                         Загрузка данных...
                                     </TableCell>
                                 </TableRow>
                             ) : filteredSummaries.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                                    <TableCell colSpan={7} className="h-32 text-center text-slate-500">
                                         Нет данных для отображения
                                     </TableCell>
                                 </TableRow>
@@ -263,6 +261,9 @@ export default function AdminBonusApprovalPage() {
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-slate-600">
                                                 {rep.accrued.toLocaleString('ru-RU')} UZS
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium text-amber-600">
+                                                {rep.predinvest.toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-emerald-600">
                                                 {rep.paid.toLocaleString('ru-RU')} UZS
@@ -295,7 +296,7 @@ export default function AdminBonusApprovalPage() {
                                         </TableRow>
                                         {expandedRepId === rep.med_rep_id && (
                                             <TableRow className="bg-slate-50">
-                                                <TableCell colSpan={6} className="p-0">
+                                                <TableCell colSpan={7} className="p-0">
                                                     <div className="p-4 border-b border-t border-slate-100">
                                                         <h4 className="font-bold text-slate-700 mb-3 ml-2 flex items-center gap-2">
                                                             <Banknote className="w-4 h-4 text-slate-400" />
@@ -336,7 +337,7 @@ export default function AdminBonusApprovalPage() {
                                                                                             onClick={() => handleInvoiceClick(h.reservation_id!)}
                                                                                             className="text-blue-600 hover:text-blue-800 hover:underline font-bold"
                                                                                         >
-                                                                                            СФ №{h.invoice_id || h.reservation_id}
+                                                                                            {h.factura_number || `СФ №${h.invoice_id || h.reservation_id}`}
                                                                                         </button>
                                                                                     ) : (
                                                                                         <span className="text-slate-400">
@@ -407,7 +408,6 @@ export default function AdminBonusApprovalPage() {
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayAmount(e.target.value)}
                                     className="pl-4 pr-12 h-14 bg-slate-50 border-slate-200 text-lg font-bold rounded-xl focus-visible:ring-blue-500"
                                     placeholder="0"
-                                    max={selectedRep?.remainder}
                                 />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">
                                     UZS
@@ -524,28 +524,31 @@ export default function AdminBonusApprovalPage() {
                                             ))}
                                         </tbody>
                                         <tfoot className="bg-slate-50/50 border-t border-slate-100">
-                                            {selectedResDetails.nds_percent > 0 && (
-                                                <>
-                                                    <tr>
-                                                        <td colSpan={3} className="px-4 py-2 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px]">Сумма без НДС</td>
-                                                        <td className="px-4 py-2 text-right font-bold text-slate-700">
-                                                            {(selectedResDetails.total_amount || 0).toLocaleString()} UZS
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td colSpan={3} className="px-4 py-2 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px]">НДС {selectedResDetails.nds_percent}%</td>
-                                                        <td className="px-4 py-2 text-right font-bold text-slate-700">
-                                                            {((selectedResDetails.total_amount || 0) * selectedResDetails.nds_percent / 100).toLocaleString()} UZS
-                                                        </td>
-                                                    </tr>
-                                                </>
-                                            )}
+                                            {selectedResDetails.nds_percent > 0 && (() => {
+                                                const totalWithNds = selectedResDetails.total_amount || 0;
+                                                const subtotal = totalWithNds / (1 + selectedResDetails.nds_percent / 100);
+                                                const ndsAmount = totalWithNds - subtotal;
+                                                return (
+                                                    <>
+                                                        <tr>
+                                                            <td colSpan={3} className="px-4 py-2 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px]">Сумма без НДС</td>
+                                                            <td className="px-4 py-2 text-right font-bold text-slate-700">
+                                                                {Math.round(subtotal).toLocaleString()} UZS
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td colSpan={3} className="px-4 py-2 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px]">НДС {selectedResDetails.nds_percent}%</td>
+                                                            <td className="px-4 py-2 text-right font-bold text-slate-700">
+                                                                {Math.round(ndsAmount).toLocaleString()} UZS
+                                                            </td>
+                                                        </tr>
+                                                    </>
+                                                );
+                                            })()}
                                             <tr>
                                                 <td colSpan={3} className="px-4 py-3 text-right font-black text-slate-500 uppercase tracking-widest">Итого к оплате</td>
                                                 <td className="px-4 py-3 text-right font-black text-blue-600 text-sm">
-                                                    {(
-                                                        (selectedResDetails.total_amount || 0) * (1 + (selectedResDetails.nds_percent || 0) / 100)
-                                                    ).toLocaleString()} UZS
+                                                    {(selectedResDetails.total_amount || 0).toLocaleString()} UZS
                                                 </td>
                                             </tr>
                                         </tfoot>

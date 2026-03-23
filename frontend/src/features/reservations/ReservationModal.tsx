@@ -10,6 +10,7 @@ import { Input } from "../../components/ui/input";
 import { CalendarClock, Plus, Trash2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import api from "../../api/axios";
+import { useAuthStore } from "../../store/authStore";
 
 interface ReservationModalProps {
     isOpen: boolean;
@@ -18,11 +19,15 @@ interface ReservationModalProps {
 }
 
 export function ReservationModal({ isOpen, onClose, onSuccess }: ReservationModalProps) {
+    const currentUser = useAuthStore((state) => state.user);
+    const isMedRep = currentUser?.role === 'med_rep';
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [form, setForm] = useState({
-        med_rep_id: 0,
+        med_rep_id: isMedRep ? currentUser?.id || 0 : 0,
         med_org_id: 0,
         doctor_id: 0,
+        warehouse_id: 1, // Default to Central
         items: [{ product_id: 0, quantity: 1 }]
     });
 
@@ -30,25 +35,68 @@ export function ReservationModal({ isOpen, onClose, onSuccess }: ReservationModa
     const [availableOrgs, setAvailableOrgs] = useState<any[]>([]);
     const [availableProducts, setAvailableProducts] = useState<any[]>([]);
     const [availableMedReps, setAvailableMedReps] = useState<any[]>([]);
+    const [availableWarehouses, setAvailableWarehouses] = useState<any[]>([]);
 
     React.useEffect(() => {
         if (isOpen) {
             // Fetch necessary reference data
             const fetchData = async () => {
-                try {
-                    const [doctors, orgs, products, medReps] = await Promise.all([
-                        api.get("/crm/doctors/"),
-                        api.get("/crm/med-orgs/"),
-                        api.get("/products/"),
-                        api.get("/users/med-reps")
-                    ]);
-                    setAvailableDoctors(doctors.data);
-                    setAvailableOrgs(orgs.data);
-                    setAvailableProducts(products.data);
-                    setAvailableMedReps(medReps.data);
-                } catch (error) {
-                    console.error("Failed to fetch reference data");
-                }
+                const fetchDoctors = async () => {
+                    try {
+                        const res = await api.get("/crm/doctors/");
+                        setAvailableDoctors(res.data);
+                    } catch (err) {
+                        console.error("Failed to fetch doctors:", err);
+                    }
+                };
+
+                const fetchOrgs = async () => {
+                    try {
+                        const res = await api.get("/crm/med-orgs/");
+                        setAvailableOrgs(res.data);
+                    } catch (err) {
+                        console.error("Failed to fetch med-orgs:", err);
+                    }
+                };
+
+                const fetchProducts = async () => {
+                    try {
+                        const res = await api.get(`/products/?warehouse_id=${form.warehouse_id}`);
+                        setAvailableProducts(res.data);
+                    } catch (err) {
+                        console.error("Failed to fetch products:", err);
+                    }
+                };
+
+                const fetchWarehouses = async () => {
+                    try {
+                        const res = await api.get("/warehouses/");
+                        setAvailableWarehouses(res.data);
+                    } catch (err) {
+                        console.error("Failed to fetch warehouses:", err);
+                    }
+                };
+
+                const fetchMedReps = async () => {
+                    try {
+                        if (!isMedRep) {
+                            const res = await api.get("/users/med-reps");
+                            setAvailableMedReps(res.data);
+                        } else if (currentUser) {
+                            setAvailableMedReps([currentUser]);
+                        }
+                    } catch (err) {
+                        console.error("Failed to fetch med-reps:", err);
+                    }
+                };
+
+                await Promise.allSettled([
+                    fetchDoctors(),
+                    fetchOrgs(),
+                    fetchProducts(),
+                    fetchWarehouses(),
+                    fetchMedReps()
+                ]);
             };
             fetchData();
         }
@@ -70,18 +118,20 @@ export function ReservationModal({ isOpen, onClose, onSuccess }: ReservationModa
                 .filter(i => i.product_id > 0 && i.quantity > 0)
                 .map(i => {
                     const product = availableProducts.find(p => p.id === i.product_id);
+                    const basePrice = product ? product.price : 0;
                     return {
                         product_id: i.product_id,
                         quantity: i.quantity,
-                        price: product ? product.price : 0,
+                        price: basePrice, // Send base price, backend handles NDS
                         discount_percent: 0
                     };
                 });
 
-            await api.post('/domain/orders/reservations/', {
+            await api.post('/sales/reservations/', {
                 customer_name: customerName,
                 med_org_id: form.med_org_id || null,
-                warehouse_id: 1, // Central Warehouse
+                med_rep_id: form.med_rep_id,
+                warehouse_id: form.warehouse_id,
                 items: itemsToSend
             });
             onSuccess();
@@ -140,7 +190,8 @@ export function ReservationModal({ isOpen, onClose, onSuccess }: ReservationModa
                             <select
                                 value={form.med_rep_id}
                                 onChange={(e) => setForm({ ...form, med_rep_id: Number(e.target.value), med_org_id: 0, doctor_id: 0 })}
-                                className="w-full h-12 px-4 rounded-xl border border-slate-100 bg-slate-50/50 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 font-semibold text-sm outline-none"
+                                disabled={isMedRep}
+                                className="w-full h-12 px-4 rounded-xl border border-slate-100 bg-slate-50/50 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 font-semibold text-sm outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
                             >
                                 <option value={0}>Выберите представителя...</option>
                                 {availableMedReps.map(rep => <option key={rep.id} value={rep.id}>{rep.full_name || rep.username}</option>)}
@@ -158,7 +209,7 @@ export function ReservationModal({ isOpen, onClose, onSuccess }: ReservationModa
                                 >
                                     <option value={0}>Складской отпуск...</option>
                                     {availableOrgs
-                                        .filter(o => o.assigned_reps?.some((r: any) => r.id === form.med_rep_id))
+                                        .filter(o => !form.med_rep_id || o.assigned_reps?.some((r: any) => r.id === form.med_rep_id) || isMedRep)
                                         .map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                                 </select>
                             </div>
@@ -172,7 +223,7 @@ export function ReservationModal({ isOpen, onClose, onSuccess }: ReservationModa
                                 >
                                     <option value={0}>Свободная продажа...</option>
                                     {availableDoctors
-                                        .filter(d => d.assigned_rep_id === form.med_rep_id)
+                                        .filter(d => !form.med_rep_id || d.assigned_rep_id === form.med_rep_id || isMedRep)
                                         .map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
                                 </select>
                             </div>
@@ -181,10 +232,24 @@ export function ReservationModal({ isOpen, onClose, onSuccess }: ReservationModa
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Склад отгрузки</label>
                             <select
-                                disabled
-                                className="w-full h-12 px-4 rounded-xl border border-slate-100 bg-slate-50/50 font-semibold text-sm outline-none opacity-80"
+                                value={form.warehouse_id}
+                                onChange={async (e) => {
+                                    const newWId = Number(e.target.value);
+                                    setForm({ ...form, warehouse_id: newWId });
+                                    // Refetch products for this warehouse
+                                    try {
+                                        const res = await api.get(`/products/?warehouse_id=${newWId}`);
+                                        setAvailableProducts(res.data);
+                                    } catch (err) {
+                                        console.error("Failed to refetch products for warehouse:", err);
+                                    }
+                                }}
+                                className="w-full h-12 px-4 rounded-xl border border-slate-100 bg-slate-50/50 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 font-semibold text-sm outline-none"
                             >
-                                <option value={1}>Центральный склад (Ташкент)</option>
+                                <option value={0}>Выберите склад...</option>
+                                {availableWarehouses.map(w => (
+                                    <option key={w.id} value={w.id}>{w.name}</option>
+                                ))}
                             </select>
                         </div>
                     </div>
@@ -214,7 +279,11 @@ export function ReservationModal({ isOpen, onClose, onSuccess }: ReservationModa
                                         className="flex-1 h-10 px-3 rounded-lg border border-slate-200 bg-white font-medium text-sm outline-none"
                                     >
                                         <option value={0}>Выберите препарат...</option>
-                                        {availableProducts.map(p => <option key={p.id} value={p.id}>{p.name} - В наличии</option>)}
+                                        {availableProducts.map(p => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.name} — {(p.price || 0).toLocaleString()} UZS (Остаток: {p.central_stock || 0})
+                                            </option>
+                                        ))}
                                     </select>
                                     <Input
                                         type="number"
@@ -238,6 +307,39 @@ export function ReservationModal({ isOpen, onClose, onSuccess }: ReservationModa
                             ))}
                         </div>
                     </div>
+
+                    {/* Summary */}
+                    {form.items.some(i => i.product_id > 0) && (
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+                            <div className="flex justify-between text-xs font-bold text-slate-500">
+                                <span>Промежуточный итог:</span>
+                                <span>
+                                    {form.items.reduce((acc, i) => {
+                                        const p = availableProducts.find(prod => prod.id === i.product_id);
+                                        return acc + (p?.price || 0) * i.quantity;
+                                    }, 0).toLocaleString()} UZS
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-xs font-bold text-orange-600">
+                                <span>НДС (12%):</span>
+                                <span>
+                                    {form.items.reduce((acc, i) => {
+                                        const p = availableProducts.find(prod => prod.id === i.product_id);
+                                        return acc + (p?.price || 0) * i.quantity * 0.12;
+                                    }, 0).toLocaleString()} UZS
+                                </span>
+                            </div>
+                            <div className="pt-2 border-t border-slate-200 flex justify-between text-base font-black text-slate-900">
+                                <span>ИТОГО К ОПЛАТЕ:</span>
+                                <span>
+                                    {form.items.reduce((acc, i) => {
+                                        const p = availableProducts.find(prod => prod.id === i.product_id);
+                                        return acc + (p?.price || 0) * i.quantity * 1.12;
+                                    }, 0).toLocaleString()} UZS
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">

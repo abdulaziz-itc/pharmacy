@@ -53,6 +53,10 @@ class Invoice(Base): # Factura
     realization_date = Column(DateTime, nullable=True)
     promo_balance = Column(Float, default=0.0) # Marketing balance available for tovar_skidka
     
+    # Deletion Approval Flow
+    is_deletion_pending = Column(Boolean, default=False)
+    deletion_requested_by_id = Column(Integer, ForeignKey("user.id"), nullable=True)
+    
     reservation = relationship("Reservation", back_populates="invoice", foreign_keys=[reservation_id])
     payments = relationship("Payment", back_populates="invoice")
 
@@ -74,7 +78,14 @@ class Reservation(Base): # Bron
     is_tovar_skidka = Column(Boolean, default=False)
     source_invoice_id = Column(Integer, ForeignKey("invoice.id"), nullable=True)
     
-    created_by = relationship("User", backref="reservations_created")
+    # Deletion Approval Flow
+    is_deletion_pending = Column(Boolean, default=False)
+    deletion_requested_by_id = Column(Integer, ForeignKey("user.id"), nullable=True)
+    
+    # Return Approval Flow
+    is_return_pending = Column(Boolean, default=False)
+    
+    created_by = relationship("User", backref="reservations_created", foreign_keys=[created_by_id])
     med_org = relationship("MedicalOrganization", backref="reservations")
     warehouse = relationship("Warehouse", backref="reservations")
     items = relationship("ReservationItem", back_populates="reservation", cascade="all, delete-orphan")
@@ -88,9 +99,15 @@ class ReservationItem(Base):
     manufacturer_id = Column(Integer, ForeignKey("manufacturer.id"), nullable=True) 
     quantity = Column(Integer, nullable=False)
     returned_quantity = Column(Integer, default=0, nullable=False)
+    return_requested_quantity = Column(Integer, default=0, server_default="0", nullable=False)
     price = Column(Float, nullable=False) 
     discount_percent = Column(Float, default=0.0)
+    marketing_amount = Column(Float, default=0.0) # Overridden marketing sum per unit
     total_price = Column(Float, default=0.0) 
+
+    @property
+    def default_marketing_amount(self) -> float:
+        return self.product.marketing_expense if self.product else 0.0
 
     reservation = relationship("Reservation", back_populates="items")
     product = relationship("Product")

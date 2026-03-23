@@ -10,6 +10,7 @@ import { EditProductModal } from './EditProductModal';
 import { AddProductModal } from './AddProductModal';
 import { Button } from '../../components/ui/button';
 import { Factory, Layers, Plus } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 export default function ProductPage() {
     const { products, fetchProducts, isLoading, updateProduct } = useProductStore();
@@ -17,6 +18,8 @@ export default function ProductPage() {
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const user = useAuthStore((state) => state.user);
+    const isMedRep = user?.role === 'med_rep';
 
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [selectedManufacturer, setSelectedManufacturer] = useState("all");
@@ -27,8 +30,9 @@ export default function ProductPage() {
 
     const columns = useMemo(() => createColumns(
         (product) => setEditingProduct(product),
-        (id, newStatus) => updateProduct(id, { is_active: newStatus === 'active' })
-    ), [updateProduct]);
+        (id, newStatus) => updateProduct(id, { is_active: newStatus === 'active' }),
+        user?.role
+    ), [updateProduct, user?.role]);
 
     const filteredProducts = useMemo(() => {
         return products.filter(product => {
@@ -63,31 +67,33 @@ export default function ProductPage() {
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Продукты</h1>
                     <p className="text-slate-500 font-medium mt-1">Управление фармацевтическими продуктами, уровнем запасов и ценами.</p>
                 </div>
-                <div className="flex gap-3">
-                    <Button
-                        onClick={() => setIsCategoryModalOpen(true)}
-                        variant="outline"
-                        className="h-12 px-6 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold gap-2 shadow-sm transition-all"
-                    >
-                        <Layers className="w-5 h-5 text-emerald-500" />
-                        Категория продуктов
-                    </Button>
-                    <Button
-                        onClick={() => setIsManufacturerModalOpen(true)}
-                        variant="outline"
-                        className="h-12 px-6 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold gap-2 shadow-sm transition-all"
-                    >
-                        <Factory className="w-5 h-5 text-blue-500" />
-                        Добавить производителя
-                    </Button>
-                    <Button
-                        onClick={() => setIsProductModalOpen(true)}
-                        className="h-12 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2 shadow-lg shadow-blue-500/20 transition-all"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Добавить продукт
-                    </Button>
-                </div>
+                {!isMedRep && (
+                    <div className="flex gap-3">
+                        <Button
+                            onClick={() => setIsCategoryModalOpen(true)}
+                            variant="outline"
+                            className="h-12 px-6 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold gap-2 shadow-sm transition-all"
+                        >
+                            <Layers className="w-5 h-5 text-emerald-500" />
+                            Категория продуктов
+                        </Button>
+                        <Button
+                            onClick={() => setIsManufacturerModalOpen(true)}
+                            variant="outline"
+                            className="h-12 px-6 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold gap-2 shadow-sm transition-all"
+                        >
+                            <Factory className="w-5 h-5 text-blue-500" />
+                            Добавить производителя
+                        </Button>
+                        <Button
+                            onClick={() => setIsProductModalOpen(true)}
+                            className="h-12 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2 shadow-lg shadow-blue-500/20 transition-all"
+                        >
+                            <Plus className="w-5 h-5" />
+                            Добавить продукт
+                        </Button>
+                    </div>
+                )}
             </div>
 
             <div className="bg-white rounded-[40px] shadow-2xl shadow-slate-200/60 border border-slate-100 overflow-hidden hover-lift transition-all duration-500">

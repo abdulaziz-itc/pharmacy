@@ -90,6 +90,7 @@ export const allocateBonus = async (data: {
     quantity: number;     // Units to pay for
     target_month: number;
     target_year: number;
+    amount_per_unit?: number;
     notes?: string;
 }) => {
     const response = await axiosInstance.post('/sales/allocate-bonus/', data);

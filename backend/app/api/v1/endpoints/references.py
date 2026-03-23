@@ -2,11 +2,15 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from sqlalchemy import select
 from app.api import deps
 from app.crud import crud_product
 from app.models.user import User, UserRole
 from app.schemas.product import Category, CategoryCreate, CategoryUpdate, Manufacturer, ManufacturerCreate, ManufacturerUpdate
+from app.schemas.warehouse import Warehouse
+from app.models.warehouse import Warehouse as WarehouseModel
 
 router = APIRouter()
 
@@ -118,3 +122,19 @@ async def update_manufacturer(
         request
     )
     return updated_manufacturer
+
+# Warehouses
+@router.get("/warehouses/", response_model=List[Warehouse])
+async def read_warehouses(
+    db: AsyncSession = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    result = await db.execute(
+        select(WarehouseModel)
+        .options(selectinload(WarehouseModel.stocks))
+        .offset(skip)
+        .limit(limit)
+    )
+    return result.scalars().all()

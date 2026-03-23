@@ -112,10 +112,10 @@ export function AddDoctorModal({ isOpen, onClose, onSuccess }: AddDoctorModalPro
                     getMedicalOrganizations(),
                     getRegions()
                 ]);
-                const nonPharmacyOrgs = orgs.filter((org: any) => org.org_type !== 'pharmacy');
+                const allowedOrgs = orgs.filter((org: any) => org.org_type === 'clinic' || org.org_type === 'hospital' || org.org_type === 'lechebniy');
                 setSpecialties(specs);
                 setCategories(cats);
-                setMedOrgs(nonPharmacyOrgs);
+                setMedOrgs(allowedOrgs);
                 setRegions(regs);
 
                 // Set default region if org selected, or just first one

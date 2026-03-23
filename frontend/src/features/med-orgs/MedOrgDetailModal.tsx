@@ -15,6 +15,7 @@ import { getDoctors, updateDoctor } from "../../api/crm";
 import { DoctorDetailModal } from "../med-reps/components/DoctorDetailModal";
 import { getPlans, getSaleFacts, getBonusPayments } from "../../api/sales";
 import { CreateReservationModal } from "../head-of-orders/CreateReservationModal";
+import { useAuthStore } from "../../store/authStore";
 
 // Fix Leaflet icon issue
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -31,9 +32,10 @@ interface MedOrgDetailModalProps {
     org: MedicalOrganization | null;
     isOpen: boolean;
     onClose: () => void;
+    readOnly?: boolean;
 }
 
-export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalProps) {
+export function MedOrgDetailModal({ org, isOpen, onClose, readOnly = false }: MedOrgDetailModalProps) {
     const { updateMedOrg, fetchOrgStock, fetchOrgDoctors } = useMedOrgStore();
 
     const [isEditing, setIsEditing] = useState(false);
@@ -88,10 +90,13 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
 
             // Fetch extra data
             setIsLoadingData(true);
+            const user = useAuthStore.getState().user;
+            const doctorParams = (user?.role?.toLowerCase() === 'med_rep' || user?.role?.toLowerCase() === 'regional_manager') ? { rep_id: user.id } : {};
+
             Promise.all([
                 fetchOrgStock(org.id),
                 fetchOrgDoctors(org.id),
-                getDoctors()
+                getDoctors(doctorParams)
             ]).then(([stockData, docsData, allDocsData]) => {
                 setStock(stockData);
                 setDoctors(docsData);
@@ -170,31 +175,33 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                 {/* Header Section */}
                 <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 p-10 pb-20 shrink-0">
                     <div className="absolute top-6 right-6 flex gap-2">
-                        {!isEditing ? (
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="p-2 rounded-full bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-white transition-all flex items-center gap-2 px-4 shadow-sm"
-                            >
-                                <Edit2 className="w-4 h-4" />
-                                <span className="text-xs font-bold uppercase tracking-wider">Редактировать</span>
-                            </button>
-                        ) : (
-                            <>
+                        {!readOnly && (
+                            !isEditing ? (
                                 <button
-                                    onClick={() => setIsEditing(false)}
-                                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all shadow-sm"
+                                    onClick={() => setIsEditing(true)}
+                                    className="p-2 rounded-full bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-white transition-all flex items-center gap-2 px-4 shadow-sm"
                                 >
-                                    <X className="w-5 h-5" />
+                                    <Edit2 className="w-4 h-4" />
+                                    <span className="text-xs font-bold uppercase tracking-wider">Редактировать</span>
                                 </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={isSaving}
-                                    className="p-2 rounded-full bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-100 transition-all flex items-center gap-2 px-4 shadow-sm"
-                                >
-                                    <Check className="w-4 h-4" />
-                                    <span className="text-xs font-bold uppercase tracking-wider">{isSaving ? 'Сохранение...' : 'Сохранить'}</span>
-                                </button>
-                            </>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={() => setIsEditing(false)}
+                                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all shadow-sm"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={isSaving}
+                                        className="p-2 rounded-full bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-100 transition-all flex items-center gap-2 px-4 shadow-sm"
+                                    >
+                                        <Check className="w-4 h-4" />
+                                        <span className="text-xs font-bold uppercase tracking-wider">{isSaving ? 'Сохранение...' : 'Сохранить'}</span>
+                                    </button>
+                                </>
+                            )
                         )}
                         <button
                             onClick={onClose}
@@ -202,13 +209,15 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                         >
                             <X className="w-5 h-5" />
                         </button>
-                        <button
-                            onClick={() => setIsReservationModalOpen(true)}
-                            className="p-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center gap-2 px-4 shadow-lg shadow-emerald-500/20"
-                        >
-                            <ShoppingCart className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Bron Yaratish</span>
-                        </button>
+                        {!readOnly && (
+                            <button
+                                onClick={() => setIsReservationModalOpen(true)}
+                                className="p-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center gap-2 px-4 shadow-lg shadow-emerald-500/20"
+                            >
+                                <ShoppingCart className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-wider">Bron Yaratish</span>
+                            </button>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-8">
@@ -411,12 +420,14 @@ export function MedOrgDetailModal({ org, isOpen, onClose }: MedOrgDetailModalPro
                                 ) : (
                                     <div className="flex items-center gap-2">
                                         <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg">{doctors.length}</span>
-                                        <button
-                                            onClick={() => setIsAttachOpen(true)}
-                                            className="text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors border border-blue-200 flex items-center gap-1"
-                                        >
-                                            Прикрепить врача
-                                        </button>
+                                        {!readOnly && (
+                                            <button
+                                                onClick={() => setIsAttachOpen(true)}
+                                                className="text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors border border-blue-200 flex items-center gap-1"
+                                            >
+                                                Прикрепить врача
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

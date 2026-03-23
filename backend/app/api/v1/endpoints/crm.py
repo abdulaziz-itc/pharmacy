@@ -127,6 +127,8 @@ async def read_med_orgs(
                 rep_ids = [-1]
         elif current_user.role in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR]:
             rep_ids = None # Full access
+        elif current_user.role == UserRole.MED_REP:
+            rep_ids = [current_user.id]
 
         return await crud_crm.get_med_orgs(
             db, 
@@ -235,14 +237,14 @@ async def read_doctors(
     from app.crud.crud_user import get_descendant_ids
     
     rep_ids = None
-    if current_user.role in [UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.PRODUCT_MANAGER]:
+    role_name = current_user.role
+    if role_name == UserRole.MED_REP.value or role_name == UserRole.MED_REP:
+        rep_ids = [current_user.id]
+    elif role_name in [UserRole.FIELD_FORCE_MANAGER.value, UserRole.REGIONAL_MANAGER.value, UserRole.PRODUCT_MANAGER.value]:
         rep_ids = await get_descendant_ids(db, current_user.id)
         if not rep_ids:
-            # If they have no subordinates, they see no doctors (except if we want them to see none, we pass a dummy ID that matches nothing)
             rep_ids = [-1]
-    elif current_user.role in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR]:
-        rep_ids = None # Full access
-
+    
     return await crud_crm.get_doctors(
         db, 
         skip=skip, 

@@ -1,0 +1,13 @@
+.DS_Store
+*.log
+.venv/
+node_modules/
+backend/app/app.db
+build/
+.dart_tool/
+.idea/
+.vscode/
+*.swp
+out.json
+*.pyc
+__pycache__/

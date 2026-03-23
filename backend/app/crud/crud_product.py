@@ -6,14 +6,24 @@ from sqlalchemy.orm import selectinload
 from app.models.product import Product, Category, Manufacturer
 from app.schemas.product import ProductCreate, ProductUpdate, CategoryCreate, CategoryUpdate, ManufacturerCreate, ManufacturerUpdate
 
+from app.models.warehouse import Stock
+
 # Product
-async def get_product(db: AsyncSession, id: int) -> Optional[Product]:
+async def get_product(db: AsyncSession, id: int, warehouse_id: int = 1) -> Optional[Product]:
+    # Subquery for central stock (or specific warehouse)
+    stock_subquery = select(Stock.quantity).where(Stock.product_id == id, Stock.warehouse_id == warehouse_id).scalar_subquery()
+    
     result = await db.execute(
-        select(Product)
+        select(Product, stock_subquery.label("central_stock"))
         .options(selectinload(Product.manufacturers), selectinload(Product.category))
         .where(Product.id == id)
     )
-    return result.scalars().first()
+    row = result.first()
+    if not row:
+        return None
+    product, central_stock = row
+    product.central_stock = central_stock or 0
+    return product
 
 async def get_products(
     db: AsyncSession, 
@@ -23,8 +33,11 @@ async def get_products(
     name: Optional[str] = None,
     manufacturer_id: Optional[int] = None,
     category_id: Optional[int] = None,
+    warehouse_id: int = 1
 ) -> List[Product]:
-    query = select(Product).options(
+    stock_subquery = select(Stock.quantity).where(Stock.product_id == Product.id, Stock.warehouse_id == warehouse_id).scalar_subquery()
+    
+    query = select(Product, stock_subquery.label("central_stock")).options(
         selectinload(Product.manufacturers), 
         selectinload(Product.category)
     )
@@ -37,7 +50,13 @@ async def get_products(
         query = query.where(Product.category_id == category_id)
         
     result = await db.execute(query.offset(skip).limit(limit))
-    return result.scalars().all()
+    rows = result.all()
+    
+    products = []
+    for product, central_stock in rows:
+        product.central_stock = central_stock or 0
+        products.append(product)
+    return products
 
 async def create_product(db: AsyncSession, obj_in: ProductCreate) -> Product:
     obj_data = obj_in.dict()

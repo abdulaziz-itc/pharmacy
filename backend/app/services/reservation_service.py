@@ -39,6 +39,9 @@ class ReservationService:
             total_amount = 0.0
 
             # 2. Validation & stock deduction
+            # Apply NDS multiplier at the end
+            nds_multiplier = 1 + (obj_in.nds_percent / 100.0)
+            
             for item in obj_in.items:
                 stock_row = stocks.get(item.product_id)
                 if not stock_row:
@@ -52,7 +55,40 @@ class ReservationService:
                         detail=f"Insufficient stock for Product {item.product_id}. Requested: {item.quantity}, Available: {stock_row.quantity}"
                     )
                 stock_row.quantity -= item.quantity
-                total_amount += (item.price * item.quantity) * (1 - item.discount_percent / 100)
+                
+                # Fetch default product data for validation
+                prod_query = select(Product).where(Product.id == item.product_id)
+                prod_result = await db.execute(prod_query)
+                product = prod_result.scalar_one_or_none()
+                
+                if not product:
+                    raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
+
+                # Validation: 30% deviation limit
+                if obj_in.is_bonus_eligible:
+                    # 1. Price check
+                    default_price = product.price
+                    min_price = default_price * 0.7
+                    max_price = default_price * 1.3
+                    if item.price < min_price or item.price > max_price:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Цена товара '{product.name}' ({item.price:,.0f}) выходит за пределы допустимого отклонения 30% ([{min_price:,.0f} - {max_price:,.0f}])"
+                        )
+                    
+                    # 2. Marketing amount check (Promo)
+                    # User requirement: Max 30% of price
+                    max_mkt = item.price * 0.3
+                    if item.marketing_amount > max_mkt:
+                         raise HTTPException(
+                            status_code=400,
+                            detail=f"Промо-сумма товара '{product.name}' ({item.marketing_amount:,.0f}) "
+                                   f"не может превышать 30% от цены ({max_mkt:,.0f} UZS)"
+                        )
+
+                # Item amount BEFORE NDS
+                item_total_plain = (item.price * item.quantity) * (1 - item.discount_percent / 100)
+                total_amount += item_total_plain * nds_multiplier
 
             # 3. Create Reservation
             db_reservation = Reservation(
@@ -74,13 +110,18 @@ class ReservationService:
 
             # 4. Items + Stock Movements
             for item_in in obj_in.items:
+                # We store base price in 'price', but 'total_price' includes NDS for consistency with total_amount
+                # However, usually total_price in item level refers to qty * price. 
+                # Let's align: if total_amount includes NDS, item.total_price should too.
+                item_total_plain = (item_in.price * item_in.quantity) * (1 - item_in.discount_percent / 100)
                 db.add(ReservationItem(
                     reservation_id=db_reservation.id,
                     product_id=item_in.product_id,
                     quantity=item_in.quantity,
                     price=item_in.price,
                     discount_percent=item_in.discount_percent,
-                    total_price=(item_in.price * item_in.quantity) * (1 - item_in.discount_percent / 100),
+                    marketing_amount=item_in.marketing_amount,
+                    total_price=item_total_plain * nds_multiplier,
                 ))
                 db.add(StockMovement(
                     stock_id=stocks[item_in.product_id].id,
@@ -91,7 +132,39 @@ class ReservationService:
 
             await db.commit()
 
-            # 5. Re-fetch with relationships to avoid async lazy-load errors
+            # 5. Build modification summary for Audit
+            modifications = []
+            for item_in in obj_in.items:
+                prod_row = next((stocks[sid] for sid in stocks if sid == item_in.product_id), None)
+                # Need product for default values
+                product_item = (await db.execute(select(Product).where(Product.id == item_in.product_id))).scalar_one_or_none()
+                if product_item:
+                    changes = []
+                    if abs(item_in.price - product_item.price) > 0.01:
+                        changes.append(f"Price: {product_item.price:,.0f} -> {item_in.price:,.0f}")
+                    if abs(item_in.marketing_amount - (product_item.marketing_expense or 0)) > 0.01:
+                        changes.append(f"Bonus: {getattr(product_item, 'marketing_expense', 0) or 0:,.0f} -> {item_in.marketing_amount:,.0f}")
+                    
+                    if changes:
+                        modifications.append(f"{product_item.name} ({', '.join(changes)})")
+
+            summary_str = "; ".join(modifications) if modifications else ""
+
+            if summary_str:
+                from app.services.audit_service import log_action
+                user_res = await db.execute(select(User).where(User.id == user_id))
+                user_obj = user_res.scalar_one_or_none()
+                if user_obj:
+                    await log_action(
+                        db,
+                        current_user=user_obj,
+                        action="RESERVATION_MODIFIED",
+                        entity_type="Reservation",
+                        entity_id=db_reservation.id,
+                        description=f"Изменение цен/бонуса при создании брони: {summary_str}",
+                    )
+
+            # 6. Re-fetch with relationships to avoid async lazy-load errors
             stmt = select(Reservation).options(
                 selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
                 selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
@@ -102,7 +175,7 @@ class ReservationService:
                 selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by),
             ).where(Reservation.id == db_reservation.id)
             result = await db.execute(stmt)
-            return result.scalars().first()
+            return result.scalars().first(), summary_str
 
         except HTTPException:
             await db.rollback()
@@ -304,14 +377,15 @@ class ReservationService:
             if not reservation:
                 raise HTTPException(status_code=404, detail="Reservation not found")
 
-            # 2. Block if actual payments have been received
+            # 2. Block if actual payments have been received or status is PAID
             invoice = reservation.invoice
-            if invoice and (invoice.paid_amount or 0) > 0:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Невозможно удалить: по этой брони уже принято {invoice.paid_amount:,.0f} UZS оплаты. "
-                           f"Сначала отмените оплату."
-                )
+            if invoice:
+                if (invoice.paid_amount or 0) > 0 or invoice.status == InvoiceStatus.PAID:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Невозможно удалить: по этой накладной уже есть оплата или статус PAID. "
+                               f"Сначала отмените оплату."
+                    )
 
             product_ids = [item.product_id for item in reservation.items]
 

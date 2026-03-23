@@ -18,6 +18,7 @@ async def read_products(
     name: Optional[str] = None,
     manufacturer_id: Optional[int] = None,
     category_id: Optional[int] = None,
+    warehouse_id: Optional[int] = 1,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
@@ -29,7 +30,8 @@ async def read_products(
         limit=limit, 
         name=name, 
         manufacturer_id=manufacturer_id, 
-        category_id=category_id
+        category_id=category_id,
+        warehouse_id=warehouse_id
     )
 
 @router.post("/", response_model=Product)

@@ -44,6 +44,8 @@ class ReservationItemBase(BaseModel):
     returned_quantity: int = 0
     price: float
     discount_percent: float = 0.0
+    marketing_amount: Optional[float] = 0.0
+    return_requested_quantity: int = 0
 
 class ReservationReturnItem(BaseModel):
     product_id: int
@@ -59,6 +61,8 @@ class ReservationItem(ReservationItemBase):
     id: int
     total_price: float
     product: Optional[Product] = None
+    default_marketing_amount: Optional[float] = 0.0
+    
     class Config:
         orm_mode = True
         from_attributes = True
@@ -73,6 +77,9 @@ class ReservationBase(BaseModel):
     nds_percent: float = 12.0
     is_tovar_skidka: bool = False
     source_invoice_id: Optional[int] = None
+    is_deletion_pending: bool = False
+    deletion_requested_by_id: Optional[int] = None
+    is_return_pending: bool = False
 
 class ReservationCreate(ReservationBase):
     warehouse_id: int
@@ -134,6 +141,8 @@ class InvoiceBase(BaseModel):
     factura_number: Optional[str] = None
     realization_date: Optional[datetime] = None
     promo_balance: float = 0.0
+    is_deletion_pending: bool = False
+    deletion_requested_by_id: Optional[int] = None
 
 class Invoice(InvoiceBase):
     id: int
@@ -148,6 +157,45 @@ class Invoice(InvoiceBase):
     class Config:
         orm_mode = True
         from_attributes = True
+
+
+class MedicalOrganizationLite(BaseModel):
+    id: int
+    name: str
+    address: Optional[str] = None
+    org_type: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class ReservationLite(ReservationBase):
+    id: int
+    date: datetime
+    status: ReservationStatus
+    total_amount: float
+    is_bonus_eligible: bool
+    nds_percent: Optional[float] = 12.0
+    med_org: Optional[MedicalOrganizationLite] = None
+    warehouse_id: int
+    created_by_id: int
+    
+    class Config:
+        from_attributes = True
+
+class InvoiceLite(InvoiceBase):
+    id: int
+    date: datetime
+    paid_amount: float
+    status: InvoiceStatus
+    reservation: Optional[ReservationLite] = None
+
+    class Config:
+        from_attributes = True
+
+class DeletionRequests(BaseModel):
+    reservations: List[ReservationLite]
+    invoices: List[InvoiceLite]
+    return_requests: List[ReservationLite] = []
 
 # Payment
 class PaymentBase(BaseModel):
@@ -244,6 +292,7 @@ class BonusAllocationCreate(BaseModel):
     doctor_id: int
     product_id: int  # Required - bonus tied to specific product
     quantity: int    # Number of units doctor is being paid bonus for
+    amount_per_unit: Optional[float] = None # MedRep can override how much per unit
     target_month: int
     target_year: int
     notes: Optional[str] = None

@@ -185,4 +185,21 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     .table-row-modern {
         @apply transition-all duration-300 hover:bg-blue-50/30 hover:shadow-lg hover:shadow-blue-500/5 hover:relative hover:z-10;
     }
+
+    .sleek-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .sleek-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .sleek-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(99, 102, 241, 0.2);
+        border-radius: 20px;
+    }
+
+    .sleek-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(99, 102, 241, 0.4);
+    }
 }

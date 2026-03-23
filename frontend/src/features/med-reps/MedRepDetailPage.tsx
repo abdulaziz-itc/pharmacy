@@ -11,16 +11,19 @@ import { BonusPaymentsCard } from './components/BonusPaymentsCard';
 import { ReassignUserModal } from './ReassignUserModal';
 import { MedRepBonusDashboard } from './components/MedRepBonusDashboard';
 import { Button } from '../../components/ui/button';
-import { ArrowRightLeft, Wallet } from 'lucide-react';
+import { ArrowRightLeft, Wallet, TrendingUp } from 'lucide-react';
 import { getDoctors, getMedOrgs } from '../../api/crm';
-import { getPlans, getSaleFacts, createDoctorFact, getBonusPayments, createBonusPayment, updateBonusPayment } from '../../api/sales';
+import { getPlans, getSaleFacts, createDoctorFact, getBonusPayments, createBonusPayment, updateBonusPayment, getInvoices } from '../../api/sales';
 import { getMedRepBonusBalance } from '../../api/orders-management';
 import { getUsers } from '../../api/user';
 import { getVisitPlans } from '../../api/visit-plans';
 import { getNotifications } from '../../api/notifications';
 import { useProductStore } from '../../store/productStore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
+import { ModernStatsBar } from '../../components/ui/ModernStatsBar';
+import { useMemo } from 'react';
 
 export default function MedRepDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -35,6 +38,7 @@ export default function MedRepDetailPage() {
     const [salesFacts, setSalesFacts] = React.useState<any[]>([]);
     const [bonusPayments, setBonusPayments] = React.useState<any[]>([]);
     const [bonusBalance, setBonusBalance] = React.useState<number>(0);
+    const [invoices, setInvoices] = React.useState<any[]>([]);
     const [isReassignModalOpen, setIsReassignModalOpen] = React.useState(false);
     const { products, fetchProducts } = useProductStore();
 
@@ -46,11 +50,22 @@ export default function MedRepDetailPage() {
             setIsLoading(true);
             try {
                 const repId = parseInt(id);
+                const currentUser = useAuthStore.getState().user;
 
                 // Fetch Med Rep Info
-                const allUsers = await getUsers();
-                const currentRep = allUsers.find((u: any) => u.id === repId);
-                setMedRep(currentRep);
+                if (currentUser && currentUser.id === repId) {
+                    setMedRep(currentUser);
+                } else {
+                    try {
+                        const allUsers = await getUsers();
+                        const currentRep = allUsers.find((u: any) => u.id === repId);
+                        setMedRep(currentRep);
+                    } catch (e) {
+                        console.error("Failed to fetch med reps list:", e);
+                        // If we are a med rep, we probably can't getUsers(). 
+                        // But if we are here and id doesn't match currentUser.id, something is wrong or we are a manager.
+                    }
+                }
 
                 // Fetch Doctors & filter by assigned_rep_id
                 const repDoctors = await getDoctors({ rep_id: repId, limit: 1000 });
@@ -99,6 +114,9 @@ export default function MedRepDetailPage() {
                 const balanceData = await getMedRepBonusBalance(repId);
                 setBonusBalance(balanceData.balance);
 
+                const invs = await getInvoices({ med_rep_id: repId, limit: 1000 });
+                setInvoices(invs);
+
             } catch (error) {
                 console.error("Failed to fetch Med Rep details:", error);
             } finally {
@@ -107,6 +125,41 @@ export default function MedRepDetailPage() {
         };
         fetchData();
     }, [id]);
+
+    const statsData = useMemo(() => {
+        const total = invoices.reduce((acc: number, inv: any) => acc + (inv.total_amount || 0), 0);
+        const paid = invoices.reduce((acc: number, inv: any) => acc + (inv.paid_amount || 0), 0);
+        
+        const tovarSkidka = invoices.filter((r: any) => r.reservation?.is_tovar_skidka);
+        const tovarSkidkaAmount = tovarSkidka.reduce((acc: number, r: any) => acc + (r.total_amount || 0), 0);
+        const tovarSkidkaCount = tovarSkidka.length;
+
+        // Calculate promo from associated reservations
+        let totalPromo = 0;
+        invoices.forEach((inv: any) => {
+            const res = inv.reservation;
+            if (res && res.is_bonus_eligible) {
+                (res.items || []).forEach((item: any) => {
+                    const marketingExpense = item.marketing_amount !== undefined && item.marketing_amount !== null 
+                        ? item.marketing_amount 
+                        : (item.product?.marketing_expense || 0);
+                    totalPromo += (item.quantity * marketingExpense);
+                });
+            }
+        });
+
+        return {
+            stats: {
+                totalAmount: total,
+                paidAmount: paid,
+                debtAmount: total - paid,
+                resCount: invoices.length,
+                tovarSkidkaAmount,
+                tovarSkidkaCount
+            },
+            promoAmount: totalPromo
+        };
+    }, [invoices]);
 
     if (isLoading) {
         return (
@@ -182,6 +235,14 @@ export default function MedRepDetailPage() {
                 fromUserName={medRep?.full_name || "Unknown"}
                 role="med_rep"
             />
+
+            <div className="mb-8">
+                <ModernStatsBar 
+                    stats={statsData.stats}
+                    promoAmount={statsData.promoAmount}
+                    countLabel="Кол-во (Фактуры)"
+                />
+            </div>
 
             <div className="pb-20">
                 <Tabs defaultValue="overview" className="space-y-6">

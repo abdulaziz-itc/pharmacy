@@ -3,22 +3,83 @@ import { PageHeader } from '../../components/PageHeader';
 import { CalendarCheck } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { DataTable } from '../../components/ui/data-table';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { ReservationModal } from './ReservationModal';
+import { useAuthStore } from '../../store/authStore';
+import { ModernStatsBar } from '../../components/ui/ModernStatsBar';
+import { FilterBar } from '../../components/ui/FilterBar';
+import type { FilterValues } from '../../components/ui/FilterBar';
+import { ReservationDetailsModal } from './ReservationDetailsModal';
 
 export default function ReservationsPage() {
+    const user = useAuthStore((state) => state.user);
+    const isMedRep = user?.role === 'med_rep';
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedReservationForView, setSelectedReservationForView] = useState<any | null>(null);
 
-    const { data: reservations, isLoading, refetch } = useQuery({
-        queryKey: ['reservations'],
+    const [filterValues, setFilterValues] = useState<FilterValues>({
+        dateStart: '',
+        dateEnd: '',
+        selectedMedRep: 'all',
+        selectedCompany: 'all',
+        selectedType: 'all',
+        selectedInvoiceType: 'all',
+        invNumSearch: '',
+    });
+
+    const { data: reservations = [], isLoading, refetch } = useQuery({
+        queryKey: ['reservations', filterValues],
         queryFn: async () => {
-            const response = await api.get('/sales/reservations/');
-            // Backend may return plain array or paginated {items: [...]}
-            return Array.isArray(response.data) ? response.data : (response.data?.items || response.data || []);
+            const params: any = {};
+            if (filterValues.dateStart) params.date_from = filterValues.dateStart;
+            if (filterValues.dateEnd) params.date_to = filterValues.dateEnd;
+            if (filterValues.selectedMedRep !== 'all') params.med_rep_name = filterValues.selectedMedRep;
+            if (filterValues.selectedCompany !== 'all') params.med_org_name = filterValues.selectedCompany;
+            if (filterValues.selectedType !== 'all') params.med_org_type = filterValues.selectedType;
+            if (filterValues.selectedInvoiceType !== 'all') {
+                params.is_tovar_skidka = filterValues.selectedInvoiceType === 'tovar_skidka';
+            }
+            if (filterValues.invNumSearch) params.inv_num = filterValues.invNumSearch;
+            params.status = 'pending';
+
+            const response = await api.get('/sales/reservations/', { params });
+            const data = Array.isArray(response.data) ? response.data : (response.data?.items || response.data || []);
+            return data;
         }
     });
+
+    const stats = useMemo(() => {
+        // Obshaya summa broni - summary of all reservations
+        const totalAmount = reservations.reduce((acc: number, r: any) => acc + (r.total_amount || 0), 0);
+        
+        const tovarSkidka = reservations.filter((r: any) => r.is_tovar_skidka);
+        const tovarSkidkaAmount = tovarSkidka.reduce((acc: number, r: any) => acc + (r.total_amount || 0), 0);
+        const tovarSkidkaCount = tovarSkidka.length;
+
+        let totalPromo = 0;
+        reservations.forEach((res: any) => {
+            if (res.is_bonus_eligible) {
+                (res.items || []).forEach((item: any) => {
+                    const marketingExpense = item.marketing_amount !== undefined && item.marketing_amount !== null 
+                        ? item.marketing_amount 
+                        : (item.product?.marketing_expense || 0);
+                    totalPromo += (item.quantity * marketingExpense);
+                });
+            }
+        });
+
+        return {
+            totalAmount: totalAmount,
+            paidAmount: 0,
+            debtAmount: 0,
+            resCount: reservations.length,
+            promoAmount: totalPromo,
+            tovarSkidkaAmount,
+            tovarSkidkaCount
+        };
+    }, [reservations]);
 
     const columns: any[] = [
         {
@@ -49,6 +110,8 @@ export default function ReservationsPage() {
                     approved: 'Подтверждено',
                     confirmed: 'Подтверждено',
                     cancelled: 'Отменено',
+                    paid: 'Оплачено',
+                    partial: 'Частично'
                 };
                 return statusMap[row.original.status] || row.original.status;
             },
@@ -70,7 +133,10 @@ export default function ReservationsPage() {
             header: 'Сумма',
             cell: ({ row }: any) => (row.original.total_amount || 0).toLocaleString() + ' UZS',
         },
-        {
+    ];
+
+    if (!isMedRep) {
+        columns.push({
             id: 'actions',
             header: '',
             cell: ({ row }: any) => {
@@ -99,8 +165,9 @@ export default function ReservationsPage() {
                     </Button>
                 );
             }
-        }
-    ];
+        });
+    }
+
     return (
         <PageContainer>
             <PageHeader
@@ -108,6 +175,20 @@ export default function ReservationsPage() {
                 description="Отслеживание заявок на бронь, ожидающих одобрения, инвойсов и удержания запасов."
                 buttonLabel="Оформить заказ"
                 onButtonClick={() => setIsModalOpen(true)}
+            />
+
+            <ModernStatsBar 
+                stats={stats}
+                promoAmount={stats.promoAmount}
+                countLabel="Всего заявок"
+                totalLabel="Общая сумма брони"
+                showFinancials={false}
+            />
+
+            <FilterBar 
+                values={filterValues}
+                onChange={setFilterValues}
+                onSearch={() => refetch()}
             />
 
             <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border overflow-hidden hover-lift transition-all duration-500 min-h-[500px]">
@@ -135,7 +216,8 @@ export default function ReservationsPage() {
                         <DataTable
                             columns={columns}
                             data={reservations}
-                            searchColumn="id"
+                            searchColumn="recipient"
+                            onRowClick={(row) => setSelectedReservationForView(row)}
                         />
                     </div>
                 )}
@@ -145,6 +227,12 @@ export default function ReservationsPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={() => refetch()}
+            />
+
+            <ReservationDetailsModal
+                isOpen={!!selectedReservationForView}
+                onClose={() => setSelectedReservationForView(null)}
+                reservation={selectedReservationForView}
             />
         </PageContainer>
     );

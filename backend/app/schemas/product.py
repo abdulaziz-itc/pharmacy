@@ -43,6 +43,7 @@ class ProductBase(BaseModel):
     salary_expense: Optional[float] = 0.0
     other_expenses: Optional[float] = 0.0  # Прочие расходы
     category_id: int
+    central_stock: Optional[int] = 0
 
 class ProductCreate(ProductBase):
     manufacturer_ids: List[int]
@@ -57,6 +58,7 @@ class ProductUpdate(BaseModel):
     other_expenses: Optional[float] = None  # Прочие расходы
     manufacturer_ids: Optional[List[int]] = None
     category_id: Optional[int] = None
+    central_stock: Optional[int] = None
 
 class Product(ProductBase):
     id: int

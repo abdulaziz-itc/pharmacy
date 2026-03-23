@@ -15,6 +15,9 @@ import { Input } from '../../components/ui/input';
 import { cn } from '../../lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
+import { useEffect, useState } from 'react';
 
 interface DashboardStats {
     total_sales: number;
@@ -37,15 +40,29 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
-    const { data: stats, isLoading } = useQuery<DashboardStats>({
-        queryKey: ['dashboard-stats'],
+    const navigate = useNavigate();
+    const user = useAuthStore((state) => state.user);
+
+    const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
+    useEffect(() => {
+        if (user?.role === 'med_rep') {
+            navigate(`/med-reps/${user.id}`);
+        }
+    }, [user, navigate]);
+
+    const { data: stats, isLoading, refetch } = useQuery<DashboardStats>({
+        queryKey: ['dashboard-stats', selectedMonth, selectedYear],
         queryFn: async () => {
-            const response = await api.get('/domain/analytics/dashboard/global');
+            const response = await api.get('/domain/analytics/dashboard/global', {
+                params: { month: selectedMonth, year: selectedYear }
+            });
             const data = response.data;
             return {
                 total_sales: data.total_revenue,
-                total_sales_change: "+12.5%", // These would be calculated if we passed previous month param
-                active_doctors: data.total_items_sold, // Mapping items sold to second card for demonstration
+                total_sales_change: "+12.5%", 
+                active_doctors: data.total_items_sold, 
                 active_doctors_change: "+4.2%",
                 pending_reservations: data.total_bonus_accrued,
                 pending_reservations_label: "БОНУСЫ НАЧИСЛЕНЫ",
@@ -66,6 +83,11 @@ export default function DashboardPage() {
         );
     }
 
+    const months = [
+        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+    ];
+
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Transparent Header Section */}
@@ -74,18 +96,52 @@ export default function DashboardPage() {
                     <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
                         Обзор <span className="text-gradient">аналитики</span>
                     </h1>
-                    <p className="text-slate-500 mt-2 font-medium">Мониторинг фармацевтических показателей в реальном времени.</p>
+                    <p className="text-slate-500 mt-2 font-medium">Мониторинг за {months[selectedMonth-1]} {selectedYear} года.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="relative w-64 hidden lg:block">
-                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                        <Input placeholder="Поиск метрик..." className="pl-9 bg-white/50 border-slate-200 rounded-xl" />
-                    </div>
+                    <select 
+                        value={selectedMonth} 
+                        onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                        className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                    >
+                        {months.map((m, i) => (
+                            <option key={i+1} value={i+1}>{m}</option>
+                        ))}
+                    </select>
+                    <select 
+                        value={selectedYear} 
+                        onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                        className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                    >
+                        {[2024, 2025, 2026].map(y => (
+                            <option key={y} value={y}>{y}</option>
+                        ))}
+                    </select>
+
                     <Button variant="outline" size="icon" className="rounded-xl relative">
                         <Bell className="w-4 h-4" />
                         <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm" />
                     </Button>
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20 px-6 font-semibold">
+                    <Button 
+                        onClick={async () => {
+                            try {
+                                const response = await api.get('/domain/analytics/dashboard/director-report-excel', {
+                                    params: { month: selectedMonth, year: selectedYear },
+                                    responseType: 'blob'
+                                });
+                                const url = window.URL.createObjectURL(new Blob([response.data]));
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.setAttribute('download', `Director_Report_${selectedYear}_${selectedMonth}.xlsx`);
+                                document.body.appendChild(link);
+                                link.click();
+                                link.remove();
+                            } catch (error) {
+                                console.error('Error downloading report:', error);
+                            }
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20 px-6 font-semibold"
+                    >
                         Создать отчет
                     </Button>
                 </div>
