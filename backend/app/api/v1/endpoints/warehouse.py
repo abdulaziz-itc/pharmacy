@@ -131,6 +131,7 @@ async def get_deletion_requests(
         )
         res_result = await db.execute(res_query)
         reservations = res_result.scalars().all()
+        logging.info(f"RETURNING {len(reservations)} reservations for deletion: {[r.id for r in reservations]}")
         
         # Invoices pending deletion (Facturas)
         inv_query = (
@@ -145,6 +146,7 @@ async def get_deletion_requests(
         )
         inv_result = await db.execute(inv_query)
         invoices = inv_result.scalars().all()
+        logging.info(f"RETURNING {len(invoices)} invoices for deletion: {[i.id for i in invoices]}")
         
         # Pending returns
         ret_query = (
