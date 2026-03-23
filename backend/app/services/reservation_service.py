@@ -221,13 +221,15 @@ class ReservationService:
                     reservation_id=reservation.id,
                     total_amount=reservation.total_amount,
                     status=InvoiceStatus.DRAFT,
-                    realization_date=datetime.utcnow() 
                 )
                 db.add(invoice)
                 await db.flush()
-            else:
-                # Optionally update existing invoice total_amount if it changed
-                invoice.total_amount = reservation.total_amount
+            
+            # Always set realization_date to now when activating/approving
+            invoice.realization_date = datetime.utcnow()
+                
+            # Update existing invoice total_amount if it changed
+            invoice.total_amount = reservation.total_amount
 
             # 5. Increment Pharmacy Stock (Ostatki Aptek)
             for item in reservation.items:
