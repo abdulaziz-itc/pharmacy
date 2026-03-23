@@ -50,8 +50,8 @@ export default function HeadOfOrdersManagementPage() {
         <PageContainer>
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Склад-менеджеры</h1>
-                    <p className="text-slate-500 mt-1 font-medium">Управление менеджерами склада и их доступом</p>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Менеджеры по закупкам</h1>
+                    <p className="text-slate-500 mt-1 font-medium">Управление менеджерами по закупкам и их доступом</p>
                 </div>
                 <Button
                     onClick={() => setIsCreateModalOpen(true)}

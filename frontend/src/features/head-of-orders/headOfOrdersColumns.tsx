@@ -36,7 +36,7 @@ export const getHeadOfOrdersColumns = (
             header: 'Должность',
             cell: () => (
                 <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
-                    Склад-менеджер
+                    Менеджер по закупкам
                 </Badge>
             )
         },

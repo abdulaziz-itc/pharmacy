@@ -38,7 +38,7 @@ export function CreateHeadOfOrdersModal({ isOpen, onClose, onSuccess }: CreateHe
             onSuccess();
             onClose();
             setFormData({ full_name: '', username: '', password: '' });
-            toast.success("Склад-менеджер успешно добавлен!");
+            toast.success("Менеджер по закупкам успешно добавлен!");
         } catch (error: any) {
             console.error('Failed to create head of orders:', error);
             if (error.response?.data?.detail) {
@@ -56,7 +56,7 @@ export function CreateHeadOfOrdersModal({ isOpen, onClose, onSuccess }: CreateHe
             <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
                 <DialogHeader className="bg-slate-800 p-8 text-white relative">
                     <DialogTitle className="text-2xl font-bold text-center tracking-tight">
-                        Новый склад-менеджер
+                        Новый менеджер по закупкам
                     </DialogTitle>
                 </DialogHeader>
 
