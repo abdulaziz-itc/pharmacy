@@ -302,10 +302,11 @@ async def force_cleanup(
         await db.execute(update(Invoice).where(Invoice.is_deletion_pending == True).values(reservation_id=None))
         await db.flush()
 
-        # 2. Delete payments first (to avoid FK errors from Invoice)
-        from app.models.sales import Payment
+        # 2. Delete payments and unassigned sales first (to avoid FK errors from Invoice)
+        from app.models.sales import Payment, UnassignedSale
         pending_inv_ids = select(Invoice.id).where(Invoice.is_deletion_pending == True)
         await db.execute(delete(Payment).where(Payment.invoice_id.in_(pending_inv_ids)))
+        await db.execute(delete(UnassignedSale).where(UnassignedSale.invoice_id.in_(pending_inv_ids)))
 
         # 3. Delete invoices
         await db.execute(delete(Invoice).where(Invoice.is_deletion_pending == True))
