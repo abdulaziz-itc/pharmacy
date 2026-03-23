@@ -162,9 +162,16 @@ async def get_deletion_requests(
 
         from app.schemas.sales import ApprovalReservationSchema, ApprovalInvoiceSchema
         
+        # DEBUG: Embed real ID in factura_number to see what's actually in the schema
+        debug_invoices = []
+        for i in invoices:
+            schema = ApprovalInvoiceSchema.from_orm(i)
+            schema.factura_number = f"DB_ID:{i.id} | {i.factura_number}"
+            debug_invoices.append(schema)
+
         return {
             "reservations": [ApprovalReservationSchema.from_orm(r) for r in reservations],
-            "invoices": [ApprovalInvoiceSchema.from_orm(i) for i in invoices],
+            "invoices": debug_invoices,
             "return_requests": [ApprovalReservationSchema.from_orm(r) for r in return_requests]
         }
     except Exception as e:
