@@ -20,6 +20,8 @@ class Settings(BaseSettings):
         "http://heartly.uz",
         "https://backend.heartly.uz",
         "http://backend.heartly.uz",
+        "https://maax.uz",
+        "http://maax.uz",
     ]
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
