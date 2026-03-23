@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'https://backend.heartly.uz/api/v1';
+  static const String baseUrl = 'https://backend.maax.uz/api/v1';
 
   // Login example
   static Future<Map<String, dynamic>> login(String username, String password) async {
