@@ -1,0 +1,6 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/heartly3/repositories/pharmacy/backend
+    - /bin/cp -R backend/* $DEPLOYPATH
+    - /bin/touch $DEPLOYPATH/tmp/restart.txt
