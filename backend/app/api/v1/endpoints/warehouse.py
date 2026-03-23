@@ -119,6 +119,7 @@ async def get_deletion_requests(
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     try:
+        from app.models.sales import Reservation, Invoice, ReservationItem
         from app.schemas.sales import DeletionRequests, ApprovalReservationSchema, ApprovalInvoiceSchema
         
         # Reservations pending deletion
