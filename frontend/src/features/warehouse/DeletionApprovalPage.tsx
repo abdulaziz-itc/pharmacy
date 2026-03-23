@@ -33,7 +33,8 @@ export default function DeletionApprovalPage() {
     loadData();
   }, []);
 
-  const handleApprove = async (type: 'reservation' | 'invoice', id: number) => {
+  const handleApprove = async (e: React.MouseEvent, type: 'reservation' | 'invoice', id: number) => {
+    e.stopPropagation();
     try {
       await warehouseApi.approveDeletion(type, id);
       toast.success('Удаление одобрено');
@@ -42,10 +43,12 @@ export default function DeletionApprovalPage() {
       console.error(error);
       const msg = error?.response?.data?.detail || 'Ошибка при одобрении';
       toast.error(msg);
+      if (error?.response?.status === 404) loadData();
     }
   };
 
-  const handleReject = async (type: 'reservation' | 'invoice', id: number) => {
+  const handleReject = async (e: React.MouseEvent, type: 'reservation' | 'invoice', id: number) => {
+    e.stopPropagation();
     try {
       await warehouseApi.rejectDeletion(type, id);
       toast.success('Запрос отклонен, данные восстановлены');
@@ -54,10 +57,12 @@ export default function DeletionApprovalPage() {
       console.error(error);
       const msg = error?.response?.data?.detail || 'Ошибка при отклонении';
       toast.error(msg);
+      if (error?.response?.status === 404) loadData();
     }
   };
 
-  const handleApproveReturn = async (id: number) => {
+  const handleApproveReturn = async (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
     try {
       await warehouseApi.approveReturn(id);
       toast.success('Возврат одобрен');
@@ -66,10 +71,12 @@ export default function DeletionApprovalPage() {
       console.error(error);
       const msg = error?.response?.data?.detail || 'Ошибка при одобрении возврата';
       toast.error(msg);
+      if (error?.response?.status === 404) loadData();
     }
   };
 
-  const handleRejectReturn = async (id: number) => {
+  const handleRejectReturn = async (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
     try {
       await warehouseApi.rejectReturn(id);
       toast.success('Возврат отклонен');
@@ -78,6 +85,7 @@ export default function DeletionApprovalPage() {
       console.error(error);
       const msg = error?.response?.data?.detail || 'Ошибка при отклонении возврата';
       toast.error(msg);
+      if (error?.response?.status === 404) loadData();
     }
   };
 
@@ -149,7 +157,7 @@ export default function DeletionApprovalPage() {
                         <td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
                             <Button
-                              onClick={() => handleReject('reservation', res.id)}
+                              onClick={(e) => handleReject(e, 'reservation', res.id)}
                               variant="outline"
                               size="sm"
                               className="h-9 px-4 rounded-xl border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold gap-2"
@@ -158,7 +166,7 @@ export default function DeletionApprovalPage() {
                               Отклон.
                             </Button>
                             <Button
-                              onClick={() => handleApprove('reservation', res.id)}
+                              onClick={(e) => handleApprove(e, 'reservation', res.id)}
                               size="sm"
                               className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 shadow-lg shadow-emerald-500/20"
                             >
@@ -224,7 +232,7 @@ export default function DeletionApprovalPage() {
                         <td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
                             <Button
-                              onClick={() => handleReject('invoice', inv.id)}
+                              onClick={(e) => handleReject(e, 'invoice', inv.id)}
                               variant="outline"
                               size="sm"
                               className="h-9 px-4 rounded-xl border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold gap-2"
@@ -233,7 +241,7 @@ export default function DeletionApprovalPage() {
                               Отклон.
                             </Button>
                             <Button
-                              onClick={() => handleApprove('invoice', inv.id)}
+                              onClick={(e) => handleApprove(e, 'invoice', inv.id)}
                               size="sm"
                               className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 shadow-lg shadow-emerald-500/20"
                             >
@@ -297,7 +305,7 @@ export default function DeletionApprovalPage() {
                         <td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
                             <Button
-                              onClick={() => handleRejectReturn(res.id)}
+                              onClick={(e) => handleRejectReturn(e, res.id)}
                               variant="outline"
                               size="sm"
                               className="h-9 px-4 rounded-xl border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold gap-2"
@@ -306,7 +314,7 @@ export default function DeletionApprovalPage() {
                               Отклон.
                             </Button>
                             <Button
-                              onClick={() => handleApproveReturn(res.id)}
+                              onClick={(e) => handleApproveReturn(e, res.id)}
                               size="sm"
                               className="h-9 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold gap-2 shadow-lg shadow-purple-500/20"
                             >
