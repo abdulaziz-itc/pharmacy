@@ -258,6 +258,7 @@ class DeletionRequests(BaseModel):
     reservations: List[ApprovalReservationSchema]
     invoices: List[ApprovalInvoiceSchema]
     return_requests: List[ApprovalReservationSchema] = []
+    debug_timestamp: Optional[float] = None
 
 # Payment
 class PaymentBase(BaseModel):

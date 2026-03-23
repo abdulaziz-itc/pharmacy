@@ -113,15 +113,10 @@ from fastapi import Response
 
 @router.get("/deletion-requests", response_model=DeletionRequests)
 async def get_deletion_requests(
-    response: Response,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """List all reservations and invoices pending deletion."""
-    # Force no-cache to resolve stale "ghost" data issues
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
     
     if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
