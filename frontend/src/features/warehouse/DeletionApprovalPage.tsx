@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PageContainer } from '../../components/PageContainer';
 import { Button } from '../../components/ui/button';
-import { Check, X, ClipboardList, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { Check, X, ClipboardList, RefreshCcw, AlertTriangle, Trash2 } from 'lucide-react';
 import { warehouseApi, type DeletionRequest } from '../../api/warehouse';
 import { toast } from 'sonner';
 import {
@@ -89,6 +89,23 @@ export default function DeletionApprovalPage() {
     }
   };
 
+  const handleForceCleanup = async () => {
+    if (!window.confirm('ВНИМАНИЕ: Bu barcha tasdiqlanishi kutilayotgan malumotlarni oʻchirib tashlaydi. Faqat texnik xatoliklarda foydalaning. Davom etamizmi?')) return;
+    
+    setIsLoading(true);
+    try {
+      await warehouseApi.forceCleanup();
+      toast.success('Barcha maʼlumotlar oʻchirildi');
+      loadData();
+    } catch (error: any) {
+      console.error(error);
+      const msg = error?.response?.data?.detail || 'Xatolik yuz berdi';
+      toast.error(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const hasRequests = data.reservations.length > 0 || data.invoices.length > 0 || (data.return_requests && data.return_requests.length > 0);
 
   return (
@@ -98,13 +115,23 @@ export default function DeletionApprovalPage() {
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Запросы на подтверждение</h1>
           <p className="text-slate-500 font-medium mt-1">Одобрение запросов на удаление и возврат товаров.</p>
         </div>
-        <Button
-          onClick={loadData}
-          variant="outline"
-          className="h-12 px-4 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm"
-        >
-          <RefreshCcw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
-        </Button>
+        <div className="flex gap-4">
+          <Button
+            onClick={handleForceCleanup}
+            variant="destructive"
+            className="h-12 px-6 rounded-2xl font-bold shadow-lg shadow-rose-200"
+          >
+            <Trash2 className="w-5 h-5 mr-2" />
+            Очистить ошибки (Force)
+          </Button>
+          <Button
+            onClick={loadData}
+            variant="outline"
+            className="h-12 px-4 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm"
+          >
+            <RefreshCcw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
       {isLoading && !hasRequests ? (

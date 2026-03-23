@@ -64,4 +64,9 @@ export const warehouseApi = {
     const response = await api.post(`/domain/warehouse/deletion-requests/return/${id}/reject`);
     return response.data;
   },
+
+  forceCleanup: async () => {
+    const response = await api.post('/domain/warehouse/deletion-requests/force-cleanup');
+    return response.data;
+  },
 };
