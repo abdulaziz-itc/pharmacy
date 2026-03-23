@@ -61,7 +61,7 @@ async def get_products(
 async def create_product(db: AsyncSession, obj_in: ProductCreate) -> Product:
     obj_data = obj_in.dict()
     manufacturer_ids = obj_data.pop("manufacturer_ids", [])
-    
+    obj_data.pop("central_stock", None)
     db_obj = Product(**obj_data)
     
     if manufacturer_ids:
@@ -77,7 +77,7 @@ async def create_product(db: AsyncSession, obj_in: ProductCreate) -> Product:
 async def update_product(db: AsyncSession, db_obj: Product, obj_in: ProductUpdate) -> Product:
     update_data = obj_in.dict(exclude_unset=True)
     manufacturer_ids = update_data.pop("manufacturer_ids", None)
-    
+    update_data.pop("central_stock", None)
     for field in update_data:
         setattr(db_obj, field, update_data[field])
         
@@ -100,6 +100,12 @@ async def get_categories(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
     return result.scalars().all()
 
 async def create_category(db: AsyncSession, obj_in: CategoryCreate) -> Category:
+    # Check if category already exists
+    existing = await db.execute(select(Category).where(Category.name == obj_in.name))
+    if existing.scalars().first():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Category already exists")
+    
     db_obj = Category(**obj_in.dict())
     db.add(db_obj)
     await db.commit()
