@@ -193,10 +193,71 @@ class InvoiceLite(InvoiceBase):
     class Config:
         from_attributes = True
 
+# Optimized schemas for approval requests
+class ApprovalItemSchema(BaseModel):
+    product_name: str
+    quantity: int
+    price: float
+    total_price: float
+    
+    @classmethod
+    def from_orm(cls, obj):
+        return cls(
+            product_name=obj.product.name if obj.product else "N/A",
+            quantity=obj.quantity,
+            price=obj.price,
+            total_price=obj.total_price
+        )
+
+    class Config:
+        from_attributes = True
+
+class ApprovalReservationSchema(BaseModel):
+    id: int
+    customer_name: str
+    med_org_name: Optional[str] = None
+    date: datetime
+    total_amount: float
+    items: List[ApprovalItemSchema] = []
+    
+    @classmethod
+    def from_orm(cls, obj):
+        return cls(
+            id=obj.id,
+            customer_name=obj.customer_name,
+            med_org_name=obj.med_org.name if obj.med_org else None,
+            date=obj.date,
+            total_amount=obj.total_amount,
+            items=[ApprovalItemSchema.from_orm(item) for item in obj.items]
+        )
+
+    class Config:
+        from_attributes = True
+
+class ApprovalInvoiceSchema(BaseModel):
+    id: int
+    factura_number: Optional[str] = None
+    date: datetime
+    total_amount: float
+    reservation: Optional[ApprovalReservationSchema] = None
+    
+    @classmethod
+    def from_orm(cls, obj):
+        return cls(
+            id=obj.id,
+            factura_number=obj.factura_number,
+            date=obj.date,
+            total_amount=obj.total_amount,
+            reservation=ApprovalReservationSchema.from_orm(obj.reservation) if obj.reservation else None
+        )
+
+    class Config:
+        from_attributes = True
+
 class DeletionRequests(BaseModel):
-    reservations: List[ReservationLite]
-    invoices: List[InvoiceLite]
-    return_requests: List[ReservationLite] = []
+    reservations: List[ApprovalReservationSchema]
+    invoices: List[ApprovalInvoiceSchema]
+    return_requests: List[ApprovalReservationSchema] = []
 
 # Payment
 class PaymentBase(BaseModel):

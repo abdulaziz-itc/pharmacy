@@ -350,7 +350,11 @@ export default function DeletionApprovalPage() {
             <DialogTitle className="text-2xl font-bold tracking-tight">
               {selectedItem?.type === 'invoice' ? 'Детали фактуры' : 
                selectedItem?.type === 'return' ? 'Детали возврата' : 'Детали брони'}
-              <span className="ml-3 text-slate-400 font-medium">#{selectedItem?.data?.id}</span>
+              <span className="ml-3 text-slate-400 font-medium">
+                #{selectedItem?.type === 'invoice' && selectedItem?.data?.factura_number 
+                  ? selectedItem?.data?.factura_number 
+                  : selectedItem?.data?.id}
+              </span>
             </DialogTitle>
           </DialogHeader>
           
@@ -363,7 +367,7 @@ export default function DeletionApprovalPage() {
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Организация</p>
                 <p className="font-bold text-slate-900">
-                  {selectedItem?.data?.med_org?.name || selectedItem?.data?.reservation?.med_org?.name || '---'}
+                  {selectedItem?.data?.med_org_name || selectedItem?.data?.reservation?.med_org_name || '---'}
                 </p>
               </div>
               {selectedItem?.type === 'invoice' && (
@@ -393,10 +397,10 @@ export default function DeletionApprovalPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {(selectedItem?.type === 'invoice' ? selectedItem?.data?.reservation?.items : selectedItem?.data?.items)?.map((item: any) => (
-                      <tr key={item.id}>
+                    {(selectedItem?.type === 'invoice' ? selectedItem?.data?.reservation?.items : selectedItem?.data?.items)?.map((item: any, idx: number) => (
+                      <tr key={idx}>
                         <td className="px-4 py-3 font-bold text-slate-700 text-sm">
-                          {item.product?.name}
+                          {item.product_name}
                         </td>
                         <td className="px-4 py-3 text-center font-black text-blue-600">
                           {item.quantity}

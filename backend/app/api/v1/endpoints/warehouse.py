@@ -158,15 +158,12 @@ async def get_deletion_requests(
         ret_result = await db.execute(ret_query)
         return_requests = ret_result.scalars().all()
 
-        # Debug logging
-        logging.info(f"Found {len(reservations)} reservations, {len(invoices)} invoices, {len(return_requests)} returns pending approval")
-        if invoices and invoices[0].reservation:
-            logging.info(f"First invoice (# {invoices[0].id}) has {len(invoices[0].reservation.items)} items in reservation #{invoices[0].reservation.id}")
+        from app.schemas.sales import ApprovalReservationSchema, ApprovalInvoiceSchema
         
         return {
-            "reservations": reservations,
-            "invoices": invoices,
-            "return_requests": return_requests
+            "reservations": [ApprovalReservationSchema.from_orm(r) for r in reservations],
+            "invoices": [ApprovalInvoiceSchema.from_orm(i) for i in invoices],
+            "return_requests": [ApprovalReservationSchema.from_orm(r) for r in return_requests]
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
