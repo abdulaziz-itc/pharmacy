@@ -156,6 +156,7 @@ export default function DashboardPage() {
                     isUp={true}
                     icon={TrendingUp}
                     color="blue"
+                    onClick={() => navigate('/reports')}
                 />
                 <MetricCard
                     title="Количество проданных товаров"
@@ -164,6 +165,7 @@ export default function DashboardPage() {
                     isUp={true}
                     icon={Users}
                     color="indigo"
+                    onClick={() => navigate('/reports')}
                 />
                 <MetricCard
                     title="Начисленные бонусы"
@@ -173,6 +175,7 @@ export default function DashboardPage() {
                     icon={CalendarClock}
                     color="orange"
                     isStatic={true}
+                    onClick={() => navigate('/bonuses')}
                 />
                 <MetricCard
                     title="Дебиторская задолженность"
@@ -181,6 +184,7 @@ export default function DashboardPage() {
                     isUp={false}
                     icon={Wallet}
                     color="rose"
+                    onClick={() => navigate('/debtors')}
                 />
             </div>
 
@@ -251,7 +255,7 @@ export default function DashboardPage() {
     );
 }
 
-function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic }: any) {
+function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, onClick }: any) {
     const colorClasses: any = {
         blue: "bg-blue-600/10 text-blue-600",
         indigo: "bg-indigo-600/10 text-indigo-600",
@@ -260,7 +264,13 @@ function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic }:
     };
 
     return (
-        <Card className="border-none shadow-xl shadow-slate-200/40 group hover-lift overflow-hidden">
+        <Card 
+            onClick={onClick}
+            className={cn(
+                "border-none shadow-xl shadow-slate-200/40 group hover-lift overflow-hidden transition-all duration-300",
+                onClick && "cursor-pointer hover:shadow-2xl hover:bg-slate-50/50"
+            )}
+        >
             <CardContent className="p-6 relative">
                 <div className="flex justify-between items-start">
                     <div className={cn("p-3 rounded-2xl transition-transform duration-500 group-hover:rotate-12", colorClasses[color])}>
