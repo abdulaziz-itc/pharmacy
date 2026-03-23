@@ -146,7 +146,11 @@ async def get_deletion_requests(
         )
         inv_result = await db.execute(inv_query)
         invoices = inv_result.scalars().all()
-        logging.info(f"RETURNING {len(invoices)} invoices for deletion: {[i.id for i in invoices]}")
+        
+        # SUPER DEEP DEBUG
+        all_inv_ids = await db.execute(select(Invoice.id))
+        actual_ids_in_db = [r[0] for r in all_inv_ids.all()]
+        logging.info(f"FETCH: Found {len(invoices)} invoices. All IDs in DB: {actual_ids_in_db}")
         
         # Pending returns
         ret_query = (
@@ -162,11 +166,11 @@ async def get_deletion_requests(
 
         from app.schemas.sales import ApprovalReservationSchema, ApprovalInvoiceSchema
         
-        # DEBUG: Embed real ID in factura_number to see what's actually in the schema
+        # DEBUG: Embed real ID and the full available list in factura_number
         debug_invoices = []
         for i in invoices:
             schema = ApprovalInvoiceSchema.from_orm(i)
-            schema.factura_number = f"DB_ID:{i.id} | {i.factura_number}"
+            schema.factura_number = f"DB_ID:{i.id} | ALL:{actual_ids_in_db} | {i.factura_number}"
             debug_invoices.append(schema)
 
         return {
