@@ -1,7 +1,7 @@
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, update, delete
+from sqlalchemy import select, and_, update, delete, func
 from sqlalchemy.orm import selectinload
 import logging
 
@@ -147,9 +147,22 @@ async def get_deletion_requests(
         inv_result = await db.execute(inv_query)
         invoices = inv_result.scalars().all()
         
-        # SUPER DEEP DEBUG
-        all_inv_ids = await db.execute(select(Invoice.id))
-        actual_ids_in_db = [r[0] for r in all_inv_ids.all()]
+        # SUPER DEEP DEBUG ON LIVE DB
+        all_inv_ids_res = await db.execute(select(Invoice.id))
+        actual_ids_in_db = [r[0] for r in all_inv_ids_res.all()]
+        
+        # COUNT GHOSTS
+        pending_inv_count = await db.execute(select(func.count(Invoice.id)).where(Invoice.is_deletion_pending == True))
+        pending_res_count = await db.execute(select(func.count(Reservation.id)).where(Reservation.is_deletion_pending == True))
+        pending_ret_count = await db.execute(select(func.count(Reservation.id)).where(Reservation.is_return_pending == True))
+        
+        stats = {
+            "total_invoices": len(actual_ids_in_db),
+            "pending_invoices_in_db": pending_inv_count.scalar(),
+            "pending_reservations_in_db": pending_res_count.scalar(),
+            "pending_returns_in_db": pending_ret_count.scalar(),
+        }
+        logging.info(f"LIVE STATS: {stats}")
         
         # Pending returns
         ret_query = (
@@ -202,7 +215,8 @@ async def get_deletion_requests(
             "reservations": mapped_reservations,
             "invoices": debug_invoices,
             "return_requests": mapped_returns,
-            "debug_timestamp": time.time()
+            "debug_timestamp": time.time(),
+            "debug_stats": stats
         }
     except Exception as e:
         import traceback

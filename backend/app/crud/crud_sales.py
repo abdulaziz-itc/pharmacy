@@ -220,7 +220,7 @@ async def get_reservations(
         selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
         selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
         selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by)
-    ).where(Reservation.is_deletion_pending == False).order_by(Reservation.date.desc())
+    ).order_by(Reservation.date.desc())
 
     if status:
         query = query.where(Reservation.status == status)
@@ -361,7 +361,7 @@ async def get_invoices(
         selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
         selectinload(Invoice.reservation).selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
         selectinload(Invoice.reservation).selectinload(Reservation.created_by)
-    ).where(Invoice.is_deletion_pending == False).order_by(Invoice.date.desc())
+    ).order_by(Invoice.date.desc())
 
     if status:
         query = query.where(Invoice.status == status)
