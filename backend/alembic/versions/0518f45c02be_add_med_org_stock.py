@@ -30,6 +30,19 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['product_id'], ['product.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('unassigned_sale',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('invoice_id', sa.Integer(), nullable=True),
+    sa.Column('med_rep_id', sa.Integer(), nullable=True),
+    sa.Column('product_id', sa.Integer(), nullable=True),
+    sa.Column('total_quantity', sa.Integer(), nullable=False),
+    sa.Column('paid_quantity', sa.Integer(), nullable=True),
+    sa.Column('assigned_quantity', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['invoice_id'], ['invoice.id'], ),
+    sa.ForeignKeyConstraint(['med_rep_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['product_id'], ['product.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_index(op.f('ix_med_org_stock_id'), 'med_org_stock', ['id'], unique=False)
     op.create_index(op.f('ix_unassigned_sale_id'), 'unassigned_sale', ['id'], unique=False)
     op.create_index(op.f('ix_unassigned_sale_invoice_id'), 'unassigned_sale', ['invoice_id'], unique=False)
@@ -47,4 +60,5 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_unassigned_sale_id'), table_name='unassigned_sale')
     op.drop_index(op.f('ix_med_org_stock_id'), table_name='med_org_stock')
     op.drop_table('med_org_stock')
+    op.drop_table('unassigned_sale')
     # ### end Alembic commands ###
