@@ -39,33 +39,68 @@ async def get_comprehensive_reports(
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     # 1. Fetch Plans (Plans are stored as month/year)
-    # We will fetch all plans that overlap with the start_date -> end_date
-    start_month = start_date.month
-    start_year = start_date.year
-    end_month = end_date.month
-    end_year = end_date.year
+    plans_query = select(
+        Plan.doctor_id,
+        Doctor.full_name.label("doctor_name"),
+        func.sum(Plan.target_quantity).label("plan_quantity"),
+        func.sum(Plan.target_amount).label("plan_amount")
+    ).join(Doctor, Doctor.id == Plan.doctor_id, isouter=True)\
+     .where(
+        Plan.year >= start_year,
+        Plan.year <= end_year,
+        # In a real app, we'd filter by month too, but keeping parity with existing logic for years
+    ).group_by(Plan.doctor_id, Doctor.full_name)
+    
+    plans_result = await db.execute(plans_query)
+    
+    # Initialize mapping with Plans
+    report_map = {}
+    for row in plans_result.all():
+        doc_id = row.doctor_id
+        if doc_id: # Only aggregate per doctor for now
+            report_map[doc_id] = {
+                "doctor_name": row.doctor_name or f"Doctor #{doc_id}",
+                "plan_quantity": row.plan_quantity or 0,
+                "plan_amount": float(row.plan_amount or 0),
+                "fact_quantity": 0,
+                "fact_amount": 0.0,
+                "earned_bonus": 0.0,
+                "predinvest_given": 0.0,
+                "predinvest_paid_off": 0.0,
+            }
 
-    # 2. Fetch Aggregated Sales (Fact) from DoctorFactAssignment
+    # 2. Fetch Aggregated Sales (Fact)
     sales_query = select(
         DoctorFactAssignment.doctor_id,
         Doctor.full_name.label("doctor_name"),
-        DoctorFactAssignment.product_id,
-        Product.name.label("product_name"),
         func.sum(DoctorFactAssignment.quantity).label("fact_quantity"),
         func.sum(DoctorFactAssignment.amount).label("fact_amount"),
     ).join(Doctor, Doctor.id == DoctorFactAssignment.doctor_id)\
-     .join(Product, Product.id == DoctorFactAssignment.product_id)\
      .where(
          cast(DoctorFactAssignment.created_at, Date) >= start_date,
          cast(DoctorFactAssignment.created_at, Date) <= end_date,
      ).group_by(
-         DoctorFactAssignment.doctor_id, Doctor.full_name, DoctorFactAssignment.product_id, Product.name
+         DoctorFactAssignment.doctor_id, Doctor.full_name
      )
 
     sales_result = await db.execute(sales_query)
-    sales_data = sales_result.all()
+    for row in sales_result.all():
+        doc_id = row.doctor_id
+        if doc_id not in report_map:
+            report_map[doc_id] = {
+                "doctor_name": row.doctor_name,
+                "plan_quantity": 0,
+                "plan_amount": 0.0,
+                "fact_quantity": 0,
+                "fact_amount": 0.0,
+                "earned_bonus": 0.0,
+                "predinvest_given": 0.0,
+                "predinvest_paid_off": 0.0,
+            }
+        report_map[doc_id]["fact_quantity"] += (row.fact_quantity or 0)
+        report_map[doc_id]["fact_amount"] += (row.fact_amount or 0.0)
 
-    # 3. Fetch Bonus Ledger for Predinvest and Offsets/Accruals
+    # 3. Fetch Bonus Ledger
     bonuses_query = select(
         BonusLedger.doctor_id,
         func.sum(
@@ -93,34 +128,13 @@ async def get_comprehensive_reports(
     ).group_by(BonusLedger.doctor_id)
 
     bonuses_result = await db.execute(bonuses_query)
-    bonuses_data = bonuses_result.all()
-
-    # Create mapping
-    report_map = {}
-    
-    # Process sales
-    for row in sales_data:
+    for row in bonuses_result.all():
         doc_id = row.doctor_id
         if doc_id not in report_map:
-            report_map[doc_id] = {
-                "doctor_name": row.doctor_name,
-                "fact_quantity": 0,
-                "fact_amount": 0.0,
-                "earned_bonus": 0.0,
-                "predinvest_given": 0.0,
-                "predinvest_paid_off": 0.0,
-            }
-        report_map[doc_id]["fact_quantity"] += row.fact_quantity
-        report_map[doc_id]["fact_amount"] += row.fact_amount
-
-    # Process bonuses
-    for row in bonuses_data:
-        doc_id = row.doctor_id
-        if doc_id not in report_map:
-            # We might not have the doctor name here efficiently without a join, but we can do a secondary lookup or ignore
-            # if they didn't have sales. For completeness, let's just add them.
             report_map[doc_id] = {
                 "doctor_name": f"Doctor #{doc_id}",
+                "plan_quantity": 0,
+                "plan_amount": 0.0,
                 "fact_quantity": 0,
                 "fact_amount": 0.0,
                 "earned_bonus": 0.0,
@@ -130,24 +144,6 @@ async def get_comprehensive_reports(
         report_map[doc_id]["earned_bonus"] = float(row.earned_bonus or 0)
         report_map[doc_id]["predinvest_given"] = float(row.predinvest_given or 0)
         report_map[doc_id]["predinvest_paid_off"] = float(row.predinvest_paid_off or 0)
-
-    # 4. Fetch Plans
-    plans_query = select(
-        Plan.doctor_id,
-        func.sum(Plan.target_quantity).label("plan_quantity"),
-        func.sum(Plan.target_amount).label("plan_amount")
-    ).where(
-        Plan.year >= start_year,
-        Plan.year <= end_year,
-        # A more precise month filtering could be added here, but for simplicity we'll just pull the overlapping years
-    ).group_by(Plan.doctor_id)
-    
-    plans_result = await db.execute(plans_query)
-    for row in plans_result.all():
-        doc_id = row.doctor_id
-        if doc_id in report_map:
-            report_map[doc_id]["plan_quantity"] = row.plan_quantity
-            report_map[doc_id]["plan_amount"] = row.plan_amount
 
     # Flatten map
     summary = []
