@@ -284,3 +284,33 @@ async def reject_return(
     await crud_sales.reject_return_reservation_items(db, entity_id)
     await log_action(db, current_user, "RETURN_REJECTED", "Reservation", entity_id, f"Возврат по брони #{entity_id} отклонен складом.", request)
     return {"ok": True}
+
+@router.post("/deletion-requests/force-cleanup")
+async def force_cleanup(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Forcefully delete everything marked for deletion (Emergency ONLY at user request)."""
+    # Only Director or Admin
+    if current_user.role not in [UserRole.DIRECTOR, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Only Director can force cleanup")
+    
+    # This is a brute-force cleanup because some IDs are not being found via standard routes 
+    # despite being visible in the list (potential caching/ID discrepancy issues).
+    
+    # 1. Force delete invoices marked as pending deletion
+    inv_query = select(Invoice).where(Invoice.is_deletion_pending == True)
+    inv_res = await db.execute(inv_query)
+    for inv in inv_res.scalars().all():
+        logging.info(f"FORCE-CLEANUP: Deleting Invoice #{inv.id}")
+        await db.delete(inv)
+    
+    # 2. Force delete reservations marked as pending deletion
+    res_query = select(Reservation).where(Reservation.is_deletion_pending == True)
+    res_res = await db.execute(res_query)
+    for res in res_res.scalars().all():
+        logging.info(f"FORCE-CLEANUP: Deleting Reservation #{res.id}")
+        await db.delete(res)
+        
+    await db.commit()
+    return {"ok": True, "message": "All items marked for deletion have been forcefully removed."}
