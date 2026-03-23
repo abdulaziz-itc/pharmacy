@@ -127,16 +127,20 @@ export default function MedRepDetailPage() {
     }, [id]);
 
     const statsData = useMemo(() => {
-        const total = invoices.reduce((acc: number, inv: any) => acc + (inv.total_amount || 0), 0);
-        const paid = invoices.reduce((acc: number, inv: any) => acc + (inv.paid_amount || 0), 0);
+        // Only count invoices linked to organizations (apteka, bolnitsa, klinika, optovik)
+        // Exclude doctor-only invoices (those without a med_org in the reservation)
+        const orgInvoices = invoices.filter((inv: any) => inv.reservation?.med_org != null);
+
+        const total = orgInvoices.reduce((acc: number, inv: any) => acc + (inv.total_amount || 0), 0);
+        const paid = orgInvoices.reduce((acc: number, inv: any) => acc + (inv.paid_amount || 0), 0);
         
-        const tovarSkidka = invoices.filter((r: any) => r.reservation?.is_tovar_skidka);
+        const tovarSkidka = orgInvoices.filter((r: any) => r.reservation?.is_tovar_skidka);
         const tovarSkidkaAmount = tovarSkidka.reduce((acc: number, r: any) => acc + (r.total_amount || 0), 0);
         const tovarSkidkaCount = tovarSkidka.length;
 
         // Calculate promo from associated reservations
         let totalPromo = 0;
-        invoices.forEach((inv: any) => {
+        orgInvoices.forEach((inv: any) => {
             const res = inv.reservation;
             if (res && res.is_bonus_eligible) {
                 (res.items || []).forEach((item: any) => {
@@ -153,7 +157,7 @@ export default function MedRepDetailPage() {
                 totalAmount: total,
                 paidAmount: paid,
                 debtAmount: total - paid,
-                resCount: invoices.length,
+                resCount: orgInvoices.length,
                 tovarSkidkaAmount,
                 tovarSkidkaCount
             },
