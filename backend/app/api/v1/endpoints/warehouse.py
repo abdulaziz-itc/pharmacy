@@ -1,7 +1,7 @@
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update, delete
 from sqlalchemy.orm import selectinload
 import logging
 
@@ -290,27 +290,32 @@ async def force_cleanup(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """Forcefully delete everything marked for deletion (Emergency ONLY at user request)."""
-    # Only Director or Admin
+    """Forcefully delete everything marked for deletion (Emergency ONLY)."""
     if current_user.role not in [UserRole.DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Only Director can force cleanup")
     
-    # This is a brute-force cleanup because some IDs are not being found via standard routes 
-    # despite being visible in the list (potential caching/ID discrepancy issues).
-    
-    # 1. Force delete invoices marked as pending deletion
-    inv_query = select(Invoice).where(Invoice.is_deletion_pending == True)
-    inv_res = await db.execute(inv_query)
-    for inv in inv_res.scalars().all():
-        logging.info(f"FORCE-CLEANUP: Deleting Invoice #{inv.id}")
-        await db.delete(inv)
-    
-    # 2. Force delete reservations marked as pending deletion
-    res_query = select(Reservation).where(Reservation.is_deletion_pending == True)
-    res_res = await db.execute(res_query)
-    for res in res_res.scalars().all():
-        logging.info(f"FORCE-CLEANUP: Deleting Reservation #{res.id}")
-        await db.delete(res)
+    try:
+        # 1. Nullify all cross-table foreign keys to avoid circular dependency errors
+        # Nullify Reservation.source_invoice_id
+        await db.execute(update(Reservation).where(Reservation.is_deletion_pending == True).values(source_invoice_id=None))
+        # Nullify Invoice.reservation_id (careful, it's unique)
+        await db.execute(update(Invoice).where(Invoice.is_deletion_pending == True).values(reservation_id=None))
+        await db.flush()
+
+        # 2. Delete payments first (to avoid FK errors from Invoice)
+        from app.models.sales import Payment
+        pending_inv_ids = select(Invoice.id).where(Invoice.is_deletion_pending == True)
+        await db.execute(delete(Payment).where(Payment.invoice_id.in_(pending_inv_ids)))
+
+        # 3. Delete invoices
+        await db.execute(delete(Invoice).where(Invoice.is_deletion_pending == True))
         
-    await db.commit()
-    return {"ok": True, "message": "All items marked for deletion have been forcefully removed."}
+        # 4. Delete reservations (cascade triggers for items)
+        await db.execute(delete(Reservation).where(Reservation.is_deletion_pending == True))
+        
+        await db.commit()
+        return {"ok": True, "message": "All items marked for deletion have been forcefully removed from the DB."}
+    except Exception as e:
+        await db.rollback()
+        logging.error(f"Force cleanup failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"FORCE-CLEANUP FAILED: {str(e)}")
