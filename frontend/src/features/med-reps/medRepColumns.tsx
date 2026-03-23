@@ -28,7 +28,11 @@ export const medRepColumns = (
                     ИМЯ ПОЛЬЗОВАТЕЛЯ
                 </span>
             ),
-            cell: ({ row }) => <span className="font-bold text-slate-900">{row.getValue("username")}</span>,
+            cell: ({ row }) => (
+                <span className="font-bold text-blue-600 hover:underline cursor-pointer">
+                    {row.getValue("username")}
+                </span>
+            ),
         },
         {
             accessorKey: "full_name",
@@ -37,7 +41,11 @@ export const medRepColumns = (
                     ПОЛНОЕ ИМЯ
                 </span>
             ),
-            cell: ({ row }) => <span className="font-bold text-slate-900">{row.getValue("full_name")}</span>,
+            cell: ({ row }) => (
+                <span className="font-bold text-blue-600 hover:underline cursor-pointer">
+                    {row.getValue("full_name")}
+                </span>
+            ),
         },
         {
             accessorKey: "role",
