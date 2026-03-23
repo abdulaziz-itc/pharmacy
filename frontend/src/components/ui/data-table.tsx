@@ -41,6 +41,7 @@ interface DataTableProps<TData, TValue> {
     renderSubComponent?: (props: { row: any }) => React.ReactElement
     meta?: any
     topContent?: React.ReactNode
+    getRowClassName?: (row: TData) => string
 }
 
 export function DataTable<TData, TValue>({
@@ -52,6 +53,7 @@ export function DataTable<TData, TValue>({
     renderSubComponent,
     meta,
     topContent,
+    getRowClassName,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -293,7 +295,7 @@ export function DataTable<TData, TValue>({
                                 <React.Fragment key={row.id}>
                                     <TableRow
                                         data-state={row.getIsSelected() && "selected"}
-                                        className={`group transition-all border-slate-50/50 ${onRowClick ? 'cursor-pointer' : ''} bg-white hover:bg-slate-50/30`}
+                                        className={`group transition-all border-slate-50/50 ${onRowClick ? 'cursor-pointer' : ''} bg-white hover:bg-slate-50/30 ${getRowClassName ? getRowClassName(row.original) : ""}`}
                                     >
                                         {row.getVisibleCells().map((cell) => (
                                             <TableCell

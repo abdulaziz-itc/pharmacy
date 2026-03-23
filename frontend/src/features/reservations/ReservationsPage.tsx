@@ -105,6 +105,8 @@ export default function ReservationsPage() {
             accessorKey: 'status',
             header: 'Статус',
             cell: ({ row }: any) => {
+                if (row.original.is_deletion_pending) return <span className="text-amber-600 font-black">Ожидает удаления</span>;
+                if (row.original.is_return_pending) return <span className="text-purple-600 font-black">Ожидает возврата</span>;
                 const statusMap: any = {
                     pending: 'Ожидает',
                     approved: 'Подтверждено',
@@ -140,7 +142,8 @@ export default function ReservationsPage() {
             id: 'actions',
             header: '',
             cell: ({ row }: any) => {
-                const isPending = row.original.status === 'pending';
+                const isPending = row.original.status === 'pending' || row.original.is_deletion_pending;
+                if (row.original.is_deletion_pending) return <span className="text-[10px] text-amber-500 font-bold">Удаление запрошено</span>;
                 if (!isPending) return null;
 
                 const handleCancel = async () => {
@@ -216,8 +219,8 @@ export default function ReservationsPage() {
                         <DataTable
                             columns={columns}
                             data={reservations}
-                            searchColumn="recipient"
                             onRowClick={(row) => setSelectedReservationForView(row)}
+                            getRowClassName={(row: any) => row.is_deletion_pending || row.is_return_pending ? 'bg-yellow-100/70 hover:bg-yellow-100' : ''}
                         />
                     </div>
                 )}

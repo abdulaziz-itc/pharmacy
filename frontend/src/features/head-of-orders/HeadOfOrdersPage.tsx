@@ -940,7 +940,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             const orgType = res.med_org?.org_type || '—';
 
                                             return (
-                                                <tr key={res.id} className={`border-b transition-colors group ${res.is_deletion_pending ? 'bg-amber-50 hover:bg-amber-100 border-amber-100' : 'border-slate-50 hover:bg-slate-50/80'}`}>
+                                                <tr key={res.id} className={`border-b transition-colors group ${res.is_deletion_pending || res.is_return_pending ? 'bg-yellow-100/70 hover:bg-yellow-100 border-yellow-200' : 'border-slate-50 hover:bg-slate-50/80'}`}>
                                                     <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
                                                     <td className="px-3 py-4">
                                                         <div className="flex items-center gap-1">
@@ -971,13 +971,19 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     </td>
                                                     <td className="px-3 py-4 font-bold text-slate-500 text-center">{res.date ? format(new Date(res.date), 'dd/MM/yyyy') : '—'}</td>
                                                     <td className="px-3 py-4 text-center">
-                                                        <div className="flex justify-center">
+                                                        <div className="flex justify-center flex-col items-center gap-1">
                                                             <button
                                                                 onClick={() => setShowActivateConfirm(res.id)}
                                                                 className={`w-8 h-4 rounded-full relative transition-colors ${res.status === 'approved' ? 'bg-emerald-500' : 'bg-slate-300'}`}
                                                             >
                                                                 <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all shadow-sm ${res.status === 'approved' ? 'right-0.5' : 'left-0.5'}`} />
                                                             </button>
+                                                            {res.is_deletion_pending && (
+                                                                <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">Ожидает удаления</span>
+                                                            )}
+                                                            {res.is_return_pending && (
+                                                                <span className="text-[8px] font-black text-purple-600 uppercase tracking-tighter">Ожидает возврата</span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
@@ -1232,7 +1238,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             const promoVal = calculatePromo(res);
 
                                             return (
-                                                <tr key={inv.id} className={`border-b transition-colors group ${res?.is_deletion_pending || inv.is_deletion_pending ? 'bg-amber-50 hover:bg-amber-100 border-amber-100' : 'border-slate-50 hover:bg-slate-50/80'}`}>
+                                                <tr key={inv.id} className={`border-b transition-colors group ${res?.is_deletion_pending || inv.is_deletion_pending || res?.is_return_pending ? 'bg-yellow-100/70 hover:bg-yellow-100 border-yellow-200' : 'border-slate-50 hover:bg-slate-50/80'}`}>
                                                     <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
                                                     <td className="px-3 py-4">
                                                         <div className="flex items-center gap-1">

@@ -100,6 +100,8 @@ export default function InvoicesPage() {
             accessorKey: 'status',
             header: 'Статус',
             cell: ({ row }: any) => {
+                if (row.original.is_deletion_pending || row.original.reservation?.is_deletion_pending) return <span className="text-amber-600 font-black">Ожидает удаления</span>;
+                if (row.original.reservation?.is_return_pending) return <span className="text-purple-600 font-black">Ожидает возврата</span>;
                 const statusMap: any = {
                     pending: 'Ожидает',
                     partial: 'Частично',
@@ -205,8 +207,8 @@ export default function InvoicesPage() {
                         <DataTable
                             columns={columns}
                             data={invoices}
-                            searchColumn="recipient"
                             onRowClick={(row) => setSelectedInvoiceForView(row)}
+                            getRowClassName={(row: any) => row.is_deletion_pending || row.reservation?.is_deletion_pending || row.reservation?.is_return_pending ? 'bg-yellow-100/70 hover:bg-yellow-100' : ''}
                         />
                     </div>
                 )}

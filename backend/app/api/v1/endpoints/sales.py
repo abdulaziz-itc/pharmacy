@@ -148,8 +148,8 @@ async def delete_reservation(
     if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.MED_REP, UserRole.DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions to delete reservations.")
     
-    # Check if it's head of orders requesting deletion
-    if current_user.role == UserRole.HEAD_OF_ORDERS:
+    # Check roles that require approval for deletion
+    if current_user.role in [UserRole.HEAD_OF_ORDERS, UserRole.MED_REP, UserRole.DEPUTY_DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER]:
         from app.models.sales import Reservation, Invoice
         res_query = select(Reservation).options(selectinload(Reservation.invoice)).where(Reservation.id == id)
         res_exc = await db.execute(res_query)
@@ -159,9 +159,8 @@ async def delete_reservation(
             raise HTTPException(status_code=404, detail="Reservation not found")
         
         # If reservation has an invoice, mark the invoice for deletion instead
-        # This makes it appear in "Invoices" section for Warehouse approval
         if reservation.invoice:
-            if reservation.invoice.status == InvoiceStatus.PAID:
+            if (reservation.invoice.paid_amount or 0) > 0 or reservation.invoice.status == InvoiceStatus.PAID:
                 raise HTTPException(status_code=400, detail="Нельзя удалить оплаченную счет-фактуру. Сначала отмените платежи.")
             
             reservation.invoice.is_deletion_pending = True
@@ -178,8 +177,9 @@ async def delete_reservation(
             f"Запрошено удаление брони #{id}. Ожидает подтверждения склада.",
             request
         )
-        return {"ok": True, "message": "Deletion request sent to Warehouse Head."}
+        return {"ok": True, "message": "Запрос на удаление отправлен заведующему склада (Deletion request sent to Warehouse Head)."}
 
+    # Roles that can delete immediately: DIRECTOR, ADMIN, HEAD_OF_WAREHOUSE
     from app.services.reservation_service import ReservationService
     await ReservationService.cancel_reservation(db=db, reservation_id=id)
     
