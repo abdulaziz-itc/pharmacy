@@ -111,6 +111,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
     const [selectedProductId, setSelectedProductId] = React.useState<number | null>(null);
     const [productSearchQuery, setProductSearchQuery] = React.useState("");
     const [planQuantity, setPlanQuantity] = React.useState("");
+    const [isProductPopoverOpen, setIsProductPopoverOpen] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const { products, fetchProducts } = useProductStore();
@@ -466,7 +467,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                             <div className="grid gap-4 py-4">
                                 <div className="grid gap-2 relative">
                                     <Label htmlFor="product" className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Продукт</Label>
-                                    <Popover>
+                                    <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
                                         <PopoverTrigger asChild>
                                             <Button
                                                 variant="outline"
@@ -500,6 +501,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                                                 className={`px-3 py-2 rounded-xl text-sm cursor-pointer transition-colors flex justify-between items-center ${selectedProductId === product.id ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-700'}`}
                                                                 onClick={() => {
                                                                     setSelectedProductId(product.id === selectedProductId ? null : product.id);
+                                                                    setIsProductPopoverOpen(false);
                                                                 }}
                                                             >
                                                                 <span>{product.name}</span>
