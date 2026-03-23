@@ -40,7 +40,13 @@ class Plan(Base):
     med_org = relationship("MedicalOrganization", backref="plans")
     product = relationship("Product", backref="plans")
 
-class Invoice(Base): # Factura
+class Invoice(Base): 
+    """
+    Represents an Invoice (Factura).
+    This is the official record of sale and realization.
+    Tracks total amount, paid amount, and payment status.
+    Linked 1-to-1 with a Reservation.
+    """
     __tablename__ = "invoice"
     id = Column(Integer, primary_key=True, index=True)
     date = Column(DateTime, default=datetime.utcnow)

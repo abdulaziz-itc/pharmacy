@@ -5,7 +5,7 @@ from sqlalchemy import select, func, text, cast, Date
 from datetime import datetime, date, timedelta
 from app.api import deps
 from app.models.user import User, UserRole
-from app.models.sales import Plan, ReservationItem, Reservation
+from app.models.sales import Plan, ReservationItem, Reservation, DoctorFactAssignment
 from app.models.ledger import BonusLedger, DoctorMonthlyStat
 from app.models.crm import Doctor
 from app.models.product import Product
@@ -23,6 +23,18 @@ async def get_comprehensive_reports(
     period: str = Query("monthly", regex="^(daily|weekly|monthly|quarterly|yearly)$")
 ) -> Any:
     """
+    Get comprehensive reports for the dashboard.
+    Aggregates data from Sales (Fact), Plans, and Bonuses.
+    
+    Parameters:
+    - start_date, end_date: Date range for the report.
+    - period: Grouping period (daily, weekly, monthly, quarterly, yearly).
+    
+    Returns a dictionary containing:
+    - summary: Total facts, plans, and earned bonuses.
+    - details: List of per-doctor/product breakdown with plan vs fact comparison.
+    - charts: Time-series data for historical trends.
+    """
     Generate comprehensive reports for Director and Deputy Director.
     Aggregates plans, facts (sales), and bonuses based on the selected period.
     """
@@ -36,23 +48,21 @@ async def get_comprehensive_reports(
     end_month = end_date.month
     end_year = end_date.year
 
-    # 2. Fetch Aggregated Sales (Fact) from ReservationItem -> Reservation
+    # 2. Fetch Aggregated Sales (Fact) from DoctorFactAssignment
     sales_query = select(
-        ReservationItem.doctor_id,
+        DoctorFactAssignment.doctor_id,
         Doctor.full_name.label("doctor_name"),
-        ReservationItem.product_id,
+        DoctorFactAssignment.product_id,
         Product.name.label("product_name"),
-        func.sum(ReservationItem.quantity).label("fact_quantity"),
-        func.sum(ReservationItem.price * ReservationItem.quantity).label("fact_amount"),
-    ).join(Reservation, Reservation.id == ReservationItem.reservation_id)\
-     .join(Doctor, Doctor.id == ReservationItem.doctor_id)\
-     .join(Product, Product.id == ReservationItem.product_id)\
+        func.sum(DoctorFactAssignment.quantity).label("fact_quantity"),
+        func.sum(DoctorFactAssignment.amount).label("fact_amount"),
+    ).join(Doctor, Doctor.id == DoctorFactAssignment.doctor_id)\
+     .join(Product, Product.id == DoctorFactAssignment.product_id)\
      .where(
-         cast(Reservation.date, Date) >= start_date,
-         cast(Reservation.date, Date) <= end_date,
-         Reservation.status == "approved"
+         cast(DoctorFactAssignment.created_at, Date) >= start_date,
+         cast(DoctorFactAssignment.created_at, Date) <= end_date,
      ).group_by(
-         ReservationItem.doctor_id, Doctor.full_name, ReservationItem.product_id, Product.name
+         DoctorFactAssignment.doctor_id, Doctor.full_name, DoctorFactAssignment.product_id, Product.name
      )
 
     sales_result = await db.execute(sales_query)

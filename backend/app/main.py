@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+import traceback
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.api import api_router
@@ -32,6 +34,14 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_msg = traceback.format_exc()
+    with open("error_log.txt", "a") as f:
+        f.write(f"\\n--- ERROR AT {request.url} ---\\n")
+        f.write(error_msg)
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 @app.get("/")
 def root():

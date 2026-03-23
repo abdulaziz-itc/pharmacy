@@ -206,6 +206,20 @@ async def read_reservations(
     inv_num: Optional[str] = None,
     status: Optional[str] = None
 ) -> Any:
+    """
+    Retrieve reservations with optional filtering.
+    
+    Roles Permitted and Filtering:
+    - MED_REP: Sees only their own reservations or those assigned to their medical organizations.
+    - PRODUCT_MANAGER/FF_MANAGER/REGIONAL_MANAGER: See reservations within their team hierarchy.
+    - DIRECTOR/DEPUTY: See all reservations.
+    
+    Filters:
+    - date_from, date_to: Range filter for reservation date.
+    - med_rep_name: Search by MedRep's full name.
+    - med_org_name: Search by Medical Organization name.
+    - status: Filter by ReservationStatus (draft, pending, approved, etc.)
+    """
     med_rep_ids = None
     if current_user.role == UserRole.MED_REP:
         med_rep_id = current_user.id
