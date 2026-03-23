@@ -385,7 +385,8 @@ async def read_invoices(
     med_org_type: Optional[str] = None,
     is_tovar_skidka: Optional[bool] = None,
     inv_num: Optional[str] = None,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    med_rep_id: Optional[int] = None,
 ) -> Any:
     med_rep_ids = None
     if current_user.role == UserRole.MED_REP:
@@ -397,7 +398,8 @@ async def read_invoices(
             med_rep_ids = [-1]
         med_rep_id = None
     else:
-        med_rep_id = None
+        # Director or other admin — use the passed med_rep_id if provided
+        pass
     
     dt_from = datetime.fromisoformat(date_from) if date_from else None
     dt_to = datetime.fromisoformat(date_to) if date_to else None
