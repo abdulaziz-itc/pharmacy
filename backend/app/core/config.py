@@ -16,6 +16,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5174",
         "http://127.0.0.1:5175",
         "http://127.0.0.1:3000",
+        "https://heartly.uz",
+        "http://heartly.uz",
+        "https://backend.heartly.uz",
+        "http://backend.heartly.uz",
     ]
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
