@@ -1,7 +1,7 @@
 from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, text, cast, Date
+from sqlalchemy import select, func, text, cast, Date, case
 from datetime import datetime, date, timedelta
 from app.api import deps
 from app.models.user import User, UserRole
@@ -69,19 +69,19 @@ async def get_comprehensive_reports(
     bonuses_query = select(
         BonusLedger.doctor_id,
         func.sum(
-            func.case(
+            case(
                 (BonusLedger.ledger_type == "accrual", BonusLedger.amount), 
                 else_=0
             )
         ).label("earned_bonus"),
         func.sum(
-            func.case(
+            case(
                 (BonusLedger.ledger_type == "advance", -BonusLedger.amount), 
                 else_=0
             )
         ).label("predinvest_given"),
         func.sum(
-            func.case(
+            case(
                 (BonusLedger.ledger_type == "offset", -BonusLedger.amount), 
                 else_=0
             )
