@@ -191,7 +191,7 @@ async def approve_deletion(
         inv_res = await db.execute(inv_query)
         invoice = inv_res.scalar_one_or_none()
         if not invoice:
-            raise HTTPException(status_code=404, detail="Invoice not found")
+            raise HTTPException(status_code=404, detail=f"Invoice #{entity_id} not found (APPROVE)")
         
         res_id = invoice.reservation_id
         await ReservationService.cancel_reservation(db, res_id)
@@ -232,7 +232,7 @@ async def reject_deletion(
             await db.commit()
             await log_action(db, current_user, "DELETE_REJECTED", "Invoice", entity_id, f"Удаление фактуры #{entity_id} отклонено.", request)
         else:
-            raise HTTPException(status_code=404, detail="Invoice not found")
+            raise HTTPException(status_code=404, detail=f"Invoice #{entity_id} not found (REJECT)")
     
     return {"ok": True}
 
