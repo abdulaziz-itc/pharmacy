@@ -19,11 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Add comment and allocated_doctor_id to payment table
+    # Add comment to payment table
     op.add_column('payment', sa.Column('comment', sa.Text(), nullable=True))
-    op.add_column('payment', sa.Column('allocated_doctor_id', sa.Integer(), sa.ForeignKey('doctor.id'), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column('payment', 'allocated_doctor_id')
     op.drop_column('payment', 'comment')
