@@ -163,26 +163,56 @@ async def get_deletion_requests(
         ret_result = await db.execute(ret_query)
         return_requests = ret_result.scalars().all()
 
-        # DEBUG: Embed real ID and the full available list in factura_number
+        # MANUAL MAPPING for maximum robustness
+        def map_reservation(r):
+            res_items = []
+            for item in r.items:
+                res_items.append({
+                    "product_name": item.product.name if item.product else "N/A",
+                    "quantity": item.quantity,
+                    "price": item.price,
+                    "total_price": item.total_price
+                })
+            return {
+                "id": r.id,
+                "customer_name": r.customer_name,
+                "med_org_name": r.med_org.name if r.med_org else None,
+                "date": r.date.isoformat() if r.date else None,
+                "total_amount": r.total_amount,
+                "items": res_items
+            }
+
+        mapped_reservations = [map_reservation(r) for r in reservations]
+        mapped_returns = [map_reservation(r) for r in return_requests]
+        
+        # Invoices
         debug_invoices = []
         for i in invoices:
-            schema = ApprovalInvoiceSchema.from_orm(i)
-            # Use the actual string to avoid any schema issues
-            schema.factura_number = f"DB_ID:{i.id} | ALL:{actual_ids_in_db} | {i.factura_number}"
-            debug_invoices.append(schema.dict())
+            inv_data = {
+                "id": i.id,
+                "factura_number": f"DB_ID:{i.id} | ALL:{actual_ids_in_db} | {i.factura_number}",
+                "date": i.date.isoformat() if i.date else None,
+                "total_amount": i.total_amount,
+                "reservation": map_reservation(i.reservation) if i.reservation else None
+            }
+            debug_invoices.append(inv_data)
 
         import time
         return {
-            "reservations": [ApprovalReservationSchema.from_orm(r).dict() for r in reservations],
+            "reservations": mapped_reservations,
             "invoices": debug_invoices,
-            "return_requests": [ApprovalReservationSchema.from_orm(r).dict() for r in return_requests],
+            "return_requests": mapped_returns,
             "debug_timestamp": time.time()
         }
     except Exception as e:
         import traceback
         logging.error(f"FETCH FAILED: {str(e)}", exc_info=True)
-        # Return the actual error to the client for debugging
-        raise HTTPException(status_code=500, detail=f"FETCH FAILED: {str(e)} | TRACE: {traceback.format_exc()[-200:]}")
+        return {
+            "error": True,
+            "detail": f"FETCH FAILED: {str(e)}",
+            "trace": traceback.format_exc()[-500:],
+            "reservations": [], "invoices": [], "return_requests": []
+        }
 
 @router.post("/deletion-requests/{entity_type}/{entity_id}/approve")
 async def approve_deletion(
