@@ -90,8 +90,16 @@ export function MedOrgDetailModal({ org, isOpen, onClose, readOnly = false }: Me
 
             // Fetch extra data
             setIsLoadingData(true);
-            const user = useAuthStore.getState().user;
-            const doctorParams = (user?.role?.toLowerCase() === 'med_rep' || user?.role?.toLowerCase() === 'regional_manager') ? { rep_id: user.id } : {};
+            const assignedRepId = org.assigned_reps?.[0]?.id || org.assigned_rep_ids?.[0];
+            const doctorParams: any = {};
+            if (assignedRepId) {
+                doctorParams.rep_id = assignedRepId;
+            } else {
+                const user = useAuthStore.getState().user;
+                if (user?.role?.toLowerCase() === 'med_rep' || user?.role?.toLowerCase() === 'regional_manager') {
+                    doctorParams.rep_id = user.id;
+                }
+            }
 
             Promise.all([
                 fetchOrgStock(org.id),
