@@ -35,9 +35,6 @@ async def get_comprehensive_reports(
     - details: List of per-doctor/product breakdown with plan vs fact comparison.
     - charts: Time-series data for historical trends.
     """
-    Generate comprehensive reports for Director and Deputy Director.
-    Aggregates plans, facts (sales), and bonuses based on the selected period.
-    """
     if current_user.role not in [UserRole.DIRECTOR]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
