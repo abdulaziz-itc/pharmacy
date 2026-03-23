@@ -20,7 +20,8 @@ export default function DeletionApprovalPage() {
     setIsLoading(true);
     try {
       const result = await warehouseApi.getDeletionRequests();
-      setData(result);
+      // Force refresh data-table if needed by ensuring state is truly new
+      setData({ ...result });
     } catch (error) {
       console.error(error);
       toast.error('Ошибка при загрузке запросов на удаление');

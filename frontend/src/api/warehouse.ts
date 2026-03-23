@@ -41,7 +41,7 @@ export const warehouseApi = {
   },
   
   getDeletionRequests: async () => {
-    const response = await api.get<DeletionRequest>('/domain/warehouse/deletion-requests');
+    const response = await api.get<DeletionRequest>(`/domain/warehouse/deletion-requests?t=${new Date().getTime()}`);
     return response.data;
   },
   
