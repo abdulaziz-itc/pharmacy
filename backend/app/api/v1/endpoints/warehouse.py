@@ -121,30 +121,47 @@ async def get_deletion_requests(
     
     try:
         # Reservations pending deletion
-        res_query = select(Reservation).options(
-            selectinload(Reservation.med_org),
-            selectinload(Reservation.items).selectinload(ReservationItem.product)
-        ).where(Reservation.is_deletion_pending == True)
+        res_query = (
+            select(Reservation)
+            .options(
+                selectinload(Reservation.med_org),
+                selectinload(Reservation.items).selectinload(ReservationItem.product)
+            )
+            .where(Reservation.is_deletion_pending == True)
+        )
         res_result = await db.execute(res_query)
         reservations = res_result.scalars().all()
         
         # Invoices pending deletion (Facturas)
-        inv_query = select(Invoice).join(
-            Reservation, Invoice.reservation_id == Reservation.id
-        ).options(
-            selectinload(Invoice.reservation).selectinload(Reservation.med_org),
-            selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product)
-        ).where(Invoice.is_deletion_pending == True)
+        inv_query = (
+            select(Invoice)
+            .options(
+                selectinload(Invoice.reservation).options(
+                    selectinload(Reservation.med_org),
+                    selectinload(Reservation.items).selectinload(ReservationItem.product)
+                )
+            )
+            .where(Invoice.is_deletion_pending == True)
+        )
         inv_result = await db.execute(inv_query)
         invoices = inv_result.scalars().all()
         
         # Pending returns
-        ret_query = select(Reservation).options(
-            selectinload(Reservation.med_org),
-            selectinload(Reservation.items).selectinload(ReservationItem.product)
-        ).where(Reservation.is_return_pending == True)
+        ret_query = (
+            select(Reservation)
+            .options(
+                selectinload(Reservation.med_org),
+                selectinload(Reservation.items).selectinload(ReservationItem.product)
+            )
+            .where(Reservation.is_return_pending == True)
+        )
         ret_result = await db.execute(ret_query)
         return_requests = ret_result.scalars().all()
+
+        # Debug logging
+        logging.info(f"Found {len(reservations)} reservations, {len(invoices)} invoices, {len(return_requests)} returns pending approval")
+        if invoices and invoices[0].reservation:
+            logging.info(f"First invoice (# {invoices[0].id}) has {len(invoices[0].reservation.items)} items in reservation #{invoices[0].reservation.id}")
         
         return {
             "reservations": reservations,
