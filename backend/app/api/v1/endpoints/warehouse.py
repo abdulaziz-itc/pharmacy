@@ -173,10 +173,12 @@ async def get_deletion_requests(
             schema.factura_number = f"DB_ID:{i.id} | ALL:{actual_ids_in_db} | {i.factura_number}"
             debug_invoices.append(schema)
 
+        import time
         return {
             "reservations": [ApprovalReservationSchema.from_orm(r) for r in reservations],
             "invoices": debug_invoices,
-            "return_requests": [ApprovalReservationSchema.from_orm(r) for r in return_requests]
+            "return_requests": [ApprovalReservationSchema.from_orm(r) for r in return_requests],
+            "debug_timestamp": time.time()
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -309,13 +311,20 @@ async def force_cleanup(
         await db.execute(delete(UnassignedSale).where(UnassignedSale.invoice_id.in_(pending_inv_ids)))
 
         # 3. Delete invoices
-        await db.execute(delete(Invoice).where(Invoice.is_deletion_pending == True))
+        res_inv = await db.execute(delete(Invoice).where(Invoice.is_deletion_pending == True))
+        invoices_deleted = res_inv.rowcount
         
         # 4. Delete reservations (cascade triggers for items)
-        await db.execute(delete(Reservation).where(Reservation.is_deletion_pending == True))
+        res_res = await db.execute(delete(Reservation).where(Reservation.is_deletion_pending == True))
+        reservations_deleted = res_res.rowcount
         
         await db.commit()
-        return {"ok": True, "message": "All items marked for deletion have been forcefully removed from the DB."}
+        return {
+            "ok": True, 
+            "message": f"CLEANUP SUCCESS: Deleted {invoices_deleted} invoices and {reservations_deleted} reservations.",
+            "invoices_deleted": invoices_deleted,
+            "reservations_deleted": reservations_deleted
+        }
     except Exception as e:
         await db.rollback()
         logging.error(f"Force cleanup failed: {str(e)}", exc_info=True)
