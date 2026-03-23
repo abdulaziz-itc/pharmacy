@@ -349,7 +349,11 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                             <span className="text-xl">{selectedOrgTypeObj?.icon}</span>
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-semibold text-slate-800 text-sm truncate">{org.name}</p>
-                                                <p className="text-xs text-slate-400">{org.address || org.phone || '—'}</p>
+                                                <p className="text-xs text-slate-400">
+                                                    {org.inn ? `ИНН: ${org.inn} ` : ''}
+                                                    {org.inn && org.address ? '• ' : ''}
+                                                    {org.address || (!org.inn ? '—' : '')}
+                                                </p>
                                             </div>
                                             {selectedOrg === org.id.toString() && (
                                                 <Check className="w-4 h-4 text-violet-600 shrink-0" />
