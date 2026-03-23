@@ -176,6 +176,7 @@ async def approve_deletion(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
+    logging.info(f"ACTION: {entity_type} ID {entity_id} request for approval by user {current_user.id}")
     if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
@@ -208,6 +209,7 @@ async def reject_deletion(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
+    logging.info(f"ACTION: {entity_type} ID {entity_id} request for REJECTION by user {current_user.id}")
     if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
@@ -229,6 +231,8 @@ async def reject_deletion(
             inv.deletion_requested_by_id = None
             await db.commit()
             await log_action(db, current_user, "DELETE_REJECTED", "Invoice", entity_id, f"Удаление фактуры #{entity_id} отклонено.", request)
+        else:
+            raise HTTPException(status_code=404, detail="Invoice not found")
     
     return {"ok": True}
 
