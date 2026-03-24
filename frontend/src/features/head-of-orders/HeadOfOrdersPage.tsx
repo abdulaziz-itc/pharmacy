@@ -1277,7 +1277,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             </tr>
                                         ) : (filteredInv as any[]).map((inv, idx) => {
                                             const res = inv.reservation || {};
-                                            const paidAmount = (inv.payments || []).reduce((acc: number, p: any) => acc + p.amount, 0);
+                                            const paidAmount = inv.paid_amount || 0;
                                             const debt = (inv.total_amount || 0) - paidAmount;
                                             const discount = res.items?.[0]?.discount_percent || 0;
                                             const region = res.med_org?.region?.name || '—';
