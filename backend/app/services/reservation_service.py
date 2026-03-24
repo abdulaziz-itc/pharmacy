@@ -326,7 +326,9 @@ class ReservationService:
                     # SYNC: Reduce paid_amount on invoices that carry this credit
                     logger.info(f"Applying credit: {credit_to_apply} for MedOrg {reservation.med_org_id}")
                     
-                    overpaid_invoices_query = select(Invoice).join(Reservation).where(
+                    overpaid_invoices_query = select(Invoice).join(
+                        Reservation, Invoice.reservation_id == Reservation.id
+                    ).where(
                         (Reservation.med_org_id == reservation.med_org_id) &
                         (Invoice.paid_amount > Invoice.total_amount) &
                         (Invoice.id != invoice.id)
