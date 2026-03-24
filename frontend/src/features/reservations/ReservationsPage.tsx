@@ -192,6 +192,10 @@ export default function ReservationsPage() {
                 values={filterValues}
                 onChange={setFilterValues}
                 onSearch={() => refetch()}
+                onReset={() => {
+                    setFilterValues({ dateStart: '', dateEnd: '', selectedMedRep: 'all', selectedCompany: 'all', selectedType: 'all', selectedInvoiceType: 'all', invNumSearch: '' });
+                    refetch();
+                }}
             />
 
             <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border overflow-hidden hover-lift transition-all duration-500 min-h-[500px]">

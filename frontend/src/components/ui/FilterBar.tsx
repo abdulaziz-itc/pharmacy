@@ -21,6 +21,7 @@ interface FilterBarProps {
     values: FilterValues;
     onChange: (values: FilterValues) => void;
     onSearch: () => void;
+    onReset?: () => void;
 }
 
 const FILTER_ORG_TYPES = [
@@ -30,7 +31,7 @@ const FILTER_ORG_TYPES = [
     { label: 'Прочее', value: 'other' },
 ];
 
-export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch }) => {
+export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch, onReset }) => {
     const user = useAuthStore((state) => state.user);
     const isMedRep = user?.role === 'med_rep';
 
@@ -191,13 +192,24 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
                             className="h-10 border-slate-100 bg-slate-50/50 rounded-xl font-bold text-slate-700 placeholder:text-slate-300 focus:bg-white focus:border-orange-500 transition-all"
                         />
                     </div>
-                    <Button 
-                        onClick={onSearch}
-                        className="h-10 px-6 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg shadow-slate-900/10 transition-all flex items-center gap-2"
-                    >
-                        <Search className="w-4 h-4" />
-                        поиск
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button 
+                            onClick={onSearch}
+                            className="h-10 px-6 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg shadow-slate-900/10 transition-all flex items-center gap-2"
+                        >
+                            <Search className="w-4 h-4" />
+                            поиск
+                        </Button>
+                        {onReset && (
+                            <Button
+                                onClick={onReset}
+                                variant="outline"
+                                className="h-10 px-4 rounded-xl font-bold border-rose-200 text-rose-500 hover:bg-rose-50 transition-all"
+                            >
+                                Сбросить
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
