@@ -291,7 +291,7 @@ async def list_invoices(
     from app.models.warehouse import Warehouse as WarehouseModel
     
     try:
-        result = await db.execute(
+        query = (
             select(InvoiceModel)
             .join(InvoiceModel.reservation)
             .where(Reservation.status.in_(["approved", "paid", "partial"]))
@@ -305,6 +305,7 @@ async def list_invoices(
                 selectinload(InvoiceModel.reservation).selectinload(Reservation.invoice),
                 selectinload(InvoiceModel.payments).selectinload(Payment.processed_by),
             )
+        )
         
         if warehouse_id:
             query = query.where(Reservation.warehouse_id == warehouse_id)
