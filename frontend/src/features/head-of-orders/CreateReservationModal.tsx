@@ -123,13 +123,17 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
         }
     };
 
-    // Compute stock map from all warehouses: product_id → total quantity
-    const stockMap = warehouses.reduce((acc: Record<number, number>, wh: any) => {
-        (wh.stocks || []).forEach((s: any) => {
-            acc[s.product_id] = (acc[s.product_id] || 0) + s.quantity;
-        });
+    // Compute stock map only from the SELECTED warehouse: product_id → quantity
+    const selectedWarehouse = warehouses.find((wh: any) => wh.id.toString() === selectedWh);
+    const stockMap = (selectedWarehouse?.stocks || []).reduce((acc: Record<number, number>, s: any) => {
+        acc[s.product_id] = (acc[s.product_id] || 0) + s.quantity;
         return acc;
     }, {} as Record<number, number>);
+
+    // Products available in selected warehouse (if no wh selected, show all)
+    const availableProducts = selectedWh
+        ? products.filter((p: any) => stockMap[p.id] !== undefined)
+        : products;
 
     const handleNext = () => {
         if (step === 2) fetchOrgs(selectedMedRep, orgType);
@@ -494,7 +498,11 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                                     <SelectValue placeholder="Выберите препарат..." />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {products.map((p: any) => (
+                                                    {availableProducts.length === 0 ? (
+                                                        <div className="p-4 text-center text-slate-400 text-sm italic">
+                                                            Выберите склад для отображения товаров
+                                                        </div>
+                                                    ) : availableProducts.map((p: any) => (
                                                         <SelectItem key={p.id} value={p.id.toString()}>
                                                             <span className="flex items-center gap-2">
                                                                 {p.name}
