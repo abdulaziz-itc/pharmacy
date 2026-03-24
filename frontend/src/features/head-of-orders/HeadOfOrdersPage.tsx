@@ -134,11 +134,11 @@ const HeadOfOrdersPage: React.FC = () => {
     const [filterCompanies, setFilterCompanies] = useState<string[]>([]);
     // Org types are a fixed enum — hardcoded so they never depend on data
     const FILTER_ORG_TYPES: { value: string; label: string }[] = [
-        { value: 'clinic', label: 'Klinika' },
-        { value: 'pharmacy', label: 'Dorixona' },
-        { value: 'hospital', label: 'Kasalxona' },
-        { value: 'lechebniy', label: 'Lechebniy' },
-        { value: 'wholesale', label: 'Ulgurji' },
+        { value: 'clinic', label: 'Клиника' },
+        { value: 'pharmacy', label: 'Аптека' },
+        { value: 'hospital', label: 'Больница' },
+        { value: 'lechebniy', label: 'ЛПУ' },
+        { value: 'wholesale', label: 'Оптовик' },
     ];
 
     // ----- Modals -----
