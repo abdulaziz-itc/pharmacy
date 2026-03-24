@@ -69,7 +69,10 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClos
                                 variant="outline"
                                 size="sm"
                                 className="h-7 px-4 text-[10px] font-bold border-blue-200 text-blue-700 hover:bg-blue-50 rounded-lg"
-                                onClick={() => setAmount(invoice.total_amount.toString())}
+                                onClick={() => {
+                                    const debt = invoice.total_amount - (invoice.paid_amount || 0);
+                                    setAmount(Math.round(debt).toString());
+                                }}
                             >
                                 100%
                             </Button>
@@ -78,7 +81,10 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClos
                                 variant="outline"
                                 size="sm"
                                 className="h-7 px-4 text-[10px] font-bold border-blue-200 text-blue-700 hover:bg-blue-50 rounded-lg"
-                                onClick={() => setAmount((invoice.total_amount * 0.5).toString())}
+                                onClick={() => {
+                                    const debt = invoice.total_amount - (invoice.paid_amount || 0);
+                                    setAmount(Math.round(debt * 0.5).toString());
+                                }}
                             >
                                 50%
                             </Button>
