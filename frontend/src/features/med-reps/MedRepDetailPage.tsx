@@ -216,6 +216,7 @@ export default function MedRepDetailPage() {
                                 Бонус: {bonusBalance.toLocaleString('ru-RU')} UZS
                             </Button>
 
+                            {useAuthStore.getState().user?.role !== 'med_rep' && (
                             <Button
                                 onClick={() => setIsReassignModalOpen(true)}
                                 className="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 font-bold rounded-xl shadow-sm h-11 px-5"
@@ -223,6 +224,7 @@ export default function MedRepDetailPage() {
                                 <ArrowRightLeft className="w-4 h-4 mr-2" />
                                 Передать территорию
                             </Button>
+                            )}
                         </div>
                     </div>
                 </div>
