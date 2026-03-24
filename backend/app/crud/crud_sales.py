@@ -707,8 +707,9 @@ async def execute_return_reservation_items(db: AsyncSession, reservation_id: int
                 if reservation.med_org:
                     reservation.med_org.credit_balance = (reservation.med_org.credit_balance or 0.0) + excess
                 
-                # Normalize paid_amount to exactly total_amount
-                reservation.invoice.paid_amount = reservation.invoice.total_amount
+                # We NO LONGER normalize to total_amount here, 
+                # so that (total_amount - paid_amount) shows the negative credit.
+                pass
                 
             # Update Invoice Status
             if reservation.invoice.paid_amount >= reservation.invoice.total_amount and reservation.invoice.total_amount >= 0:

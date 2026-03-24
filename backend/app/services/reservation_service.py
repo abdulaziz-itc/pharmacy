@@ -323,6 +323,26 @@ class ReservationService:
                     invoice.paid_amount += credit_to_apply
                     reservation.med_org.credit_balance -= credit_to_apply
                     
+                    # SYNC: Reduce paid_amount on invoices that carry this credit
+                    from app.models.sales import Invoice as InvoiceModel
+                    overpaid_invoices_query = select(InvoiceModel).join(
+                        Reservation, InvoiceModel.reservation_id == Reservation.id
+                    ).where(
+                        (Reservation.med_org_id == reservation.med_org_id) &
+                        (InvoiceModel.paid_amount > InvoiceModel.total_amount)
+                    ).order_by(InvoiceModel.date.asc()).with_for_update()
+                    
+                    overpaid_res = await db.execute(overpaid_invoices_query)
+                    overpaid_invoices = overpaid_res.scalars().all()
+                    
+                    temp_credit = credit_to_apply
+                    for op_inv in overpaid_invoices:
+                        if temp_credit <= 0: break
+                        excess = op_inv.paid_amount - op_inv.total_amount
+                        reduction = min(temp_credit, excess)
+                        op_inv.paid_amount -= reduction
+                        temp_credit -= reduction
+
                     if invoice.paid_amount >= invoice.total_amount:
                         invoice.status = InvoiceStatus.PAID
                     else:

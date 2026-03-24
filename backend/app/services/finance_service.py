@@ -31,11 +31,13 @@ class FinancialService:
                     raise HTTPException(status_code=400, detail="Invoice is already fully paid")
                 
                 # Update Paid Amount (with overpayment handling)
+                initial_payment_amount = obj_in.amount
                 remaining_payment = obj_in.amount
-                to_apply = min(remaining_payment, invoice.total_amount - invoice.paid_amount)
                 
-                invoice.paid_amount += to_apply
-                remaining_payment -= to_apply
+                # First, pay THIS invoice up to 100%
+                to_apply_this = min(remaining_payment, invoice.total_amount - invoice.paid_amount)
+                invoice.paid_amount += to_apply_this
+                remaining_payment -= to_apply_this
                 
                 if invoice.paid_amount >= invoice.total_amount:
                     invoice.status = InvoiceStatus.PAID
@@ -43,9 +45,10 @@ class FinancialService:
                     invoice.status = InvoiceStatus.PARTIAL
                 
                 # 2. Create Payment Record (Postupleniya) for THIS invoice
+                # We record the WHOLE amount here as the payment event, but we'll distribute logic below
                 payment = Payment(
                     invoice_id=invoice.id,
-                    amount=to_apply,
+                    amount=initial_payment_amount,
                     payment_type=obj_in.payment_type,
                     processed_by_id=processor_id,
                     comment=obj_in.comment
@@ -183,7 +186,7 @@ class FinancialService:
                         )
                         db.add(other_payment)
                     
-                    # If still remaining, add to organization's credit balance
+                    # If still remaining, add to organization's credit balance AND THIS invoice
                     if remaining_payment > 0:
                         from app.models.crm import MedicalOrganization
                         org_query = select(MedicalOrganization).where(MedicalOrganization.id == reservation.med_org_id).with_for_update()
@@ -191,6 +194,8 @@ class FinancialService:
                         org = org_result.scalar_one_or_none()
                         if org:
                             org.credit_balance = (org.credit_balance or 0.0) + remaining_payment
+                            # Push excess to initial invoice to show -Debt
+                            invoice.paid_amount += remaining_payment
 
                 await db.commit()
                 return payment
