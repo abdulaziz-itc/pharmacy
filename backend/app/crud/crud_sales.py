@@ -634,7 +634,10 @@ async def execute_return_reservation_items(db: AsyncSession, reservation_id: int
         raise HTTPException(status_code=404, detail="Reservation not found")
         
     if not reservation.is_return_pending:
-        raise HTTPException(status_code=400, detail="No pending return for this reservation")
+        # Diagnostic logging
+        import logging
+        logging.error(f"400 ERROR: execute_return called for Reservation #{reservation_id} but is_return_pending is False.")
+        raise HTTPException(status_code=400, detail=f"No pending return for reservation #{reservation_id}")
         
     # Process returns
     returned_amount_total = 0.0
@@ -693,7 +696,7 @@ async def execute_return_reservation_items(db: AsyncSession, reservation_id: int
 
     # Apply global reductions
     if returned_amount_total > 0:
-        deduction_with_nds = returned_amount_total * (1 + (reservation.nds_percent / 100.0))
+        deduction_with_nds = returned_amount_total * (1 + ((reservation.nds_percent or 0) / 100.0))
         reservation.total_amount -= deduction_with_nds
         if reservation.invoice:
             reservation.invoice.total_amount -= deduction_with_nds

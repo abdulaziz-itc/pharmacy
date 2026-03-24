@@ -206,8 +206,36 @@ async def get_deletion_requests(
                 "items": res_items
             }
 
+        def map_return(r):
+            res_items = []
+            return_total_net = 0.0
+            for item in r.items:
+                if (item.return_requested_quantity or 0) > 0:
+                    qty = item.return_requested_quantity
+                    item_net = (qty * item.price) * (1 - (item.discount_percent or 0) / 100)
+                    return_total_net += item_net
+                    res_items.append({
+                        "product_name": item.product.name if item.product else "N/A",
+                        "quantity": qty,
+                        "price": item.price,
+                        "total_price": item_net # Value being returned
+                    })
+            
+            # Return with NDS
+            return_total_with_nds = return_total_net * (1 + (r.nds_percent or 0) / 100)
+            
+            return {
+                "id": r.id,
+                "customer_name": r.customer_name,
+                "med_org_name": r.med_org.name if r.med_org else None,
+                "date": r.date.isoformat() if r.date else None,
+                "total_amount": return_total_with_nds, # Actual return amount
+                "full_reservation_amount": r.total_amount,
+                "items": res_items
+            }
+
         mapped_reservations = [map_reservation(r) for r in reservations]
-        mapped_returns = [map_reservation(r) for r in return_requests]
+        mapped_returns = [map_return(r) for r in return_requests]
         
         # Invoices
         debug_invoices = []
