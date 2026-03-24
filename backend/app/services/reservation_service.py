@@ -324,24 +324,29 @@ class ReservationService:
                     reservation.med_org.credit_balance -= credit_to_apply
                     
                     # SYNC: Reduce paid_amount on invoices that carry this credit
-                    from app.models.sales import Invoice as InvoiceModel
-                    overpaid_invoices_query = select(InvoiceModel).join(
-                        Reservation, InvoiceModel.reservation_id == Reservation.id
-                    ).where(
+                    logger.info(f"Applying credit: {credit_to_apply} for MedOrg {reservation.med_org_id}")
+                    
+                    overpaid_invoices_query = select(Invoice).join(Reservation).where(
                         (Reservation.med_org_id == reservation.med_org_id) &
-                        (InvoiceModel.paid_amount > InvoiceModel.total_amount)
-                    ).order_by(InvoiceModel.date.asc()).with_for_update()
+                        (Invoice.paid_amount > Invoice.total_amount) &
+                        (Invoice.id != invoice.id)
+                    ).order_by(Invoice.date.asc()).with_for_update()
                     
                     overpaid_res = await db.execute(overpaid_invoices_query)
                     overpaid_invoices = overpaid_res.scalars().all()
+                    
+                    logger.info(f"Found {len(overpaid_invoices)} overpaid invoices to sync")
                     
                     temp_credit = credit_to_apply
                     for op_inv in overpaid_invoices:
                         if temp_credit <= 0: break
                         excess = op_inv.paid_amount - op_inv.total_amount
                         reduction = min(temp_credit, excess)
+                        logger.info(f"Reducing Invoice #{op_inv.id} paid_amount by {reduction}")
                         op_inv.paid_amount -= reduction
                         temp_credit -= reduction
+                    
+                    await db.flush()
 
                     if invoice.paid_amount >= invoice.total_amount:
                         invoice.status = InvoiceStatus.PAID
