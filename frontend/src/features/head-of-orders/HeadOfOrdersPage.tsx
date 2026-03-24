@@ -557,7 +557,7 @@ const HeadOfOrdersPage: React.FC = () => {
         // Invoice Type Filter
         if (selectedInvoiceType === 'regular' && res.is_tovar_skidka) return false;
         if (selectedInvoiceType === 'tovar_skidka' && !res.is_tovar_skidka) return false;
-        if (selectedInvoiceType === 'through_wholesale' && !res.warehouse_id) return false;
+        if (selectedInvoiceType === 'through_wholesale' && !res.warehouse?.is_wholesale) return false;
 
         // Warehouse Filter
         if (selectedWhFilter !== 'all' && res.warehouse_id?.toString() !== selectedWhFilter) return false;
@@ -587,7 +587,7 @@ const HeadOfOrdersPage: React.FC = () => {
         // Invoice Type Filter
         if (selectedInvoiceType === 'regular' && res.is_tovar_skidka) return false;
         if (selectedInvoiceType === 'tovar_skidka' && !res.is_tovar_skidka) return false;
-        if (selectedInvoiceType === 'through_wholesale' && !res.warehouse_id) return false;
+        if (selectedInvoiceType === 'through_wholesale' && !res.warehouse?.is_wholesale) return false;
 
         // Search Filter
         const matchesSearch = invNumSearch ? (inv.factura_number || '').toLowerCase().includes(invNumSearch.toLowerCase()) : true;
@@ -1076,8 +1076,8 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-800 tracking-tight">{medRepName}</td>
                                                     <td className="px-3 py-4">
-                                                        <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase tracking-wider ${res.is_tovar_skidka ? 'bg-orange-100 text-orange-700' : res.warehouse_id ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                            {res.is_tovar_skidka ? 'Товарная скидка' : res.warehouse_id ? 'Через оптовик' : 'Обычная'}
+                                                        <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase tracking-wider ${res.is_tovar_skidka ? 'bg-orange-100 text-orange-700' : res.warehouse?.is_wholesale ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                            {res.is_tovar_skidka ? 'Товарная скидка' : res.warehouse?.is_wholesale ? 'Через оптовик' : 'Обычная'}
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-600 uppercase text-[9px] tracking-widest italic">{orgType}</td>
@@ -1389,8 +1389,8 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-800 tracking-tight">{medRepName}</td>
                                                     <td className="px-3 py-4">
-                                                        <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase tracking-wider ${res.is_tovar_skidka ? 'bg-orange-100 text-orange-700' : res.warehouse_id ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                            {res.is_tovar_skidka ? 'Товарная скидка' : res.warehouse_id ? 'Через оптовик' : 'Обычная'}
+                                                        <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase tracking-wider ${res.is_tovar_skidka ? 'bg-orange-100 text-orange-700' : res.warehouse?.is_wholesale ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                            {res.is_tovar_skidka ? 'Товарная скидка' : res.warehouse?.is_wholesale ? 'Через оптовик' : 'Обычная'}
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-600 uppercase text-[9px] tracking-widest italic">{orgType}</td>
