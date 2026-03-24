@@ -604,12 +604,11 @@ const HeadOfOrdersPage: React.FC = () => {
     const stats = {
         totalAmount: filteredInv.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0),
         paidAmount: filteredInv.reduce((sum, inv) => {
-            const invoicePaymentsSum = (inv.payments || []).reduce((pAcc: number, p: any) => pAcc + (Number(p.amount) || 0), 0);
-            return sum + invoicePaymentsSum;
+            return sum + (Number(inv.paid_amount) || 0);
         }, 0),
         debtAmount: filteredInv.reduce((sum, inv) => {
             const total = Number(inv.total_amount) || 0;
-            const paid = (inv.payments || []).reduce((pAcc: number, p: any) => pAcc + (Number(p.amount) || 0), 0);
+            const paid = Number(inv.paid_amount) || 0;
             return sum + (total - paid);
         }, 0),
         resCount: allFilteredReservations.length,
