@@ -120,6 +120,7 @@ async def fulfill_stock(
 @router.get("/reservations/", response_model=List[ReservationSchema])
 async def list_reservations(
     status: Optional[str] = None,
+    warehouse_id: Optional[int] = None,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
@@ -140,6 +141,8 @@ async def list_reservations(
         ).order_by(Reservation.date.desc())
         if status:
             query = query.where(Reservation.status == status)
+        if warehouse_id:
+            query = query.where(Reservation.warehouse_id == warehouse_id)
         result = await db.execute(query)
         return result.scalars().all()
     except Exception as e:
@@ -276,6 +279,7 @@ async def create_payment(
 
 @router.get("/invoices/", response_model=List[InvoiceSchema])
 async def list_invoices(
+    warehouse_id: Optional[int] = None,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
@@ -300,8 +304,12 @@ async def list_invoices(
                 selectinload(InvoiceModel.reservation).selectinload(Reservation.warehouse).selectinload(WarehouseModel.stocks),
                 selectinload(InvoiceModel.reservation).selectinload(Reservation.invoice),
                 selectinload(InvoiceModel.payments).selectinload(Payment.processed_by),
-            ).order_by(InvoiceModel.id.desc())
-        )
+            )
+        
+        if warehouse_id:
+            query = query.where(Reservation.warehouse_id == warehouse_id)
+            
+        result = await db.execute(query.order_by(InvoiceModel.id.desc()))
         return result.scalars().all()
     except Exception as e:
         import traceback

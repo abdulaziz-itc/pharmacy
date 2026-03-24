@@ -126,6 +126,7 @@ const HeadOfOrdersPage: React.FC = () => {
 
     // ----- Wholesale tab -----
     const [medOrgs, setMedOrgs] = useState<any[]>([]);
+    const [selectedWholesaleOrg, setSelectedWholesaleOrg] = useState<any>(null);
     const [orgSearch, setOrgSearch] = useState('');
 
     // ----- Filter option lists (loaded independently from API so they work even with empty DB) -----
@@ -174,6 +175,7 @@ const HeadOfOrdersPage: React.FC = () => {
     const [selectedType, setSelectedType] = useState('all');
     const [selectedInvoiceType, setSelectedInvoiceType] = useState('all'); // 'all', 'regular', 'tovar_skidka'
     const [invNumSearch, setInvNumSearch] = useState('');
+    const [selectedWhFilter, setSelectedWhFilter] = useState('all');
 
     const [loading, setLoading] = useState(false);
     const { products, fetchProducts } = useProductStore();
@@ -321,7 +323,10 @@ const HeadOfOrdersPage: React.FC = () => {
 
     const loadReservations = async () => {
         setLoading(true);
-        try { setReservations(await getReservations('pending')); }
+        try { 
+            const whId = selectedWhFilter !== 'all' ? Number(selectedWhFilter) : undefined;
+            setReservations(await getReservations('pending', whId)); 
+        }
         catch { toast.error("Ошибка загрузки броней"); }
         finally { setLoading(false); }
     };
@@ -368,7 +373,10 @@ const HeadOfOrdersPage: React.FC = () => {
 
     const loadInvoices = async () => {
         setLoading(true);
-        try { setInvoices(await getInvoices()); }
+        try { 
+            const whId = selectedWhFilter !== 'all' ? Number(selectedWhFilter) : undefined;
+            setInvoices(await getInvoices(whId)); 
+        }
         catch { toast.error("Ошибка загрузки фактур"); }
         finally { setLoading(false); }
     };
@@ -550,6 +558,9 @@ const HeadOfOrdersPage: React.FC = () => {
         if (selectedInvoiceType === 'regular' && res.is_tovar_skidka) return false;
         if (selectedInvoiceType === 'tovar_skidka' && !res.is_tovar_skidka) return false;
 
+        // Warehouse Filter
+        if (selectedWhFilter !== 'all' && res.warehouse_id?.toString() !== selectedWhFilter) return false;
+
         return true;
     });
 
@@ -578,7 +589,12 @@ const HeadOfOrdersPage: React.FC = () => {
 
         // Search Filter
         const matchesSearch = invNumSearch ? (inv.factura_number || '').toLowerCase().includes(invNumSearch.toLowerCase()) : true;
-        return matchesSearch;
+        if (!matchesSearch) return false;
+
+        // Warehouse Filter
+        if (selectedWhFilter !== 'all' && res.warehouse_id?.toString() !== selectedWhFilter) return false;
+
+        return true;
     });
 
     // --- Stats Calculation ---
@@ -773,7 +789,7 @@ const HeadOfOrdersPage: React.FC = () => {
                     <div className="flex-1 p-4 bg-slate-50/50 overflow-auto">
                         {/* --- MODERN FILTER BAR --- */}
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
-                            <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+                            <div className="grid grid-cols-1 md:grid-cols-8 gap-3 items-end">
                                 {/* Date Start */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ДАТА НАЧАЛА</p>
@@ -853,7 +869,22 @@ const HeadOfOrdersPage: React.FC = () => {
                                         className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm"
                                     />
                                 </div>
-                                <Button className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest w-full shadow-sm mt-auto">ПОИСК</Button>
+                                {/* Warehouse Filter */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">СКЛАД</p>
+                                    <Select value={selectedWhFilter} onValueChange={setSelectedWhFilter}>
+                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
+                                            <SelectValue placeholder="Все" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Все</SelectItem>
+                                            {warehouses.map(wh => (
+                                                <SelectItem key={wh.id} value={wh.id.toString()}>{wh.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button onClick={loadReservations} className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest w-full shadow-sm mt-auto">ПОИСК</Button>
                             </div>
                         </div>
 
@@ -1081,7 +1112,7 @@ const HeadOfOrdersPage: React.FC = () => {
 
                         {/* FILTER BAR */}
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
-                            <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+                            <div className="grid grid-cols-1 md:grid-cols-8 gap-3 items-end">
                                 {/* Date Start */}
                                 <div className="space-y-1.5">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ДАТА НАЧАЛА</p>
@@ -1161,7 +1192,22 @@ const HeadOfOrdersPage: React.FC = () => {
                                         className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm"
                                     />
                                 </div>
-                                <Button className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest w-full shadow-sm mt-auto">ПОИСК</Button>
+                                {/* Warehouse Filter */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">СКЛАД</p>
+                                    <Select value={selectedWhFilter} onValueChange={setSelectedWhFilter}>
+                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
+                                            <SelectValue placeholder="Все" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Все</SelectItem>
+                                            {warehouses.map(wh => (
+                                                <SelectItem key={wh.id} value={wh.id.toString()}>{wh.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button onClick={loadInvoices} className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest w-full shadow-sm mt-auto">ПОИСК</Button>
                             </div>
                         </div>
 
@@ -1408,8 +1454,11 @@ const HeadOfOrdersPage: React.FC = () => {
                                         </div>
                                         <Button size="sm" variant="outline"
                                             className="border-blue-200 text-blue-600 hover:bg-blue-50 text-[10px] font-bold uppercase tracking-wider h-8"
-                                            onClick={() => setIsReservationModalOpen(true)}>
-                                            <Plus className="w-3 h-3 mr-1" /> Бронь
+                                            onClick={() => {
+                                                setSelectedWholesaleOrg(org);
+                                                setIsReservationModalOpen(true);
+                                            }}>
+                                            <Plus className="w-3 h-3 mr-1" /> ВЫДАТЬ НА ОТВЕТ ХРАН.
                                         </Button>
                                     </div>
                                 </div>
@@ -1694,8 +1743,14 @@ const HeadOfOrdersPage: React.FC = () => {
             />
             <CreateReservationModal
                 isOpen={isReservationModalOpen}
-                onClose={() => setIsReservationModalOpen(false)}
+                onClose={() => {
+                    setIsReservationModalOpen(false);
+                    setSelectedWholesaleOrg(null);
+                }}
                 onSuccess={loadReservations}
+                initialOrgId={selectedWholesaleOrg?.id}
+                initialOrgType={selectedWholesaleOrg?.org_type}
+                initialMedRepId={selectedWholesaleOrg?.assigned_reps?.[0]?.id}
             />
 
             {/* Confirmation for Activation */}

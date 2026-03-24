@@ -20,8 +20,18 @@ async def get_warehouses(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    # Only Warehouse Head, Orders Head, Director, Admin
-    allowed = {UserRole.HEAD_OF_WAREHOUSE, UserRole.HEAD_OF_ORDERS, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN}
+    # Allowed roles for listing warehouses
+    allowed = {
+        UserRole.HEAD_OF_WAREHOUSE, 
+        UserRole.HEAD_OF_ORDERS, 
+        UserRole.DIRECTOR, 
+        UserRole.DEPUTY_DIRECTOR, 
+        UserRole.ADMIN,
+        UserRole.MED_REP,
+        UserRole.PRODUCT_MANAGER,
+        UserRole.FIELD_FORCE_MANAGER,
+        UserRole.REGIONAL_MANAGER
+    }
     if current_user.role not in allowed:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     

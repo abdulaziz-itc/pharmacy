@@ -37,8 +37,10 @@ export const fulfillStock = async (warehouseId: number, productId: number, quant
     return response.data;
 };
 
-export const getReservations = async (status?: string) => {
-    const response = await axiosInstance.get('/domain/orders/management/reservations/', { params: { status } });
+export const getReservations = async (status?: string, warehouseId?: number) => {
+    const response = await axiosInstance.get('/domain/orders/management/reservations/', { 
+        params: { status, warehouse_id: warehouseId } 
+    });
     return response.data;
 };
 
@@ -57,8 +59,10 @@ export const deleteReservation = async (reservationId: number) => {
     return response.data;
 };
 
-export const getInvoices = async () => {
-    const response = await axiosInstance.get('/domain/orders/management/invoices/');
+export const getInvoices = async (warehouseId?: number) => {
+    const response = await axiosInstance.get('/domain/orders/management/invoices/', {
+        params: { warehouse_id: warehouseId }
+    });
     return response.data;
 };
 

@@ -232,8 +232,27 @@ class ReservationService:
             invoice.total_amount = reservation.total_amount
 
             # 5. Increment Pharmacy Stock (Ostatki Aptek)
+            # For Wholesale: Also create/update a dedicated Warehouse entry
+            from app.models.crm import MedicalOrganizationType
+            is_wholesale = reservation.med_org and reservation.med_org.org_type == MedicalOrganizationType.WHOLESALE
+            
+            dest_warehouse = None
+            if is_wholesale:
+                wh_query = select(Warehouse).where(Warehouse.med_org_id == reservation.med_org_id)
+                wh_res = await db.execute(wh_query)
+                dest_warehouse = wh_res.scalar_one_or_none()
+                
+                if not dest_warehouse:
+                    dest_warehouse = Warehouse(
+                        name=reservation.med_org.name,
+                        warehouse_type='central',
+                        med_org_id=reservation.med_org_id
+                    )
+                    db.add(dest_warehouse)
+                    await db.flush()
+
             for item in reservation.items:
-                # Find or create stock record for this pharmacy/product
+                # A. Regular Pharmacy Stock (Ostatki Aptek)
                 stk_query = select(MedicalOrganizationStock).where(
                     (MedicalOrganizationStock.med_org_id == reservation.med_org_id) &
                     (MedicalOrganizationStock.product_id == item.product_id)
@@ -241,9 +260,6 @@ class ReservationService:
                 stk_result = await db.execute(stk_query)
                 pharm_stock = stk_result.scalar_one_or_none()
                 
-                # Check if we should increment stock. 
-                # Note: This is simpler than keeping a separate "incremented" flag, but works
-                # if we assume activation is the transition that triggers this.
                 if reservation.status != ReservationStatus.APPROVED:
                     if pharm_stock:
                         pharm_stock.quantity += item.quantity
@@ -254,6 +270,25 @@ class ReservationService:
                             quantity=item.quantity
                         )
                         db.add(pharm_stock)
+                
+                # B. Wholesale Warehouse Stock (Optional)
+                if dest_warehouse:
+                    wh_stk_query = select(Stock).where(
+                        (Stock.warehouse_id == dest_warehouse.id) &
+                        (Stock.product_id == item.product_id)
+                    ).with_for_update()
+                    wh_stk_res = await db.execute(wh_stk_query)
+                    wh_stock = wh_stk_res.scalar_one_or_none()
+                    
+                    if wh_stock:
+                        wh_stock.quantity += item.quantity
+                    else:
+                        wh_stock = Stock(
+                            warehouse_id=dest_warehouse.id,
+                            product_id=item.product_id,
+                            quantity=item.quantity
+                        )
+                        db.add(wh_stock)
 
             # 6. Create UnassignedSale records for the assigned MedRep (not necessarily creator)
             # Find the primary MedRep for this pharmacy

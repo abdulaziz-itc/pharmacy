@@ -210,7 +210,8 @@ async def get_reservations(
     is_tovar_skidka: Optional[bool] = None,
     inv_num: Optional[str] = None,
     med_rep_ids: Optional[List[int]] = None,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    warehouse_id: Optional[int] = None
 ) -> List[Reservation]:
     query = select(Reservation).options(
         selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
@@ -224,6 +225,9 @@ async def get_reservations(
 
     if status:
         query = query.where(Reservation.status == status)
+
+    if warehouse_id:
+        query = query.where(Reservation.warehouse_id == warehouse_id)
 
     # Apply Med Rep filter (Creator or Assigned)
     if med_rep_id:
@@ -351,7 +355,8 @@ async def get_invoices(
     is_tovar_skidka: Optional[bool] = None,
     inv_num: Optional[str] = None,
     med_rep_ids: Optional[List[int]] = None,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    warehouse_id: Optional[int] = None
 ) -> List[Invoice]:
     query = select(Invoice).options(
         selectinload(Invoice.payments).selectinload(Payment.processed_by),
@@ -365,6 +370,9 @@ async def get_invoices(
 
     if status:
         query = query.where(Invoice.status == status)
+
+    if warehouse_id:
+        query = query.where(Invoice.reservation.has(warehouse_id=warehouse_id))
 
     if med_rep_id:
         # Filter invoices through their associated reservation and medical organization

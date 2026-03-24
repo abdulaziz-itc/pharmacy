@@ -135,18 +135,6 @@ export default function DeletionApprovalPage() {
         </div>
       </div>
 
-      {/* DEBUG INFO */}
-      {(data as any).debug_stats && (
-        <div className="mb-6 p-4 bg-slate-900 text-cyan-400 rounded-2xl font-mono text-[10px] shadow-inner overflow-x-auto whitespace-pre">
-          DEBUG_STATS: {JSON.stringify((data as any).debug_stats, null, 2)}
-          {(data as any).error && (
-            <div className="mt-2 text-rose-400 border-t border-slate-700 pt-2">
-              ERROR: {(data as any).detail}
-              <div className="mt-1 opacity-70">TRACE: {(data as any).trace}</div>
-            </div>
-          )}
-        </div>
-      )}
 
       {isLoading && !hasRequests ? (
         <div className="flex items-center justify-center h-64">

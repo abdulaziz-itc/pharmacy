@@ -22,6 +22,7 @@ const ORG_TYPES = [
     { value: 'pharmacy', label: 'Аптека', icon: '💊' },
     { value: 'clinic', label: 'Клиника', icon: '🏥' },
     { value: 'hospital', label: 'Больница', icon: '🏨' },
+    { value: 'wholesale', label: 'Улгуржи (Оптовик)', icon: '🏢' },
 ];
 
 const STEPS = [
@@ -57,20 +58,26 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
 
     useEffect(() => {
         if (isOpen) {
-            setStep(1);
-            setSelectedMedRep('');
-            setSelectedOrg('');
+            const isWholesale = initialOrgType === 'wholesale';
+            setStep(isWholesale ? 3 : 1);
+            setOrgType(initialOrgType || 'pharmacy');
+            setSelectedMedRep(initialMedRepId?.toString() || '');
+            setSelectedOrg(initialOrgId?.toString() || '');
             setSelectedWh('');
-            setIsBonusEligible(true);
+            setIsBonusEligible(!isWholesale); // Wholesale usually doesn't have medrep bonuses in this flow
             setIsTovarSkidka(false);
             setEligibleInvoices([]);
             setSelectedSourceInvoice('');
             setItems([{ product_id: '', quantity: 1, price: 0, marketing_amount: 0 }]);
             setShowBonusConfirm(false);
-            fetchInitialData();
+            fetchInitialData().then(() => {
+                if (initialMedRepId && initialOrgType) {
+                    fetchOrgs(initialMedRepId.toString(), initialOrgType);
+                }
+            });
             fetchProducts();
         }
-    }, [isOpen]);
+    }, [isOpen, initialOrgId, initialOrgType, initialMedRepId]);
 
     const fetchInitialData = async () => {
         try {
@@ -216,7 +223,9 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
                     <div className="relative">
                         <ShoppingCart className="w-6 h-6 mb-2 opacity-80" />
-                        <h2 className="text-xl font-bold">Новый брон</h2>
+                        <h2 className="text-xl font-bold">
+                            {initialOrgType === 'wholesale' ? 'Выдача на ответ хранение' : 'Новый брон'}
+                        </h2>
                         <p className="text-white/70 text-sm mt-0.5">Шаг {step} / {STEPS.length}</p>
                     </div>
 
