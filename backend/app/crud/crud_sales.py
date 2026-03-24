@@ -579,8 +579,13 @@ async def request_return_reservation_items(db: AsyncSession, reservation_id: int
     if not reservation:
         raise HTTPException(status_code=404, detail="Reservation not found")
         
-    if reservation.is_return_pending:
-        raise HTTPException(status_code=400, detail="Return already pending for this reservation")
+    # Allow re-submitting return request if already pending (it will just overwrite)
+    # if reservation.is_return_pending:
+    #     raise HTTPException(status_code=400, detail="Return already pending for this reservation")
+    
+    # Reset all requested quantities first to allow replacement of the request
+    for item in reservation.items:
+        item.return_requested_quantity = 0
         
     paid_ratio = 0.0
     if reservation.invoice and reservation.invoice.total_amount > 0:
@@ -597,12 +602,11 @@ async def request_return_reservation_items(db: AsyncSession, reservation_id: int
             continue
             
         available = res_item.quantity - res_item.returned_quantity
-        unpaid_qty = math.floor(available * (1 - paid_ratio))
-        
-        if return_req.quantity > unpaid_qty:
+        # Allow returning all available items, even if paid (excess goes to credit balance)
+        if return_req.quantity > available:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Нельзя вернуть {return_req.quantity} шт. Доступно для возврата (неоплачено): {unpaid_qty} шт."
+                detail=f"Нельзя вернуть {return_req.quantity} шт. Доступно для возврата: {available} шт."
             )
             
         res_item.return_requested_quantity = return_req.quantity
@@ -693,8 +697,18 @@ async def execute_return_reservation_items(db: AsyncSession, reservation_id: int
         reservation.total_amount -= deduction_with_nds
         if reservation.invoice:
             reservation.invoice.total_amount -= deduction_with_nds
+            
+            # Handle Overpayment (Credit Balance) after deduction
+            if reservation.invoice.paid_amount > reservation.invoice.total_amount:
+                excess = reservation.invoice.paid_amount - reservation.invoice.total_amount
+                if reservation.med_org:
+                    reservation.med_org.credit_balance = (reservation.med_org.credit_balance or 0.0) + excess
+                
+                # Normalize paid_amount to exactly total_amount
+                reservation.invoice.paid_amount = reservation.invoice.total_amount
+                
             # Update Invoice Status
-            if reservation.invoice.paid_amount >= reservation.invoice.total_amount and reservation.invoice.total_amount > 0:
+            if reservation.invoice.paid_amount >= reservation.invoice.total_amount and reservation.invoice.total_amount >= 0:
                 reservation.invoice.status = InvoiceStatus.PAID
                 
         # Update UnassignedSale records
