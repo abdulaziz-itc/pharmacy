@@ -102,6 +102,7 @@ class Reservation(ReservationBase):
     nds_percent: Optional[float] = 12.0
     is_tovar_skidka: bool = False
     source_invoice_id: Optional[int] = None
+    warehouse_id: Optional[int] = None
     created_by_id: int
     created_by: Optional[User] = None
     med_org: Optional[MedicalOrganization] = None
@@ -123,6 +124,7 @@ class ReservationInInvoice(ReservationBase):
     nds_percent: Optional[float] = 12.0
     is_tovar_skidka: bool = False
     source_invoice_id: Optional[int] = None
+    warehouse_id: Optional[int] = None
     created_by_id: int
     created_by: Optional[User] = None
     med_org: Optional[MedicalOrganization] = None
