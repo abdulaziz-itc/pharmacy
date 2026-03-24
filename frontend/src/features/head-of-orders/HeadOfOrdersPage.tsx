@@ -1182,8 +1182,8 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <SelectItem value="all">Все</SelectItem>
                                             <SelectItem value="regular">Обычная</SelectItem>
                                             <SelectItem value="tovar_skidka">Товарная скидка</SelectItem>
-                                        </SelectContent>
                                             <SelectItem value="through_wholesale">Через оптовик</SelectItem>
+                                        </SelectContent>
                                     </Select>
                                 </div>
                                 {/* Account Number */}
