@@ -334,7 +334,7 @@ class ReservationService:
                         amount=credit_to_apply,
                         payment_type=PaymentType.BANK,
                         processed_by_id=reservation.created_by_id,
-                        comment="Автоматическое списание с баланса (кредиторка)"
+                        comment="За счет кредиторки"
                     )
                     db.add(credit_payment)
 

@@ -149,7 +149,9 @@ class FinancialService:
                 if remaining_payment > 0 and reservation and reservation.med_org_id:
                     # Find other unpaid invoices for this company
                     from app.models.sales import Invoice as InvoiceModel
-                    other_inv_query = select(InvoiceModel).join(Reservation).where(
+                    other_inv_query = select(InvoiceModel).join(
+                        Reservation, InvoiceModel.reservation_id == Reservation.id
+                    ).where(
                         (Reservation.med_org_id == reservation.med_org_id) &
                         (InvoiceModel.id != invoice.id) &
                         (InvoiceModel.status != InvoiceStatus.PAID)
@@ -177,7 +179,7 @@ class FinancialService:
                             amount=apply_other,
                             payment_type=obj_in.payment_type,
                             processed_by_id=processor_id,
-                            comment=f"Автоматическое покрытие переплаты от счета #{invoice.id}"
+                            comment=f"За счет переплаты (счет #{invoice.id})"
                         )
                         db.add(other_payment)
                     
