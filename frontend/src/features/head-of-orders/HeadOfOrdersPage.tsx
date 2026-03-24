@@ -177,6 +177,17 @@ const HeadOfOrdersPage: React.FC = () => {
     const [invNumSearch, setInvNumSearch] = useState('');
     const [selectedWhFilter, setSelectedWhFilter] = useState('all');
 
+    const resetFilters = () => {
+        setDateStart('');
+        setDateEnd('');
+        setSelectedMedRep('all');
+        setSelectedCompany('all');
+        setSelectedType('all');
+        setSelectedInvoiceType('all');
+        setInvNumSearch('');
+        setSelectedWhFilter('all');
+    };
+
     const [loading, setLoading] = useState(false);
     const { products, fetchProducts } = useProductStore();
 
@@ -886,7 +897,10 @@ const HeadOfOrdersPage: React.FC = () => {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <Button onClick={loadReservations} className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest w-full shadow-sm mt-auto">ПОИСК</Button>
+                                <div className="flex gap-2 mt-auto">
+                                    <Button onClick={loadReservations} className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest flex-1 shadow-sm">ПОИСК</Button>
+                                    <Button onClick={() => { resetFilters(); loadReservations(); }} variant="outline" className="h-10 rounded-xl text-[10px] font-black uppercase tracking-widest border-rose-200 text-rose-500 hover:bg-rose-50 px-3 shadow-sm">Сбросить</Button>
+                                </div>
                             </div>
                         </div>
 
@@ -1210,7 +1224,10 @@ const HeadOfOrdersPage: React.FC = () => {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <Button onClick={loadInvoices} className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest w-full shadow-sm mt-auto">ПОИСК</Button>
+                                <div className="flex gap-2 mt-auto">
+                                    <Button onClick={loadInvoices} className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest flex-1 shadow-sm">ПОИСК</Button>
+                                    <Button onClick={() => { resetFilters(); loadInvoices(); }} variant="outline" className="h-10 rounded-xl text-[10px] font-black uppercase tracking-widest border-rose-200 text-rose-500 hover:bg-rose-50 px-3 shadow-sm">Сбросить</Button>
+                                </div>
                             </div>
                         </div>
 
