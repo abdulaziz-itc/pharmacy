@@ -267,6 +267,36 @@ async def get_deletion_requests(
             "reservations": [], "invoices": [], "return_requests": []
         }
 
+@router.post("/deletion-requests/return/{entity_id}/approve")
+async def approve_return(
+    entity_id: int,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    from app.crud import crud_sales
+    await crud_sales.execute_return_reservation_items(db, entity_id)
+    await log_action(db, current_user, "RETURN_APPROVED", "Reservation", entity_id, f"Возврат по брони #{entity_id} одобрен складом.", request)
+    return {"ok": True}
+
+@router.post("/deletion-requests/return/{entity_id}/reject")
+async def reject_return(
+    entity_id: int,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    from app.crud import crud_sales
+    await crud_sales.reject_return_reservation_items(db, entity_id)
+    await log_action(db, current_user, "RETURN_REJECTED", "Reservation", entity_id, f"Возврат по брони #{entity_id} отклонен складом.", request)
+    return {"ok": True}
+
 @router.post("/deletion-requests/{entity_type}/{entity_id}/approve")
 async def approve_deletion(
     entity_type: str,
@@ -339,36 +369,6 @@ async def reject_deletion(
             ids = [row[0] for row in all_invoices.all()]
             raise HTTPException(status_code=404, detail=f"Invoice #{entity_id} not found (REJECT). Available IDs: {ids}")
     
-    return {"ok": True}
-
-@router.post("/deletion-requests/return/{entity_id}/approve")
-async def approve_return(
-    entity_id: int,
-    request: Request,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-) -> Any:
-    if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    from app.crud import crud_sales
-    await crud_sales.execute_return_reservation_items(db, entity_id)
-    await log_action(db, current_user, "RETURN_APPROVED", "Reservation", entity_id, f"Возврат по брони #{entity_id} одобрен складом.", request)
-    return {"ok": True}
-
-@router.post("/deletion-requests/return/{entity_id}/reject")
-async def reject_return(
-    entity_id: int,
-    request: Request,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-) -> Any:
-    if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    from app.crud import crud_sales
-    await crud_sales.reject_return_reservation_items(db, entity_id)
-    await log_action(db, current_user, "RETURN_REJECTED", "Reservation", entity_id, f"Возврат по брони #{entity_id} отклонен складом.", request)
     return {"ok": True}
 
 @router.post("/deletion-requests/force-cleanup")
