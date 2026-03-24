@@ -27,6 +27,12 @@ class Warehouse(Base):
     med_org = relationship("MedicalOrganization", backref="warehouses")
     stocks = relationship("Stock", back_populates="warehouse", cascade="all, delete-orphan")
 
+    @property
+    def is_wholesale(self) -> bool:
+        if not self.med_org:
+            return False
+        return self.med_org.org_type == "wholesale"
+
 class Stock(Base):
     __tablename__ = "warehouse_stock"
     id = Column(Integer, primary_key=True, index=True)

@@ -135,6 +135,7 @@ async def list_reservations(
             selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
             selectinload(Reservation.created_by),
             selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+            selectinload(Reservation.warehouse).selectinload(Warehouse.med_org),
             selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
             selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
             selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by)
@@ -302,6 +303,7 @@ async def list_invoices(
                 selectinload(InvoiceModel.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
                 selectinload(InvoiceModel.reservation).selectinload(Reservation.created_by),
                 selectinload(InvoiceModel.reservation).selectinload(Reservation.warehouse).selectinload(WarehouseModel.stocks),
+                selectinload(InvoiceModel.reservation).selectinload(Reservation.warehouse).selectinload(WarehouseModel.med_org),
                 selectinload(InvoiceModel.reservation).selectinload(Reservation.invoice),
                 selectinload(InvoiceModel.payments).selectinload(Payment.processed_by),
             )
