@@ -265,7 +265,7 @@ async def read_reservation(
             selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
             selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
             selectinload(Reservation.created_by),
-            selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+            selectinload(Reservation.warehouse).selectinload(Warehouse.stocks), selectinload(Reservation.warehouse).selectinload(Warehouse.med_org),
             selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by)
         ).where(Reservation.id == id)
         
@@ -438,7 +438,7 @@ async def get_eligible_invoices_for_tovar_skidka(
             selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
             selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
             selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
-            selectinload(Invoice.reservation).selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+            selectinload(Invoice.reservation).selectinload(Reservation.warehouse).selectinload(Warehouse.stocks), selectinload(Reservation.warehouse).selectinload(Warehouse.med_org),
             selectinload(Invoice.reservation).selectinload(Reservation.created_by),
             selectinload(Invoice.payments).selectinload(Payment.processed_by)
         ).where(

@@ -170,7 +170,7 @@ class ReservationService:
                 selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
                 selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
                 selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
-                selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+                selectinload(Reservation.warehouse).selectinload(Warehouse.stocks), selectinload(Reservation.warehouse).selectinload(Warehouse.med_org),
                 selectinload(Reservation.created_by),
                 selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by),
             ).where(Reservation.id == db_reservation.id)
@@ -382,7 +382,7 @@ class ReservationService:
                 selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
                 selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
                 selectinload(Reservation.created_by),
-                selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+                selectinload(Reservation.warehouse).selectinload(Warehouse.stocks), selectinload(Reservation.warehouse).selectinload(Warehouse.med_org),
                 selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
                 selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
                 selectinload(Reservation.invoice).selectinload(Invoice.payments).selectinload(Payment.processed_by)

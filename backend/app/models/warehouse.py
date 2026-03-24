@@ -29,6 +29,10 @@ class Warehouse(Base):
 
     @property
     def is_wholesale(self) -> bool:
+        from sqlalchemy.orm import attributes
+        state = attributes.instance_state(self)
+        if "med_org" in state.unloaded:
+            return False
         if not self.med_org:
             return False
         return self.med_org.org_type == "wholesale"
