@@ -97,6 +97,14 @@ export default function InvoicesPage() {
             cell: ({ row }: any) => row.original.reservation?.med_org?.name || row.original.reservation?.customer_name || '—',
         },
         {
+            id: 'medRep',
+            header: 'МП',
+            cell: ({ row }: any) => {
+                const reps = row.original.reservation?.med_org?.assigned_reps || [];
+                return reps[0]?.full_name || '—';
+            },
+        },
+        {
             accessorKey: 'status',
             header: 'Статус',
             cell: ({ row }: any) => {
