@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import {
     Plus, RefreshCw, Receipt, CheckCircle, Trash2,
     DollarSign, Factory, CalendarRange, FileText, Building2, PieChart,
-    CreditCard, TrendingUp, Warehouse, Search, ChevronLeft, ChevronRight, Package, Pencil,
+    CreditCard, TrendingUp, TrendingDown, Wallet, Warehouse, Search, ChevronLeft, ChevronRight, Package, Pencil,
     History, List, Download, User as UserIcon, MapPin, Eye, Edit3, AlertTriangle, RotateCcw
 } from 'lucide-react';
 import { getWarehouses, fulfillStock, activateReservation, deleteReservation, getReservations, getInvoices, createWarehouse } from '@/api/orders-management';
