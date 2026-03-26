@@ -387,6 +387,7 @@ async def read_invoices(
     inv_num: Optional[str] = None,
     status: Optional[str] = None,
     med_rep_id: Optional[int] = None,
+    has_debt: bool = False,
 ) -> Any:
     med_rep_ids = None
     if current_user.role == UserRole.MED_REP:
@@ -417,7 +418,8 @@ async def read_invoices(
         is_tovar_skidka=is_tovar_skidka,
         inv_num=inv_num,
         med_rep_ids=med_rep_ids,
-        status=status
+        status=status,
+        has_debt=has_debt
     )
 
 @router.get("/invoices/eligible-for-tovar-skidka", response_model=List[InvoiceSchema])

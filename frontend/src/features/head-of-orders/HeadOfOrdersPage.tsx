@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import {
     Plus, RefreshCw, Receipt, CheckCircle, Trash2,
     DollarSign, Factory, CalendarRange, FileText, Building2, PieChart,
-    TrendingUp, Warehouse, Search, ChevronLeft, ChevronRight, Package, Pencil,
+    CreditCard, TrendingUp, Warehouse, Search, ChevronLeft, ChevronRight, Package, Pencil,
     History, List, Download, User as UserIcon, MapPin, Eye, Edit3, AlertTriangle, RotateCcw
 } from 'lucide-react';
 import { getWarehouses, fulfillStock, activateReservation, deleteReservation, getReservations, getInvoices, createWarehouse } from '@/api/orders-management';
@@ -610,6 +610,11 @@ const HeadOfOrdersPage: React.FC = () => {
         return true;
     });
 
+    const filteredDebitorka = filteredInv.filter(inv => {
+        const debt = (inv.total_amount || 0) - (inv.paid_amount || 0);
+        return debt > 0;
+    });
+
     // --- Stats Calculation ---
     // Use ALL filtered items for global stats, but tab-specific for table view
     const stats = {
@@ -648,6 +653,7 @@ const HeadOfOrdersPage: React.FC = () => {
                         { key: 'manufacturers', icon: Warehouse, label: 'Склады' },
                         { key: 'reservations', icon: CalendarRange, label: 'Брони' },
                         { key: 'invoices', icon: FileText, label: 'Фактуры' },
+                        { key: 'debitorka', icon: CreditCard, label: 'Дебиторка' },
                         { key: 'wholesale', icon: Building2, label: 'Оптовые компании' },
                         { key: 'reports', icon: PieChart, label: 'Отчеты' },
                     ].map(t => (

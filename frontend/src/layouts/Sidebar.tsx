@@ -41,14 +41,15 @@ const getSidebarItems = (role?: string, userId?: number) => {
         { icon: Stethoscope, label: 'Врачи', href: '/doctors', roles: ['admin', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'med_rep'] },
         { icon: CalendarRange, label: 'Брони', href: '/reservations', roles: ['admin', 'director', 'deputy_director', 'med_rep', 'product_manager'] },
         { icon: FileText, label: 'Фактура', href: '/invoices', roles: ['admin', 'director', 'deputy_director', 'med_rep', 'product_manager'] },
+        { icon: CreditCard, label: 'Дебиторка', href: '/debtors', roles: ['admin', 'director', 'deputy_director', 'med_rep', 'product_manager'] },
         { icon: Wallet, label: 'Платежи', href: '/payments', roles: ['admin', 'director', 'deputy_director'] },
-        { icon: CreditCard, label: 'Дебиторы', href: '/debtors', roles: ['admin', 'director', 'deputy_director'] },
         { icon: PieChart, label: 'Статистика', href: '/stats', roles: ['admin', 'director', 'deputy_director'] },
         { icon: Activity, label: 'Журнал аудита', href: '/audit', roles: ['admin', 'director', 'deputy_director'] },
         // Head of Orders
         { icon: Factory, label: 'Произв. компании', href: '/head-of-orders?tab=manufacturers', roles: ['head_of_orders'] },
         { icon: CalendarRange, label: 'Брони', href: '/head-of-orders?tab=reservations', roles: ['head_of_orders'] },
         { icon: FileText, label: 'Фактура', href: '/head-of-orders?tab=invoices', roles: ['head_of_orders'] },
+        { icon: CreditCard, label: 'Дебиторка', href: '/head-of-orders?tab=debitorka', roles: ['head_of_orders'] },
         { icon: Building2, label: 'Оптовые компании', href: '/head-of-orders?tab=wholesale', roles: ['head_of_orders'] },
         { icon: PieChart, label: 'Отчеты', href: '/head-of-orders?tab=reports', roles: ['head_of_orders'] },
         // Warehouse Management

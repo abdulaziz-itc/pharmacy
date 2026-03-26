@@ -356,7 +356,8 @@ async def get_invoices(
     inv_num: Optional[str] = None,
     med_rep_ids: Optional[List[int]] = None,
     status: Optional[str] = None,
-    warehouse_id: Optional[int] = None
+    warehouse_id: Optional[int] = None,
+    has_debt: bool = False
 ) -> List[Invoice]:
     query = select(Invoice).options(
         selectinload(Invoice.payments).selectinload(Payment.processed_by),
@@ -370,6 +371,9 @@ async def get_invoices(
 
     if status:
         query = query.where(Invoice.status == status)
+
+    if has_debt:
+        query = query.where(Invoice.total_amount > Invoice.paid_amount)
 
     if warehouse_id:
         query = query.where(Invoice.reservation.has(warehouse_id=warehouse_id))
