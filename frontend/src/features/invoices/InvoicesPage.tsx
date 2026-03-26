@@ -96,14 +96,7 @@ export default function InvoicesPage() {
             header: 'Получатель',
             cell: ({ row }: any) => row.original.reservation?.med_org?.name || row.original.reservation?.customer_name || '—',
         },
-        {
-            id: 'medRep',
-            header: 'МП',
-            cell: ({ row }: any) => {
-                const reps = row.original.reservation?.med_org?.assigned_reps || [];
-                return reps[0]?.full_name || '—';
-            },
-        },
+
         {
             accessorKey: 'status',
             header: 'Статус',
@@ -137,6 +130,14 @@ export default function InvoicesPage() {
             id: 'paid_amount',
             header: 'Оплачено',
             cell: ({ row }: any) => (row.original.paid_amount || 0).toLocaleString() + ' UZS',
+        },
+        {
+            id: 'medRep',
+            header: 'МП',
+            cell: ({ row }: any) => {
+                const reps = row.original.reservation?.med_org?.assigned_reps || [];
+                return reps[0]?.full_name || '—';
+            },
         },
         {
             id: 'actions',
