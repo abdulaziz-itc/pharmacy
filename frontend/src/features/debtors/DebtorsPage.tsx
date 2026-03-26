@@ -88,7 +88,14 @@ export default function DebtorsPage() {
             header: 'Получатель',
             cell: ({ row }: any) => row.original.reservation?.med_org?.name || row.original.reservation?.customer_name || '—',
         },
-
+        {
+            id: 'medRep',
+            header: 'МП',
+            cell: ({ row }: any) => {
+                const reps = row.original.reservation?.med_org?.assigned_reps || [];
+                return reps[0]?.full_name || '—';
+            },
+        },
         {
             accessorKey: 'status',
             header: 'Статус',
@@ -127,14 +134,6 @@ export default function DebtorsPage() {
             id: 'debt_amount',
             header: 'Дебитор',
             cell: ({ row }: any) => <span className="font-black text-rose-600 tracking-tight">{((row.original.total_amount || 0) - (row.original.paid_amount || 0)).toLocaleString()} UZS</span>,
-        },
-        {
-            id: 'medRep',
-            header: 'МП',
-            cell: ({ row }: any) => {
-                const reps = row.original.reservation?.med_org?.assigned_reps || [];
-                return reps[0]?.full_name || '—';
-            },
         },
         {
             id: 'actions',
