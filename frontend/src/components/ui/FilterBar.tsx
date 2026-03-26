@@ -84,7 +84,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
 
     return (
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 items-end">
+            <div className="flex flex-wrap gap-4 items-end">
                 {/* Date Start */}
                 <div className="flex flex-col space-y-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ДАТА НАЧАЛА</p>
@@ -145,7 +145,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
                 </div>
 
                 {/* Type */}
-                <div className="flex flex-col space-y-1">
+                <div className="flex flex-col space-y-1 min-w-[140px] flex-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ТИП</p>
                     <Select 
                         value={values.selectedType} 
@@ -164,7 +164,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
                 </div>
 
                 {/* Invoice Type */}
-                <div className="flex flex-col space-y-1">
+                <div className="flex flex-col space-y-1 min-w-[140px] flex-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ТИП ФАКТУРЫ</p>
                     <Select 
                         value={values.selectedInvoiceType} 
@@ -182,20 +182,18 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
                 </div>
 
                 {/* Account Number / Search Action */}
-                <div className="flex flex-col md:flex-row gap-2">
-                    <div className="flex flex-col space-y-1 flex-1">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">НОМЕР СЧЕТА</p>
+                <div className="flex flex-col gap-2 flex-1 min-w-[300px]">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">НОМЕР СЧЕТА И ДЕЙСТВИЯ</p>
+                    <div className="flex gap-2">
                         <Input 
                             value={values.invNumSearch} 
                             onChange={(e) => handleChange('invNumSearch', e.target.value)}
                             placeholder="000"
-                            className="h-10 border-slate-100 bg-slate-50/50 rounded-xl font-bold text-slate-700 placeholder:text-slate-300 focus:bg-white focus:border-orange-500 transition-all"
+                            className="h-10 border-slate-100 bg-slate-50/50 rounded-xl font-bold text-slate-700 placeholder:text-slate-300 focus:bg-white focus:border-orange-500 transition-all flex-1"
                         />
-                    </div>
-                    <div className="flex gap-2">
                         <Button 
                             onClick={onSearch}
-                            className="h-10 px-6 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg shadow-slate-900/10 transition-all flex items-center gap-2"
+                            className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg shadow-slate-900/10 transition-all flex items-center gap-2 shrink-0"
                         >
                             <Search className="w-4 h-4" />
                             поиск
@@ -204,7 +202,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
                             <Button
                                 onClick={onReset}
                                 variant="outline"
-                                className="h-10 px-4 rounded-xl font-bold border-rose-200 text-rose-500 hover:bg-rose-50 transition-all"
+                                className="h-10 px-4 rounded-xl font-bold border-rose-200 text-rose-500 hover:bg-rose-50 transition-all shrink-0"
                             >
                                 Сбросить
                             </Button>

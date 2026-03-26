@@ -1453,7 +1453,7 @@ const HeadOfOrdersPage: React.FC = () => {
 
                         {/* FILTER BAR FOR DEBITORKA */}
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
-                            <div className="grid grid-cols-1 md:grid-cols-8 gap-3 items-end">
+                            <div className="flex flex-wrap gap-3 items-end">
                                 {/* Date Start */}
                                 <div className="space-y-1.5">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ДАТА НАЧАЛА</p>
@@ -1614,6 +1614,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                     <thead className="sticky top-0 z-30">
                                         <tr>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СУММА С/Ф</th>
@@ -1621,7 +1622,6 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОПЛАЧЕНО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">ДЕБИТОР</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКИДКА %</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА БРОНИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
@@ -1652,6 +1652,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             return (
                                                 <tr key={inv.id} className="border-b transition-colors group border-slate-50 hover:bg-slate-50/80">
                                                     <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-800 tracking-tight">{medRepName}</td>
                                                     <td className="px-3 py-4">
                                                         <span className="font-black text-slate-700 tracking-tight">{inv.realization_date ? format(new Date(inv.realization_date), 'dd/MM/yyyy') : (inv.created_at ? format(new Date(inv.created_at), 'dd/MM/yyyy') : '—')}</span>
                                                     </td>

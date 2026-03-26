@@ -79,6 +79,14 @@ export default function DebtorsPage() {
             header: 'ID',
         },
         {
+            accessorKey: 'medRep',
+            header: 'МП',
+            cell: ({ row }: any) => {
+                const reps = row.original.reservation?.med_org?.assigned_reps || [];
+                return reps[0]?.full_name || '—';
+            },
+        },
+        {
             accessorKey: 'factura_number',
             header: 'Номер фактуры',
             cell: ({ row }: any) => row.original.factura_number || `INV-${row.original.id}`,
@@ -87,14 +95,6 @@ export default function DebtorsPage() {
             id: 'recipient',
             header: 'Получатель',
             cell: ({ row }: any) => row.original.reservation?.med_org?.name || row.original.reservation?.customer_name || '—',
-        },
-        {
-            id: 'medRep',
-            header: 'МП',
-            cell: ({ row }: any) => {
-                const reps = row.original.reservation?.med_org?.assigned_reps || [];
-                return reps[0]?.full_name || '—';
-            },
         },
         {
             accessorKey: 'status',
