@@ -19,8 +19,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Add comment to payment table
-    op.add_column('payment', sa.Column('comment', sa.Text(), nullable=True))
+    # Check if comment column already exists (idempotent migration)
+    from sqlalchemy import inspect
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    columns = [c['name'] for c in inspector.get_columns('payment')]
+    
+    if 'comment' not in columns:
+        op.add_column('payment', sa.Column('comment', sa.Text(), nullable=True))
 
 
 def downgrade() -> None:
