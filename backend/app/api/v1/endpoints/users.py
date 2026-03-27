@@ -356,6 +356,7 @@ async def read_login_history(
     """
     Retrieve user login history. Only for specific roles (e.g., HRD, DIRECTOR, INVESTOR).
     """
+    print(f"DEBUG: read_login_history API called: start={start_date}, end={end_date}")
     if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HRD]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
