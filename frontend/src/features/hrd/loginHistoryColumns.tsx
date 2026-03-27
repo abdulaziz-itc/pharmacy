@@ -54,8 +54,8 @@ export const loginHistoryColumns: ColumnDef<LoginHistory>[] = [
         accessorKey: "location",
         header: "Локация",
         cell: ({ row }) => (
-            <div className="flex items-center gap-2 text-slate-600 italic">
-                <MapPin className="w-4 h-4 text-slate-400" />
+            <div className="flex items-center gap-2 text-slate-600 italic break-words max-w-[250px]">
+                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
                 {row.getValue("location") || "Не определено"}
             </div>
         ),
@@ -66,8 +66,8 @@ export const loginHistoryColumns: ColumnDef<LoginHistory>[] = [
         cell: ({ row }) => {
             const ua = row.getValue("user_agent") as string;
             return (
-                <div className="flex items-center gap-2 text-xs text-slate-400 max-w-[200px] truncate" title={ua}>
-                    <Monitor className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-2 text-xs text-slate-400 max-w-[300px] break-words" title={ua}>
+                    <Monitor className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     {ua || "—"}
                 </div>
             );
