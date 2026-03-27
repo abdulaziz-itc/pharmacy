@@ -183,22 +183,24 @@ export function UserModal({ isOpen, onClose, user, defaultRole, lockRole }: User
                             </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-slate-600 font-bold ml-1">Руководитель</Label>
-                            <Select value={managerId} onValueChange={setManagerId}>
-                                <SelectTrigger className="rounded-xl border-slate-200 h-11">
-                                    <SelectValue placeholder="Выберите руководителя" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl max-h-[200px]">
-                                    <SelectItem value="none">Без руководителя</SelectItem>
-                                    {users.filter(u => u.id !== user?.id).map(m => (
-                                        <SelectItem key={m.id} value={m.id.toString()}>
-                                            {m.full_name} ({m.role})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        {role !== 'hrd' && (
+                            <div className="space-y-2">
+                                <Label className="text-slate-600 font-bold ml-1">Руководитель</Label>
+                                <Select value={managerId} onValueChange={setManagerId}>
+                                    <SelectTrigger className="rounded-xl border-slate-200 h-11">
+                                        <SelectValue placeholder="Выберите руководителя" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl max-h-[200px]">
+                                        <SelectItem value="none">Без руководителя</SelectItem>
+                                        {users.filter(u => u.id !== user?.id).map(m => (
+                                            <SelectItem key={m.id} value={m.id.toString()}>
+                                                {m.full_name} ({m.role})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
 
                         {(role === 'regional_manager' || role === 'med_rep') && (
                             <div className="col-span-2 space-y-3">
