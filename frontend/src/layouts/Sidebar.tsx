@@ -26,8 +26,8 @@ import { useAuthStore } from '../store/authStore';
 const getSidebarItems = (role?: string, userId?: number) => {
     const allItems = [
         { icon: LayoutDashboard, label: 'Дашборд', href: '/dashboard', roles: ['admin', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'med_rep', 'head_of_orders', 'hrd'] },
-        { icon: Users, label: 'Управление пользователями', href: '/hrd/users', roles: ['admin', 'hrd'] },
-        { icon: Activity, label: 'История входов', href: '/hrd/login-history', roles: ['admin', 'hrd'] },
+        { icon: Users, label: 'Управление пользователями', href: '/hrd/users', roles: ['admin', 'director', 'hrd'] },
+        { icon: Activity, label: 'История входов', href: '/hrd/login-history', roles: ['admin', 'director', 'hrd'] },
         { icon: Wallet, label: 'Бонусы МП', href: '/bonuses', roles: ['admin', 'director', 'deputy_director'] },
         { icon: PieChart, label: 'Расширенные отчеты', href: '/reports', roles: ['admin', 'director'] },
         { icon: UserCheck, label: 'Зам. Директора', href: '/deputy-directors', roles: ['admin', 'director'] },
