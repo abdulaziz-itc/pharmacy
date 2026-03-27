@@ -10,7 +10,28 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def init_db() -> None:
+    from sqlalchemy import text
     async with AsyncSessionLocal() as db:
+        # FAILSAFE: Ensure tables exist if Alembic failed
+        await db.execute(text("""
+            CREATE TABLE IF NOT EXISTS userloginhistory (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                login_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                ip_address VARCHAR,
+                location VARCHAR,
+                user_agent VARCHAR
+            );
+        """))
+        await db.execute(text("""
+            CREATE TABLE IF NOT EXISTS user_regions (
+                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                region_id INTEGER NOT NULL REFERENCES region(id) ON DELETE CASCADE,
+                PRIMARY KEY (user_id, region_id)
+            );
+        """))
+        await db.commit()
+
         result = await db.execute(select(User).where(User.username == "admin"))
         user = result.scalars().first()
         
