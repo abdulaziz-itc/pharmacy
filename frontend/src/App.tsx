@@ -26,6 +26,7 @@ import WarehouseManagementPage from './features/warehouse/WarehouseManagementPag
 import WarehouseUserManagementPage from './features/warehouse-users/WarehouseUserManagementPage';
 import DeletionApprovalPage from './features/warehouse/DeletionApprovalPage';
 import HRDUserManagementPage from './features/hrd/HRDUserManagementPage';
+import DirectorHRDPage from './features/hrd/DirectorHRDPage';
 import LoginHistoryPage from './features/hrd/LoginHistoryPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import { useAuthStore } from './store/authStore';
@@ -79,6 +80,7 @@ function App() {
             <Route path="/warehouse" element={<WarehouseManagementPage />} />
             <Route path="/deletion-approval" element={<DeletionApprovalPage />} />
             <Route path="/hrd/users" element={<HRDUserManagementPage />} />
+            <Route path="/director/hrd" element={<DirectorHRDPage />} />
             <Route path="/hrd/login-history" element={<LoginHistoryPage />} />
           </Route>
 

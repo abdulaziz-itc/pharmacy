@@ -20,6 +20,8 @@ interface UserModalProps {
     isOpen: boolean;
     onClose: () => void;
     user: User | null;
+    defaultRole?: string;
+    lockRole?: boolean;
 }
 
 const ROLES = [
@@ -36,13 +38,13 @@ const ROLES = [
     { value: 'med_rep', label: 'Мед представитель' },
 ];
 
-export function UserModal({ isOpen, onClose, user }: UserModalProps) {
+export function UserModal({ isOpen, onClose, user, defaultRole, lockRole }: UserModalProps) {
     const { fetchUsers, users } = useUserStore();
     const { regions, fetchRegions } = useRegionStore();
     const [fullName, setFullName] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    const [role, setRole] = useState("med_rep");
+    const [role, setRole] = useState(defaultRole || "med_rep");
     const [managerId, setManagerId] = useState<string>("none");
     const [selectedRegions, setSelectedRegions] = useState<number[]>([]);
     const [isActive, setIsActive] = useState(true);
@@ -65,7 +67,7 @@ export function UserModal({ isOpen, onClose, user }: UserModalProps) {
             setFullName("");
             setUsername("");
             setPassword("");
-            setRole("med_rep");
+            setRole(defaultRole || "med_rep");
             setManagerId("none");
             setSelectedRegions([]);
             setIsActive(true);
@@ -167,7 +169,7 @@ export function UserModal({ isOpen, onClose, user }: UserModalProps) {
 
                         <div className="space-y-2">
                             <Label className="text-slate-600 font-bold ml-1">Роль в системе</Label>
-                            <Select value={role} onValueChange={setRole}>
+                            <Select value={role} onValueChange={setRole} disabled={lockRole}>
                                 <SelectTrigger className="rounded-xl border-slate-200 h-11">
                                     <SelectValue placeholder="Выберите роль" />
                                 </SelectTrigger>
