@@ -1,10 +1,10 @@
 from typing import Any, Dict, Optional, Union, List
-
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 
 from app.core.security import get_password_hash, verify_password
-from app.models.user import User
+from app.models.user import User, UserLoginHistory
 from app.schemas.user import UserCreate, UserUpdate
 
 async def get(db: AsyncSession, id: int) -> Optional[User]:
@@ -84,3 +84,15 @@ async def get_descendant_ids(db: AsyncSession, user_id: int) -> List[int]:
             
     dfs(user_id)
     return descendant_ids
+
+async def get_login_history(
+    db: AsyncSession, *, skip: int = 0, limit: int = 100
+) -> List[UserLoginHistory]:
+    result = await db.execute(
+        select(UserLoginHistory)
+        .options(selectinload(UserLoginHistory.user))
+        .order_by(UserLoginHistory.login_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    return result.scalars().all()

@@ -7,7 +7,7 @@ from app.api import deps
 from app.crud import crud_crm
 from app.models.user import User, UserRole
 from app.schemas.crm import (
-    Region, RegionCreate, 
+    Region, RegionCreate, RegionUpdate,
     Doctor, DoctorCreate, DoctorUpdate,
     MedicalOrganization, MedicalOrganizationCreate, MedicalOrganizationUpdate,
     DoctorSpecialty, DoctorSpecialtyCreate,
@@ -41,13 +41,37 @@ async def create_region(
     if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     region = await crud_crm.create_region(db, obj_in=region_in)
-    from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Region", region.id,
         f"Добавлен новый регион: {region.name}",
         request
     )
     return region
+
+@router.put("/regions/{id}", response_model=Region)
+async def update_region(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    region_in: RegionUpdate,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request,
+) -> Any:
+    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+    
+    region = await crud_crm.get_region(db, id=id)
+    if not region:
+        raise HTTPException(status_code=404, detail="Region not found")
+        
+    updated_region = await crud_crm.update_region(db, db_obj=region, obj_in=region_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "UPDATE", "Region", updated_region.id,
+        f"Регион изменен: {updated_region.name}",
+        request
+    )
+    return updated_region
 
 # Doctor Specialties
 @router.get("/doctor-specialties/", response_model=List[DoctorSpecialty])

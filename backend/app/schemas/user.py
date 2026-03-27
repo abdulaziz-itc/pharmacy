@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, ConfigDict
 from app.models.user import UserRole
@@ -34,3 +35,15 @@ class User(UserInDBBase):
 # Additional properties stored in DB
 class UserInDB(UserInDBBase):
     hashed_password: str
+
+# Login History
+class UserLoginHistory(BaseModel):
+    id: int
+    user_id: int
+    login_at: datetime
+    ip_address: Optional[str] = None
+    location: Optional[str] = None
+    user_agent: Optional[str] = None
+    user: Optional[User] = None
+
+    model_config = ConfigDict(from_attributes=True)

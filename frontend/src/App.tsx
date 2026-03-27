@@ -25,6 +25,8 @@ import HeadOfOrdersManagementPage from './features/head-of-orders/ManagementPage
 import WarehouseManagementPage from './features/warehouse/WarehouseManagementPage';
 import WarehouseUserManagementPage from './features/warehouse-users/WarehouseUserManagementPage';
 import DeletionApprovalPage from './features/warehouse/DeletionApprovalPage';
+import HRDUserManagementPage from './features/hrd/HRDUserManagementPage';
+import LoginHistoryPage from './features/hrd/LoginHistoryPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import { useAuthStore } from './store/authStore';
 import { Toaster } from 'sonner';
@@ -76,6 +78,8 @@ function App() {
             <Route path="/warehouse-users" element={<WarehouseUserManagementPage />} />
             <Route path="/warehouse" element={<WarehouseManagementPage />} />
             <Route path="/deletion-approval" element={<DeletionApprovalPage />} />
+            <Route path="/hrd/users" element={<HRDUserManagementPage />} />
+            <Route path="/hrd/login-history" element={<LoginHistoryPage />} />
           </Route>
 
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

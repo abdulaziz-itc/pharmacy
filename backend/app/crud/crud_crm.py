@@ -22,6 +22,19 @@ async def create_region(db: AsyncSession, obj_in: RegionCreate) -> Region:
     await db.refresh(db_obj)
     return db_obj
 
+async def get_region(db: AsyncSession, id: int) -> Optional[Region]:
+    result = await db.execute(select(Region).where(Region.id == id))
+    return result.scalars().first()
+
+async def update_region(db: AsyncSession, db_obj: Region, obj_in: RegionCreate) -> Region:
+    update_data = obj_in.dict(exclude_unset=True)
+    for field in update_data:
+        setattr(db_obj, field, update_data[field])
+    db.add(db_obj)
+    await db.commit()
+    await db.refresh(db_obj)
+    return db_obj
+
 # Doctor Specialty
 async def get_specialties(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[DoctorSpecialty]:
     result = await db.execute(select(DoctorSpecialty).offset(skip).limit(limit))

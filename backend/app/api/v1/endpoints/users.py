@@ -10,7 +10,7 @@ from app.api import deps
 from app.core.config import settings
 from app.crud import crud_user
 from app.models.user import User, UserRole
-from app.schemas.user import User as UserSchema, UserCreate, UserUpdate
+from app.schemas.user import User as UserSchema, UserCreate, UserUpdate, UserLoginHistory
 
 router = APIRouter()
 
@@ -26,7 +26,7 @@ async def read_users(
     """
     Retrieve users. Only for specific roles (e.g., DEPUTY_DIRECTOR).
     """
-    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     users = await crud_user.get_multi(
@@ -50,7 +50,7 @@ async def create_user(
     """
     Create new user.
     """
-    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.HRD]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     # If the creator is a Product Manager, enforce themselves as the manager if they are creating a subordinate
@@ -90,7 +90,7 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.HRD]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
         
     if current_user.role == UserRole.PRODUCT_MANAGER:
@@ -336,3 +336,18 @@ async def reassign_user_dependencies(
     )
     await db.commit()
     return {"msg": "Successfully transferred all dependencies."}
+
+@router.get("/login-history", response_model=List[UserLoginHistory])
+async def read_login_history(
+    db: AsyncSession = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Retrieve user login history. Only for specific roles (e.g., HRD, ADMIN).
+    """
+    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.HRD]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    return await crud_user.get_login_history(db, skip=skip, limit=limit)

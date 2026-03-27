@@ -11,6 +11,9 @@ class RegionBase(BaseModel):
 class RegionCreate(RegionBase):
     pass
 
+class RegionUpdate(BaseModel):
+    name: Optional[str] = None
+
 class Region(RegionBase):
     id: int
     class Config:
