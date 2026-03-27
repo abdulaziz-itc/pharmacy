@@ -40,14 +40,20 @@ async def init_db() -> None:
                 full_name="Initial Admin",
                 username="admin",
                 hashed_password=security.get_password_hash("admin"),
-                role=UserRole.DEPUTY_DIRECTOR,
+                role=UserRole.ADMIN,
                 is_active=True,
             )
             db.add(user_in)
             await db.commit()
             logger.info("Superuser created")
         else:
-            logger.info("Superuser already exists")
+            # Fix role if it was incorrectly set to DEPUTY_DIRECTOR
+            if user.role != UserRole.ADMIN:
+                user.role = UserRole.ADMIN
+                await db.commit()
+                logger.info("Admin role corrected to ADMIN")
+            else:
+                logger.info("Superuser already exists")
 
         # HRD Account
         result = await db.execute(select(User).where(User.username == "admin123"))
