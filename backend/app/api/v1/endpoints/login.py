@@ -28,7 +28,7 @@ def get_location_from_ip(ip: str) -> str:
         with urllib.request.urlopen(f"http://ip-api.com/json/{ip}", timeout=2) as response:
             data = json.load(response)
             if data.get("status") == "success":
-                return f"{data.get('city', 'Unknown')}, {data.get('country', 'Unknown')}\"
+                return f"{data.get('city', 'Unknown')}, {data.get('country', 'Unknown')}"
     except Exception as e:
         print(f"Location lookup failed: {e}")
     
