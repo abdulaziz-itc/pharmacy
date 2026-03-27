@@ -173,8 +173,9 @@ async def get_med_reps(
     Get users (optionally filtered by role) with their manager name resolved.
     Used for the medical representatives page with role filter tabs.
     """
+    from sqlalchemy.orm import selectinload
     # Get all users to build manager lookup
-    all_users_result = await db.execute(select(User))
+    all_users_result = await db.execute(select(User).options(selectinload(User.assigned_regions)))
     all_users = all_users_result.scalars().all()
     
     # Build manager name lookup
