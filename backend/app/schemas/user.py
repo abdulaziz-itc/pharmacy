@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, EmailStr, ConfigDict
+from typing import Optional, List, Any
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 from app.models.user import UserRole
 
 # Shared properties
@@ -10,6 +10,14 @@ class UserBase(BaseModel):
     is_active: Optional[bool] = True
     role: Optional[UserRole] = UserRole.MED_REP
     manager_id: Optional[int] = None
+    region_ids: List[int] = []
+
+    @field_validator("region_ids", mode="before")
+    @classmethod
+    def extract_region_ids(cls, v: Any) -> List[int]:
+        if isinstance(v, list) and v and not isinstance(v[0], int):
+            return [r.id for r in v]
+        return v or []
 
 # Properties to receive via API on creation
 class UserCreate(UserBase):

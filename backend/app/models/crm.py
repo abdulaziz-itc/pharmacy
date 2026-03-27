@@ -19,12 +19,21 @@ medrep_organization = Table(
     Column('organization_id', Integer, ForeignKey('medicalorganization.id', ondelete="CASCADE"), primary_key=True)
 )
 
+# Association table for User to Region (Many-to-Many, e.g. for Regional Managers)
+user_regions = Table(
+    'user_regions',
+    Base.metadata,
+    Column('user_id', Integer, ForeignKey('user.id', ondelete="CASCADE"), primary_key=True),
+    Column('region_id', Integer, ForeignKey('region.id', ondelete="CASCADE"), primary_key=True)
+)
+
 class Region(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
     
     med_orgs = relationship("MedicalOrganization", back_populates="region")
     doctors = relationship("Doctor", back_populates="region")
+    assigned_users = relationship("User", secondary=user_regions, backref="assigned_regions")
 
 class DoctorSpecialty(Base):
     id = Column(Integer, primary_key=True, index=True)

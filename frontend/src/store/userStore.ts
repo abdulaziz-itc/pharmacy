@@ -9,6 +9,7 @@ export interface User {
     is_active: boolean;
     manager_id?: number | null;
     manager_name?: string | null;
+    region_ids: number[];
 }
 
 export interface LoginHistory {

@@ -196,9 +196,11 @@ async def get_med_reps(
         descendant_ids = await get_descendant_ids(db, current_user.id)
         filtered = [u for u in filtered if u.id in descendant_ids]
     
-    # Build response with manager name
+    # Build response with manager name and region IDs
     result = []
     for user in filtered:
+        # Load assigned_regions if not loaded
+        region_ids = [r.id for r in user.assigned_regions] if hasattr(user, 'assigned_regions') else []
         result.append({
             "id": user.id,
             "username": user.username,
@@ -206,6 +208,7 @@ async def get_med_reps(
             "role": user.role,
             "is_active": user.is_active,
             "manager_name": manager_lookup.get(user.manager_id, None) if user.manager_id else None,
+            "region_ids": region_ids
         })
     
     return result

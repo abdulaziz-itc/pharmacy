@@ -8,11 +8,19 @@ from app.models.user import User, UserLoginHistory
 from app.schemas.user import UserCreate, UserUpdate
 
 async def get(db: AsyncSession, id: int) -> Optional[User]:
-    result = await db.execute(select(User).where(User.id == id))
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.assigned_regions))
+        .where(User.id == id)
+    )
     return result.scalars().first()
 
 async def get_by_username(db: AsyncSession, username: str) -> Optional[User]:
-    result = await db.execute(select(User).where(User.username == username))
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.assigned_regions))
+        .where(User.username == username)
+    )
     return result.scalars().first()
 
 async def get_multi(
@@ -23,7 +31,7 @@ async def get_multi(
     username: Optional[str] = None,
     full_name: Optional[str] = None,
 ) -> List[User]:
-    query = select(User)
+    query = select(User).options(selectinload(User.assigned_regions))
     if username:
         query = query.where(User.username.ilike(f"%{username}%"))
     if full_name:
@@ -41,6 +49,13 @@ async def create(db: AsyncSession, obj_in: UserCreate) -> User:
         is_active=obj_in.is_active,
         manager_id=obj_in.manager_id,
     )
+    
+    if obj_in.region_ids:
+        from app.models.crm import Region
+        result = await db.execute(select(Region).where(Region.id.in_(obj_in.region_ids)))
+        regions = result.scalars().all()
+        db_obj.assigned_regions = regions
+        
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
@@ -58,6 +73,13 @@ async def update(
         hashed_password = get_password_hash(update_data["password"])
         del update_data["password"]
         update_data["hashed_password"] = hashed_password
+        
+    region_ids = update_data.pop("region_ids", None)
+    if region_ids is not None:
+        from app.models.crm import Region
+        result = await db.execute(select(Region).where(Region.id.in_(region_ids)))
+        regions = result.scalars().all()
+        db_obj.assigned_regions = regions
         
     for field in update_data:
         setattr(db_obj, field, update_data[field])

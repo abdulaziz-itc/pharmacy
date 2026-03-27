@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "../../components/ui/switch";
 import { Label } from "../../components/ui/label";
 import { type User, useUserStore } from "../../store/userStore";
+import { useRegionStore } from "../../store/regionStore";
+import { Checkbox } from "../../components/ui/checkbox";
 import axiosInstance from "../../api/axios";
 import { toast } from "sonner";
 
@@ -36,13 +38,19 @@ const ROLES = [
 
 export function UserModal({ isOpen, onClose, user }: UserModalProps) {
     const { fetchUsers, users } = useUserStore();
+    const { regions, fetchRegions } = useRegionStore();
     const [fullName, setFullName] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [role, setRole] = useState("med_rep");
     const [managerId, setManagerId] = useState<string>("none");
+    const [selectedRegions, setSelectedRegions] = useState<number[]>([]);
     const [isActive, setIsActive] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        fetchRegions();
+    }, [fetchRegions, isOpen]);
 
     useEffect(() => {
         if (user) {
@@ -51,6 +59,7 @@ export function UserModal({ isOpen, onClose, user }: UserModalProps) {
             setPassword("");
             setRole(user.role);
             setManagerId(user.manager_id ? user.manager_id.toString() : "none");
+            setSelectedRegions(user.region_ids || []);
             setIsActive(user.is_active);
         } else {
             setFullName("");
@@ -58,9 +67,18 @@ export function UserModal({ isOpen, onClose, user }: UserModalProps) {
             setPassword("");
             setRole("med_rep");
             setManagerId("none");
+            setSelectedRegions([]);
             setIsActive(true);
         }
     }, [user, isOpen]);
+
+    const handleRegionToggle = (regionId: number) => {
+        setSelectedRegions(prev => 
+            prev.includes(regionId) 
+                ? prev.filter(id => id !== regionId)
+                : [...prev, regionId]
+        );
+    };
 
     const handleSubmit = async () => {
         if (!fullName.trim() || !username.trim() || (!user && !password)) {
@@ -76,6 +94,7 @@ export function UserModal({ isOpen, onClose, user }: UserModalProps) {
                 role,
                 is_active: isActive,
                 manager_id: managerId === "none" ? null : parseInt(managerId),
+                region_ids: selectedRegions,
             };
 
             if (password) payload.password = password;
@@ -178,6 +197,35 @@ export function UserModal({ isOpen, onClose, user }: UserModalProps) {
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {(role === 'regional_manager' || role === 'med_rep') && (
+                            <div className="col-span-2 space-y-3">
+                                <Label className="text-slate-600 font-bold ml-1">
+                                    Закрепленные регионы {role === 'regional_manager' ? '(несколько)' : '(обычно один)'}
+                                </Label>
+                                <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 max-h-[160px] overflow-y-auto">
+                                    {regions.map((region) => (
+                                        <div key={region.id} className="flex items-center space-x-2 group cursor-pointer" onClick={() => handleRegionToggle(region.id)}>
+                                            <Checkbox 
+                                                id={`region-${region.id}`}
+                                                checked={selectedRegions.includes(region.id)}
+                                                onCheckedChange={() => handleRegionToggle(region.id)}
+                                                className="rounded-md border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                                            />
+                                            <label
+                                                htmlFor={`region-${region.id}`}
+                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-slate-700 group-hover:text-indigo-600 transition-colors"
+                                            >
+                                                {region.name}
+                                            </label>
+                                        </div>
+                                    ))}
+                                    {regions.length === 0 && (
+                                        <p className="col-span-2 text-sm text-slate-400 italic text-center p-2">Регионы не найдены.</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
