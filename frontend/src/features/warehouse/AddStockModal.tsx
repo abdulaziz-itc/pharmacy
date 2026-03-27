@@ -13,9 +13,10 @@ interface AddStockModalProps {
   onSuccess: () => void;
   warehouseId: number | null;
   warehouseName?: string;
+  initialProductId?: number | null;
 }
 
-export const AddStockModal = ({ isOpen, onClose, onSuccess, warehouseId, warehouseName }: AddStockModalProps) => {
+export const AddStockModal = ({ isOpen, onClose, onSuccess, warehouseId, warehouseName, initialProductId }: AddStockModalProps) => {
   const { products, fetchProducts } = useProductStore();
   const [productId, setProductId] = useState<string>('');
   const [quantity, setQuantity] = useState<string>('');
@@ -24,8 +25,13 @@ export const AddStockModal = ({ isOpen, onClose, onSuccess, warehouseId, warehou
   useEffect(() => {
     if (isOpen) {
       fetchProducts();
+      if (initialProductId) {
+        setProductId(initialProductId.toString());
+      } else {
+        setProductId('');
+      }
     }
-  }, [isOpen, fetchProducts]);
+  }, [isOpen, fetchProducts, initialProductId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

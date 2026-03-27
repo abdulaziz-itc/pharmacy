@@ -35,8 +35,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
     const user = useAuthStore((state) => state.user);
     const isMedRep = user?.role === 'med_rep';
 
-    const [medReps, setMedReps] = useState<string[]>([]);
-    const [companies, setCompanies] = useState<string[]>([]);
+    const [medReps, setMedReps] = useState<{id: number, name: string}[]>([]);
+    const [companies, setCompanies] = useState<{id: number, name: string}[]>([]);
 
     useEffect(() => {
         const loadOptions = async () => {
@@ -44,7 +44,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
             try {
                 const orgsRes = await api.get('/crm/med-orgs/', { params: { limit: 1000 } });
                 const orgs = Array.isArray(orgsRes.data) ? orgsRes.data : (orgsRes.data?.items || []);
-                setCompanies(orgs.map((o: any) => o.name).filter(Boolean));
+                setCompanies(orgs.map((o: any) => ({ id: o.id, name: o.name })).filter((o: any) => o.name));
             } catch (error) {
                 console.error("Failed to load company options", error);
             }
@@ -55,17 +55,17 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
                 try {
                     const usersRes = await api.get('/users/', { params: { limit: 1000 } });
                     const users = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.items || []);
-                    const medRepNames = users
+                    const medRepOptions = users
                         .filter((u: any) => u.role === 'med_rep')
-                        .map((u: any) => u.full_name || u.username)
-                        .filter(Boolean);
-                    setMedReps(medRepNames);
+                        .map((u: any) => ({ id: u.id, name: u.full_name || u.username }))
+                        .filter((u: any) => u.name);
+                    setMedReps(medRepOptions);
                 } catch (error) {
                     console.error("Failed to load med rep options", error);
                 }
             } else if (isMedRep && user?.full_name) {
                 // For Med Rep, they only see themselves
-                setMedReps([user.full_name]);
+                setMedReps([{ id: user.id || 0, name: user.full_name }]);
             }
         };
         loadOptions();
@@ -73,8 +73,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
 
     // Effect to lock Med Rep if user is med_rep
     useEffect(() => {
-        if (isMedRep && user?.full_name && values.selectedMedRep !== user.full_name) {
-            onChange({ ...values, selectedMedRep: user.full_name });
+        if (isMedRep && user?.id && values.selectedMedRep !== user.id.toString()) {
+            onChange({ ...values, selectedMedRep: user.id.toString() });
         }
     }, [isMedRep, user, values.selectedMedRep, onChange, values]);
 
@@ -106,7 +106,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
                 </div>
 
                 {/* Med Rep */}
-                <div className="flex flex-col space-y-1">
+                <div className="flex flex-col space-y-1 min-w-[140px] flex-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">МЕД. РЕП</p>
                     <Select 
                         value={values.selectedMedRep} 
@@ -116,17 +116,17 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
                         <SelectTrigger className="w-full bg-slate-50/50 border-slate-100 rounded-xl font-bold text-slate-700 h-10 shadow-sm focus:ring-orange-500/10">
                             <SelectValue placeholder="Все" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[300px]">
                             <SelectItem value="all">Все</SelectItem>
-                            {medReps.map(rep => (
-                                <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                            {medReps.map(mr => (
+                                <SelectItem key={mr.id} value={mr.id.toString()}>{mr.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                 </div>
 
                 {/* Company */}
-                <div className="flex flex-col space-y-1">
+                <div className="flex flex-col space-y-1 min-w-[140px] flex-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">КОМПАНИЯ</p>
                     <Select 
                         value={values.selectedCompany} 
@@ -135,10 +135,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
                         <SelectTrigger className="w-full bg-slate-50/50 border-slate-100 rounded-xl font-bold text-slate-700 h-10 shadow-sm focus:ring-orange-500/10">
                             <SelectValue placeholder="Все" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[300px]">
                             <SelectItem value="all">Все</SelectItem>
                             {companies.map(c => (
-                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                                <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>

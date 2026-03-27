@@ -130,8 +130,8 @@ const HeadOfOrdersPage: React.FC = () => {
     const [orgSearch, setOrgSearch] = useState('');
 
     // ----- Filter option lists (loaded independently from API so they work even with empty DB) -----
-    const [filterMedReps, setFilterMedReps] = useState<string[]>([]);
-    const [filterCompanies, setFilterCompanies] = useState<string[]>([]);
+    const [filterMedReps, setFilterMedReps] = useState<{id: number, name: string}[]>([]);
+    const [filterCompanies, setFilterCompanies] = useState<{id: number, name: string}[]>([]);
     // Org types are a fixed enum — hardcoded so they never depend on data
     const FILTER_ORG_TYPES: { value: string; label: string }[] = [
         { value: 'clinic', label: 'Клиника' },
@@ -236,18 +236,18 @@ const HeadOfOrdersPage: React.FC = () => {
                 // Med Reps
                 const usersRes = await axiosInstance.get('/users/', { params: { limit: 1000 } });
                 const users: any[] = usersRes.data?.items || usersRes.data || [];
-                const medRepNames = users
+                const medRepOptions = users
                     .filter((u: any) => u.role === 'med_rep')
-                    .map((u: any) => u.full_name)
-                    .filter(Boolean);
-                setFilterMedReps(medRepNames);
+                    .map((u: any) => ({ id: u.id, name: u.full_name || u.username }))
+                    .filter(u => u.name);
+                setFilterMedReps(medRepOptions);
             } catch { /* silently ignore */ }
 
             try {
                 // Companies (Med Orgs)
                 const orgsRes = await axiosInstance.get('/crm/med-orgs/', { params: { limit: 1000 } });
                 const orgs: any[] = orgsRes.data?.items || orgsRes.data || [];
-                setFilterCompanies(orgs.map((o: any) => o.name).filter(Boolean));
+                setFilterCompanies(orgs.map((o: any) => ({ id: o.id, name: o.name })).filter(o => o.name));
             } catch { /* silently ignore */ }
         };
         loadFilterOptions();
@@ -556,11 +556,14 @@ const HeadOfOrdersPage: React.FC = () => {
         if (dateEnd && new Date(resDate) > new Date(dateEnd)) return false;
 
         // Med Rep Filter
-        const repName = res.med_org?.assigned_reps?.[0]?.full_name;
-        if (selectedMedRep !== 'all' && repName !== selectedMedRep) return false;
+        if (selectedMedRep !== 'all') {
+            const isCreator = res.created_by_id?.toString() === selectedMedRep;
+            const isAssigned = res.med_org?.assigned_reps?.some((r: any) => r.id.toString() === selectedMedRep);
+            if (!isCreator && !isAssigned) return false;
+        }
 
         // Company Filter
-        if (selectedCompany !== 'all' && res.med_org?.name !== selectedCompany) return false;
+        if (selectedCompany !== 'all' && res.med_org_id?.toString() !== selectedCompany) return false;
 
         // Type Filter
         if (selectedType !== 'all' && res.med_org?.org_type !== selectedType) return false;
@@ -586,11 +589,14 @@ const HeadOfOrdersPage: React.FC = () => {
         if (dateEnd && new Date(realizationDate) > new Date(dateEnd)) return false;
 
         // Med Rep Filter
-        const repName = res.med_org?.assigned_reps?.[0]?.full_name;
-        if (selectedMedRep !== 'all' && repName !== selectedMedRep) return false;
+        if (selectedMedRep !== 'all') {
+            const isCreator = res.created_by_id?.toString() === selectedMedRep;
+            const isAssigned = res.med_org?.assigned_reps?.some((r: any) => r.id.toString() === selectedMedRep);
+            if (!isCreator && !isAssigned) return false;
+        }
 
         // Company Filter
-        if (selectedCompany !== 'all' && res.med_org?.name !== selectedCompany) return false;
+        if (selectedCompany !== 'all' && res.med_org_id?.toString() !== selectedCompany) return false;
 
         // Type Filter
         if (selectedType !== 'all' && res.med_org?.org_type !== selectedType) return false;
@@ -827,8 +833,8 @@ const HeadOfOrdersPage: React.FC = () => {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Все</SelectItem>
-                                            {resMedReps.map(rep => (
-                                                <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                                            {resMedReps.map(mr => (
+                                                <SelectItem key={mr.id} value={mr.id.toString()}>{mr.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -843,7 +849,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         <SelectContent>
                                             <SelectItem value="all">Все</SelectItem>
                                             {resCompanies.map(c => (
-                                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                                                <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -1154,8 +1160,8 @@ const HeadOfOrdersPage: React.FC = () => {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Все</SelectItem>
-                                            {medReps.map(rep => (
-                                                <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                                            {medReps.map(mr => (
+                                                <SelectItem key={mr.id} value={mr.id.toString()}>{mr.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -1170,7 +1176,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         <SelectContent>
                                             <SelectItem value="all">Все</SelectItem>
                                             {companiesList.map(c => (
-                                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                                                <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -1473,8 +1479,8 @@ const HeadOfOrdersPage: React.FC = () => {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Все</SelectItem>
-                                            {medReps.map(rep => (
-                                                <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                                            {medReps.map(mr => (
+                                                <SelectItem key={mr.id} value={mr.id.toString()}>{mr.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -1489,7 +1495,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         <SelectContent>
                                             <SelectItem value="all">Все</SelectItem>
                                             {companiesList.map(c => (
-                                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                                                <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -1853,7 +1859,14 @@ const HeadOfOrdersPage: React.FC = () => {
                                 <p className="font-semibold text-white text-base">{editProduct.name}</p>
                                 <p className="text-white/60 text-xs">
                                     {editProduct.category?.name && <span className="bg-white/10 px-2 py-0.5 rounded mr-2">{editProduct.category.name}</span>}
-                                    Текущий остаток: <span className="font-bold text-white">{(stockMap[editProduct.id] || 0).toLocaleString()} шт</span>
+                                    Текущий остаток на складе: <span className="font-bold text-white">
+                                        {(selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0).toLocaleString()} шт
+                                    </span>
+                                    {stockMap[editProduct.id] > (selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0) && (
+                                        <span className="block text-[10px] text-white/50 mt-1 italic italic-normal">
+                                            (Общий остаток по всем складам: {stockMap[editProduct.id].toLocaleString()} шт)
+                                        </span>
+                                    )}
                                 </p>
                             </div>
                         )}
@@ -1874,7 +1887,9 @@ const HeadOfOrdersPage: React.FC = () => {
                         </div>
                         {editProduct && editQty && parseInt(editQty) > 0 && (
                             <p className="text-sm text-slate-500">
-                                После сохранения остаток станет: <span className="font-bold text-slate-800">{((stockMap[editProduct.id] || 0) + parseInt(editQty || '0')).toLocaleString()} шт</span>
+                                После сохранения остаток на <span className="font-semibold">{selectedWarehouse?.name}</span> станет: <span className="font-bold text-slate-800">
+                                    {((selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0) + parseInt(editQty || '0')).toLocaleString()} шт
+                                </span>
                             </p>
                         )}
                     </div>

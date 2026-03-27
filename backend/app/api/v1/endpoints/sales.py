@@ -204,7 +204,9 @@ async def read_reservations(
     med_org_type: Optional[str] = None,
     is_tovar_skidka: Optional[bool] = None,
     inv_num: Optional[str] = None,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    med_rep_id: Optional[int] = None,
+    med_org_id: Optional[int] = None
 ) -> Any:
     """
     Retrieve reservations with optional filtering.
@@ -220,17 +222,16 @@ async def read_reservations(
     - med_org_name: Search by Medical Organization name.
     - status: Filter by ReservationStatus (draft, pending, approved, etc.)
     """
-    med_rep_ids = None
+    # Prioritize provided med_rep_id, but respect current_user roles
+    final_med_rep_id = med_rep_id
     if current_user.role == UserRole.MED_REP:
-        med_rep_id = current_user.id
+        final_med_rep_id = current_user.id
     elif current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
         from app.crud import crud_user
         med_rep_ids = await crud_user.get_descendant_ids(db, current_user.id)
         if not med_rep_ids:
             med_rep_ids = [-1]
-        med_rep_id = None
-    else:
-        med_rep_id = None
+        final_med_rep_id = None
     
     dt_from = datetime.fromisoformat(date_from) if date_from else None
     dt_to = datetime.fromisoformat(date_to) if date_to else None
@@ -239,7 +240,7 @@ async def read_reservations(
         db, 
         skip=skip, 
         limit=limit, 
-        med_rep_id=med_rep_id,
+        med_rep_id=final_med_rep_id,
         date_from=dt_from,
         date_to=dt_to,
         med_rep_name=med_rep_name,
@@ -248,7 +249,8 @@ async def read_reservations(
         is_tovar_skidka=is_tovar_skidka,
         inv_num=inv_num,
         med_rep_ids=med_rep_ids,
-        status=status
+        status=status,
+        med_org_id=med_org_id
     )
 
 @router.get("/reservations/{id}")
@@ -387,6 +389,7 @@ async def read_invoices(
     inv_num: Optional[str] = None,
     status: Optional[str] = None,
     med_rep_id: Optional[int] = None,
+    med_org_id: Optional[int] = None,
     has_debt: bool = False,
 ) -> Any:
     med_rep_ids = None
@@ -419,7 +422,8 @@ async def read_invoices(
         inv_num=inv_num,
         med_rep_ids=med_rep_ids,
         status=status,
-        has_debt=has_debt
+        has_debt=has_debt,
+        med_org_id=med_org_id
     )
 
 @router.get("/invoices/eligible-for-tovar-skidka", response_model=List[InvoiceSchema])

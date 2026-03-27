@@ -211,7 +211,8 @@ async def get_reservations(
     inv_num: Optional[str] = None,
     med_rep_ids: Optional[List[int]] = None,
     status: Optional[str] = None,
-    warehouse_id: Optional[int] = None
+    warehouse_id: Optional[int] = None,
+    med_org_id: Optional[int] = None
 ) -> List[Reservation]:
     query = select(Reservation).options(
         selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
@@ -245,9 +246,15 @@ async def get_reservations(
     if med_rep_name and med_rep_name != "all":
         query = query.join(Reservation.created_by).where(User.full_name.ilike(f"%{med_rep_name}%"))
 
-    # Filter by Company (Med Org Name)
+    # Filter by Company (Med Org ID)
+    if med_org_id and med_org_id != "all":
+        if not med_rep_id: 
+             query = query.join(Reservation.med_org, isouter=True)
+        query = query.where(MedicalOrganization.id == med_org_id)
+
+    # Filter by Company Name (Legacy/Fallback)
     if med_org_name and med_org_name != "all":
-        if not med_rep_id: # already joined if med_rep_id exists
+        if not med_rep_id and not med_org_id: 
              query = query.join(Reservation.med_org, isouter=True)
         query = query.where(MedicalOrganization.name.ilike(f"%{med_org_name}%"))
 
@@ -357,7 +364,8 @@ async def get_invoices(
     med_rep_ids: Optional[List[int]] = None,
     status: Optional[str] = None,
     warehouse_id: Optional[int] = None,
-    has_debt: bool = False
+    has_debt: bool = False,
+    med_org_id: Optional[int] = None
 ) -> List[Invoice]:
     query = select(Invoice).options(
         selectinload(Invoice.payments).selectinload(Payment.processed_by),
@@ -378,36 +386,68 @@ async def get_invoices(
     if warehouse_id:
         query = query.where(Invoice.reservation.has(warehouse_id=warehouse_id))
 
+    has_joined_res = False
+    has_joined_org = False
+
     if med_rep_id:
+        query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True)
+        has_joined_res = True
+        has_joined_org = True
         # Filter invoices through their associated reservation and medical organization
-        query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True).where(
+        query = query.where(
             (Reservation.created_by_id == med_rep_id) |
             (MedicalOrganization.assigned_reps.any(id=med_rep_id))
         )
     elif med_rep_ids:
-        query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True).where(
+        query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True)
+        has_joined_res = True
+        has_joined_org = True
+        query = query.where(
             (Reservation.created_by_id.in_(med_rep_ids)) |
             (MedicalOrganization.assigned_reps.any(User.id.in_(med_rep_ids)))
         )
     
     # Filter by Med Rep Name
     if med_rep_name and med_rep_name != "all":
-        if not med_rep_id:
+        if not has_joined_res:
             query = query.join(Invoice.reservation)
-        query = query.join(Reservation.created_by).where(User.full_name.ilike(f"%{med_rep_name}%"))
+            has_joined_res = True
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
+        query = query.join(Reservation.created_by, isouter=True).where(
+            (User.full_name.ilike(f"%{med_rep_name}%")) |
+            (MedicalOrganization.assigned_reps.any(User.full_name.ilike(f"%{med_rep_name}%")))
+        )
 
-    # Filter by Company
-    if med_org_name and med_org_name != "all":
-        if not med_rep_id and not med_rep_name:
-            query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True)
-        elif not med_rep_id and med_rep_name:
+    # Filter by Company ID
+    if med_org_id and med_org_id != "all":
+        if not has_joined_res:
+             query = query.join(Invoice.reservation)
+             has_joined_res = True
+        if not has_joined_org:
              query = query.join(Reservation.med_org, isouter=True)
+             has_joined_org = True
+        query = query.where(MedicalOrganization.id == med_org_id)
+
+    # Filter by Company Name (Legacy/Fallback)
+    if med_org_name and med_org_name != "all":
+        if not has_joined_res:
+            query = query.join(Invoice.reservation)
+            has_joined_res = True
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
         query = query.where(MedicalOrganization.name.ilike(f"%{med_org_name}%"))
 
     # Filter by Org Type
     if med_org_type and med_org_type != "all":
-        if not any([med_rep_id, med_rep_name, med_org_name]):
-            query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True)
+        if not has_joined_res:
+            query = query.join(Invoice.reservation)
+            has_joined_res = True
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
         query = query.where(MedicalOrganization.org_type == med_org_type)
 
     # Filter by Date
@@ -418,8 +458,9 @@ async def get_invoices(
 
     # Filter by Invoice Type
     if is_tovar_skidka is not None:
-        if not any([med_rep_id, med_rep_name, med_org_name, med_org_type]):
+        if not has_joined_res:
             query = query.join(Invoice.reservation)
+            has_joined_res = True
         query = query.where(Reservation.is_tovar_skidka == is_tovar_skidka)
 
     # Filter by Inv Num

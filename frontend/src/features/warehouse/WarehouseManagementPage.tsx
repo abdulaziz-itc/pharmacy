@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PageContainer } from '../../components/PageContainer';
 import { Button } from '../../components/ui/button';
-import { Plus, Package, Warehouse as WarehouseIcon, RefreshCcw } from 'lucide-react';
+import { Plus, Package, Warehouse as WarehouseIcon, RefreshCcw, Pencil } from 'lucide-react';
 import { warehouseApi, type Warehouse } from '../../api/warehouse';
 import { AddWarehouseModal } from './AddWarehouseModal';
 import { AddStockModal } from './AddStockModal';
@@ -14,6 +14,7 @@ export default function WarehouseManagementPage() {
   const [isAddWarehouseModalOpen, setIsAddWarehouseModalOpen] = useState(false);
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const { products, fetchProducts } = useProductStore();
 
   const loadData = async () => {
@@ -110,9 +111,23 @@ export default function WarehouseManagementPage() {
                             {getProductName(stock.product_id)}
                           </span>
                         </div>
-                        <span className="text-sm font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">
-                          {stock.quantity}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">
+                            {stock.quantity}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                            onClick={() => {
+                              setSelectedWarehouseId(warehouse.id);
+                              setSelectedProductId(stock.product_id);
+                              setIsAddStockModalOpen(true);
+                            }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -156,10 +171,12 @@ export default function WarehouseManagementPage() {
         onClose={() => {
           setIsAddStockModalOpen(false);
           setSelectedWarehouseId(null);
+          setSelectedProductId(null);
         }}
         onSuccess={loadData}
         warehouseId={selectedWarehouseId}
         warehouseName={warehouses.find(w => w.id === selectedWarehouseId)?.name}
+        initialProductId={selectedProductId}
       />
     </PageContainer>
   );

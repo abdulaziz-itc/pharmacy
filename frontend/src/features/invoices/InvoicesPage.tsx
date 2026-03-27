@@ -35,8 +35,8 @@ export default function InvoicesPage() {
             const params: any = {};
             if (filterValues.dateStart) params.date_from = filterValues.dateStart;
             if (filterValues.dateEnd) params.date_to = filterValues.dateEnd;
-            if (filterValues.selectedMedRep !== 'all') params.med_rep_name = filterValues.selectedMedRep;
-            if (filterValues.selectedCompany !== 'all') params.med_org_name = filterValues.selectedCompany;
+            if (filterValues.selectedMedRep !== 'all') params.med_rep_id = filterValues.selectedMedRep;
+            if (filterValues.selectedCompany !== 'all') params.med_org_id = filterValues.selectedCompany;
             if (filterValues.selectedType !== 'all') params.med_org_type = filterValues.selectedType;
             if (filterValues.selectedInvoiceType !== 'all') {
                 params.is_tovar_skidka = filterValues.selectedInvoiceType === 'tovar_skidka';
