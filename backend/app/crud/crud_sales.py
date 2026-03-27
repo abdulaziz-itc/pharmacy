@@ -471,9 +471,6 @@ async def get_invoices(
     result = await db.execute(query)
     return result.scalars().all()
 
-    result = await db.execute(query)
-    return result.scalars().all()
-
 # Payments
 async def create_payment(db: AsyncSession, obj_in: PaymentCreate, user_id: int) -> Payment:
     db_obj = Payment(**obj_in.dict(), processed_by_id=user_id)

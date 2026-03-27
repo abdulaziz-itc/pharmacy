@@ -32,7 +32,7 @@ const getSidebarItems = (role?: string, userId?: number) => {
         { icon: PieChart, label: 'Расширенные отчеты', href: '/reports', roles: ['admin', 'director'] },
         { icon: UserCheck, label: 'Зам. Директора', href: '/deputy-directors', roles: ['admin', 'director'] },
         { icon: UserCheck, label: 'Менеджеры по закупкам', href: '/head-of-orders-management', roles: ['admin', 'director'] },
-        { icon: UserCheck, label: 'Завskklady', href: '/warehouse-users', roles: ['admin', 'director'] },
+        { icon: UserCheck, label: 'Зав. складом', href: '/warehouse-users', roles: ['admin', 'director'] },
         { icon: UserCheck, label: 'Моя команда', href: `/product-managers/${userId}`, roles: ['product_manager'] },
         { icon: UserCheck, label: 'Менеджеры продукта', href: '/product-managers', roles: ['admin', 'director', 'deputy_director'] },
         { icon: Users, label: 'Мед представители', href: '/med-reps', roles: ['admin', 'director', 'deputy_director', 'product_manager', 'hrd'] },
