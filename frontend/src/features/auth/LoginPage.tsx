@@ -66,8 +66,8 @@ export default function LoginPage() {
         setIsLoading(true);
         setError('');
         try {
-            // const location = await getLocation();
-            const data = await authService.login(values.username, values.password, undefined);
+            const location = await getLocation();
+            const data = await authService.login(values.username, values.password, location);
             localStorage.setItem('token', data.access_token);
 
             const user = await authService.getMe();

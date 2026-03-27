@@ -6,14 +6,13 @@ export const authService = {
         const params = new URLSearchParams();
         params.append('username', username);
         params.append('password', password);
-        const headers: any = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        };
         if (location) {
-            headers['X-Client-Location'] = location;
+            params.append('client_location', location);
         }
         const response = await api.post('/login/access-token', params, {
-            headers,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
         });
         return response.data;
     },
