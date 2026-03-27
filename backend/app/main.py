@@ -15,6 +15,15 @@ async def lifespan(app: FastAPI):
         print("Migrations applied successfully!")
     except Exception as e:
         print(f"Migration failed: {e}")
+    
+    print("Initializing database data...")
+    try:
+        from app.initial_data import init_db
+        await init_db()
+        print("Database initialization successful!")
+    except Exception as e:
+        print(f"Database initialization failed: {e}")
+        
     yield
 
 app = FastAPI(
