@@ -349,19 +349,18 @@ async def read_login_history(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
-    start_date: Optional[datetime] = Query(None),
-    end_date: Optional[datetime] = Query(None),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    year: Optional[int] = Query(None),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Retrieve user login history. Only for specific roles (e.g., HRD, DIRECTOR, INVESTOR).
     """
-    print(f"DEBUG: read_login_history API called: start={start_date}, end={end_date}")
     if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HRD]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     return await crud_user.get_login_history(
-        db, skip=skip, limit=limit, start_date=start_date, end_date=end_date
+        db, skip=skip, limit=limit, month=month, year=year
     )
 
 @router.delete("/login-history")

@@ -5,26 +5,44 @@ import { DataTable } from '../../components/ui/data-table';
 import { loginHistoryColumns } from './loginHistoryColumns';
 import { useUserStore } from '../../store/userStore';
 import { Button } from '../../components/ui/button';
-import { Trash2, FilterX } from 'lucide-react';
-import { DatePicker } from '../../components/ui/date-picker';
+import { Trash2, FilterX, Calendar } from 'lucide-react';
+import { 
+    Select, 
+    SelectContent, 
+    SelectItem, 
+    SelectTrigger, 
+    SelectValue 
+} from "../../components/ui/select";
 import { toast } from "sonner";
+
+const MONTHS = [
+    { value: 1, label: "Январь" },
+    { value: 2, label: "Февраль" },
+    { value: 3, label: "Март" },
+    { value: 4, label: "Апрель" },
+    { value: 5, label: "Май" },
+    { value: 6, label: "Июнь" },
+    { value: 7, label: "Июль" },
+    { value: 8, label: "Август" },
+    { value: 9, label: "Сентябрь" },
+    { value: 10, label: "Октябрь" },
+    { value: 11, label: "Ноябрь" },
+    { value: 12, label: "Декабрь" },
+];
+
+const YEARS = [2024, 2025, 2026, 2027];
 
 export default function LoginHistoryPage() {
     const { loginHistory, fetchLoginHistory, clearLoginHistory, isLoading } = useUserStore();
-    const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-    const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+    
+    // Default to current month and year
+    const now = new Date();
+    const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
 
     useEffect(() => {
-        // Format to YYYY-MM-DD to avoid toISOString() timezone shift to UTC
-        const formatDate = (d: Date) => {
-            const z = (n: number) => (n < 10 ? '0' : '') + n;
-            return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
-        };
-
-        const start = startDate ? formatDate(startDate) : undefined;
-        const end = endDate ? formatDate(endDate) : undefined;
-        fetchLoginHistory(start, end);
-    }, [fetchLoginHistory, startDate, endDate]);
+        fetchLoginHistory(selectedMonth, selectedYear);
+    }, [fetchLoginHistory, selectedMonth, selectedYear]);
 
     const handleClearHistory = async () => {
         if (window.confirm('Вы уверены, что хотите очистить всю историю входов? Bu amalni ortga qaytarib bo\'lmaydi.')) {
@@ -38,8 +56,8 @@ export default function LoginHistoryPage() {
     };
 
     const resetFilters = () => {
-        setStartDate(undefined);
-        setEndDate(undefined);
+        setSelectedMonth(now.getMonth() + 1);
+        setSelectedYear(now.getFullYear());
     };
 
     return (
@@ -52,33 +70,51 @@ export default function LoginHistoryPage() {
                 />
                 
                 <div className="flex flex-wrap items-center gap-4 bg-white/40 backdrop-blur-md p-2 rounded-[2rem] border border-white/40 shadow-sm">
-                    {/* Date Filters */}
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-3">От</span>
-                            <DatePicker 
-                                date={startDate} 
-                                setDate={setStartDate} 
-                                placeholder="С даты"
-                                className="w-[180px] rounded-2xl border-none shadow-sm hover:shadow-md transition-all"
-                            />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">До</span>
-                            <DatePicker 
-                                date={endDate} 
-                                setDate={setEndDate} 
-                                placeholder="По дату"
-                                className="w-[180px] rounded-2xl border-none shadow-sm hover:shadow-md transition-all"
-                            />
+                    {/* Month/Year Filters */}
+                    <div className="flex items-center gap-3 px-2">
+                        <div className="flex items-center gap-3">
+                            <Calendar className="w-4 h-4 text-indigo-500 ml-1" />
+                            
+                            <Select 
+                                value={selectedMonth.toString()} 
+                                onValueChange={(val) => setSelectedMonth(parseInt(val))}
+                            >
+                                <SelectTrigger className="w-[140px] h-11 rounded-2xl border-none bg-white/50 shadow-sm hover:shadow-md transition-all font-bold text-slate-700">
+                                    <SelectValue placeholder="Месяц" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
+                                    {MONTHS.map((m) => (
+                                        <SelectItem key={m.value} value={m.value.toString()} className="rounded-xl font-bold">
+                                            {m.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select 
+                                value={selectedYear.toString()} 
+                                onValueChange={(val) => setSelectedYear(parseInt(val))}
+                            >
+                                <SelectTrigger className="w-[110px] h-11 rounded-2xl border-none bg-white/50 shadow-sm hover:shadow-md transition-all font-bold text-slate-700">
+                                    <SelectValue placeholder="Год" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
+                                    {YEARS.map((y) => (
+                                        <SelectItem key={y} value={y.toString()} className="rounded-xl font-bold">
+                                            {y}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
-                        {(startDate || endDate) && (
+                        {(selectedMonth !== now.getMonth() + 1 || selectedYear !== now.getFullYear()) && (
                             <Button 
                                 variant="ghost" 
                                 size="icon"
                                 onClick={resetFilters}
                                 className="h-11 w-11 rounded-2xl hover:bg-rose-50 hover:text-rose-500 text-slate-400 transition-colors"
+                                title="Сбросить к текущему месяцу"
                             >
                                 <FilterX className="h-5 w-5" />
                             </Button>

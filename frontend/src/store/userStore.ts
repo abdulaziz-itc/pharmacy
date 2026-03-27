@@ -28,7 +28,7 @@ interface UserStore {
     isLoading: boolean;
     error: string | null;
     fetchUsers: (role?: string) => Promise<void>;
-    fetchLoginHistory: (startDate?: string, endDate?: string) => Promise<void>;
+    fetchLoginHistory: (month?: number, year?: number) => Promise<void>;
     clearLoginHistory: () => Promise<void>;
 }
 
@@ -48,12 +48,12 @@ export const useUserStore = create<UserStore>((set) => ({
             set({ error: err.message || 'Failed to fetch users', isLoading: false });
         }
     },
-    fetchLoginHistory: async (startDate?: string, endDate?: string) => {
+    fetchLoginHistory: async (month?: number, year?: number) => {
         set({ isLoading: true, error: null });
         try {
             const params: any = {};
-            if (startDate) params.start_date = startDate;
-            if (endDate) params.end_date = endDate;
+            if (month) params.month = month;
+            if (year) params.year = year;
             
             const response = await axiosInstance.get('/users/login-history', { params });
             set({ loginHistory: response.data, isLoading: false });

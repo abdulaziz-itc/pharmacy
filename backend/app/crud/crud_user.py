@@ -116,21 +116,15 @@ async def get_login_history(
     *, 
     skip: int = 0, 
     limit: int = 100,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    month: Optional[int] = None,
+    year: Optional[int] = None,
 ) -> List[UserLoginHistory]:
     query = select(UserLoginHistory).options(selectinload(UserLoginHistory.user))
     
-    print(f"DEBUG: crud get_login_history filters: {start_date} to {end_date}")
-    if start_date:
-        query = query.where(UserLoginHistory.login_at >= start_date)
-    if end_date:
-        # If only date is provided, make it inclusive of the whole day
-        import datetime as dt
-        if end_date.hour == 0 and end_date.minute == 0:
-            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
-        print(f"DEBUG: final end_date: {end_date}")
-        query = query.where(UserLoginHistory.login_at <= end_date)
+    if year:
+        query = query.where(func.extract('year', UserLoginHistory.login_at) == year)
+    if month:
+        query = query.where(func.extract('month', UserLoginHistory.login_at) == month)
         
     result = await db.execute(
         query
