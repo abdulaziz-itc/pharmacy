@@ -1,4 +1,5 @@
 from typing import Any, List, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
@@ -348,12 +349,30 @@ async def read_login_history(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Retrieve user login history. Only for specific roles (e.g., HRD, ADMIN).
+    Retrieve user login history. Only for specific roles (e.g., HRD, DIRECTOR, INVESTOR).
     """
     if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HRD]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    return await crud_user.get_login_history(db, skip=skip, limit=limit)
+    return await crud_user.get_login_history(
+        db, skip=skip, limit=limit, start_date=start_date, end_date=end_date
+    )
+
+@router.delete("/login-history")
+async def delete_login_history(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Clear all login history. Only for HRD, DIRECTOR, or INVESTOR.
+    """
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HRD]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    count = await crud_user.clear_login_history(db)
+    return {"msg": f"Successfully cleared {count} login history records."}

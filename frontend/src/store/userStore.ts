@@ -28,7 +28,8 @@ interface UserStore {
     isLoading: boolean;
     error: string | null;
     fetchUsers: (role?: string) => Promise<void>;
-    fetchLoginHistory: () => Promise<void>;
+    fetchLoginHistory: (startDate?: string, endDate?: string) => Promise<void>;
+    clearLoginHistory: () => Promise<void>;
 }
 
 export const useUserStore = create<UserStore>((set) => ({
@@ -47,13 +48,27 @@ export const useUserStore = create<UserStore>((set) => ({
             set({ error: err.message || 'Failed to fetch users', isLoading: false });
         }
     },
-    fetchLoginHistory: async () => {
+    fetchLoginHistory: async (startDate?: string, endDate?: string) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axiosInstance.get('/users/login-history');
+            const params: any = {};
+            if (startDate) params.start_date = startDate;
+            if (endDate) params.end_date = endDate;
+            
+            const response = await axiosInstance.get('/users/login-history', { params });
             set({ loginHistory: response.data, isLoading: false });
         } catch (err: any) {
             set({ error: err.message || 'Failed to fetch login history', isLoading: false });
+        }
+    },
+    clearLoginHistory: async () => {
+        set({ isLoading: true, error: null });
+        try {
+            await axiosInstance.delete('/users/login-history');
+            set({ loginHistory: [], isLoading: false });
+        } catch (err: any) {
+            set({ error: err.message || 'Failed to clear login history', isLoading: false });
+            throw err;
         }
     },
 }));

@@ -31,6 +31,7 @@ import {
 } from "../../components/ui/dropdown-menu"
 import { ChevronLeft, ChevronRight, Filter, Search, Settings2, X } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
+import { cn } from "../../lib/utils"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -42,6 +43,7 @@ interface DataTableProps<TData, TValue> {
     meta?: any
     topContent?: React.ReactNode
     getRowClassName?: (row: TData) => string
+    isLoading?: boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -54,6 +56,7 @@ export function DataTable<TData, TValue>({
     meta,
     topContent,
     getRowClassName,
+    isLoading,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -285,12 +288,25 @@ export function DataTable<TData, TValue>({
                 onMouseLeave={handleMouseUpOrLeave}
                 onMouseUp={handleMouseUpOrLeave}
                 onMouseMove={onMouseMove}
-                className="overflow-x-auto bg-white border-x border-b border-slate-200 rounded-b-3xl shadow-2xl shadow-slate-200/50 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent cursor-grab active:cursor-grabbing"
+                className={cn(
+                    "overflow-x-auto bg-white border-x border-b border-slate-200 rounded-b-3xl shadow-2xl shadow-slate-200/50 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent cursor-grab active:cursor-grabbing",
+                    isLoading && "cursor-wait"
+                )}
                 style={{ scrollbarGutter: 'stable' }}
             >
                 <Table className="w-full table-fixed border-none">
                     <TableBody>
-                        {table.getRowModel().rows?.length ? (
+                        {isLoading ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <TableRow key={i} className="border-none">
+                                    {columns.map((_, j) => (
+                                        <TableCell key={j} className="px-3 py-4 border-none">
+                                            <div className="h-4 bg-slate-100 rounded-lg animate-pulse w-full" />
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))
+                        ) : table.getRowModel().rows?.length ? (
                             table.getRowModel().rows.map((row) => (
                                 <React.Fragment key={row.id}>
                                     <TableRow

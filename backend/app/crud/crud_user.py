@@ -1,4 +1,5 @@
 from typing import Any, Dict, Optional, Union, List
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -111,13 +112,31 @@ async def get_descendant_ids(db: AsyncSession, user_id: int) -> List[int]:
     return descendant_ids
 
 async def get_login_history(
-    db: AsyncSession, *, skip: int = 0, limit: int = 100
+    db: AsyncSession, 
+    *, 
+    skip: int = 0, 
+    limit: int = 100,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
 ) -> List[UserLoginHistory]:
+    query = select(UserLoginHistory).options(selectinload(UserLoginHistory.user))
+    
+    if start_date:
+        query = query.where(UserLoginHistory.login_at >= start_date)
+    if end_date:
+        query = query.where(UserLoginHistory.login_at <= end_date)
+        
     result = await db.execute(
-        select(UserLoginHistory)
-        .options(selectinload(UserLoginHistory.user))
+        query
         .order_by(UserLoginHistory.login_at.desc())
         .offset(skip)
         .limit(limit)
     )
     return result.scalars().all()
+
+async def clear_login_history(db: AsyncSession) -> int:
+    """Delete all login history records."""
+    from sqlalchemy import delete
+    result = await db.execute(delete(UserLoginHistory))
+    await db.commit()
+    return result.rowcount
