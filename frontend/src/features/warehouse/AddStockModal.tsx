@@ -14,9 +14,10 @@ interface AddStockModalProps {
   warehouseId: number | null;
   warehouseName?: string;
   initialProductId?: number | null;
+  initialQuantity?: number | null;
 }
 
-export const AddStockModal = ({ isOpen, onClose, onSuccess, warehouseId, warehouseName, initialProductId }: AddStockModalProps) => {
+export const AddStockModal = ({ isOpen, onClose, onSuccess, warehouseId, warehouseName, initialProductId, initialQuantity }: AddStockModalProps) => {
   const { products, fetchProducts } = useProductStore();
   const [productId, setProductId] = useState<string>('');
   const [quantity, setQuantity] = useState<string>('');
@@ -30,8 +31,14 @@ export const AddStockModal = ({ isOpen, onClose, onSuccess, warehouseId, warehou
       } else {
         setProductId('');
       }
+      // Pre-fill current quantity when editing
+      if (initialQuantity != null) {
+        setQuantity(initialQuantity.toString());
+      } else {
+        setQuantity('');
+      }
     }
-  }, [isOpen, fetchProducts, initialProductId]);
+  }, [isOpen, fetchProducts, initialProductId, initialQuantity]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -15,6 +15,7 @@ export default function WarehouseManagementPage() {
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [selectedQuantity, setSelectedQuantity] = useState<number | null>(null);
   const { products, fetchProducts } = useProductStore();
 
   const loadData = async () => {
@@ -122,6 +123,7 @@ export default function WarehouseManagementPage() {
                             onClick={() => {
                               setSelectedWarehouseId(warehouse.id);
                               setSelectedProductId(stock.product_id);
+                              setSelectedQuantity(stock.quantity);
                               setIsAddStockModalOpen(true);
                             }}
                           >
@@ -172,11 +174,13 @@ export default function WarehouseManagementPage() {
           setIsAddStockModalOpen(false);
           setSelectedWarehouseId(null);
           setSelectedProductId(null);
+          setSelectedQuantity(null);
         }}
         onSuccess={loadData}
         warehouseId={selectedWarehouseId}
         warehouseName={warehouses.find(w => w.id === selectedWarehouseId)?.name}
         initialProductId={selectedProductId}
+        initialQuantity={selectedQuantity}
       />
     </PageContainer>
   );
