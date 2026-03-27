@@ -19,7 +19,7 @@ async def get_by_username(db: AsyncSession, username: str) -> Optional[User]:
     result = await db.execute(
         select(User)
         .options(selectinload(User.assigned_regions))
-        .where(User.username == username)
+        .where(User.username == username.strip())
     )
     return result.scalars().first()
 
@@ -42,7 +42,7 @@ async def get_multi(
 
 async def create(db: AsyncSession, obj_in: UserCreate) -> User:
     db_obj = User(
-        username=obj_in.username,
+        username=obj_in.username.strip(),
         hashed_password=get_password_hash(obj_in.password),
         full_name=obj_in.full_name,
         role=obj_in.role,
@@ -68,6 +68,9 @@ async def update(
         update_data = obj_in
     else:
         update_data = obj_in.dict(exclude_unset=True)
+    
+    if "username" in update_data and update_data["username"]:
+        update_data["username"] = update_data["username"].strip()
     
     if "password" in update_data and update_data["password"]:
         hashed_password = get_password_hash(update_data["password"])
