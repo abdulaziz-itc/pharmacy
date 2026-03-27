@@ -64,6 +64,7 @@ export default function DirectorHRDPage() {
                 user={selectedUser}
                 defaultRole="hrd"
                 lockRole={true}
+                onSuccess={() => fetchUsers('hrd')}
             />
 
             <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border overflow-hidden hover-lift transition-all duration-500">

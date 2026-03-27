@@ -182,7 +182,9 @@ async def get_med_reps(
     manager_lookup = {u.id: u.full_name for u in all_users}
     
     # Filter by role if specified, otherwise return med_reps by default
-    if role:
+    if role == "all":
+        filtered = all_users
+    elif role:
         filtered = [u for u in all_users if u.role == role]
     else:
         filtered = [u for u in all_users if u.role == UserRole.MED_REP]

@@ -14,7 +14,7 @@ export default function HRDUserManagementPage() {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
     useEffect(() => {
-        fetchUsers();
+        fetchUsers('all');
     }, [fetchUsers]);
 
     const handleEdit = (user: User) => {
@@ -27,7 +27,7 @@ export default function HRDUserManagementPage() {
             await axiosInstance.put(`/users/${user.id}`, {
                 is_active: !user.is_active
             });
-            await fetchUsers();
+            await fetchUsers('all');
             toast.success(`Пользователь ${user.is_active ? 'деактивирован' : 'активирован'}`);
         } catch (error: any) {
             console.error("Failed to toggle user status", error);
@@ -57,6 +57,7 @@ export default function HRDUserManagementPage() {
                     setSelectedUser(null);
                 }}
                 user={selectedUser}
+                onSuccess={() => fetchUsers('all')}
             />
 
             <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border overflow-hidden hover-lift transition-all duration-500">

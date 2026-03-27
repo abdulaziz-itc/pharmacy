@@ -22,6 +22,7 @@ interface UserModalProps {
     user: User | null;
     defaultRole?: string;
     lockRole?: boolean;
+    onSuccess?: () => void;
 }
 
 const ROLES = [
@@ -39,7 +40,7 @@ const ROLES = [
     { value: 'med_rep', label: 'Мед представитель' },
 ];
 
-export function UserModal({ isOpen, onClose, user, defaultRole, lockRole }: UserModalProps) {
+export function UserModal({ isOpen, onClose, user, defaultRole, lockRole, onSuccess }: UserModalProps) {
     const { fetchUsers, users } = useUserStore();
     const { regions, fetchRegions } = useRegionStore();
     const [fullName, setFullName] = useState("");
@@ -110,7 +111,11 @@ export function UserModal({ isOpen, onClose, user, defaultRole, lockRole }: User
                 toast.success("Пользователь успешно создан.");
             }
             
-            await fetchUsers();
+            if (onSuccess) {
+                onSuccess();
+            } else {
+                await fetchUsers(); // Fallback to default
+            }
             onClose();
         } catch (error: any) {
             console.error("Failed to save user", error);
@@ -193,7 +198,7 @@ export function UserModal({ isOpen, onClose, user, defaultRole, lockRole }: User
                                     </SelectTrigger>
                                     <SelectContent className="rounded-xl max-h-[200px]">
                                         <SelectItem value="none">Без руководителя</SelectItem>
-                                        {users.filter(u => u.id !== user?.id).map(m => (
+                                        {users.filter((u: User) => u.id !== user?.id).map((m: User) => (
                                             <SelectItem key={m.id} value={m.id.toString()}>
                                                 {m.full_name} ({m.role})
                                             </SelectItem>
