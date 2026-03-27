@@ -1,5 +1,5 @@
 from typing import Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -118,7 +118,7 @@ async def login_access_token(
             ip_address=ip,
             location=final_location,
             user_agent=ua,
-            login_at=datetime.utcnow()
+            login_at=datetime.now(timezone(timedelta(hours=5)))
         )
         db.add(login_history)
         await db.commit()
