@@ -28,7 +28,12 @@ async def get_current_user(
             detail="Could not validate credentials",
         )
     
-    result = await db.execute(select(User).where(User.id == int(token_data.sub)))
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.assigned_regions))
+        .where(User.id == int(token_data.sub))
+    )
     user = result.scalars().first()
     
     if not user:

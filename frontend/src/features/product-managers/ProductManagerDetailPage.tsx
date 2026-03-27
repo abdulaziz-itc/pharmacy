@@ -13,11 +13,13 @@ import { EditSubordinateModal } from './components/EditSubordinateModal';
 import { Button } from '../../components/ui/button';
 import { ArrowRightLeft } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { useRegionStore } from '../../store/regionStore';
 import { ReassignUserModal } from '../med-reps/ReassignUserModal';
 import { toast } from 'sonner';
 
 export default function ProductManagerDetailPage() {
     const { id } = useParams<{ id: string }>();
+    const { regions, fetchRegions } = useRegionStore();
     const [hierarchyData, setHierarchyData] = React.useState<any>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
     const [isCreateRMModalOpen, setIsCreateRMModalOpen] = React.useState(false);
@@ -49,7 +51,8 @@ export default function ProductManagerDetailPage() {
 
     React.useEffect(() => {
         fetchHierarchy();
-    }, [fetchHierarchy]);
+        fetchRegions();
+    }, [fetchHierarchy, fetchRegions]);
 
     const handleToggleActive = async (user: SubordinateUser) => {
         try {
@@ -72,11 +75,18 @@ export default function ProductManagerDetailPage() {
         }
     };
 
+    const regionMap = React.useMemo(() => {
+        const map: Record<number, string> = {};
+        regions.forEach(r => map[r.id] = r.name);
+        return map;
+    }, [regions]);
+
     const columns = React.useMemo(() => getSubordinateColumns(
         (user) => setEditingUser(user),
         canReassign ? (user) => setTransferUser(user) : undefined,
-        canReassign ? handleToggleActive : undefined
-    ), [canReassign, fetchHierarchy]);
+        canReassign ? handleToggleActive : undefined,
+        regionMap
+    ), [canReassign, handleToggleActive, regionMap]);
 
     if (isLoading) {
         return (

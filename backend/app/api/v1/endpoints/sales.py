@@ -233,6 +233,8 @@ async def read_reservations(
             med_rep_ids = [-1]
         final_med_rep_id = None
     
+    region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
+    
     dt_from = datetime.fromisoformat(date_from) if date_from else None
     dt_to = datetime.fromisoformat(date_to) if date_to else None
     
@@ -250,7 +252,8 @@ async def read_reservations(
         inv_num=inv_num,
         med_rep_ids=med_rep_ids,
         status=status,
-        med_org_id=med_org_id
+        med_org_id=med_org_id,
+        region_ids=region_ids
     )
 
 @router.get("/reservations/{id}")
@@ -401,9 +404,8 @@ async def read_invoices(
         if not med_rep_ids:
             med_rep_ids = [-1]
         med_rep_id = None
-    else:
-        # Director or other admin — use the passed med_rep_id if provided
-        pass
+
+    region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
     
     dt_from = datetime.fromisoformat(date_from) if date_from else None
     dt_to = datetime.fromisoformat(date_to) if date_to else None
@@ -423,7 +425,8 @@ async def read_invoices(
         med_rep_ids=med_rep_ids,
         status=status,
         has_debt=has_debt,
-        med_org_id=med_org_id
+        med_org_id=med_org_id,
+        region_ids=region_ids
     )
 
 @router.get("/invoices/eligible-for-tovar-skidka", response_model=List[InvoiceSchema])

@@ -22,7 +22,8 @@ export interface SubordinateUser {
 export const getSubordinateColumns = (
     onEdit: (user: SubordinateUser) => void,
     onTransfer?: (user: SubordinateUser) => void,
-    onToggleActive?: (user: SubordinateUser) => void
+    onToggleActive?: (user: SubordinateUser) => void,
+    regionMap: Record<number, string> = {}
 ): ColumnDef<SubordinateUser>[] => [
         {
             id: "index",
@@ -46,6 +47,28 @@ export const getSubordinateColumns = (
                 </span>
             ),
             cell: ({ row }) => <span className="font-bold text-slate-700">{row.getValue("full_name")}</span>,
+        },
+        {
+            id: "regions",
+            header: () => (
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
+                    РЕГИОНЫ
+                </span>
+            ),
+            cell: ({ row }) => {
+                const ids = row.original.region_ids || [];
+                if (ids.length === 0) return <span className="text-slate-400 text-xs">—</span>;
+                const names = ids.map(id => regionMap[id] || `ID ${id}`);
+                return (
+                    <div className="flex flex-wrap gap-1">
+                        {names.map((name, i) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold whitespace-nowrap">
+                                {name}
+                            </span>
+                        ))}
+                    </div>
+                );
+            },
         },
         {
             accessorKey: "role",

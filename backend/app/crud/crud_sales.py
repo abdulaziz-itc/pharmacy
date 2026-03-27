@@ -212,7 +212,8 @@ async def get_reservations(
     med_rep_ids: Optional[List[int]] = None,
     status: Optional[str] = None,
     warehouse_id: Optional[int] = None,
-    med_org_id: Optional[int] = None
+    med_org_id: Optional[int] = None,
+    region_ids: Optional[List[int]] = None
 ) -> List[Reservation]:
     query = select(Reservation).options(
         selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
@@ -230,17 +231,30 @@ async def get_reservations(
     if warehouse_id:
         query = query.where(Reservation.warehouse_id == warehouse_id)
 
+    has_joined_org = False
+
     # Apply Med Rep filter (Creator or Assigned)
     if med_rep_id:
-        query = query.join(Reservation.med_org, isouter=True).where(
+        query = query.join(Reservation.med_org, isouter=True)
+        has_joined_org = True
+        query = query.where(
             (Reservation.created_by_id == med_rep_id) |
             (MedicalOrganization.assigned_reps.any(id=med_rep_id))
         )
     elif med_rep_ids:
-        query = query.join(Reservation.med_org, isouter=True).where(
+        query = query.join(Reservation.med_org, isouter=True)
+        has_joined_org = True
+        query = query.where(
             (Reservation.created_by_id.in_(med_rep_ids)) |
             (MedicalOrganization.assigned_reps.any(User.id.in_(med_rep_ids)))
         )
+
+    # Filter by Region IDs (new multi-region support)
+    if region_ids:
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
+        query = query.where(MedicalOrganization.region_id.in_(region_ids))
     
     # Filter by Med Rep Name
     if med_rep_name and med_rep_name != "all":
@@ -365,7 +379,8 @@ async def get_invoices(
     status: Optional[str] = None,
     warehouse_id: Optional[int] = None,
     has_debt: bool = False,
-    med_org_id: Optional[int] = None
+    med_org_id: Optional[int] = None,
+    region_ids: Optional[List[int]] = None
 ) -> List[Invoice]:
     query = select(Invoice).options(
         selectinload(Invoice.payments).selectinload(Payment.processed_by),
@@ -406,6 +421,16 @@ async def get_invoices(
             (Reservation.created_by_id.in_(med_rep_ids)) |
             (MedicalOrganization.assigned_reps.any(User.id.in_(med_rep_ids)))
         )
+    
+    # Filter by Region IDs (new multi-region support)
+    if region_ids:
+        if not has_joined_res:
+            query = query.join(Invoice.reservation)
+            has_joined_res = True
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
+        query = query.where(MedicalOrganization.region_id.in_(region_ids))
     
     # Filter by Med Rep Name
     if med_rep_name and med_rep_name != "all":
