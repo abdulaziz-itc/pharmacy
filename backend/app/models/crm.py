@@ -33,7 +33,7 @@ class Region(Base):
     
     med_orgs = relationship("MedicalOrganization", back_populates="region")
     doctors = relationship("Doctor", back_populates="region")
-    assigned_users = relationship("User", secondary=user_regions, backref="assigned_regions")
+    assigned_users = relationship("User", secondary=user_regions, back_populates="assigned_regions")
 
 class DoctorSpecialty(Base):
     id = Column(Integer, primary_key=True, index=True)

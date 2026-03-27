@@ -31,6 +31,9 @@ class User(Base):
     # Relationship to access subordinates
     subordinates = relationship("User", backref="manager", remote_side=[id])
 
+    # Explicit relationship definitions using strings to avoid circular imports
+    assigned_regions = relationship("Region", secondary="user_regions", back_populates="assigned_users")
+
 class UserLoginHistory(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
