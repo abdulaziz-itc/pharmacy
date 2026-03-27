@@ -34,6 +34,45 @@ def get_location_from_ip(ip: str) -> str:
     
     return "Не определено"
 
+def get_address_from_coords(lat: str, lon: str) -> str:
+    """
+    Reverse geocoding using OpenStreetMap (Nominatim).
+    Returns 'Street Name House Number, City' or 'Lat, Lon'.
+    """
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=18&addressdetails=1"
+        req = urllib.request.Request(url)
+        # Nominatim requires a User-Agent
+        req.add_header('User-Agent', 'PharmaERP/1.0')
+        
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.load(response)
+            address = data.get("address", {})
+            
+            # Construct a human-readable address
+            parts = []
+            
+            # Check for street address components
+            street = address.get("road") or address.get("suburb")
+            house_number = address.get("house_number")
+            city = address.get("city") or address.get("town") or address.get("village")
+            
+            if street:
+                if house_number:
+                    parts.append(f"{street} {house_number}")
+                else:
+                    parts.append(street)
+            
+            if city:
+                parts.append(city)
+                
+            if parts:
+                return ", ".join(parts)
+    except Exception as e:
+        print(f"Reverse geocoding failed: {e}")
+    
+    return f"{lat}, {lon}"
+
 @router.post("/login/access-token", response_model=Token)
 async def login_access_token(
     request: Request,
@@ -63,6 +102,14 @@ async def login_access_token(
         
         # Determine location: Use form field if present, else fallback to IP lookup
         final_location = client_location
+        if final_location and "," in final_location:
+            # Try to reverse geocode if coordinates are passed (lat, lon)
+            try:
+                lat, lon = [x.strip() for x in final_location.split(",")]
+                final_location = get_address_from_coords(lat, lon)
+            except Exception:
+                pass # Fallback to original coords if parsing fails
+
         if not final_location or final_location == "undefined":
             final_location = get_location_from_ip(ip)
 
