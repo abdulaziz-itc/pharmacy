@@ -44,11 +44,30 @@ export default function LoginPage() {
         },
     });
 
+    const getLocation = (): Promise<string | undefined> => {
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) {
+                resolve(undefined);
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    resolve(`${position.coords.latitude}, ${position.coords.longitude}`);
+                },
+                () => {
+                    resolve(undefined);
+                },
+                { timeout: 3000 }
+            );
+        });
+    };
+
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsLoading(true);
         setError('');
         try {
-            const data = await authService.login(values.username, values.password);
+            const location = await getLocation();
+            const data = await authService.login(values.username, values.password, location);
             localStorage.setItem('token', data.access_token);
 
             const user = await authService.getMe();
