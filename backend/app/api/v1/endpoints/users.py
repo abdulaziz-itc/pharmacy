@@ -353,7 +353,7 @@ async def read_login_history(
     """
     Retrieve user login history. Only for specific roles (e.g., HRD, ADMIN).
     """
-    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DIRECTOR, UserRole.HRD]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HRD]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     return await crud_user.get_login_history(db, skip=skip, limit=limit)

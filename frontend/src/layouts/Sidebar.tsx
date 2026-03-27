@@ -28,7 +28,7 @@ const getSidebarItems = (role?: string, userId?: number) => {
         { icon: LayoutDashboard, label: 'Дашборд', href: '/dashboard', roles: ['admin', 'investor', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'med_rep', 'head_of_orders', 'hrd'] },
         { icon: Users, label: 'Управление пользователями', href: '/hrd/users', roles: ['admin', 'investor', 'hrd'] },
         { icon: UserCheck, label: 'Директор отдела кадров (HRD)', href: '/director/hrd', roles: ['director', 'investor'] },
-        { icon: Activity, label: 'История входов', href: '/hrd/login-history', roles: ['admin', 'investor', 'director', 'hrd'] },
+        { icon: Activity, label: 'История входов', href: '/hrd/login-history', roles: ['investor', 'director', 'hrd'] },
         { icon: Wallet, label: 'Бонусы МП', href: '/bonuses', roles: ['admin', 'investor', 'director', 'deputy_director'] },
         { icon: PieChart, label: 'Расширенные отчеты', href: '/reports', roles: ['admin', 'investor', 'director'] },
         { icon: UserCheck, label: 'Зам. Директора', href: '/deputy-directors', roles: ['admin', 'investor', 'director'] },
