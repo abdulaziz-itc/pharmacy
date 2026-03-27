@@ -145,7 +145,7 @@ async def delete_reservation(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.MED_REP, UserRole.DIRECTOR, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.MED_REP, UserRole.DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions to delete reservations.")
     
     # Check roles that require approval for deletion
@@ -331,7 +331,7 @@ async def update_reservation_status(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     if status_update.status == ReservationStatus.APPROVED:
@@ -542,7 +542,7 @@ async def create_bonus_payment(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    allowed_roles = {UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
+    allowed_roles = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
     if current_user.role not in allowed_roles:
         raise HTTPException(
             status_code=403,
@@ -566,7 +566,7 @@ async def update_bonus_payment(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    allowed_roles = {UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
+    allowed_roles = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     result = await crud_sales.update_bonus_payment(db, payment_id=payment_id, obj_in=payment_in)
@@ -977,7 +977,7 @@ async def get_admin_bonus_summary(
     Returns a summary of bonuses for all MedReps.
     Only accessible by Director, Deputy Director, Admin.
     """
-    allowed_roles = {UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
+    allowed_roles = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
@@ -1035,7 +1035,7 @@ async def pay_medrep_bonus(
     """
     Marks unpaid ACCRUAL records as paid up to the requested amount.
     """
-    allowed_roles = {UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
+    allowed_roles = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
         

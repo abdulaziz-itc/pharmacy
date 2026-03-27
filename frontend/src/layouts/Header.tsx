@@ -7,6 +7,7 @@ import axiosInstance from '../api/axios';
 import { toast } from 'sonner';
 
 const ROLE_LABELS: Record<string, string> = {
+    investor: 'Инвестор (Владелец)',
     admin: 'Администратор',
     director: 'Директор',
     deputy_director: 'Зам. директора',

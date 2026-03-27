@@ -32,7 +32,7 @@ async def create_category(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     category = await crud_product.create_category(db, obj_in=category_in)
@@ -53,7 +53,7 @@ async def update_category(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
         
     category = await crud_product.get_category(db, id=id)
@@ -87,7 +87,7 @@ async def create_manufacturer(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     manufacturer = await crud_product.create_manufacturer(db, obj_in=manufacturer_in)
@@ -108,7 +108,7 @@ async def update_manufacturer(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     manufacturer = await crud_product.get_manufacturer(db, id=id)
     if not manufacturer:

@@ -5,6 +5,7 @@ import enum
 from app.db.base_class import Base
 
 class UserRole(str, enum.Enum):
+    INVESTOR = "investor"
     ADMIN = "admin"
     DIRECTOR = "director"
     DEPUTY_DIRECTOR = "deputy_director"

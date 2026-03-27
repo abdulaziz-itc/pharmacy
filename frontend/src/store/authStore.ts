@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export const UserRole = {
+    INVESTOR: 'investor',
     ADMIN: 'admin',
     DIRECTOR: 'director',
     DEPUTY_DIRECTOR: 'deputy_director',

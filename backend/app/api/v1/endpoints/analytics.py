@@ -116,7 +116,7 @@ async def get_director_report_excel(
     from sqlalchemy.orm import selectinload
     from sqlalchemy import select, and_
     
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     if not month:

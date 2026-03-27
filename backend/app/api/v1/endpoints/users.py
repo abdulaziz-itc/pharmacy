@@ -26,7 +26,7 @@ async def read_users(
     """
     Retrieve users. Only for specific roles (e.g., DEPUTY_DIRECTOR).
     """
-    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     users = await crud_user.get_multi(
@@ -50,7 +50,7 @@ async def create_user(
     """
     Create new user.
     """
-    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.HRD]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.HRD]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     # If the creator is a Product Manager, enforce themselves as the manager if they are creating a subordinate
@@ -90,7 +90,7 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.HRD]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.HRD]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
         
     if current_user.role == UserRole.PRODUCT_MANAGER:
@@ -230,7 +230,7 @@ async def reassign_user_dependencies(
     Transfer all subordinates, territories (doctors, organizations), and active plans 
     from one user to another user of the same role.
     """
-    if current_user.role not in [UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
         raise HTTPException(status_code=403, detail="Not enough permissions to reassign.")
         
     from_user = await crud_user.get(db, id=req.from_user_id)
@@ -351,7 +351,7 @@ async def read_login_history(
     """
     Retrieve user login history. Only for specific roles (e.g., HRD, ADMIN).
     """
-    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.HRD]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DIRECTOR, UserRole.HRD]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     return await crud_user.get_login_history(db, skip=skip, limit=limit)

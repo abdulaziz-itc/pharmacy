@@ -45,7 +45,7 @@ async def create_product(
     """
     Create new product.
     """
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     product = await crud_product.create_product(db, obj_in=product_in)
@@ -84,7 +84,7 @@ async def update_product(
     """
     Update a product.
     """
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
         
     product = await crud_product.get_product(db, id=id)

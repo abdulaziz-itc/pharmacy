@@ -35,7 +35,7 @@ async def get_comprehensive_reports(
     - details: List of per-doctor/product breakdown with plan vs fact comparison.
     - charts: Time-series data for historical trends.
     """
-    if current_user.role not in [UserRole.DIRECTOR]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     # 1. Fetch Plans (Plans are stored as month/year)

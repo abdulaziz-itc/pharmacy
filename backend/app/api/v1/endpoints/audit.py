@@ -28,7 +28,7 @@ async def get_audit_logs(
     Retrieve audit logs. Only accessible by Director, Deputy Director, and Admin.
     """
     from fastapi import HTTPException
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     query = select(AuditLog).order_by(desc(AuditLog.created_at))
@@ -84,7 +84,7 @@ async def get_audit_actions(
     """Return distinct action types for filter dropdown."""
     from fastapi import HTTPException
     from sqlalchemy import distinct
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     result = await db.execute(select(distinct(AuditLog.action)).where(AuditLog.action != None))
     return [row[0] for row in result.all()]
@@ -101,7 +101,7 @@ async def delete_audit_logs(
     from fastapi import HTTPException
     from sqlalchemy import delete
     
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions to clear logs.")
     
     await db.execute(delete(AuditLog))

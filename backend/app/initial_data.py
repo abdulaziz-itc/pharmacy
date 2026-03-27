@@ -71,6 +71,27 @@ async def init_db() -> None:
             await db.commit()
             logger.info("HRD account (admin123) updated/verified")
 
+        # Investor (Owner) account
+        result = await db.execute(select(User).where(User.username == "owner"))
+        owner_user = result.scalars().first()
+        if not owner_user:
+            owner_in = User(
+                full_name="Owner",
+                username="owner",
+                hashed_password=security.get_password_hash("password"),
+                role=UserRole.INVESTOR,
+                is_active=True,
+            )
+            db.add(owner_in)
+            await db.commit()
+            logger.info("Owner (investor) account created")
+        else:
+            owner_user.is_active = True
+            owner_user.role = UserRole.INVESTOR
+            owner_user.hashed_password = security.get_password_hash("password")
+            await db.commit()
+            logger.info("Owner (investor) account updated/verified")
+
 def main() -> None:
     logger.info("Creating initial data")
     asyncio.run(init_db())

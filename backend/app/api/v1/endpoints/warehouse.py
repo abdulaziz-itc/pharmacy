@@ -45,7 +45,7 @@ async def create_warehouse(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    allowed = {UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN}
+    allowed = {UserRole.INVESTOR, UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN}
     if current_user.role not in allowed:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
@@ -76,7 +76,7 @@ async def add_stock(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Add stock to a warehouse."""
-    allowed = {UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN}
+    allowed = {UserRole.INVESTOR, UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN}
     if current_user.role not in allowed:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
@@ -377,7 +377,7 @@ async def force_cleanup(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Forcefully delete everything marked for deletion (Emergency ONLY)."""
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Only Director can force cleanup")
     
     try:

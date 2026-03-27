@@ -23,7 +23,7 @@ async def reassign_medrep_endpoint(
     """
     Transactionally reassigns doctors and pharmacies from one MedRep to another.
     """
-    if current_user.role not in [UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER]:
         raise HTTPException(status_code=403, detail="Not enough permissions to reassign reps.")
         
     return await ReassignmentService.reassign_medrep(
@@ -43,7 +43,7 @@ async def get_user_hierarchy(
     Retrieves the entire nested subordinate tree using Recursive CTEs.
     """
     # Assuming director can view anyone, or a user can view themselves
-    if current_user.role != UserRole.DIRECTOR and current_user.id != user_id:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR] and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Permission denied.")
         
     subordinates = await HierarchyService.get_subordinates(db=db, user_id=user_id)

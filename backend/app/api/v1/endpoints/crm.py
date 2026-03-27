@@ -38,7 +38,7 @@ async def create_region(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     region = await crud_crm.create_region(db, obj_in=region_in)
     await log_action(
@@ -57,7 +57,7 @@ async def update_region(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     region = await crud_crm.get_region(db, id=id)
@@ -91,7 +91,7 @@ async def create_specialty(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     specialty = await crud_crm.create_specialty(db, obj_in=specialty_in)
     from app.services.audit_service import log_action
@@ -120,7 +120,7 @@ async def create_doctor_category(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     category = await crud_crm.create_doctor_category(db, obj_in=category_in)
     from app.services.audit_service import log_action
@@ -176,7 +176,7 @@ async def create_med_org(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     med_org = await crud_crm.create_med_org(db, obj_in=med_org_in)
     from app.services.audit_service import log_action
@@ -196,7 +196,7 @@ async def update_med_org(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     med_org = await crud_crm.get_med_org(db, id=id)
@@ -289,7 +289,7 @@ async def create_doctor(
     doctor_in: DoctorCreate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     doctor = await crud_crm.create_doctor(db, obj_in=doctor_in)
     from app.services.audit_service import log_action
@@ -306,7 +306,7 @@ async def update_doctor(
     doctor_in: DoctorUpdate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.ADMIN]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     doctor = await crud_crm.get_doctor(db, id=id)
@@ -384,7 +384,7 @@ async def delete_doctor(
     Permanently delete a doctor only if they have no history
     (no BonusPayment, DoctorFactAssignment, or Plan records).
     """
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     from app.models.sales import Plan, DoctorFactAssignment, BonusPayment

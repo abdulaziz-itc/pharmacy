@@ -22,7 +22,7 @@ async def read_debtors(
     """
     Get list of unpaid/partial invoices (Debtors).
     """
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
         
     query = (
@@ -45,7 +45,7 @@ async def read_global_stats(
     """
     Global statistics: Total Sales, Total Payments, Total Debt.
     """
-    if current_user.role not in [UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     # Total Sales (Confirmed Reservations)

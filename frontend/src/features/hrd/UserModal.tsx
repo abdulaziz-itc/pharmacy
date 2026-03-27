@@ -25,6 +25,7 @@ interface UserModalProps {
 }
 
 const ROLES = [
+    { value: 'investor', label: 'Инвестор (Владелец)' },
     { value: 'admin', label: 'Администратор' },
     { value: 'director', label: 'Директор' },
     { value: 'deputy_director', label: 'Зам. директора' },
