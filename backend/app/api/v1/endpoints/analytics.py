@@ -25,6 +25,7 @@ async def get_global_realtime_dashboard(
     from app.models.ledger import BonusLedger, LedgerType
 
     if current_user.role not in [
+        UserRole.INVESTOR,
         UserRole.DIRECTOR, 
         UserRole.DEPUTY_DIRECTOR, 
         UserRole.PRODUCT_MANAGER, 
