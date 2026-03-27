@@ -110,7 +110,7 @@ async def login_access_token(
             except Exception:
                 pass # Fallback to original coords if parsing fails
 
-        if not final_location or final_location == "undefined":
+        if not final_location or final_location in ["undefined", "Не определено", "Unknown", "Local Network"]:
             final_location = get_location_from_ip(ip)
 
         login_history = UserLoginHistory(
