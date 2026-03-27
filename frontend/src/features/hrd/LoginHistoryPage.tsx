@@ -15,8 +15,14 @@ export default function LoginHistoryPage() {
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
     useEffect(() => {
-        const start = startDate ? startDate.toISOString() : undefined;
-        const end = endDate ? endDate.toISOString() : undefined;
+        // Format to YYYY-MM-DD to avoid toISOString() timezone shift to UTC
+        const formatDate = (d: Date) => {
+            const z = (n: number) => (n < 10 ? '0' : '') + n;
+            return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+        };
+
+        const start = startDate ? formatDate(startDate) : undefined;
+        const end = endDate ? formatDate(endDate) : undefined;
         fetchLoginHistory(start, end);
     }, [fetchLoginHistory, startDate, endDate]);
 

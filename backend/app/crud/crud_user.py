@@ -124,6 +124,10 @@ async def get_login_history(
     if start_date:
         query = query.where(UserLoginHistory.login_at >= start_date)
     if end_date:
+        # If only date is provided, make it inclusive of the whole day
+        import datetime as dt
+        if end_date.hour == 0 and end_date.minute == 0:
+            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
         query = query.where(UserLoginHistory.login_at <= end_date)
         
     result = await db.execute(
