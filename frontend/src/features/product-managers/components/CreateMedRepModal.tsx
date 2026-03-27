@@ -19,14 +19,14 @@ interface CreateMedRepModalProps {
 }
 
 export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: CreateMedRepModalProps) {
-    const { fetchRegions } = useRegionStore();
+    const { regions, fetchRegions } = useRegionStore();
     const [isLoading, setIsLoading] = React.useState(false);
     const [formData, setFormData] = React.useState({
         full_name: '',
         username: '',
         password: '',
         manager_id: '',
-        region_id: '',
+        region_ids: [] as number[],
     });
 
     useEffect(() => {
@@ -35,19 +35,35 @@ export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: Create
         }
     }, [isOpen, fetchRegions]);
 
-    // Automatically set region_id when manager_id changes
+    // Available regions for the MedRep (filtered by manager if selected)
+    const availableRegions = React.useMemo(() => {
+        if (!formData.manager_id) return regions;
+        const selectedManager = rmList.find(rm => rm.id === parseInt(formData.manager_id));
+        if (selectedManager && selectedManager.region_ids && selectedManager.region_ids.length > 0) {
+            return regions.filter(r => selectedManager.region_ids.includes(r.id));
+        }
+        return regions;
+    }, [formData.manager_id, regions, rmList]);
+
+    // Reset region_ids that are no longer available when manager changes
     useEffect(() => {
         if (formData.manager_id) {
-            const selectedManager = rmList.find(rm => rm.id === parseInt(formData.manager_id));
-            if (selectedManager && selectedManager.region_id) {
-                setFormData(prev => ({ ...prev, region_id: String(selectedManager.region_id) }));
-            } else {
-                setFormData(prev => ({ ...prev, region_id: '' }));
-            }
-        } else {
-            setFormData(prev => ({ ...prev, region_id: '' }));
+            const currentAvailableIds = availableRegions.map(r => r.id);
+            setFormData(prev => ({
+                ...prev,
+                region_ids: prev.region_ids.filter(id => currentAvailableIds.includes(id))
+            }));
         }
-    }, [formData.manager_id, rmList]);
+    }, [formData.manager_id, availableRegions]);
+
+    const handleRegionToggle = (regionId: number) => {
+        setFormData(prev => ({
+            ...prev,
+            region_ids: prev.region_ids.includes(regionId)
+                ? prev.region_ids.filter(id => id !== regionId)
+                : [...prev.region_ids, regionId]
+        }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -59,11 +75,11 @@ export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: Create
                 password: formData.password,
                 role: 'med_rep',
                 manager_id: parseInt(formData.manager_id),
-                region_id: formData.region_id ? parseInt(formData.region_id) : undefined,
+                region_ids: formData.region_ids,
             });
             onSuccess();
             onClose();
-            setFormData({ full_name: '', username: '', password: '', manager_id: '', region_id: '' });
+            setFormData({ full_name: '', username: '', password: '', manager_id: '', region_ids: [] });
         } catch (error) {
             console.error('Failed to create med rep:', error);
         } finally {
@@ -80,7 +96,7 @@ export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: Create
                     </DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="p-8 space-y-6 bg-white">
+                <form onSubmit={handleSubmit} className="p-8 space-y-6 bg-white max-h-[80vh] overflow-y-auto">
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="full_name" className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -142,12 +158,38 @@ export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: Create
                                 ))}
                             </select>
                         </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Регионы
+                            </Label>
+                            <div className="grid grid-cols-2 gap-2 p-3 border border-slate-200 rounded-xl bg-slate-50/50">
+                                {availableRegions.map(r => (
+                                    <label key={r.id} className="flex items-center space-x-2 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                                            checked={formData.region_ids.includes(r.id)}
+                                            onChange={() => handleRegionToggle(r.id)}
+                                        />
+                                        <span className="text-sm font-medium text-slate-600 group-hover:text-blue-600 transition-colors">
+                                            {r.name}
+                                        </span>
+                                    </label>
+                                ))}
+                                {availableRegions.length === 0 && (
+                                    <span className="col-span-2 text-xs text-slate-400 italic">
+                                        {formData.manager_id ? "У менеджера нет назначенных регионов" : "Выберите менеджера для просмотра регионов"}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     <Button
                         type="submit"
                         className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
-                        disabled={isLoading}
+                        disabled={isLoading || formData.region_ids.length === 0}
                     >
                         {isLoading ? 'ДОБАВЛЕНИЕ...' : 'ДОБАВИТЬ'}
                     </Button>

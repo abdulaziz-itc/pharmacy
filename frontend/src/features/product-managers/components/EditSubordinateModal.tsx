@@ -10,6 +10,7 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { updateUser } from '../../../api/user';
 import { type SubordinateUser } from '../subordinateColumns';
+import { useRegionStore } from '../../../store/regionStore';
 import { toast } from 'sonner';
 
 interface EditSubordinateModalProps {
@@ -20,22 +21,40 @@ interface EditSubordinateModalProps {
 }
 
 export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditSubordinateModalProps) {
+    const { regions, fetchRegions } = useRegionStore();
     const [isLoading, setIsLoading] = React.useState(false);
     const [formData, setFormData] = React.useState({
         full_name: '',
         username: '',
         password: '',
+        region_ids: [] as number[],
     });
 
     useEffect(() => {
-        if (user) {
+        if (isOpen) {
+            fetchRegions();
+        }
+    }, [isOpen, fetchRegions]);
+
+    useEffect(() => {
+        if (user && isOpen) {
             setFormData({
                 full_name: user.full_name || '',
                 username: user.username || '',
                 password: '', // default empty, only send if user types something
+                region_ids: user.region_ids || [],
             });
         }
     }, [user, isOpen]);
+
+    const handleRegionToggle = (regionId: number) => {
+        setFormData(prev => ({
+            ...prev,
+            region_ids: prev.region_ids.includes(regionId)
+                ? prev.region_ids.filter(id => id !== regionId)
+                : [...prev.region_ids, regionId]
+        }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -46,6 +65,7 @@ export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditS
             const updatePayload: any = {
                 full_name: formData.full_name,
                 username: formData.username,
+                region_ids: formData.region_ids,
             };
 
             if (formData.password) {
@@ -79,7 +99,7 @@ export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditS
                     </DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="p-8 space-y-6 bg-white">
+                <form onSubmit={handleSubmit} className="p-8 space-y-6 bg-white max-h-[80vh] overflow-y-auto">
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="full_name" className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -121,6 +141,27 @@ export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditS
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Регионы
+                            </Label>
+                            <div className="grid grid-cols-2 gap-2 p-3 border border-slate-200 rounded-xl bg-slate-50/50">
+                                {regions.map(r => (
+                                    <label key={r.id} className="flex items-center space-x-2 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                                            checked={formData.region_ids.includes(r.id)}
+                                            onChange={() => handleRegionToggle(r.id)}
+                                        />
+                                        <span className="text-sm font-medium text-slate-600 group-hover:text-blue-600 transition-colors">
+                                            {r.name}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
                         </div>
                     </div>
 

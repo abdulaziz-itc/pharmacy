@@ -26,7 +26,7 @@ export function CreateRMModal({ isOpen, onClose, onSuccess, ffmList }: CreateRMM
         username: '',
         password: '',
         manager_id: '',
-        region_id: '',
+        region_ids: [] as number[],
     });
 
     useEffect(() => {
@@ -34,6 +34,15 @@ export function CreateRMModal({ isOpen, onClose, onSuccess, ffmList }: CreateRMM
             fetchRegions();
         }
     }, [isOpen, fetchRegions]);
+
+    const handleRegionToggle = (regionId: number) => {
+        setFormData(prev => ({
+            ...prev,
+            region_ids: prev.region_ids.includes(regionId)
+                ? prev.region_ids.filter(id => id !== regionId)
+                : [...prev.region_ids, regionId]
+        }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,11 +54,11 @@ export function CreateRMModal({ isOpen, onClose, onSuccess, ffmList }: CreateRMM
                 password: formData.password,
                 role: 'regional_manager',
                 manager_id: parseInt(formData.manager_id),
-                region_id: parseInt(formData.region_id),
+                region_ids: formData.region_ids,
             });
             onSuccess();
             onClose();
-            setFormData({ full_name: '', username: '', password: '', manager_id: '', region_id: '' });
+            setFormData({ full_name: '', username: '', password: '', manager_id: '', region_ids: [] });
         } catch (error) {
             console.error('Failed to create regional manager:', error);
         } finally {
@@ -66,7 +75,7 @@ export function CreateRMModal({ isOpen, onClose, onSuccess, ffmList }: CreateRMM
                     </DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="p-8 space-y-6 bg-white">
+                <form onSubmit={handleSubmit} className="p-8 space-y-6 bg-white max-h-[80vh] overflow-y-auto">
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="full_name" className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -130,28 +139,31 @@ export function CreateRMModal({ isOpen, onClose, onSuccess, ffmList }: CreateRMM
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="region_id" className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                Регион
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Регионы
                             </Label>
-                            <select
-                                id="region_id"
-                                className="w-full h-12 px-3 rounded-xl border border-slate-200 focus:border-blue-500 transition-all font-medium text-sm"
-                                value={formData.region_id}
-                                onChange={(e) => setFormData({ ...formData, region_id: e.target.value })}
-                                required
-                            >
-                                <option value="">Выберите регион</option>
+                            <div className="grid grid-cols-2 gap-2 p-3 border border-slate-200 rounded-xl bg-slate-50/50">
                                 {regions.map(r => (
-                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                    <label key={r.id} className="flex items-center space-x-2 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                                            checked={formData.region_ids.includes(r.id)}
+                                            onChange={() => handleRegionToggle(r.id)}
+                                        />
+                                        <span className="text-sm font-medium text-slate-600 group-hover:text-blue-600 transition-colors">
+                                            {r.name}
+                                        </span>
+                                    </label>
                                 ))}
-                            </select>
+                            </div>
                         </div>
                     </div>
 
                     <Button
                         type="submit"
                         className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
-                        disabled={isLoading}
+                        disabled={isLoading || formData.region_ids.length === 0}
                     >
                         {isLoading ? 'ДОБАВЛЕНИЕ...' : 'ДОБАВИТЬ'}
                     </Button>

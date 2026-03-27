@@ -7,6 +7,7 @@ export interface UserCreate {
     role: string;
     manager_id?: number;
     region_id?: number;
+    region_ids?: number[];
 }
 
 export const createUser = async (userData: UserCreate) => {

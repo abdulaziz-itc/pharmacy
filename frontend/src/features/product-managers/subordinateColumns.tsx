@@ -16,6 +16,7 @@ export interface SubordinateUser {
     full_name: string;
     role: string;
     is_active?: boolean;
+    region_ids?: number[];
 }
 
 export const getSubordinateColumns = (
