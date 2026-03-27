@@ -11,15 +11,7 @@ import {
 } from "../../components/ui/dropdown-menu"
 import { Badge } from "../../components/ui/badge"
 import { cn } from "../../lib/utils"
-
-export interface User {
-    id: number;
-    username: string;
-    full_name: string;
-    role: string;
-    is_active: boolean;
-    manager_name?: string | null;
-}
+import { type User } from "../../store/userStore"
 
 export const hrdUserColumns = (
     onEdit: (user: User) => void,
