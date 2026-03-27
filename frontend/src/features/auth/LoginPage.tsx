@@ -50,14 +50,17 @@ export default function LoginPage() {
                 resolve(undefined);
                 return;
             }
+            console.log("Requesting browser geolocation...");
             navigator.geolocation.getCurrentPosition(
                 (position) => {
+                    console.log("Geolocation successful:", position.coords.latitude, position.coords.longitude);
                     resolve(`${position.coords.latitude}, ${position.coords.longitude}`);
                 },
-                () => {
+                (err) => {
+                    console.warn("Geolocation failed or denied:", err.message);
                     resolve(undefined);
                 },
-                { timeout: 3000 }
+                { timeout: 10000, enableHighAccuracy: true }
             );
         });
     };
