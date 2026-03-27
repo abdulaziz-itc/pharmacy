@@ -44,20 +44,25 @@ export default function LoginPage() {
         },
     });
 
+    const [locationStatus, setLocationStatus] = useState<'idle' | 'finding' | 'found' | 'denied' | 'error'>('idle');
+
     const getLocation = (): Promise<string | undefined> => {
         return new Promise((resolve) => {
             if (!navigator.geolocation) {
                 resolve(undefined);
                 return;
             }
+            setLocationStatus('finding');
             console.log("Requesting browser geolocation...");
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     console.log("Geolocation successful:", position.coords.latitude, position.coords.longitude);
+                    setLocationStatus('found');
                     resolve(`${position.coords.latitude}, ${position.coords.longitude}`);
                 },
                 (err) => {
                     console.warn("Geolocation failed or denied:", err.message);
+                    setLocationStatus(err.code === 1 ? 'denied' : 'error');
                     resolve(undefined);
                 },
                 { timeout: 10000, enableHighAccuracy: true }
@@ -183,6 +188,24 @@ export default function LoginPage() {
                                         "Авторизовать доступ"
                                     )}
                                 </Button>
+                                
+                                {locationStatus !== 'idle' && (
+                                    <div className={`flex items-center justify-center gap-2 text-[10px] uppercase font-bold tracking-widest py-2 rounded-lg transition-colors ${
+                                        locationStatus === 'finding' ? 'text-blue-400 bg-blue-500/5' :
+                                        locationStatus === 'found' ? 'text-emerald-400 bg-emerald-500/5' :
+                                        'text-amber-400 bg-amber-500/5'
+                                    }`}>
+                                        {locationStatus === 'finding' && <Loader2 className="w-3 h-3 animate-spin" />}
+                                        {locationStatus === 'found' && <MapPin className="w-3 h-3" />}
+                                        {(locationStatus === 'denied' || locationStatus === 'error') && <AlertCircle className="w-3 h-3" />}
+                                        <span>
+                                            {locationStatus === 'finding' && "Определение местоположения..."}
+                                            {locationStatus === 'found' && "Локация определена"}
+                                            {locationStatus === 'denied' && "Доступ к геопозиции отклонен"}
+                                            {locationStatus === 'error' && "Ошибка геолокации (проверьте GPS)"}
+                                        </span>
+                                    </div>
+                                )}
                             </form>
                         </Form>
                     </CardContent>
@@ -196,4 +219,4 @@ export default function LoginPage() {
     );
 }
 
-import { Package, Users, Eye, EyeOff, Lock } from 'lucide-react';
+import { Package, Users, Eye, EyeOff, Lock, MapPin, AlertCircle } from 'lucide-react';
