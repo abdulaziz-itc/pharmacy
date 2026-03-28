@@ -21,20 +21,32 @@ async def read_debtors(
 ) -> Any:
     """
     Get list of unpaid/partial invoices (Debtors).
+    Managers see debtors only within their sub-team.
     """
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]:
+    from app.crud.crud_user import get_descendant_ids
+    
+    # Permission check: Director/Deputy/Orders can see global, others filtered
+    is_global_manager = current_user.role in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]
+    is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
+    
+    if not is_global_manager and not is_team_manager:
         raise HTTPException(status_code=400, detail="Not enough permissions")
         
     query = (
         select(Invoice)
+        .join(Reservation)
         .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL]))
         .order_by(Invoice.date.desc())
-        .offset(skip).limit(limit)
     )
-    result = await db.execute(query)
-    invoices = result.scalars().all()
     
-    # In a real app, we might aggregate by Customer here
+    if is_team_manager:
+        descendant_ids = await get_descendant_ids(db, current_user.id)
+        if not descendant_ids:
+            descendant_ids = [-1]
+        query = query.where(Reservation.created_by_id.in_(descendant_ids))
+        
+    result = await db.execute(query.offset(skip).limit(limit))
+    invoices = result.scalars().all()
     return invoices
 
 @router.get("/stats")
@@ -44,24 +56,37 @@ async def read_global_stats(
 ) -> Any:
     """
     Global statistics: Total Sales, Total Payments, Total Debt.
+    Filtered by hierarchy for managers.
     """
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR]:
+    from app.crud.crud_user import get_descendant_ids
+    
+    is_global_manager = current_user.role in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR]
+    is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
+    
+    if not is_global_manager and not is_team_manager:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
+    descendant_ids = None
+    if is_team_manager:
+        descendant_ids = await get_descendant_ids(db, current_user.id)
+        if not descendant_ids:
+            descendant_ids = [-1]
+            
     # Total Sales (Confirmed Reservations)
     total_sales_query = select(func.sum(Reservation.total_amount)).where(Reservation.status == ReservationStatus.APPROVED)
+    if is_team_manager:
+        total_sales_query = total_sales_query.where(Reservation.created_by_id.in_(descendant_ids))
     total_sales_result = await db.execute(total_sales_query)
     total_sales = total_sales_result.scalar() or 0.0
     
     # Total Payments
-    total_payments_query = select(func.sum(Invoice.paid_amount))
+    total_payments_query = select(func.sum(Invoice.paid_amount)).join(Reservation)
+    if is_team_manager:
+        total_payments_query = total_payments_query.where(Reservation.created_by_id.in_(descendant_ids))
     total_payments_result = await db.execute(total_payments_query)
     total_payments = total_payments_result.scalar() or 0.0
     
-    # Total Debt (Unpaid Invoices)
-    # Ideally: Sum(total_amount - paid_amount) where status != PAID
-    # Simplification: Total Sales (Invoiced) - Total Payments
-    total_debt = total_sales - total_payments # Approximate
+    total_debt = total_sales - total_payments
     
     return {
         "total_sales": total_sales,

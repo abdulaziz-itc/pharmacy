@@ -20,6 +20,46 @@ from app.models.product import Product
 
 router = APIRouter()
 
+@router.get("/med-orgs/{org_id}", response_model=MedicalOrganization)
+@router.get("/med-orgs/{org_id}/", response_model=MedicalOrganization, include_in_schema=False)
+async def read_med_org(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    org_id: int,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    med_org = await crud_crm.get_med_org(db, id=org_id)
+    if not med_org:
+        raise HTTPException(status_code=404, detail="Medical Organization not found")
+    return med_org
+
+@router.put("/med-orgs/{org_id}", response_model=MedicalOrganization)
+@router.put("/med-orgs/{org_id}/", response_model=MedicalOrganization, include_in_schema=False)
+async def update_med_org(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    org_id: int,
+    med_org_in: MedicalOrganizationUpdate,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request,
+) -> Any:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+    
+    med_org = await crud_crm.get_med_org(db, id=org_id)
+    if not med_org:
+        raise HTTPException(status_code=404, detail="Medical Organization not found")
+        
+    updated_med_org = await crud_crm.update_med_org(db, db_obj=med_org, obj_in=med_org_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "UPDATE", "MedicalOrganization", updated_med_org.id,
+        f"Обновлена организация: {updated_med_org.name}",
+        request
+    )
+    return updated_med_org
+
+
 # Regions
 @router.get("/regions/", response_model=List[Region])
 async def read_regions(
@@ -187,37 +227,6 @@ async def create_med_org(
     )
     return med_org
     
-@router.get("/med-orgs/{id}", response_model=MedicalOrganization)
-async def read_med_org(
-    *,
-    db: AsyncSession = Depends(deps.get_db),
-    id: int,
-    current_user: User = Depends(deps.get_current_user),
-) -> Any:
-    med_org = await crud_crm.get_med_org(db, id=id)
-    if not med_org:
-        raise HTTPException(status_code=404, detail="Medical Organization not found")
-    return med_org
-
-@router.put("/med-orgs/{id}", response_model=MedicalOrganization)
-async def update_med_org(
-    *,
-    db: AsyncSession = Depends(deps.get_db),
-    id: int,
-    med_org_in: MedicalOrganizationUpdate,
-    current_user: User = Depends(deps.get_current_user),
-    request: Request,
-) -> Any:
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
-        raise HTTPException(status_code=400, detail="Not enough permissions")
-    
-    med_org = await crud_crm.get_med_org(db, id=id)
-    if not med_org:
-        raise HTTPException(status_code=404, detail="Medical Organization not found")
-        
-    updated_med_org = await crud_crm.update_med_org(db, db_obj=med_org, obj_in=med_org_in)
-    from app.services.audit_service import log_action
-    await log_action(
         db, current_user, "UPDATE", "MedicalOrganization", updated_med_org.id,
         f"Данные организации изменены: {updated_med_org.name}",
         request

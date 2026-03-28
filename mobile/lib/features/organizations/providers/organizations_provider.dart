@@ -94,7 +94,7 @@ class OrganizationsNotifier extends StateNotifier<OrganizationsState> {
     state = state.copyWith(status: OrgsLoadStatus.loading);
     try {
       // 1. Get Org Info
-      final orgResponse = await _apiClient.get('${ApiEndpoints.medOrgs}/$id');
+      final orgResponse = await _apiClient.get('${ApiEndpoints.medOrgs}/$id/');
       final org = MedOrgModel.fromJson(orgResponse.data as Map<String, dynamic>);
       
       // 2. Get Doctors in this org
@@ -110,7 +110,7 @@ class OrganizationsNotifier extends StateNotifier<OrganizationsState> {
       }
       
       // 3. Get Stock for this org
-      final stockResponse = await _apiClient.get('${ApiEndpoints.medOrgs}/$id/stock');
+      final stockResponse = await _apiClient.get('${ApiEndpoints.medOrgs}/$id/stock/');
       List<Map<String, dynamic>> stock = [];
       if (stockResponse.data is List) {
         stock = (stockResponse.data as List).cast<Map<String, dynamic>>();
