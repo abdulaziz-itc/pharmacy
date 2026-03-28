@@ -68,6 +68,11 @@ async def read_regions(
     limit: int = 100,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
+    if current_user.role == UserRole.REGIONAL_MANAGER:
+        from sqlalchemy.orm import selectinload
+        result = await db.execute(select(User).options(selectinload(User.assigned_regions)).where(User.id == current_user.id))
+        user_db = result.scalars().first()
+        return user_db.assigned_regions if user_db else []
     return await crud_crm.get_regions(db, skip=skip, limit=limit)
 
 @router.post("/regions/", response_model=Region)

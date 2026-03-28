@@ -10,6 +10,7 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { createUser } from '../../../api/user';
 import { useRegionStore } from '../../../store/regionStore';
+import { useAuthStore } from '../../../store/authStore';
 
 interface CreateMedRepModalProps {
     isOpen: boolean;
@@ -19,13 +20,14 @@ interface CreateMedRepModalProps {
 }
 
 export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: CreateMedRepModalProps) {
+    const { user } = useAuthStore();
     const { regions, fetchRegions } = useRegionStore();
     const [isLoading, setIsLoading] = React.useState(false);
     const [formData, setFormData] = React.useState({
         full_name: '',
         username: '',
         password: '',
-        manager_id: '',
+        manager_id: user?.role === 'regional_manager' ? user.id.toString() : '',
         region_ids: [] as number[],
     });
 
@@ -37,13 +39,16 @@ export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: Create
 
     // Available regions for the MedRep (filtered by manager if selected)
     const availableRegions = React.useMemo(() => {
+        // If RM is logged in, use already filtered regions from backend
+        if (user?.role === 'regional_manager') return regions;
+        
         if (!formData.manager_id) return regions;
         const selectedManager = rmList.find(rm => rm.id === parseInt(formData.manager_id));
         if (selectedManager && selectedManager.region_ids && selectedManager.region_ids.length > 0) {
             return regions.filter(r => selectedManager.region_ids.includes(r.id));
         }
         return regions;
-    }, [formData.manager_id, regions, rmList]);
+    }, [formData.manager_id, regions, rmList, user?.role]);
 
     // Reset region_ids that are no longer available when manager changes
     useEffect(() => {
@@ -141,23 +146,25 @@ export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: Create
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="manager_id" className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                Regional Manager
-                            </Label>
-                            <select
-                                id="manager_id"
-                                className="w-full h-12 px-3 rounded-xl border border-slate-200 focus:border-blue-500 transition-all font-medium text-sm"
-                                value={formData.manager_id}
-                                onChange={(e) => setFormData({ ...formData, manager_id: e.target.value })}
-                                required
-                            >
-                                <option value="">Выберите менеджера</option>
-                                {rmList.map(rm => (
-                                    <option key={rm.id} value={rm.id}>{rm.full_name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {user?.role !== 'regional_manager' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="manager_id" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                    Regional Manager
+                                </Label>
+                                <select
+                                    id="manager_id"
+                                    className="w-full h-12 px-3 rounded-xl border border-slate-200 focus:border-blue-500 transition-all font-medium text-sm"
+                                    value={formData.manager_id}
+                                    onChange={(e) => setFormData({ ...formData, manager_id: e.target.value })}
+                                    required
+                                >
+                                    <option value="">Выберите менеджера</option>
+                                    {rmList.map(rm => (
+                                        <option key={rm.id} value={rm.id}>{rm.full_name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">

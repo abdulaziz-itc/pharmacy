@@ -51,13 +51,17 @@ async def create_user(
     """
     Create new user.
     """
-    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.HRD]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
-    # If the creator is a Product Manager, enforce themselves as the manager if they are creating a subordinate
+    # If the creator is a Product Manager or Regional Manager, enforce themselves as the manager
     if current_user.role == UserRole.PRODUCT_MANAGER:
         if user_in.role not in [UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.MED_REP]:
             raise HTTPException(status_code=400, detail="Product Manager can only create subordinates")
+        user_in.manager_id = current_user.id
+    elif current_user.role == UserRole.REGIONAL_MANAGER:
+        if user_in.role != UserRole.MED_REP:
+            raise HTTPException(status_code=400, detail="Regional Manager can only create Medical Representatives")
         user_in.manager_id = current_user.id
         
     user = await crud_user.get_by_username(db, username=user_in.username)
@@ -91,12 +95,17 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.HRD]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
         
     if current_user.role == UserRole.PRODUCT_MANAGER:
         if user.role not in [UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.MED_REP]:
             raise HTTPException(status_code=400, detail="Product Manager can only edit subordinates")
+    elif current_user.role == UserRole.REGIONAL_MANAGER:
+        if user.manager_id != current_user.id:
+            raise HTTPException(status_code=400, detail="Regional Manager can only edit their own direct subordinates")
+        if user_in.role and user_in.role != UserRole.MED_REP:
+             raise HTTPException(status_code=400, detail="Regional Manager can only manage Medical Representatives")
             
     # Validation for deactivation (is_active = False)
     if user_in.is_active is False and user.is_active is True:

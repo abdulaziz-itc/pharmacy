@@ -6,24 +6,43 @@ import { PageContainer } from '../../components/PageContainer';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { ReassignUserModal } from './ReassignUserModal';
+import { Button } from "../../components/ui/button";
 
 import { toast } from 'sonner';
 
+import { useAuthStore } from '../../store/authStore';
+import { CreateMedRepModal } from '../product-managers/components/CreateMedRepModal';
+
 export default function MedRepsPage() {
     const navigate = useNavigate();
+    const { user } = useAuthStore();
     const { medReps, fetchMedReps, isLoading } = useMedRepStore();
+    const [rmList, setRmList] = useState<any[]>([]);
 
     // Modal states
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isReassignOpen, setIsReassignOpen] = useState(false);
     const [reassignUserId, setReassignUserId] = useState<number>(0);
     const [reassignUserName, setReassignUserName] = useState<string>('');
     const [activeTab, setActiveTab] = useState("active");
-
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    const fetchRMList = React.useCallback(async () => {
+        try {
+            const api = (await import('../../api/axios')).default;
+            const res = await api.get('/users/med-reps?role=regional_manager');
+            setRmList(res.data);
+        } catch (error) {
+            console.error("Failed to fetch RM list:", error);
+        }
+    }, []);
 
     React.useEffect(() => {
         fetchMedReps("med_rep");
-    }, [fetchMedReps]);
+        if (user?.role !== 'regional_manager') {
+            fetchRMList();
+        }
+    }, [fetchMedReps, fetchRMList, user?.role]);
 
     const handleReassignOpen = (id: number, name: string) => {
         setReassignUserId(id);
@@ -71,6 +90,14 @@ export default function MedRepsPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Медицинские представители</h1>
                 </div>
+                {['admin', 'investor', 'director', 'deputy_director', 'product_manager', 'regional_manager'].includes(user?.role || '') && (
+                    <Button 
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl h-11 px-6 shadow-lg shadow-indigo-100 transition-all active:scale-95"
+                    >
+                        Добавить
+                    </Button>
+                )}
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className={`space-y-6 ${isSubmitting ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -111,6 +138,13 @@ export default function MedRepsPage() {
                     </div>
                 </TabsContent>
             </Tabs>
+
+            <CreateMedRepModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSuccess={() => fetchMedReps("med_rep")}
+                rmList={rmList}
+            />
 
             <ReassignUserModal
                 isOpen={isReassignOpen}
