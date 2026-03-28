@@ -226,12 +226,6 @@ async def create_med_org(
         request
     )
     return med_org
-    
-        db, current_user, "UPDATE", "MedicalOrganization", updated_med_org.id,
-        f"Данные организации изменены: {updated_med_org.name}",
-        request
-    )
-    return updated_med_org
 
 @router.get("/med-orgs/{id}/stock")
 async def get_med_org_stock(
