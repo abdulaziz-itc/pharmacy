@@ -106,10 +106,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           width: 90,
                           height: 90,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
+                              color: Colors.white.withValues(alpha: 0.3),
                               width: 2,
                             ),
                           ),
@@ -134,7 +134,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           'Tibbiy vakillar uchun',
                           style: GoogleFonts.inter(
                             fontSize: 15,
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -151,7 +151,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: Colors.black.withValues(alpha: 0.15),
                             blurRadius: 30,
                             offset: const Offset(0, 10),
                           ),
@@ -184,10 +184,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               keyboardType: TextInputType.text,
                               textInputAction: TextInputAction.next,
                               autocorrect: false,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'Foydalanuvchi nomi',
                                 hintText: 'username',
-                                prefixIcon: const Icon(
+                                prefixIcon: Icon(
                                   Icons.person_outline_rounded,
                                   color: AppColors.textHint,
                                 ),
@@ -277,7 +277,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     '© 2024 Heartly Systems',
                     style: GoogleFonts.inter(
                       fontSize: 12,
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                     ),
                   ),
                   const SizedBox(height: 24),

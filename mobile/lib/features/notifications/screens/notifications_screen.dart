@@ -145,12 +145,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: notification.isUnread
-              ? AppColors.accent.withOpacity(0.05)
+              ? AppColors.accent.withValues(alpha: 0.05)
               : AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: notification.isUnread
-                ? AppColors.accent.withOpacity(0.3)
+                ? AppColors.accent.withValues(alpha: 0.3)
                 : AppColors.divider,
           ),
         ),
@@ -162,7 +162,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               height: 44,
               decoration: BoxDecoration(
                 color: notification.isUnread
-                    ? AppColors.accent.withOpacity(0.15)
+                    ? AppColors.accent.withValues(alpha: 0.15)
                     : AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(12),
               ),

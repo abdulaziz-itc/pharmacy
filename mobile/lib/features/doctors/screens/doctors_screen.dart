@@ -190,8 +190,8 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.accent.withOpacity(0.7),
-                    AppColors.primary.withOpacity(0.7),
+                    AppColors.accent.withValues(alpha: 0.7),
+                    AppColors.primary.withValues(alpha: 0.7),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(14),

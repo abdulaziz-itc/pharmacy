@@ -64,7 +64,7 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
                     padding: const EdgeInsets.symmetric(
                         horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(
-                      color: AppColors.statusPending.withOpacity(0.2),
+                      color: AppColors.statusPending.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -89,7 +89,7 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
                     padding: const EdgeInsets.symmetric(
                         horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(
-                      color: AppColors.statusApproved.withOpacity(0.2),
+                      color: AppColors.statusApproved.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -176,7 +176,7 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
         border: Border.all(
           color: isPending
               ? AppColors.divider
-              : AppColors.statusApproved.withOpacity(0.3),
+              : AppColors.statusApproved.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -189,8 +189,8 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
                 height: 44,
                 decoration: BoxDecoration(
                   color: isPending
-                      ? AppColors.statusPending.withOpacity(0.1)
-                      : AppColors.statusApproved.withOpacity(0.1),
+                      ? AppColors.statusPending.withValues(alpha: 0.1)
+                      : AppColors.statusApproved.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(

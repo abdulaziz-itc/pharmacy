@@ -50,7 +50,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     try {
       final response = await _apiClient.get(
         ApiEndpoints.notifications,
-        queryParameters: {'limit': 50},
+        queryParameters: {'skip': 0, 'limit': 100},
       );
       List<NotificationModel> notifications = [];
       final data = response.data;

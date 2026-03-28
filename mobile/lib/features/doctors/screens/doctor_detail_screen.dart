@@ -66,10 +66,10 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.4),
+                        color: Colors.white.withValues(alpha: 0.4),
                         width: 2,
                       ),
                     ),
@@ -99,7 +99,7 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
                       doctor.specialty!.name,
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                 ],
@@ -170,9 +170,9 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -295,7 +295,7 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: AppColors.statusApproved.withOpacity(0.1),
+                color: AppColors.statusApproved.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -342,7 +342,7 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.08),
+              color: AppColors.primary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: AppColors.primary, size: 18),

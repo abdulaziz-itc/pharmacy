@@ -16,27 +16,27 @@ class StatusBadge extends StatelessWidget {
     switch (status.toLowerCase()) {
       case 'pending':
       case 'kutilmoqda':
-        return AppColors.statusPending.withOpacity(0.15);
+        return AppColors.statusPending.withValues(alpha: 0.15);
       case 'approved':
       case 'tasdiqlangan':
-        return AppColors.statusApproved.withOpacity(0.15);
+        return AppColors.statusApproved.withValues(alpha: 0.15);
       case 'cancelled':
       case 'bekor qilingan':
-        return AppColors.statusCancelled.withOpacity(0.15);
+        return AppColors.statusCancelled.withValues(alpha: 0.15);
       case 'completed':
       case 'yakunlangan':
-        return AppColors.statusCompleted.withOpacity(0.15);
+        return AppColors.statusCompleted.withValues(alpha: 0.15);
       case 'active':
       case 'faol':
-        return AppColors.statusApproved.withOpacity(0.15);
+        return AppColors.statusApproved.withValues(alpha: 0.15);
       case 'inactive':
-        return AppColors.statusCancelled.withOpacity(0.15);
+        return AppColors.statusCancelled.withValues(alpha: 0.15);
       case 'unread':
-        return AppColors.accent.withOpacity(0.15);
+        return AppColors.accent.withValues(alpha: 0.15);
       case 'read':
-        return AppColors.textHint.withOpacity(0.15);
+        return AppColors.textHint.withValues(alpha: 0.15);
       default:
-        return AppColors.textHint.withOpacity(0.15);
+        return AppColors.textHint.withValues(alpha: 0.15);
     }
   }
 

@@ -90,7 +90,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF7C3AED).withOpacity(0.3),
+                color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -108,7 +108,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                 'Joriy balans',
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                 ),
               ),
               const SizedBox(height: 4),
@@ -133,7 +133,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                   Container(
                     width: 1,
                     height: 40,
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                   ),
                   Expanded(
                     child: _buildBalanceStat(
@@ -265,7 +265,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
           label,
           style: GoogleFonts.inter(
             fontSize: 10,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
           ),
           textAlign: TextAlign.center,
         ),
@@ -329,7 +329,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
         height: 40,
         decoration: BoxDecoration(
           color: (isAccrual ? AppColors.statusApproved : AppColors.statusCancelled)
-              .withOpacity(0.1),
+              .withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(

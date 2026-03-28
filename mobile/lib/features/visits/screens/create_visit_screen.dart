@@ -365,7 +365,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                       final doctor = doctors[index];
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: AppColors.accent.withOpacity(0.2),
+                          backgroundColor: AppColors.accent.withValues(alpha: 0.2),
                           child: Text(
                             doctor.initials,
                             style: GoogleFonts.inter(

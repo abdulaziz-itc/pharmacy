@@ -151,7 +151,7 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
@@ -184,7 +184,7 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
