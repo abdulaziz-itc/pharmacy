@@ -487,7 +487,7 @@ export default function AdminBonusApprovalPage() {
                             </div>
 
                             <div className="p-6 space-y-6">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                         <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Дата</p>
                                         <p className="text-sm font-bold text-slate-700">
@@ -498,6 +498,12 @@ export default function AdminBonusApprovalPage() {
                                         <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Сумма</p>
                                         <p className="text-sm font-black text-blue-600">
                                             {selectedResDetails.total_amount?.toLocaleString()} UZS
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                        <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Оплачено</p>
+                                        <p className="text-sm font-black text-emerald-600">
+                                            {selectedResDetails.invoice?.paid_amount?.toLocaleString() || 0} UZS
                                         </p>
                                     </div>
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
