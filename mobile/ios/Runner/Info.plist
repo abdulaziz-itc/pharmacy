@@ -81,5 +81,7 @@
 	<string>Profil rasmi yuklash uchun</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Profil rasmi olish uchun</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Tizimga kirishda xavfsizlik va monitoring uchun joylashuvingiz kerak.</string>
 </dict>
 </plist>

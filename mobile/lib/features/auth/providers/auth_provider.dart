@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart' show DioException, DioExceptionType, Headers, Options;
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
@@ -68,16 +69,49 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<String?> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return null;
+      }
+
+      if (permission == LocationPermission.deniedForever) return null;
+
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+      return "${position.latitude},${position.longitude}";
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<bool> login(String username, String password) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
+      final location = await _getCurrentLocation();
+      
+      final Map<String, dynamic> loginData = {
+        'username': username,
+        'password': password,
+        'grant_type': 'password',
+      };
+      
+      if (location != null) {
+        loginData['client_location'] = location;
+      }
+
       final response = await _apiClient.post(
         ApiEndpoints.login,
-        data: {
-          'username': username,
-          'password': password,
-          'grant_type': 'password',
-        },
+        data: loginData,
         options: Options(
           contentType: Headers.formUrlEncodedContentType,
         ),
