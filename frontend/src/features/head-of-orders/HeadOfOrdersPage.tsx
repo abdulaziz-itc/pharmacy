@@ -2004,14 +2004,19 @@ const HeadOfOrdersPage: React.FC = () => {
                                     ) : (prixodMfrProducts as any[]).map((p: any) => (
                                         <SelectItem key={p.id} value={p.id.toString()}>
                                             <div className="flex flex-col py-0.5">
-                                                <span className="font-medium">{p.name}</span>
-                                                <span className="text-[10px] text-slate-500 flex items-center gap-2">
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <span className="font-medium">{p.name}</span>
+                                                    <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border border-blue-100/50">
+                                                        Остаток: {stockMap[p.id] || 0} шт
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] text-slate-500 flex items-center gap-2 mt-0.5">
                                                     {p.category?.name && (
                                                         <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
                                                             {p.category.name}
                                                         </span>
                                                     )}
-                                                    <span className="font-semibold text-blue-600">
+                                                    <span className="font-semibold text-slate-400">
                                                         {Number(p.price).toLocaleString()} UZS
                                                     </span>
                                                 </span>
