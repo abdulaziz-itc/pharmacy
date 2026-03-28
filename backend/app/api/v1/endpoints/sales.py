@@ -901,48 +901,6 @@ async def get_medrep_bonus_balance(
         import traceback
         logger.error(f"Error in get_medrep_bonus_balance: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
-
-            # Extract factura_number from the related invoice if available
-            factura_number = None
-            if getattr(h, 'invoice_item', None) and getattr(h.invoice_item, 'reservation', None):
-                inv_obj = getattr(h.invoice_item.reservation, 'invoice', None)
-                if inv_obj:
-                    factura_number = getattr(inv_obj, 'factura_number', None)
-
-            history_data.append({
-                "id": h.id,
-                "amount": h.amount,
-                "ledger_type": h.ledger_type,
-                "is_paid": h.is_paid,
-                "target_month": h.target_month,
-                "target_year": h.target_year,
-                "notes": h.notes,
-                "created_at": h.created_at.isoformat() if h.created_at else None,
-                "doctor": {
-                    "id": h.doctor.id,
-                    "full_name": h.doctor.full_name
-                } if h.doctor else None,
-                "product": {
-                    "id": h.product.id,
-                    "name": h.product.name
-                } if getattr(h, 'product', None) else None,
-                "payment_id": h.payment_id,
-                "invoice_id": inv_id,
-                "reservation_id": res_id,
-                "factura_number": factura_number
-            })
-        
-        return {
-            "balance": balance,
-            "total_accrued": total_accrued,
-            "total_paid": total_paid,
-            "total_allocated": total_allocated,
-            "history": history_data
-        }
-    except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail=traceback.format_exc())
-
 @router.post("/allocate-bonus/")
 async def allocate_bonus(
     *,
