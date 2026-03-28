@@ -46,6 +46,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _checkAuth() async {
+    // Show splash animation for at least 2 seconds
+    await Future.delayed(const Duration(seconds: 2));
+    
     final hasToken = await _storage.hasToken();
     if (hasToken) {
       final info = await _storage.getUserInfo();

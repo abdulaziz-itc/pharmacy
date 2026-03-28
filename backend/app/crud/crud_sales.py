@@ -262,20 +262,23 @@ async def get_reservations(
 
     # Filter by Company (Med Org ID)
     if med_org_id and med_org_id != "all":
-        if not med_rep_id: 
+        if not has_joined_org: 
              query = query.join(Reservation.med_org, isouter=True)
+             has_joined_org = True
         query = query.where(MedicalOrganization.id == med_org_id)
 
     # Filter by Company Name (Legacy/Fallback)
     if med_org_name and med_org_name != "all":
-        if not med_rep_id and not med_org_id: 
+        if not has_joined_org: 
              query = query.join(Reservation.med_org, isouter=True)
+             has_joined_org = True
         query = query.where(MedicalOrganization.name.ilike(f"%{med_org_name}%"))
 
     # Filter by Org Type
     if med_org_type and med_org_type != "all":
-        if not med_rep_id and not med_org_name:
+        if not has_joined_org:
              query = query.join(Reservation.med_org, isouter=True)
+             has_joined_org = True
         query = query.where(MedicalOrganization.org_type == med_org_type)
 
     # Filter by Date Range

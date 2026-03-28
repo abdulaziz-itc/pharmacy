@@ -27,9 +27,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   String _formatAmount(double amount) {
-    final formatter = NumberFormat('#,##0', 'en_US');
+    final formatter = NumberFormat('#,##0', 'ru_RU');
     if (amount >= 1000000) {
-      return '${formatter.format(amount / 1000000)} mln';
+      return '${formatter.format(amount / 1000000)} млн';
     }
     return formatter.format(amount);
   }
@@ -38,99 +38,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final dashboardState = ref.watch(dashboardProvider);
     final authState = ref.watch(authProvider);
-    final user = authState.user;
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          'Статистика',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        centerTitle: false,
+      ),
       body: RefreshIndicator(
         onRefresh: () => ref.read(dashboardProvider.notifier).refresh(),
         color: AppColors.primary,
         child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverAppBar(
-              expandedHeight: 140,
-              floating: false,
-              pinned: true,
-              backgroundColor: AppColors.primary,
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: AppColors.cardGradient,
-                  ),
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Xush kelibsiz,',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 13,
-                                      color: Colors.white.withValues(alpha: 0.8),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    user?.fullName ?? 'Foydalanuvchi',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(
-                                  Icons.person_outline_rounded,
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            DateFormat('EEEE, d MMMM yyyy', 'uz').format(DateTime.now()),
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: Colors.white.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              title: Text(
-                'Dashboard',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
             if (dashboardState.status == DashboardLoadStatus.loading)
               const SliverToBoxAdapter(child: ShimmerDashboard())
             else if (dashboardState.status == DashboardLoadStatus.error)
               SliverToBoxAdapter(
                 child: ErrorView(
-                  message: dashboardState.errorMessage ?? 'Xatolik',
+                  message: dashboardState.errorMessage ?? 'Ошибка загрузки',
                   onRetry: () =>
                       ref.read(dashboardProvider.notifier).loadStats(),
                 ),
@@ -149,25 +84,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildDashboardContent(DashboardStatsModel stats) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Hero card - Total Sales
           _buildHeroCard(stats),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           // Stats grid
           Text(
-            'Statistika',
+            'Показатели',
             style: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           GridView.count(
             shrinkWrap: true,
+            padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
             crossAxisSpacing: 12,
@@ -175,49 +111,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             childAspectRatio: 1.4,
             children: [
               _buildStatCard(
-                'Faol shifokorlar',
+                'Активные врачи',
                 stats.activeDoctors.toString(),
                 Icons.people_alt_rounded,
-                AppColors.accent,
+                const Color(0xFF6366F1),
               ),
               _buildStatCard(
-                'Kutilayotgan bronlar',
+                'Ожидаемые брони',
                 stats.pendingReservations.toString(),
                 Icons.receipt_long_rounded,
-                AppColors.statusPending,
+                const Color(0xFFF59E0B),
               ),
               _buildStatCard(
-                'Bajarilgan tashriflar',
+                'Выполненные визиты',
                 stats.completedVisits.toString(),
                 Icons.check_circle_outline_rounded,
-                AppColors.statusApproved,
+                AppColors.primary,
               ),
               _buildStatCard(
-                'Umumiy qarz',
+                'Задолженность',
                 _formatAmount(stats.totalDebt),
                 Icons.account_balance_wallet_rounded,
-                AppColors.statusCancelled,
+                const Color(0xFFEF4444),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           // Chart
           if (stats.revenueForecast.isNotEmpty) ...[
             Text(
-              'Daromad prognozi',
+              'Прогноз выручки',
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             _buildRevenueChart(stats.revenueForecast),
           ],
           // Visit progress
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           _buildVisitProgress(stats),
-          const SizedBox(height: 16),
+          const SizedBox(height: 30),
         ],
       ),
     );
@@ -225,19 +161,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildHeroCard(DashboardStatsModel stats) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primary, Color(0xFF2563EB)],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
+            color: AppColors.primary.withValues(alpha: 0.2),
             blurRadius: 20,
-            offset: const Offset(0, 8),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -248,50 +180,54 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Umumiy sotuv',
+                'Общие продажи',
                 style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Bu oy',
+                  'За месяц',
                   style: GoogleFonts.inter(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: Colors.white,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
-            '${_formatAmount(stats.totalSales)} so\'m',
+            '${_formatAmount(stats.totalSales)} UZS',
             style: GoogleFonts.poppins(
-              fontSize: 26,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Divider(color: Colors.white24, height: 1),
+          ),
           Row(
             children: [
               _buildHeroStat(
-                'Bonus balans',
-                '${_formatAmount(stats.bonusBalance)} so\'m',
-                Icons.star_rounded,
+                'Бонус баланс',
+                '${_formatAmount(stats.bonusBalance)} UZS',
+                Icons.stars_rounded,
               ),
-              const SizedBox(width: 24),
+              const SizedBox(width: 30),
               _buildHeroStat(
-                'Rejalangan',
-                '${stats.plannedVisits} ta',
+                'Визиты',
+                '${stats.plannedVisits}',
                 Icons.calendar_today_rounded,
               ),
             ],
@@ -304,16 +240,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildHeroStat(String label, String value, IconData icon) {
     return Row(
       children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: Colors.white, size: 16),
-        ),
-        const SizedBox(width: 8),
+        Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: 18),
+        const SizedBox(width: 10),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -321,14 +249,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               label,
               style: GoogleFonts.inter(
                 fontSize: 10,
-                color: Colors.white.withValues(alpha: 0.7),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
             ),
             Text(
               value,
               style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
             ),
@@ -344,43 +272,46 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Container(
-            width: 38,
-            height: 38,
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Text(
-                title,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -389,101 +320,83 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildRevenueChart(List<RevenueForecastPoint> data) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(10, 24, 20, 16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
       ),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 180,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 1,
-                  getDrawingHorizontalLine: (value) {
-                    return const FlLine(
-                      color: AppColors.divider,
-                      strokeWidth: 1,
+      child: AspectRatio(
+        aspectRatio: 1.7,
+        child: LineChart(
+          LineChartData(
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              getDrawingHorizontalLine: (value) => const FlLine(
+                color: AppColors.divider,
+                strokeWidth: 0.5,
+              ),
+            ),
+            titlesData: FlTitlesData(
+              show: true,
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 30,
+                  interval: 1,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    final index = value.toInt();
+                    if (index < 0 || index >= data.length) return const Text('');
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Text(
+                        data[index].label,
+                        style: GoogleFonts.inter(fontSize: 10, color: AppColors.textSecondary),
+                      ),
                     );
                   },
                 ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      interval: 1,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        final index = value.toInt();
-                        if (index < 0 || index >= data.length) {
-                          return const Text('');
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            data[index].label,
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: null,
-                      reservedSize: 44,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        return Text(
-                          _formatAmount(value),
-                          style: GoogleFonts.inter(
-                            fontSize: 9,
-                            color: AppColors.textSecondary,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 45,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    return Text(
+                      _formatAmount(value),
+                      style: GoogleFonts.inter(fontSize: 9, color: AppColors.textHint),
+                    );
+                  },
                 ),
-                borderData: FlBorderData(show: false),
-                minX: 0,
-                maxX: (data.length - 1).toDouble(),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: data.asMap().entries.map((entry) {
-                      return FlSpot(
-                          entry.key.toDouble(), entry.value.value);
-                    }).toList(),
-                    isCurved: true,
-                    color: AppColors.accent,
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: AppColors.accent.withValues(alpha: 0.1),
-                    ),
-                  ),
-                ],
               ),
             ),
+            borderData: FlBorderData(show: false),
+            lineBarsData: [
+              LineChartBarData(
+                spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.value)).toList(),
+                isCurved: true,
+                color: AppColors.primary,
+                barWidth: 3,
+                isStrokeCapRound: true,
+                dotData: const FlDotData(show: false),
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -496,8 +409,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,7 +426,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Tashriflar bajarilishi',
+                'Выполнение визитов',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -514,31 +434,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               Text(
-                '${stats.completedVisits}/${stats.plannedVisits}',
+                '${stats.completedVisits} / ${stats.plannedVisits}',
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.accent,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
               value: progress.clamp(0.0, 1.0),
-              backgroundColor: AppColors.divider,
-              color: AppColors.statusApproved,
+              backgroundColor: AppColors.background,
+              color: const Color(0xFF10B981),
               minHeight: 10,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
-            '${(progress * 100).clamp(0.0, 100.0).toStringAsFixed(0)}% bajarilgan',
+            '${(progress * 100).clamp(0.0, 100.0).toStringAsFixed(0)}% завершено',
             style: GoogleFonts.inter(
               fontSize: 12,
               color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],

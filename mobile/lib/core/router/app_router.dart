@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/splash_screen.dart';
 import '../../features/doctors/screens/doctor_detail_screen.dart';
 import '../../features/main/screens/main_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
@@ -42,7 +43,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/splash',
-        builder: (context, state) => const _SplashScreen(),
+        builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
         path: '/login',
@@ -110,35 +111,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
-
-class _SplashScreen extends StatelessWidget {
-  const _SplashScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.primary, Color(0xFF1E40AF)],
-          ),
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.medical_services_rounded, size: 72, color: Colors.white),
-              SizedBox(height: 24),
-              CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _CreateReservationScreen extends StatelessWidget {
   const _CreateReservationScreen();

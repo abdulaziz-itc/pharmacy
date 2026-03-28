@@ -224,6 +224,7 @@ async def read_reservations(
     """
     # Prioritize provided med_rep_id, but respect current_user roles
     final_med_rep_id = med_rep_id
+    med_rep_ids = None
     if current_user.role == UserRole.MED_REP:
         final_med_rep_id = current_user.id
     elif current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
@@ -234,9 +235,19 @@ async def read_reservations(
         final_med_rep_id = None
     
     region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
-    
-    dt_from = datetime.fromisoformat(date_from) if date_from else None
-    dt_to = datetime.fromisoformat(date_to) if date_to else None
+    dt_from = None
+    if date_from and isinstance(date_from, str) and date_from.strip():
+        try:
+            dt_from = datetime.fromisoformat(date_from)
+        except (ValueError, TypeError):
+            dt_from = None
+            
+    dt_to = None
+    if date_to and isinstance(date_to, str) and date_to.strip():
+        try:
+            dt_to = datetime.fromisoformat(date_to)
+        except (ValueError, TypeError):
+            dt_to = None
     
     return await crud_sales.get_reservations(
         db, 

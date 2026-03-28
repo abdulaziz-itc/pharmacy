@@ -168,61 +168,62 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
 
   Widget _buildVisitCard(VisitPlanModel visit, {required bool isPending}) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
         border: Border.all(
-          color: isPending
-              ? AppColors.divider
-              : AppColors.statusApproved.withValues(alpha: 0.3),
+          color: isPending ? AppColors.divider : AppColors.statusApproved.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  color: isPending
-                      ? AppColors.statusPending.withValues(alpha: 0.1)
-                      : AppColors.statusApproved.withValues(alpha: 0.1),
+                  color: (visit.isCompleted ? AppColors.statusApproved : AppColors.primary).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  isPending
-                      ? Icons.schedule_rounded
-                      : Icons.check_circle_rounded,
-                  color: isPending
-                      ? AppColors.statusPending
-                      : AppColors.statusApproved,
-                  size: 22,
+                  visit.doctor != null ? Icons.person_rounded : Icons.business_rounded,
+                  color: visit.isCompleted ? AppColors.statusApproved : AppColors.primary,
+                  size: 24,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      visit.doctor?.fullName ?? 'Shifokor ko\'rsatilmagan',
+                      visit.doctor?.fullName ?? visit.subject ?? 'Nomsiz tashrif',
                       style: GoogleFonts.inter(
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       visit.displayVisitType,
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: AppColors.accent,
+                        color: AppColors.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -230,83 +231,79 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
                 ),
               ),
               if (isPending)
-                PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'complete') {
-                      final success = await ref
-                          .read(visitsProvider.notifier)
-                          .completeVisit(visit.id);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(success
-                                ? 'Tashrif bajarildi!'
-                                : 'Xatolik yuz berdi'),
-                            backgroundColor: success
-                                ? AppColors.statusApproved
-                                : AppColors.error,
-                          ),
-                        );
-                      }
-                    } else if (value == 'delete') {
-                      await ref
-                          .read(visitsProvider.notifier)
-                          .deleteVisit(visit.id);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'complete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle_outline, size: 18,
-                              color: AppColors.statusApproved),
-                          SizedBox(width: 8),
-                          Text('Bajarildi deb belgilash'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_outline, size: 18,
-                              color: AppColors.error),
-                          SizedBox(width: 8),
-                          Text('O\'chirish'),
-                        ],
-                      ),
-                    ),
-                  ],
-                  icon: const Icon(
-                    Icons.more_vert_rounded,
-                    color: AppColors.textHint,
-                  ),
-                ),
+                _buildVisitActions(visit),
             ],
           ),
-          const SizedBox(height: 10),
-          const Divider(height: 1),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _buildChip(
-                Icons.calendar_today_rounded,
-                visit.plannedDate,
+          if (visit.notes != null && visit.notes!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(8),
               ),
-              if (visit.subject != null) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildChip(
-                    Icons.subject_rounded,
-                    visit.subject!,
+              child: Row(
+                children: [
+                  const Icon(Icons.sticky_note_2_outlined, size: 14, color: AppColors.textHint),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      visit.notes!,
+                      style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ],
-            ],
-          ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildVisitActions(VisitPlanModel visit) {
+    return PopupMenuButton<String>(
+      onSelected: (value) async {
+        if (value == 'complete') {
+          final success = await ref.read(visitsProvider.notifier).completeVisit(visit.id);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(success ? 'Tashrif bajarildi!' : 'Xatolik yuz berdi'),
+                backgroundColor: success ? AppColors.statusApproved : AppColors.error,
+              ),
+            );
+          }
+        } else if (value == 'delete') {
+          await ref.read(visitsProvider.notifier).deleteVisit(visit.id);
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'complete',
+          child: Row(
+            children: [
+              Icon(Icons.check_circle_outline, size: 18, color: AppColors.statusApproved),
+              SizedBox(width: 8),
+              Text('Bajarildi'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+              SizedBox(width: 8),
+              Text('O\'chirish'),
+            ],
+          ),
+        ),
+      ],
+      offset: const Offset(0, 40),
+      child: const Icon(Icons.more_vert_rounded, color: AppColors.textHint, size: 20),
     );
   }
 

@@ -132,7 +132,7 @@ async def create_doctor_category(
     return category
 
 # Medical Organizations
-@router.get("/med-orgs/", response_model=List[MedicalOrganization])
+@router.get("/med-orgs", response_model=List[MedicalOrganization])
 async def read_med_orgs(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -168,7 +168,7 @@ async def read_med_orgs(
         error_msg = traceback.format_exc()
         raise HTTPException(status_code=500, detail=str(error_msg))
 
-@router.post("/med-orgs/", response_model=MedicalOrganization)
+@router.post("/med-orgs", response_model=MedicalOrganization)
 async def create_med_org(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -185,6 +185,18 @@ async def create_med_org(
         f"Добавлена организация: {med_org.name}",
         request
     )
+    return med_org
+    
+@router.get("/med-orgs/{id}", response_model=MedicalOrganization)
+async def read_med_org(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    med_org = await crud_crm.get_med_org(db, id=id)
+    if not med_org:
+        raise HTTPException(status_code=404, detail="Medical Organization not found")
     return med_org
 
 @router.put("/med-orgs/{id}", response_model=MedicalOrganization)
@@ -246,7 +258,7 @@ async def get_med_org_stock(
     return result
 
 # Doctors
-@router.get("/doctors/", response_model=List[Doctor])
+@router.get("/doctors", response_model=List[Doctor])
 async def read_doctors(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -281,7 +293,7 @@ async def read_doctors(
         rep_ids=rep_ids
     )
 
-@router.post("/doctors/", response_model=Doctor)
+@router.post("/doctors", response_model=Doctor)
 async def create_doctor(
     *,
     request: Request,

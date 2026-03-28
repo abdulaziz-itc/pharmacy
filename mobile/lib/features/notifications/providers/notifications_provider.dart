@@ -104,6 +104,6 @@ final notificationsProvider =
   return NotificationsNotifier(apiClient);
 });
 
-final unreadNotifCountProvider = Provider<int>((ref) {
+final unreadNotificationsCountProvider = Provider<int>((ref) {
   return ref.watch(notificationsProvider).unreadCount;
 });
