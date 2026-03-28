@@ -23,16 +23,13 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen>
   late TabController _tabController;
   final List<String> _statuses = ['Barchasi', 'Kutilmoqda', 'Tasdiqlangan', 'Yakunlangan', 'Bekor qilingan'];
   final List<String?> _statusValues = [null, 'pending', 'approved', 'completed', 'cancelled'];
-  int _selectedTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _statuses.length, vsync: this);
     _tabController.addListener(() {
-      setState(() {
-        _selectedTabIndex = _tabController.index;
-      });
+      setState(() {});
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(reservationsProvider.notifier).loadReservations();

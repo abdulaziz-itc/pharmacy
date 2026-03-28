@@ -4,8 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/doctor_model.dart';
-import '../../../shared/widgets/error_view.dart';
-import '../../../shared/widgets/loading_shimmer.dart';
 import '../providers/doctors_provider.dart';
 
 class DoctorDetailScreen extends ConsumerStatefulWidget {
