@@ -73,15 +73,25 @@ async def get_global_realtime_dashboard(
     )
     
     # Apply hierarchy filter if not director/admin
-    if current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+    is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
+    
+    rep_ids = None
+    if is_team_manager:
         from app.crud.crud_user import get_descendant_ids
         rep_ids = await get_descendant_ids(db, current_user.id)
         if not rep_ids:
             rep_ids = [-1]
         
-        # Filter payments and ledger by users/doctors assigned to these reps
-        # (This part is simplified for brevity, in a large app it would use more joins)
-        pass 
+        # 1a. Filter payments by team
+        rev_query = rev_query.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id).where(
+            Reservation.created_by_id.in_(rep_ids)
+        )
+        
+        # 2a. Filter bonuses by team
+        bonus_query = bonus_query.where(BonusLedger.user_id.in_(rep_ids))
+        
+        # 3a. Filter qty by team
+        qty_query = qty_query.where(Reservation.created_by_id.in_(rep_ids))
 
     rev_res = await db.execute(rev_query)
     bonus_res = await db.execute(bonus_query)
