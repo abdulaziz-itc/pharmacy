@@ -44,6 +44,8 @@ export default function AdminBonusApprovalPage() {
         factura_number: string | null;
         doctor: { full_name: string } | null;
         product: { name: string } | null;
+        payment_amount: number | null;
+        payment_type: string | null;
     }
 
     const [expandedRepId, setExpandedRepId] = useState<number | null>(null);
@@ -316,6 +318,7 @@ export default function AdminBonusApprovalPage() {
                                                                             <TableHead className="text-xs h-9">Счет-фактура</TableHead>
                                                                             <TableHead className="text-xs h-9">Врач</TableHead>
                                                                             <TableHead className="text-xs h-9">Препарат</TableHead>
+                                                                            <TableHead className="text-xs h-9 text-right">Оплата</TableHead>
                                                                             <TableHead className="text-xs h-9 text-right">Сумма (UZS)</TableHead>
                                                                         </TableRow>
                                                                     </TableHeader>
@@ -347,6 +350,14 @@ export default function AdminBonusApprovalPage() {
                                                                                 </TableCell>
                                                                                 <TableCell className="text-xs py-2">{h.doctor?.full_name || '-'}</TableCell>
                                                                                 <TableCell className="text-xs py-2">{h.product?.name || '-'}</TableCell>
+                                                                                <TableCell className="text-xs py-2 text-right font-medium text-slate-500">
+                                                                                    {h.payment_amount ? (
+                                                                                        <>
+                                                                                            {h.payment_amount.toLocaleString('ru-RU')}
+                                                                                            <span className="text-[10px] ml-1 opacity-70">({h.payment_type})</span>
+                                                                                        </>
+                                                                                    ) : '-'}
+                                                                                </TableCell>
                                                                                 <TableCell className={`text-xs py-2 text-right font-bold ${h.ledger_type === 'ACCRUAL' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                                                                     {h.ledger_type === 'ACCRUAL' ? '+' : '-'}{h.amount.toLocaleString('ru-RU')}
                                                                                 </TableCell>

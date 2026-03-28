@@ -873,6 +873,35 @@ async def get_medrep_bonus_balance(
                 if inv_id and inv_id in invoice_to_reservation:
                     res_id = invoice_to_reservation[inv_id]
 
+            history_data.append({
+                "id": h.id,
+                "amount": h.amount,
+                "ledger_type": h.ledger_type,
+                "created_at": h.created_at.isoformat(),
+                "notes": h.notes,
+                "invoice_id": inv_id,
+                "reservation_id": res_id,
+                "target_month": h.target_month,
+                "target_year": h.target_year,
+                "is_paid": h.is_paid,
+                "doctor": {"id": h.doctor.id, "full_name": h.doctor.full_name} if h.doctor else None,
+                "product": {"id": h.product.id, "name": h.product.name} if h.product else None,
+                "payment_amount": h.payment.amount if h.payment else None,
+                "payment_type": h.payment.payment_type if h.payment else None,
+            })
+        
+        return {
+            "balance": balance,
+            "total_accrued": total_accrued,
+            "total_paid": total_paid,
+            "total_allocated": total_allocated,
+            "history": history_data
+        }
+    except Exception as e:
+        import traceback
+        logger.error(f"Error in get_medrep_bonus_balance: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
             # Extract factura_number from the related invoice if available
             factura_number = None
             if getattr(h, 'invoice_item', None) and getattr(h.invoice_item, 'reservation', None):
