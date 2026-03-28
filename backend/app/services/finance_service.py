@@ -90,6 +90,9 @@ class FinancialService:
                         if item.marketing_amount:
                             payment_bonus_amount += (item.quantity * item.marketing_amount) * payment_ratio
                     
+                    # Round to nearest integer to avoid fractions ("kopeyki")
+                    payment_bonus_amount = float(round(payment_bonus_amount))
+                    
                     if payment_bonus_amount > 0 and target_medrep_id:
                         now = datetime.utcnow()
                         # Accrue bonus to the assigned MedRep
@@ -270,7 +273,8 @@ class FinancialService:
                 await db.flush()
 
                 # 4. Create Bonus Ledger (Pro-rata bonus realization)
-                bonus_amount = quantity * (reservation_item.marketing_amount or 0)
+                # Round to nearest integer to avoid fractions ("kopeyki")
+                bonus_amount = float(round(quantity * (reservation_item.marketing_amount or 0)))
                 accrual = BonusLedger(
                     doctor_id=doctor_id,
                     amount=bonus_amount,
@@ -353,7 +357,8 @@ class FinancialService:
                     raise HTTPException(status_code=400, detail=f"У продукта '{product.name}' не задан расход на маркетинг")
 
                 # 3. Compute the bonus amount
-                amount = quantity * marketing_expense
+                # Round to nearest integer to avoid fractions ("kopeyki")
+                amount = float(round(quantity * marketing_expense))
 
                 # 4. Check MedRep balance
                 current_balance = await FinancialService.get_medrep_bonus_balance(db, med_rep_id)
