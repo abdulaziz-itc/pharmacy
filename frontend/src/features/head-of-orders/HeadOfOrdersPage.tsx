@@ -960,9 +960,9 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СУММА С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СУММА С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕБИТОР</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКИДКА %</th>
@@ -1019,13 +1019,13 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'factura')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{totalAmount.toLocaleString()}</td>
                                                     <td className="px-3 py-4 font-black">
                                                         <div className="flex items-center gap-1 text-slate-800 tracking-tight">
                                                             <span>{res.med_org?.name || '—'}</span>
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{inn}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{totalAmount.toLocaleString()}</td>
                                                     <td className="px-3 py-4 font-black text-emerald-600 text-center">{paidAmount.toLocaleString()}</td>
                                                     <td className="px-3 py-4 font-black text-rose-600 text-center">{debt.toLocaleString()}</td>
                                                     <td className="px-3 py-4 font-black text-center">
@@ -1277,9 +1277,9 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СУММА С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СУММА С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕБИТОР</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКИДКА %</th>
@@ -1336,13 +1336,13 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'factura')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{inv.total_amount?.toLocaleString() || 0}</td>
                                                     <td className="px-3 py-4 font-black">
                                                         <div className="flex items-center gap-1 text-slate-800 tracking-tight">
                                                             <span>{res.med_org?.name || '—'}</span>
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{inn}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{inv.total_amount?.toLocaleString() || 0}</td>
                                                     <td className="px-3 py-4 font-black text-emerald-600 text-center">{paidAmount.toLocaleString()}</td>
                                                     <td className="px-3 py-4 font-black text-rose-600 text-center">{debt.toLocaleString()}</td>
                                                     <td className="px-3 py-4 font-black text-center">
