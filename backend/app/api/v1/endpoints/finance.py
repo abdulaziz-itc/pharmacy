@@ -18,12 +18,14 @@ async def read_debtors(
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(deps.get_current_user),
+    region_id: int = None
 ) -> Any:
     """
     Get list of unpaid/partial invoices (Debtors).
-    Managers see debtors only within their sub-team.
+    Managers see debtors only within their sub-team and regions.
     """
     from app.crud.crud_user import get_descendant_ids
+    from app.models.crm import MedicalOrganization
     
     # Permission check: Director/Deputy/Orders can see global, others filtered
     is_global_manager = current_user.role in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]
@@ -39,11 +41,25 @@ async def read_debtors(
         .order_by(Invoice.date.desc())
     )
     
+    # Regional Restriction for RM
+    final_region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
+    if current_user.role == UserRole.REGIONAL_MANAGER:
+        if region_id:
+            if region_id in (final_region_ids or []):
+                final_region_ids = [region_id]
+            else:
+                final_region_ids = [-1]
+    elif region_id:
+        final_region_ids = [region_id]
+
     if is_team_manager:
         descendant_ids = await get_descendant_ids(db, current_user.id)
         if not descendant_ids:
             descendant_ids = [-1]
         query = query.where(Reservation.created_by_id.in_(descendant_ids))
+    
+    if final_region_ids:
+        query = query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
         
     result = await db.execute(query.offset(skip).limit(limit))
     invoices = result.scalars().all()
@@ -53,12 +69,14 @@ async def read_debtors(
 async def read_global_stats(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
+    region_id: int = None
 ) -> Any:
     """
     Global statistics: Total Sales, Total Payments, Total Debt.
-    Filtered by hierarchy for managers.
+    Filtered by hierarchy and region for managers.
     """
     from app.crud.crud_user import get_descendant_ids
+    from app.models.crm import MedicalOrganization
     
     is_global_manager = current_user.role in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR]
     is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
@@ -66,6 +84,17 @@ async def read_global_stats(
     if not is_global_manager and not is_team_manager:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
+    # Regional Restriction for RM
+    final_region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
+    if current_user.role == UserRole.REGIONAL_MANAGER:
+        if region_id:
+            if region_id in (final_region_ids or []):
+                final_region_ids = [region_id]
+            else:
+                final_region_ids = [-1]
+    elif region_id:
+        final_region_ids = [region_id]
+
     descendant_ids = None
     if is_team_manager:
         descendant_ids = await get_descendant_ids(db, current_user.id)
@@ -76,6 +105,9 @@ async def read_global_stats(
     total_sales_query = select(func.sum(Reservation.total_amount)).where(Reservation.status == ReservationStatus.APPROVED)
     if is_team_manager:
         total_sales_query = total_sales_query.where(Reservation.created_by_id.in_(descendant_ids))
+    if final_region_ids:
+        total_sales_query = total_sales_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+        
     total_sales_result = await db.execute(total_sales_query)
     total_sales = total_sales_result.scalar() or 0.0
     
@@ -83,6 +115,9 @@ async def read_global_stats(
     total_payments_query = select(func.sum(Invoice.paid_amount)).join(Reservation)
     if is_team_manager:
         total_payments_query = total_payments_query.where(Reservation.created_by_id.in_(descendant_ids))
+    if final_region_ids:
+        total_payments_query = total_payments_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+        
     total_payments_result = await db.execute(total_payments_query)
     total_payments = total_payments_result.scalar() or 0.0
     

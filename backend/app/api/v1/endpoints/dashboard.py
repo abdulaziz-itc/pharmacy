@@ -17,13 +17,26 @@ router = APIRouter()
 async def get_dashboard_stats(
     db: AsyncSession = Depends(deps.get_db),
     current_user: Any = Depends(deps.get_current_user),
+    region_id: int = None,
 ) -> Any:
     from app.models.user import UserRole
     from app.crud.crud_user import get_descendant_ids
+    from app.models.crm import MedicalOrganization
     
-    # 0. Determine Hierarchy
+    # 0. Determine Hierarchy and Regional Assignment
     is_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
     is_med_rep = current_user.role == UserRole.MED_REP
+    
+    # Regional Restriction for RM
+    allowed_region_ids = None
+    if current_user.role == UserRole.REGIONAL_MANAGER:
+        allowed_region_ids = [r.id for r in current_user.assigned_regions]
+        if region_id and region_id not in allowed_region_ids:
+            # If RM tries to view a region they don't own, show nothing or only their own
+            region_id = -1 
+    
+    # Use selected region or all allowed regions
+    final_region_ids = [region_id] if region_id else allowed_region_ids
     
     descendant_ids = None
     if is_manager:
@@ -37,6 +50,9 @@ async def get_dashboard_stats(
         total_sales_query = total_sales_query.where(Reservation.created_by_id == current_user.id)
     elif is_manager:
         total_sales_query = total_sales_query.where(Reservation.created_by_id.in_(descendant_ids))
+    
+    if final_region_ids:
+        total_sales_query = total_sales_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
         
     total_sales_result = await db.execute(total_sales_query)
     total_sales = total_sales_result.scalar() or 0.0
@@ -48,6 +64,9 @@ async def get_dashboard_stats(
     elif is_manager:
         active_doctors_query = active_doctors_query.where(Doctor.assigned_rep_id.in_(descendant_ids))
         
+    if final_region_ids:
+        active_doctors_query = active_doctors_query.where(Doctor.region_id.in_(final_region_ids))
+        
     active_doctors_result = await db.execute(active_doctors_query)
     active_doctors = active_doctors_result.scalar() or 0
 
@@ -57,6 +76,9 @@ async def get_dashboard_stats(
         pending_res_query = pending_res_query.where(Reservation.created_by_id == current_user.id)
     elif is_manager:
         pending_res_query = pending_res_query.where(Reservation.created_by_id.in_(descendant_ids))
+        
+    if final_region_ids:
+        pending_res_query = pending_res_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
         
     pending_res_result = await db.execute(pending_res_query)
     pending_reservations = pending_res_result.scalar() or 0
@@ -70,6 +92,9 @@ async def get_dashboard_stats(
         total_debt_query = total_debt_query.where(Reservation.created_by_id == current_user.id)
     elif is_manager:
         total_debt_query = total_debt_query.where(Reservation.created_by_id.in_(descendant_ids))
+        
+    if final_region_ids:
+        total_debt_query = total_debt_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
         
     total_debt_result = await db.execute(total_debt_query)
     total_debt = total_debt_result.scalar() or 0.0
@@ -97,6 +122,9 @@ async def get_dashboard_stats(
         res_query = res_query.where(Reservation.created_by_id == current_user.id)
     elif is_manager:
         res_query = res_query.where(Reservation.created_by_id.in_(descendant_ids))
+        
+    if final_region_ids:
+        res_query = res_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
         
     res_result = await db.execute(res_query)
     reservations = res_result.scalars().all()
@@ -141,13 +169,10 @@ async def get_dashboard_stats(
     elif is_manager:
         planned_visits_query = planned_visits_query.where(VisitPlan.med_rep_id.in_(descendant_ids))
         completed_visits_query = completed_visits_query.where(VisitPlan.med_rep_id.in_(descendant_ids))
-    else:
-        # For directors, maybe they only want to see THEIR OWN visits? Or global?
-        # User said "faqat o'ziga tegishli bolgan ko'rsatgichlar". 
-        # Usually for Director it stays global or is personal. 
-        # But RM/PM/FFM are the priority here.
-        pass
-
+    
+    # For RM, filter visits by regions via med_rep or med_org 
+    # (VisitPlan usually has med_rep_id, which we already filter by descendants, which implicitly covers regions)
+    
     planned_visits_res = await db.execute(planned_visits_query)
     planned_visits = planned_visits_res.scalar() or 0
 

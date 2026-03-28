@@ -1,6 +1,8 @@
 import { ChevronDown } from 'lucide-react';
 import { useDoctorStore } from '../../store/doctorStore';
 import { useProductStore } from '../../store/productStore';
+import { useEffect } from 'react';
+import { useRegionStore } from '../../store/regionStore';
 
 const MONTHS_RU = [
     "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -24,14 +26,16 @@ export default function DoctorFilters({ month, year, onMonthChange, onYearChange
     } = useDoctorStore();
 
     const { products } = useProductStore();
+    const { regions, fetchRegions } = useRegionStore();
+
+    useEffect(() => {
+        fetchRegions();
+    }, [fetchRegions]);
 
     // Derive unique lists from doctors
     const uniqueDoctors = Array.from(new Map(doctors.map(d => [d.id, d.name])).entries())
         .map(([id, name]) => ({ id, name }))
         .sort((a, b) => a.name.localeCompare(b.name));
-
-    const uniqueRegions = Array.from(new Set(doctors.map(d => d.region).filter(Boolean)))
-        .sort((a, b) => a.localeCompare(b));
 
     const uniqueReps = Array.from(new Set(doctors.map(d => d.medReps).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b));
@@ -102,8 +106,8 @@ export default function DoctorFilters({ month, year, onMonthChange, onYearChange
                     className="w-full h-9 px-3 pr-8 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 outline-none appearance-none cursor-pointer hover:border-blue-400 transition-colors shadow-sm"
                 >
                     <option value="">Все регионы</option>
-                    {uniqueRegions.map(r => (
-                        <option key={r} value={r}>{r}</option>
+                    {regions.map(r => (
+                        <option key={r.id} value={r.name}>{r.name}</option>
                     ))}
                 </select>
                 <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />

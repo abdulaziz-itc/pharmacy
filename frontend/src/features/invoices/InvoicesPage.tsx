@@ -21,6 +21,7 @@ export default function InvoicesPage() {
         dateStart: '',
         dateEnd: '',
         selectedMedRep: 'all',
+        selectedRegion: 'all',
         selectedCompany: 'all',
         selectedType: 'all',
         selectedInvoiceType: 'all',
@@ -36,6 +37,7 @@ export default function InvoicesPage() {
             if (filterValues.dateStart) params.date_from = filterValues.dateStart;
             if (filterValues.dateEnd) params.date_to = filterValues.dateEnd;
             if (filterValues.selectedMedRep !== 'all') params.med_rep_id = filterValues.selectedMedRep;
+            if (filterValues.selectedRegion !== 'all') params.region_id = filterValues.selectedRegion;
             if (filterValues.selectedCompany !== 'all') params.med_org_id = filterValues.selectedCompany;
             if (filterValues.selectedType !== 'all') params.med_org_type = filterValues.selectedType;
             if (filterValues.selectedInvoiceType !== 'all') {
@@ -195,7 +197,7 @@ export default function InvoicesPage() {
                 onChange={setFilterValues}
                 onSearch={() => refetch()}
                 onReset={() => {
-                    setFilterValues({ dateStart: '', dateEnd: '', selectedMedRep: 'all', selectedCompany: 'all', selectedType: 'all', selectedInvoiceType: 'all', invNumSearch: '' });
+                    setFilterValues({ dateStart: '', dateEnd: '', selectedMedRep: 'all', selectedRegion: 'all', selectedCompany: 'all', selectedType: 'all', selectedInvoiceType: 'all', invNumSearch: '' });
                     refetch();
                 }}
             />

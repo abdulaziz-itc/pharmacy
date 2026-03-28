@@ -18,6 +18,7 @@ import api from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useEffect, useState } from 'react';
+import { useRegionStore } from '../../store/regionStore';
 
 interface DashboardStats {
     total_sales: number;
@@ -42,21 +43,28 @@ interface DashboardStats {
 export default function DashboardPage() {
     const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
+    const { regions, fetchRegions } = useRegionStore();
 
     const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+    const [selectedRegion, setSelectedRegion] = useState<string>('all');
 
     useEffect(() => {
         if (user?.role === 'med_rep') {
             navigate(`/med-reps/${user.id}`);
         }
-    }, [user, navigate]);
+        fetchRegions();
+    }, [user, navigate, fetchRegions]);
 
     const { data: stats, isLoading, refetch } = useQuery<DashboardStats>({
-        queryKey: ['dashboard-stats', selectedMonth, selectedYear],
+        queryKey: ['dashboard-stats', selectedMonth, selectedYear, selectedRegion],
         queryFn: async () => {
+            const params: any = { month: selectedMonth, year: selectedYear };
+            if (selectedRegion !== 'all') {
+                params.region_id = selectedRegion;
+            }
             const response = await api.get('/domain/analytics/dashboard/global', {
-                params: { month: selectedMonth, year: selectedYear }
+                params
             });
             const data = response.data;
             return {
@@ -88,6 +96,8 @@ export default function DashboardPage() {
         "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
     ];
 
+    const canSeeAllRegions = ['director', 'deputy_director', 'admin', 'investor'].includes(user?.role || '');
+
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Transparent Header Section */}
@@ -99,6 +109,20 @@ export default function DashboardPage() {
                     <p className="text-slate-500 mt-2 font-medium">Мониторинг за {months[selectedMonth-1]} {selectedYear} года.</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    {/* Region Filter */}
+                    {(user?.role !== 'med_rep') && (
+                        <select 
+                            value={selectedRegion} 
+                            onChange={(e) => setSelectedRegion(e.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                        >
+                            <option value="all">{canSeeAllRegions ? "Все регионы" : "Мои регионы"}</option>
+                            {regions.map((r) => (
+                                <option key={r.id} value={r.id.toString()}>{r.name}</option>
+                            ))}
+                        </select>
+                    )}
+
                     <select 
                         value={selectedMonth} 
                         onChange={(e) => setSelectedMonth(parseInt(e.target.value))}

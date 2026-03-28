@@ -55,6 +55,7 @@ async def create_user(
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     # If the creator is a Product Manager or Regional Manager, enforce themselves as the manager
+    # AND for Regional Manager, enforce regional boundaries
     if current_user.role == UserRole.PRODUCT_MANAGER:
         if user_in.role not in [UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.MED_REP]:
             raise HTTPException(status_code=400, detail="Product Manager can only create subordinates")
@@ -64,6 +65,16 @@ async def create_user(
             raise HTTPException(status_code=400, detail="Regional Manager can only create Medical Representatives")
         user_in.manager_id = current_user.id
         
+        # Enforce regional boundaries
+        if user_in.region_ids:
+            from sqlalchemy.orm import selectinload
+            result = await db.execute(select(User).options(selectinload(User.assigned_regions)).where(User.id == current_user.id))
+            rm_db = result.scalars().first()
+            allowed_ids = [r.id for r in rm_db.assigned_regions] if rm_db else []
+            for rid in user_in.region_ids:
+                if rid not in allowed_ids:
+                    raise HTTPException(status_code=400, detail=f"Unauthorized region assignment: Region {rid} is not assigned to you.")
+
     user = await crud_user.get_by_username(db, username=user_in.username)
     if user:
         raise HTTPException(
@@ -106,6 +117,16 @@ async def update_user(
             raise HTTPException(status_code=400, detail="Regional Manager can only edit their own direct subordinates")
         if user_in.role and user_in.role != UserRole.MED_REP:
              raise HTTPException(status_code=400, detail="Regional Manager can only manage Medical Representatives")
+        
+        # Enforce regional boundaries
+        if user_in.region_ids:
+            from sqlalchemy.orm import selectinload
+            result = await db.execute(select(User).options(selectinload(User.assigned_regions)).where(User.id == current_user.id))
+            rm_db = result.scalars().first()
+            allowed_ids = [r.id for r in rm_db.assigned_regions] if rm_db else []
+            for rid in user_in.region_ids:
+                if rid not in allowed_ids:
+                    raise HTTPException(status_code=400, detail=f"Unauthorized region assignment: Region {rid} is not assigned to you.")
             
     # Validation for deactivation (is_active = False)
     if user_in.is_active is False and user.is_active is True:
@@ -257,6 +278,13 @@ async def reassign_user_dependencies(
     if from_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
         if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR]:
             raise HTTPException(status_code=403, detail="Only Admin, Director, or Deputy Director can reassign manager authority.")
+            
+    # For PM/RM, ensure both users are their descendants
+    if current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.FIELD_FORCE_MANAGER]:
+        from app.crud.crud_user import get_descendant_ids
+        descendants = await get_descendant_ids(db, current_user.id)
+        if req.from_user_id not in descendants or req.to_user_id not in descendants:
+            raise HTTPException(status_code=403, detail="You can only reassign between your own subordinates.")
             
     # Reassign subordinates
     subordinates = await db.execute(select(User).where(User.manager_id == req.from_user_id))

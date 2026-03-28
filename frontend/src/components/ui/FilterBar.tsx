@@ -11,6 +11,7 @@ export interface FilterValues {
     dateStart: string;
     dateEnd: string;
     selectedMedRep: string;
+    selectedRegion: string;
     selectedCompany: string;
     selectedType: string;
     selectedInvoiceType: string;
@@ -37,9 +38,19 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
 
     const [medReps, setMedReps] = useState<{id: number, name: string}[]>([]);
     const [companies, setCompanies] = useState<{id: number, name: string}[]>([]);
+    const [regions, setRegions] = useState<{id: number, name: string}[]>([]);
 
     useEffect(() => {
         const loadOptions = async () => {
+            // Regions
+            try {
+                const regionsRes = await api.get('/crm/regions/');
+                const data = Array.isArray(regionsRes.data) ? regionsRes.data : [];
+                setRegions(data.map((r: any) => ({ id: r.id, name: r.name })));
+            } catch (error) {
+                console.error("Failed to load regions", error);
+            }
+
             // Med Orgs
             try {
                 const orgsRes = await api.get('/crm/med-orgs/', { params: { limit: 1000 } });
@@ -104,6 +115,29 @@ export const FilterBar: React.FC<FilterBarProps> = ({ values, onChange, onSearch
                         placeholder="Конец" 
                     />
                 </div>
+
+                {/* Region */}
+                {user?.role !== 'med_rep' && (
+                    <div className="flex flex-col space-y-1 min-w-[140px] flex-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                            {['admin', 'director', 'deputy_director', 'investor'].includes(user?.role || '') ? "РЕГИОН" : "МОИ РЕГИОНЫ"}
+                        </p>
+                        <Select 
+                            value={values.selectedRegion} 
+                            onValueChange={(val) => handleChange('selectedRegion', val)}
+                        >
+                            <SelectTrigger className="w-full bg-slate-50/50 border-slate-100 rounded-xl font-bold text-slate-700 h-10 shadow-sm focus:ring-orange-500/10">
+                                <SelectValue placeholder="Все" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px]">
+                                <SelectItem value="all">Все</SelectItem>
+                                {regions.map(r => (
+                                    <SelectItem key={r.id} value={r.id.toString()}>{r.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
 
                 {/* Med Rep */}
                 <div className="flex flex-col space-y-1 min-w-[140px] flex-1">

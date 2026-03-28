@@ -206,7 +206,8 @@ async def read_reservations(
     inv_num: Optional[str] = None,
     status: Optional[str] = None,
     med_rep_id: Optional[int] = None,
-    med_org_id: Optional[int] = None
+    med_org_id: Optional[int] = None,
+    region_id: Optional[int] = None
 ) -> Any:
     """
     Retrieve reservations with optional filtering.
@@ -234,7 +235,17 @@ async def read_reservations(
             med_rep_ids = [-1]
         final_med_rep_id = None
     
-    region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
+    # Regional Restriction for RM
+    final_region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
+    if current_user.role == UserRole.REGIONAL_MANAGER:
+        if region_id:
+            if region_id in (final_region_ids or []):
+                final_region_ids = [region_id]
+            else:
+                final_region_ids = [-1] # No access
+    elif region_id:
+        final_region_ids = [region_id]
+
     dt_from = None
     if date_from and isinstance(date_from, str) and date_from.strip():
         try:
@@ -264,7 +275,7 @@ async def read_reservations(
         med_rep_ids=med_rep_ids,
         status=status,
         med_org_id=med_org_id,
-        region_ids=region_ids
+        region_ids=final_region_ids
     )
 
 @router.get("/reservations/{id}")

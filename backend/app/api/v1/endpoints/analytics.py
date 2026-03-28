@@ -14,7 +14,8 @@ async def get_global_realtime_dashboard(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
     month: int = None,
-    year: int = None
+    year: int = None,
+    region_id: int = None
 ) -> Any:
     """
     Returns real-time aggregated global statistics.
@@ -23,7 +24,8 @@ async def get_global_realtime_dashboard(
     from sqlalchemy import and_
     from app.models.sales import Invoice, Payment
     from app.models.ledger import BonusLedger, LedgerType
-
+    from app.models.crm import MedicalOrganization, Reservation
+    
     if current_user.role not in [
         UserRole.INVESTOR,
         UserRole.DIRECTOR, 
@@ -48,6 +50,16 @@ async def get_global_realtime_dashboard(
     else:
         end_date = datetime(year, month + 1, 1)
 
+    # Regional Restriction for RM
+    allowed_region_ids = None
+    if current_user.role == UserRole.REGIONAL_MANAGER:
+        allowed_region_ids = [r.id for r in current_user.assigned_regions]
+        if region_id and region_id not in allowed_region_ids:
+            region_id = -1 
+    
+    # Use selected region or all allowed regions
+    final_region_ids = [region_id] if region_id else allowed_region_ids
+
     # 1. Total Revenue (Paid amount from payments this month)
     rev_query = select(func.sum(Payment.amount)).where(
         and_(Payment.date >= start_date, Payment.date < end_date)
@@ -63,7 +75,7 @@ async def get_global_realtime_dashboard(
     )
 
     # 3. Total Items Sold (Quantity from invoices this month)
-    from app.models.sales import ReservationItem, Reservation
+    from app.models.sales import ReservationItem
     qty_query = select(func.sum(ReservationItem.quantity)).join(
         Reservation, ReservationItem.reservation_id == Reservation.id
     ).join(
@@ -92,6 +104,17 @@ async def get_global_realtime_dashboard(
         
         # 3a. Filter qty by team
         qty_query = qty_query.where(Reservation.created_by_id.in_(rep_ids))
+
+    # Apply region filter
+    if final_region_ids:
+        # Note: rev_query already joined Reservation above if is_team_manager
+        if not is_team_manager:
+            rev_query = rev_query.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
+        
+        rev_query = rev_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+        
+        # qty_query already joined Reservation and Invoice
+        qty_query = qty_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
 
     rev_res = await db.execute(rev_query)
     bonus_res = await db.execute(bonus_query)
