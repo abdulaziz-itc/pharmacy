@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 from app.api import deps
 from app.models.sales import Reservation, ReservationStatus, Invoice, InvoiceStatus, Plan
 from app.models.crm import Doctor, Notification
-from app.models.visit import Visit
+from app.models.visit import Visit, VisitPlan
+from app.models.ledger import BonusLedger
 from app.schemas.dashboard import DashboardStats, ActivityItem, RevenueForecastPoint
 
 router = APIRouter()
@@ -85,6 +86,32 @@ async def get_dashboard_stats(
         RevenueForecastPoint(month="Июн", value=35),
     ]
 
+    # 7. Visit Stats
+    now = datetime.utcnow()
+    month_start = datetime(now.year, now.month, 1)
+    
+    planned_visits_query = select(func.count(VisitPlan.id)).where(
+        (VisitPlan.med_rep_id == current_user.id) &
+        (VisitPlan.planned_date >= month_start)
+    )
+    planned_visits_res = await db.execute(planned_visits_query)
+    planned_visits = planned_visits_res.scalar() or 0
+
+    completed_visits_query = select(func.count(VisitPlan.id)).where(
+        (VisitPlan.med_rep_id == current_user.id) &
+        (VisitPlan.status == "completed") &
+        (VisitPlan.planned_date >= month_start)
+    )
+    completed_visits_res = await db.execute(completed_visits_query)
+    completed_visits = completed_visits_res.scalar() or 0
+
+    # 8. Bonus Balance
+    bonus_balance_query = select(func.sum(BonusLedger.amount)).where(
+        BonusLedger.user_id == current_user.id
+    )
+    bonus_balance_res = await db.execute(bonus_balance_query)
+    bonus_balance = bonus_balance_res.scalar() or 0.0
+
     return {
         "total_sales": total_sales,
         "total_sales_change": "+20.1%", # Still mock change for now
@@ -96,5 +123,8 @@ async def get_dashboard_stats(
         "total_debt_change": "-4.2%",
         "revenue_forecast": forecast,
         "recent_activities": recent_activities,
-        "growth_peak": "+32.4%"
+        "growth_peak": "+32.4%",
+        "completed_visits": completed_visits,
+        "planned_visits": planned_visits,
+        "bonus_balance": bonus_balance
     }

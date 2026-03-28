@@ -25,6 +25,9 @@ class DashboardStats(BaseModel):
     revenue_forecast: List[RevenueForecastPoint]
     recent_activities: List[ActivityItem]
     growth_peak: str
+    completed_visits: int
+    planned_visits: int
+    bonus_balance: float
 
     class Config:
         from_attributes = True
