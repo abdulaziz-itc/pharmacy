@@ -9,31 +9,41 @@ import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/organizations/screens/organizations_screen.dart';
 import '../../features/reservations/screens/reservation_detail_screen.dart';
 import '../../features/visits/screens/create_visit_screen.dart';
+import '../../core/theme/app_theme.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/splash',
     debugLogDiagnostics: false,
     redirect: (context, state) {
+      final isInitial = authState.status == AuthStatus.initial;
       final isAuthenticated = authState.status == AuthStatus.authenticated;
-      final isLoading = authState.status == AuthStatus.initial;
-      final isLoginPage = state.matchedLocation == '/login';
+      final location = state.matchedLocation;
 
-      if (isLoading) return null;
-
-      if (!isAuthenticated && !isLoginPage) {
-        return '/login';
+      // Show splash while checking auth
+      if (isInitial) {
+        return location == '/splash' ? null : '/splash';
       }
 
-      if (isAuthenticated && isLoginPage) {
+      // Not authenticated → go to login
+      if (!isAuthenticated) {
+        return location == '/login' ? null : '/login';
+      }
+
+      // Authenticated → go to home (skip splash and login)
+      if (location == '/splash' || location == '/login') {
         return '/';
       }
 
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const _SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         name: 'login',
@@ -88,10 +98,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: 16),
-            Text(
-              'Sahifa topilmadi: ${state.matchedLocation}',
-              style: const TextStyle(fontSize: 16),
-            ),
+            Text('Sahifa topilmadi: ${state.matchedLocation}'),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => context.go('/'),
@@ -104,7 +111,35 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-// Temporary placeholder for reservation create screen
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.primary, Color(0xFF1E40AF)],
+          ),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.medical_services_rounded, size: 72, color: Colors.white),
+              SizedBox(height: 24),
+              CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CreateReservationScreen extends StatelessWidget {
   const _CreateReservationScreen();
 

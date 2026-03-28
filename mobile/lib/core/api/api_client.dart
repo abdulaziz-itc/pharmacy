@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storage/secure_storage.dart';
 import 'api_endpoints.dart';
 
+// Callback to notify auth layer about 401
+typedef OnUnauthorized = void Function();
+
 final apiClientProvider = Provider<ApiClient>((ref) {
   final storage = ref.watch(secureStorageProvider);
   return ApiClient(storage);
@@ -11,6 +14,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 class ApiClient {
   late final Dio _dio;
   final SecureStorage _storage;
+  OnUnauthorized? onUnauthorized;
 
   ApiClient(this._storage) {
     _dio = Dio(
@@ -36,7 +40,8 @@ class ApiClient {
         },
         onError: (error, handler) async {
           if (error.response?.statusCode == 401) {
-            await _storage.deleteToken();
+            await _storage.clearAll();
+            onUnauthorized?.call();
           }
           return handler.next(error);
         },
@@ -45,8 +50,8 @@ class ApiClient {
 
     _dio.interceptors.add(
       LogInterceptor(
-        requestBody: true,
-        responseBody: true,
+        requestBody: false,
+        responseBody: false,
         error: true,
         logPrint: (o) => debugPrint(o.toString()),
       ),

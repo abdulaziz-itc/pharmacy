@@ -13,6 +13,7 @@ class ReservationStatus(str, enum.Enum):
 class InvoiceStatus(str, enum.Enum):
     DRAFT = "draft"
     APPROVED = "approved"
+    UNPAID = "unpaid"
     PARTIAL = "partial"
     PAID = "paid"
     RETURNED = "returned"

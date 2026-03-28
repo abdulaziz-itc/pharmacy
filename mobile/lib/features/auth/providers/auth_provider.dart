@@ -38,6 +38,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final SecureStorage _storage;
 
   AuthNotifier(this._apiClient, this._storage) : super(const AuthState.initial()) {
+    _apiClient.onUnauthorized = () {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+    };
     _checkAuth();
   }
 

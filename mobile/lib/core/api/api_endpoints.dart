@@ -1,5 +1,5 @@
 class ApiEndpoints {
-  static const String baseUrl = 'https://heartly.uz/api/v1';
+  static const String baseUrl = 'https://backend.maax.uz/api/v1';
 
   // Auth
   static const String login = '/login/access-token';
