@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+import 'package:dio/dio.dart' show DioException, DioExceptionType, Headers, Options;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
@@ -70,13 +70,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final response = await _apiClient.post(
         ApiEndpoints.login,
-        data: FormData.fromMap({
+        data: {
           'username': username,
           'password': password,
           'grant_type': 'password',
-        }),
+        },
         options: Options(
-          contentType: 'application/x-www-form-urlencoded',
+          contentType: Headers.formUrlEncodedContentType,
         ),
       );
 

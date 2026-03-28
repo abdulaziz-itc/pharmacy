@@ -60,6 +60,8 @@ def backup_to_telegram():
                 'caption': f"📂 Ko'zli zaxira nusxasi (Database Backup)\n📅 Sana: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n🗄 Baza: {db_name}"
             }
             response = requests.post(url, data=data, files=files)
+            if response.status_code != 200:
+                print(f"Telegram API Error Details: {response.text}")
             response.raise_for_status()
             
         print("Successfully sent to Telegram.")
