@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../features/dashboard/screens/dashboard_screen.dart';
 import '../../../features/doctors/screens/doctors_screen.dart';
 import '../../../features/notifications/providers/notifications_provider.dart';
+import '../../../features/organizations/screens/organizations_screen.dart';
 import '../../../features/profile/screens/profile_screen.dart';
 import '../../../features/reservations/screens/reservations_screen.dart';
 import '../../../features/visits/screens/visits_screen.dart';
@@ -24,6 +25,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   final List<Widget> _screens = const [
     DashboardScreen(),
     DoctorsScreen(),
+    OrganizationsScreen(),
     ReservationsScreen(),
     VisitsScreen(),
     ProfileScreen(),
@@ -62,7 +64,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         child: SafeArea(
           child: Container(
             height: 64,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -80,18 +82,24 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 ),
                 _buildNavItem(
                   index: 2,
+                  icon: Icons.business_outlined,
+                  activeIcon: Icons.business_rounded,
+                  label: 'Tashkilot',
+                ),
+                _buildNavItem(
+                  index: 3,
                   icon: Icons.receipt_long_outlined,
                   activeIcon: Icons.receipt_long_rounded,
                   label: 'Bronlar',
                 ),
                 _buildNavItem(
-                  index: 3,
+                  index: 4,
                   icon: Icons.calendar_today_outlined,
                   activeIcon: Icons.calendar_today_rounded,
                   label: 'Tashriflar',
                 ),
                 _buildNavItemWithBadge(
-                  index: 4,
+                  index: 5,
                   icon: Icons.person_outline_rounded,
                   activeIcon: Icons.person_rounded,
                   label: 'Profil',
@@ -115,9 +123,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       behavior: HitTestBehavior.opaque,
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+  }) {
+    final isActive = _currentIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? AppColors.primary.withValues(alpha: 0.08) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -128,13 +146,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             Icon(
               isActive ? activeIcon : icon,
               color: isActive ? AppColors.primary : AppColors.textHint,
-              size: 22,
+              size: 20,
             ),
             const SizedBox(height: 2),
             Text(
               label,
               style: GoogleFonts.inter(
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                 color: isActive ? AppColors.primary : AppColors.textHint,
               ),

@@ -38,58 +38,90 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
     final state = ref.watch(organizationsProvider);
     final filteredOrgs = ref.watch(filteredOrgsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Tibbiy tashkilotlar'),
-        backgroundColor: AppColors.surface,
-      ),
-      body: Column(
-        children: [
-          Container(
-            color: AppColors.surface,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Tashkilot qidirish...',
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textHint,
-                ),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          ref
-                              .read(organizationsProvider.notifier)
-                              .search('');
-                          setState(() {});
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: AppColors.surfaceVariant,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {});
-                ref.read(organizationsProvider.notifier).search(value);
-              },
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Tashkilotlar'),
+          backgroundColor: AppColors.surface,
+          bottom: TabBar(
+            indicatorColor: AppColors.primary,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.textSecondary,
+            labelStyle: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
+            tabs: const [
+              Tab(text: 'Kasalxonalar'),
+              Tab(text: 'Dorixonalar'),
+            ],
           ),
-          Expanded(
-            child: _buildContent(state, filteredOrgs),
-          ),
-        ],
+        ),
+        body: Column(
+          children: [
+            Container(
+              color: AppColors.surface,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Tashkilot qidirish...',
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: AppColors.textHint,
+                  ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            ref
+                                .read(organizationsProvider.notifier)
+                                .search('');
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.surfaceVariant,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+                onChanged: (value) {
+                  setState(() {});
+                  ref.read(organizationsProvider.notifier).search(value);
+                },
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildContent(
+                    state,
+                    filteredOrgs.where((o) => 
+                      o.orgType?.toLowerCase() != 'pharmacy' && 
+                      o.orgType?.toLowerCase() != 'wholesale'
+                    ).toList(),
+                  ),
+                  _buildContent(
+                    state,
+                    filteredOrgs.where((o) => 
+                      o.orgType?.toLowerCase() == 'pharmacy'
+                    ).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -111,7 +143,7 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
     if (orgs.isEmpty) {
       return const EmptyView(
         title: 'Tashkilotlar topilmadi',
-        subtitle: 'Qidiruv so\'zini o\'zgartiring',
+        subtitle: 'Ushbu bo\'limda ma\'lumot mavjud emas',
         icon: Icons.business_outlined,
       );
     }
@@ -122,6 +154,7 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
       color: AppColors.primary,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 8),
+        physics: const AlwaysScrollableScrollPhysics(),
         itemCount: orgs.length,
         itemBuilder: (context, index) => _buildOrgCard(orgs[index]),
       ),
