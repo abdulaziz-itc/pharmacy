@@ -755,7 +755,13 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     </td>
                                                 </tr>
                                             );
-                                            return whStocks.map((stock: any, idx: number) => {
+                                            const sortedStocks = [...whStocks].sort((a, b) => {
+                                                const prodA = products.find((p: any) => p.id === a.product_id)?.name || "";
+                                                const prodB = products.find((p: any) => p.id === b.product_id)?.name || "";
+                                                return prodA.localeCompare(prodB);
+                                            });
+
+                                            return sortedStocks.map((stock: any, idx: number) => {
                                                 const prod = products.find((p: any) => p.id === stock.product_id);
                                                 return (
                                                     <tr key={stock.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
@@ -2001,7 +2007,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                 <SelectContent>
                                     {prixodMfrProducts.length === 0 ? (
                                         <SelectItem value="_" disabled>Препараты не найдены</SelectItem>
-                                    ) : (prixodMfrProducts as any[]).map((p: any) => (
+                                    ) : [...prixodMfrProducts].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map((p: any) => (
                                         <SelectItem key={p.id} value={p.id.toString()}>
                                             <div className="flex flex-col py-0.5">
                                                 <div className="flex items-center justify-between gap-4">
