@@ -18,6 +18,7 @@ from sqlalchemy.orm import selectinload
 from app.models.warehouse import Warehouse, Stock
 from app.models.product import Product
 from app.crud import crud_sales
+from app.schemas.sales import Plan
 from datetime import datetime
 
 router = APIRouter()
