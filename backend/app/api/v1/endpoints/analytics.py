@@ -22,9 +22,9 @@ async def get_global_realtime_dashboard(
     Aggregates from Invoice (Revenue), Payment (Fact), and BonusLedger (Bonuses).
     """
     from sqlalchemy import and_
-    from app.models.sales import Invoice, Payment
+    from app.models.sales import Invoice, Payment, Reservation, ReservationItem
     from app.models.ledger import BonusLedger, LedgerType
-    from app.models.crm import MedicalOrganization, Reservation
+    from app.models.crm import MedicalOrganization
     
     if current_user.role not in [
         UserRole.INVESTOR,
@@ -59,6 +59,9 @@ async def get_global_realtime_dashboard(
     
     # Use selected region or all allowed regions
     final_region_ids = [region_id] if region_id else allowed_region_ids
+    if current_user.role == UserRole.REGIONAL_MANAGER and not final_region_ids:
+        # RM must have at least one region, otherwise no data
+        final_region_ids = [-1]
 
     # 1. Total Revenue (Paid amount from payments this month)
     rev_query = select(func.sum(Payment.amount)).where(
@@ -75,7 +78,6 @@ async def get_global_realtime_dashboard(
     )
 
     # 3. Total Items Sold (Quantity from invoices this month)
-    from app.models.sales import ReservationItem
     qty_query = select(func.sum(ReservationItem.quantity)).join(
         Reservation, ReservationItem.reservation_id == Reservation.id
     ).join(
