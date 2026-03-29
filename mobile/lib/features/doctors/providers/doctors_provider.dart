@@ -151,3 +151,10 @@ final doctorsProvider =
   final apiClient = ref.watch(apiClientProvider);
   return DoctorsNotifier(apiClient);
 });
+
+final doctorPlansProvider = FutureProvider.family<List<DoctorPlan>, int>((ref, id) async {
+  final apiClient = ref.watch(apiClientProvider);
+  final response = await apiClient.get(ApiEndpoints.doctorPlans(id));
+  final List<dynamic> data = response.data as List<dynamic>;
+  return data.map((json) => DoctorPlan.fromJson(json as Map<String, dynamic>)).toList();
+});

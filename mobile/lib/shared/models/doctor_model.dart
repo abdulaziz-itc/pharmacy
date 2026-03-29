@@ -109,3 +109,36 @@ class DoctorModel {
     return '?';
   }
 }
+
+class DoctorPlan {
+  final int id;
+  final String productName;
+  final int targetQuantity;
+  final int factQuantity;
+  final int month;
+  final int year;
+
+  const DoctorPlan({
+    required this.id,
+    required this.productName,
+    required this.targetQuantity,
+    required this.factQuantity,
+    required this.month,
+    required this.year,
+  });
+
+  factory DoctorPlan.fromJson(Map<String, dynamic> json) {
+    return DoctorPlan(
+      id: json['id'] as int? ?? 0,
+      productName: json['product']?['name'] as String? ?? 'N/A',
+      targetQuantity: json['target_quantity'] as int? ?? 0,
+      factQuantity: json['fact_quantity'] as int? ?? 0,
+      month: json['month'] as int? ?? 0,
+      year: json['year'] as int? ?? 0,
+    );
+  }
+
+  double get percentage => targetQuantity > 0 
+      ? (factQuantity / targetQuantity) * 100 
+      : 0.0;
+}

@@ -81,21 +81,24 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
     return CustomScrollView(
       slivers: [
         SliverAppBar(
-          expandedHeight: 200,
+          expandedHeight: 220,
           pinned: true,
-          backgroundColor: AppColors.primary,
           flexibleSpace: FlexibleSpaceBar(
             background: Container(
               decoration: const BoxDecoration(
-                gradient: AppColors.cardGradient,
+                gradient: LinearGradient(
+                  colors: [AppColors.primary, AppColors.accent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 60),
                   Container(
-                    width: 80,
-                    height: 80,
+                    width: 70,
+                    height: 70,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(24),
@@ -175,7 +178,10 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
+                // Plan execution section
+                _buildPlanExecutionSection(),
+                const SizedBox(height: 24),
                 // Info card
                 _buildInfoCard(doctor),
                 const SizedBox(height: 16),
@@ -184,6 +190,167 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
                   _buildContactCard(doctor),
               ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlanExecutionSection() {
+    final plansAsync = ref.watch(doctorPlansProvider(widget.doctorId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.trending_up, color: AppColors.primary, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'ВЫПОЛНЕНИЕ ПЛАНОВ',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        plansAsync.when(
+          data: (plans) {
+            if (plans.isEmpty) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: Center(
+                  child: Text(
+                    'Планов на текущий месяц нет',
+                    style: GoogleFonts.inter(color: AppColors.textSecondary),
+                  ),
+                ),
+              );
+            }
+
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: plans.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final plan = plans[index];
+                return _buildPlanCard(plan);
+              },
+            );
+          },
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+          error: (err, _) => Center(
+            child: Text(
+              'Ошибка загрузки планов',
+              style: GoogleFonts.inter(color: AppColors.error),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlanCard(DoctorPlan plan) {
+    final double percent = plan.percentage;
+    final Color progressColor = percent >= 100 
+        ? AppColors.statusApproved 
+        : percent >= 50 
+            ? AppColors.primary 
+            : AppColors.statusCancelled;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  plan.productName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                '${percent.toInt()}%',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: progressColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: percent / 100,
+              backgroundColor: AppColors.divider.withOpacity(0.3),
+              valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+              minHeight: 6,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildPlanStat('ПЛАН', plan.targetQuantity.toString()),
+              _buildPlanStat('ФАКТ', plan.factQuantity.toString()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanStat(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
           ),
         ),
       ],

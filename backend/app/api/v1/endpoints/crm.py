@@ -17,6 +17,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models.warehouse import Warehouse, Stock
 from app.models.product import Product
+from app.crud import crud_sales
+from datetime import datetime
 
 router = APIRouter()
 
@@ -315,6 +317,25 @@ async def read_doctor(
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
     return doctor
+
+@router.get("/doctors/{id}/plans", response_model=List[Plan])
+async def read_doctor_plans(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Get doctor plans (with fact_quantity populated) for a specific month.
+    """
+    if not month:
+        month = datetime.utcnow().month
+    if not year:
+        year = datetime.utcnow().year
+        
+    return await crud_sales.get_plans(db, doctor_id=id, month=month, year=year)
 
 @router.post("/doctors", response_model=Doctor)
 async def create_doctor(
