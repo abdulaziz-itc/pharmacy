@@ -8,6 +8,7 @@ import '../../../shared/widgets/loading_shimmer.dart';
 import '../../visits/providers/visits_provider.dart';
 import '../../visits/screens/create_visit_screen.dart';
 import '../../../shared/widgets/weekly_calendar.dart';
+import 'sales_plans_screen.dart';
 
 class DailyPlanScreen extends ConsumerStatefulWidget {
   const DailyPlanScreen({super.key});
@@ -37,6 +38,66 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.surface,
+          elevation: 0,
+          title: Text(
+            'План',
+            style: GoogleFonts.poppins(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          bottom: TabBar(
+            indicatorColor: const Color(0xFFFBBF24),
+            labelColor: const Color(0xFFFBBF24),
+            unselectedLabelColor: AppColors.textSecondary,
+            labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+            indicatorSize: TabBarIndicatorSize.tab,
+            tabs: const [
+              Tab(text: 'Визиты'),
+              Tab(text: 'Продажи'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildDailyVisitsSection(),
+            const SalesPlansScreen(),
+          ],
+        ),
+        floatingActionButton: Builder(
+          builder: (context) {
+            // Only show FAB on the first tab (Visits)
+            final tabController = DefaultTabController.of(context);
+            return AnimatedBuilder(
+              animation: tabController,
+              builder: (context, child) {
+                if (tabController.index != 0) return const SizedBox.shrink();
+                return FloatingActionButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CreateVisitScreen()),
+                  ),
+                  elevation: 4,
+                  highlightElevation: 8,
+                  backgroundColor: const Color(0xFFFBBF24), // Yellow FAB
+                  child: const Icon(Icons.add, color: Colors.black, size: 30),
+                );
+              },
+            );
+          }
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyVisitsSection() {
     final visitsState = ref.watch(visitsProvider);
     
     // Filter visits by date and type
@@ -46,83 +107,26 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
     final doctorVisits = dayVisits.where((v) => v.doctor != null).toList();
     final orgVisits = dayVisits.where((v) => v.doctor == null).toList();
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            WeeklyCalendar(
-              selectedDate: _selectedDate,
-              onDateSelected: (date) => setState(() => _selectedDate = date),
-            ),
-            _buildTabs(),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildVisitList(doctorVisits, 'Врачи'),
-                  _buildVisitList(orgVisits, 'Организации'),
-                ],
-              ),
-            ),
-          ],
+    return Column(
+      children: [
+        WeeklyCalendar(
+          selectedDate: _selectedDate,
+          onDateSelected: (date) => setState(() => _selectedDate = date),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CreateVisitScreen()),
+        _buildTabs(), // Inner tabs for Doctors/Orgs
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildVisitList(doctorVisits, 'Врачи'),
+              _buildVisitList(orgVisits, 'Организации'),
+            ],
+          ),
         ),
-        elevation: 4,
-        highlightElevation: 8,
-        backgroundColor: const Color(0xFFFBBF24), // Yellow FAB
-        child: const Icon(Icons.add, color: Colors.black, size: 30),
-      ),
+      ],
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Ежедневный план',
-                style: GoogleFonts.poppins(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                DateFormat('d MMMM, yyyy', 'ru').format(_selectedDate),
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.divider),
-            ),
-            child: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 22),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildTabs() {
     return Container(

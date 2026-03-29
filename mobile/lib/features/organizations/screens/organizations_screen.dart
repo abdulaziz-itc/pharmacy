@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/organizations/screens/organization_detail_screen.dart';
@@ -158,6 +159,12 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
               ),
             ),
           ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          heroTag: 'orgs_fab',
+          onPressed: () => GoRouter.of(context).push('/organizations/create'),
+          backgroundColor: const Color(0xFF10B981),
+          child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
         ),
       ),
     );
@@ -323,10 +330,6 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
             ),
           ],
         ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => GoRouter.of(context).push('/organizations/create'),
-        backgroundColor: const Color(0xFF10B981),
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
       ),
     );
   }

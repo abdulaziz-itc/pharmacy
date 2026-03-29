@@ -117,6 +117,8 @@ class DoctorPlan {
   final int factQuantity;
   final int month;
   final int year;
+  final DoctorModel? doctor;
+  final MedOrgRef? medOrg;
 
   const DoctorPlan({
     required this.id,
@@ -125,6 +127,8 @@ class DoctorPlan {
     required this.factQuantity,
     required this.month,
     required this.year,
+    this.doctor,
+    this.medOrg,
   });
 
   factory DoctorPlan.fromJson(Map<String, dynamic> json) {
@@ -135,6 +139,8 @@ class DoctorPlan {
       factQuantity: json['fact_quantity'] as int? ?? 0,
       month: json['month'] as int? ?? 0,
       year: json['year'] as int? ?? 0,
+      doctor: json['doctor'] != null ? DoctorModel.fromJson(json['doctor'] as Map<String, dynamic>) : null,
+      medOrg: json['med_org'] != null ? MedOrgRef.fromJson(json['med_org'] as Map<String, dynamic>) : null,
     );
   }
 

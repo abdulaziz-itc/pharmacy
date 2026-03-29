@@ -123,6 +123,12 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'doctors_fab',
+        onPressed: () => context.push('/doctors/create'),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+      ),
     );
   }
 
@@ -283,10 +289,6 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
             ),
           ],
         ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/doctors/create'),
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
       ),
     );
   }

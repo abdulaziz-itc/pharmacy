@@ -66,17 +66,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/doctors/create',
+        name: 'doctor_create',
+        builder: (context, state) => const CreateDoctorScreen(),
+      ),
+      GoRoute(
         path: '/doctors/:id',
         name: 'doctor_detail',
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
           return DoctorDetailScreen(doctorId: id);
         },
-      ),
-      GoRoute(
-        path: '/doctors/create',
-        name: 'doctor_create',
-        builder: (context, state) => const CreateDoctorScreen(),
       ),
       GoRoute(
         path: '/reservations',

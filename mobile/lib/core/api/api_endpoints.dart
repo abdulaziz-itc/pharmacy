@@ -16,9 +16,9 @@ class ApiEndpoints {
   static String doctorPlans(int id) => '/crm/doctors/$id';
   
   // CRM Lookups
-  static const String regions = '/crm/regions';
-  static const String doctorSpecialties = '/crm/doctor-specialties';
-  static const String doctorCategories = '/crm/doctor-categories';
+  static const String regions = '/crm/regions/';
+  static const String doctorSpecialties = '/crm/doctor-specialties/';
+  static const String doctorCategories = '/crm/doctor-categories/';
 
   // Medical Organizations
   static const String medOrgs = '/crm/med-orgs';
