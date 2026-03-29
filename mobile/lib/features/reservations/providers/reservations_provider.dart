@@ -93,13 +93,17 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
   ReservationsNotifier(this._apiClient)
       : super(const ReservationsState.initial());
 
-  Future<void> loadReservations() async {
+  Future<void> loadReservations({int? year, int? month}) async {
     state = state.copyWith(
         status: ReservationsLoadStatus.loading, errorMessage: null);
     try {
+      final queryParams = <String, dynamic>{'limit': 50};
+      if (year != null) queryParams['year'] = year;
+      if (month != null) queryParams['month'] = month;
+
       final response = await _apiClient.get(
         ApiEndpoints.reservations,
-        queryParameters: {'limit': 50},
+        queryParameters: queryParams,
       );
       List<ReservationModel> reservations = [];
       final data = response.data;

@@ -44,15 +44,19 @@ class InvoicesNotifier extends StateNotifier<InvoicesState> {
 
   InvoicesNotifier(this._apiClient) : super(const InvoicesState.initial());
 
-  Future<void> loadInvoices({bool hasDebt = false}) async {
+  Future<void> loadInvoices({bool hasDebt = false, int? year, int? month}) async {
     state = state.copyWith(status: InvoicesLoadStatus.loading, errorMessage: null);
     try {
+      final queryParams = <String, dynamic>{
+        'limit': 50,
+        'has_debt': hasDebt,
+      };
+      if (year != null) queryParams['year'] = year;
+      if (month != null) queryParams['month'] = month;
+
       final response = await _apiClient.get(
         ApiEndpoints.invoices,
-        queryParameters: {
-          'limit': 50,
-          'has_debt': hasDebt,
-        },
+        queryParameters: queryParams,
       );
       
       List<InvoiceModel> invoices = [];

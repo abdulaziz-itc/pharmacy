@@ -7,7 +7,10 @@ import '../../../features/doctors/providers/doctors_provider.dart';
 import '../providers/visits_provider.dart';
 
 class CreateVisitScreen extends ConsumerStatefulWidget {
-  const CreateVisitScreen({super.key});
+  final int? doctorId;
+  final String? doctorName;
+
+  const CreateVisitScreen({super.key, this.doctorId, this.doctorName});
 
   @override
   ConsumerState<CreateVisitScreen> createState() => _CreateVisitScreenState();
@@ -23,14 +26,17 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
   String? _selectedDoctorName;
 
   final List<Map<String, String>> _visitTypes = [
-    {'value': 'field', 'label': 'Dala tashrifi'},
-    {'value': 'office', 'label': 'Ofis tashrifi'},
-    {'value': 'online', 'label': 'Online'},
+    {'value': 'field', 'label': 'Полевой визит'},
+    {'value': 'office', 'label': 'Офисный визит'},
+    {'value': 'online', 'label': 'Онлайн'},
   ];
 
   @override
   void initState() {
     super.initState();
+    _selectedDoctorId = widget.doctorId;
+    _selectedDoctorName = widget.doctorName;
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final doctorsState = ref.read(doctorsProvider);
       if (doctorsState.doctors.isEmpty) {
@@ -73,7 +79,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
     if (_selectedDoctorId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Shifokorni tanlang'),
+          content: Text('Выберите врача'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -95,7 +101,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Tashrif rejasi yaratildi!'),
+            content: Text('План визита создан!'),
             backgroundColor: AppColors.statusApproved,
           ),
         );
@@ -103,7 +109,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Xatolik yuz berdi'),
+            content: Text('Произошла ошибка'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -119,13 +125,13 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Tashrif rejasi'),
+        title: const Text('План визита'),
         backgroundColor: AppColors.surface,
         actions: [
           TextButton(
             onPressed: visitsState.isSubmitting ? null : _submit,
             child: Text(
-              'Saqlash',
+              'Сохранить',
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -143,7 +149,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Doctor selector
-              _buildSectionTitle('Shifokor tanlash'),
+              _buildSectionTitle('Выбор врача'),
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: () => _showDoctorPicker(doctorsState.doctors),
@@ -163,7 +169,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          _selectedDoctorName ?? 'Shifokorni tanlang',
+                          _selectedDoctorName ?? 'Выберите врача',
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             color: _selectedDoctorName != null
@@ -182,7 +188,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
               ),
               const SizedBox(height: 20),
               // Date picker
-              _buildSectionTitle('Tashrif sanasi'),
+              _buildSectionTitle('Дата визита'),
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: _pickDate,
@@ -201,7 +207,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        DateFormat('dd MMMM yyyy').format(_selectedDate),
+                        DateFormat('dd MMMM yyyy', 'ru').format(_selectedDate),
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -214,7 +220,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
               ),
               const SizedBox(height: 20),
               // Visit type
-              _buildSectionTitle('Tashrif turi'),
+              _buildSectionTitle('Тип визита'),
               const SizedBox(height: 8),
               Row(
                 children: _visitTypes.map((type) {
@@ -256,30 +262,30 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
               ),
               const SizedBox(height: 20),
               // Subject
-              _buildSectionTitle('Mavzu'),
+              _buildSectionTitle('Тема'),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _subjectController,
                 decoration: const InputDecoration(
-                  hintText: 'Tashrif maqsadi...',
+                  hintText: 'Цель визита...',
                   prefixIcon: Icon(Icons.subject_rounded, color: AppColors.textHint),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Mavzuni kiriting';
+                    return 'Введите тему';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 20),
               // Notes
-              _buildSectionTitle('Izoh (ixtiyoriy)'),
+              _buildSectionTitle('Комментарий (опционально)'),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _notesController,
                 maxLines: 3,
                 decoration: const InputDecoration(
-                  hintText: 'Qo\'shimcha ma\'lumot...',
+                  hintText: 'Дополнительная информация...',
                   alignLabelWithHint: true,
                 ),
               ),
@@ -299,7 +305,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                             strokeWidth: 2.5,
                           ),
                         )
-                      : const Text('Rejani saqlash'),
+                      : const Text('Сохранить план'),
                 ),
               ),
               const SizedBox(height: 24),
@@ -350,7 +356,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    'Shifokor tanlash',
+                    'Выбор врача',
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

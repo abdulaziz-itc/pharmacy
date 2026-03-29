@@ -67,7 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       final error = ref.read(authProvider).errorMessage;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error ?? 'Xatolik yuz berdi'),
+          content: Text(error ?? 'Произошла ошибка'),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -131,7 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Tibbiy vakillar uchun',
+                          'Для мед. представителей',
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             color: Colors.white.withValues(alpha: 0.8),
@@ -163,7 +163,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Kirish',
+                              'Вход',
                               style: GoogleFonts.poppins(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -172,7 +172,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Hisobingizga kiring',
+                              'Войдите в свой аккаунт',
                               style: GoogleFonts.inter(
                                 fontSize: 14,
                                 color: AppColors.textSecondary,
@@ -185,7 +185,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               textInputAction: TextInputAction.next,
                               autocorrect: false,
                               decoration: const InputDecoration(
-                                labelText: 'Foydalanuvchi nomi',
+                                labelText: 'Имя пользователя',
                                 hintText: 'username',
                                 prefixIcon: Icon(
                                   Icons.person_outline_rounded,
@@ -194,7 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Foydalanuvchi nomini kiriting';
+                                  return 'Введите имя пользователя';
                                 }
                                 return null;
                               },
@@ -206,7 +206,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               textInputAction: TextInputAction.done,
                               onFieldSubmitted: (_) => _submit(),
                               decoration: InputDecoration(
-                                labelText: 'Parol',
+                                labelText: 'Пароль',
                                 hintText: '••••••••',
                                 prefixIcon: const Icon(
                                   Icons.lock_outline_rounded,
@@ -228,10 +228,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Parolni kiriting';
+                                  return 'Введите пароль';
                                 }
                                 if (value.length < 4) {
-                                  return 'Parol kamida 4 ta belgi bo\'lishi kerak';
+                                  return 'Пароль должен содержать минимум 4 символа';
                                 }
                                 return null;
                               },
@@ -259,7 +259,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                         ),
                                       )
                                     : Text(
-                                        'Kirish',
+                                        'Вход',
                                         style: GoogleFonts.inter(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,

@@ -12,8 +12,15 @@ import '../providers/invoices_provider.dart';
 
 class InvoicesScreen extends ConsumerStatefulWidget {
   final bool initialShowDebts;
+  final int? year;
+  final int? month;
 
-  const InvoicesScreen({super.key, this.initialShowDebts = false});
+  const InvoicesScreen({
+    super.key,
+    this.initialShowDebts = false,
+    this.year,
+    this.month,
+  });
 
   @override
   ConsumerState<InvoicesScreen> createState() => _InvoicesScreenState();
@@ -22,7 +29,7 @@ class InvoicesScreen extends ConsumerStatefulWidget {
 class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<String> _tabs = ['Barchasi', 'Qarzlar'];
+  final List<String> _tabs = ['Все', 'Долги'];
 
   @override
   void initState() {
@@ -45,6 +52,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
   void _loadData() {
     ref.read(invoicesProvider.notifier).loadInvoices(
           hasDebt: _tabController.index == 1,
+          year: widget.year,
+          month: widget.month,
         );
   }
 
@@ -61,7 +70,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Fakturalar'),
+        title: const Text('Фактуры'),
         backgroundColor: AppColors.surface,
         bottom: TabBar(
           controller: _tabController,
@@ -99,7 +108,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
 
     if (state.invoices.isEmpty) {
       return const EmptyView(
-        title: 'Fakturalar topilmadi',
+        title: 'Фактуры не найдены',
         icon: Icons.receipt_long_outlined,
       );
     }
@@ -144,7 +153,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      invoice.facturaNumber ?? 'Faktura #${invoice.id}',
+                        invoice.facturaNumber ?? 'Фактура #${invoice.id}',
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -170,7 +179,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    invoice.customerName ?? 'Noma\'lum tashkilot',
+                    invoice.customerName ?? 'Неизвестная организация',
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -192,11 +201,11 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Jami summa',
+                      'Общая сумма',
                       style: GoogleFonts.inter(fontSize: 11, color: AppColors.textHint),
                     ),
                     Text(
-                      '${formatter.format(invoice.totalAmount)} so\'m',
+                      '${formatter.format(invoice.totalAmount)} сум',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -209,14 +218,14 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      invoice.hasDebt ? 'Qarz' : 'To\'langan',
+                      invoice.hasDebt ? 'Долг' : 'Оплачено',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         color: invoice.hasDebt ? AppColors.error : AppColors.success,
                       ),
                     ),
                     Text(
-                      '${formatter.format(invoice.hasDebt ? invoice.debt : invoice.paidAmount)} so\'m',
+                      '${formatter.format(invoice.hasDebt ? invoice.debt : invoice.paidAmount)} сум',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,

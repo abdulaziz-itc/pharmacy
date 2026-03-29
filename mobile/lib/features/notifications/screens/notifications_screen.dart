@@ -240,13 +240,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   IconData _getNotificationIcon(String topic) {
     final lower = topic.toLowerCase();
-    if (lower.contains('bron') || lower.contains('reservation') || lower.contains('бронь')) {
+    if (lower.contains('bron') || lower.contains('бронь') || lower.contains('reservation')) {
       return Icons.receipt_long_rounded;
-    } else if (lower.contains('tashrif') || lower.contains('visit') || lower.contains('визит')) {
+    } else if (lower.contains('visit') || lower.contains('визит') || lower.contains('tashrif')) {
       return Icons.calendar_today_rounded;
-    } else if (lower.contains('bonus') || lower.contains('payment') || lower.contains('бонус')) {
+    } else if (lower.contains('bonus') || lower.contains('бонус') || lower.contains('payment') || lower.contains('оплата')) {
       return Icons.account_balance_wallet_rounded;
-    } else if (lower.contains('shifokor') || lower.contains('doctor') || lower.contains('врач')) {
+    } else if (lower.contains('врач') || lower.contains('doctor') || lower.contains('shifokor')) {
       return Icons.medical_services_rounded;
     }
     return Icons.notifications_rounded;

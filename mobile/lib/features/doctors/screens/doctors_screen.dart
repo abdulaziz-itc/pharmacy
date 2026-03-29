@@ -50,7 +50,7 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Shifokorlar'),
+        title: const Text('Врачи'),
         backgroundColor: AppColors.surface,
         actions: [
           Padding(
@@ -71,7 +71,7 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Shifokor qidirish...',
+                hintText: 'Поиск врача...',
                 prefixIcon: const Icon(
                   Icons.search_rounded,
                   color: AppColors.textHint,
@@ -110,7 +110,7 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               alignment: Alignment.centerLeft,
               child: Text(
-                '${state.doctors.length} ta shifokor topildi',
+                'Найдено ${state.doctors.length} врачей',
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   color: AppColors.textSecondary,
@@ -133,7 +133,7 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
 
     if (state.status == DoctorsLoadStatus.error && state.doctors.isEmpty) {
       return ErrorView(
-        message: state.errorMessage ?? 'Xatolik',
+        message: state.errorMessage ?? 'Ошибка',
         onRetry: () => ref.read(doctorsProvider.notifier).loadDoctors(refresh: true),
         fullScreen: true,
       );
@@ -141,8 +141,8 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
 
     if (state.doctors.isEmpty && state.status == DoctorsLoadStatus.loaded) {
       return const EmptyView(
-        title: 'Shifokorlar topilmadi',
-        subtitle: 'Qidiruv so\'zini o\'zgartiring',
+        title: 'Врачи не найдены',
+        subtitle: 'Попробуйте изменить параметры поиска',
         icon: Icons.person_search_rounded,
       );
     }

@@ -32,7 +32,8 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Faktura #${widget.invoiceId}'),
+      appBar: AppBar(
+        title: Text('Фактура #${widget.invoiceId}'),
         backgroundColor: AppColors.surface,
       ),
       body: invoice == null
@@ -88,7 +89,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '${formatter.format(invoice.totalAmount)} so\'m',
+                  '${formatter.format(invoice.totalAmount)} сум',
                   style: GoogleFonts.poppins(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -97,7 +98,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Jami summa',
+                  'Общая сумма',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.7),
@@ -115,11 +116,11 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Qolgan qarz:',
+                          'Остаток долга:',
                           style: GoogleFonts.inter(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500),
                         ),
                         Text(
-                          '${formatter.format(invoice.debt)} so\'m',
+                          '${formatter.format(invoice.debt)} сум',
                           style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ],
@@ -139,7 +140,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           // Payments Section
           if (invoice.payments.isNotEmpty) ...[
             Text(
-              'To\'lovlar tarixi',
+              'История платежей',
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -150,8 +151,8 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
             ...invoice.payments.map((p) => _buildPaymentItem(p, formatter)),
           ] else
             const EmptyView(
-              title: 'To\'lovlar yo\'q',
-              subtitle: 'Bu faktura bo\'yicha hali to\'lov amalga oshirilmagan',
+              title: 'Нет платежей',
+              subtitle: 'По этой фактуре платежей не было',
               icon: Icons.payment_outlined,
             ),
           
@@ -171,13 +172,13 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
       ),
       child: Column(
         children: [
-          _buildDetailRow(Icons.business_rounded, 'Tashkilot', invoice.customerName ?? 'Noma\'lum'),
-          _buildDetailRow(Icons.numbers_rounded, 'Faktura raqami', invoice.facturaNumber ?? 'Belgilanmagan'),
-          _buildDetailRow(Icons.calendar_today_rounded, 'Sana', invoice.date.split('T')[0]),
+          _buildDetailRow(Icons.business_rounded, 'Организация', invoice.customerName ?? 'Неизвестно'),
+          _buildDetailRow(Icons.numbers_rounded, 'Номер фактуры', invoice.facturaNumber ?? 'Не указан'),
+          _buildDetailRow(Icons.calendar_today_rounded, 'Дата', invoice.date.split('T')[0]),
           if (invoice.realizationDate != null)
-            _buildDetailRow(Icons.local_shipping_outlined, 'Amalga oshirilgan sana', invoice.realizationDate!.split('T')[0]),
+            _buildDetailRow(Icons.local_shipping_outlined, 'Дата реализации', invoice.realizationDate!.split('T')[0]),
           if (invoice.reservationId != null)
-            _buildDetailRow(Icons.link_rounded, 'Bog\'langan bron', '#${invoice.reservationId}', isLast: true),
+            _buildDetailRow(Icons.link_rounded, 'Связанная бронь', '#${invoice.reservationId}', isLast: true),
         ],
       ),
     );

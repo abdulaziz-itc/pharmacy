@@ -31,15 +31,17 @@ class MedOrgModel {
   String get displayType {
     switch (orgType?.toLowerCase()) {
       case 'hospital':
-        return 'Kasalxona';
+        return 'Больница';
       case 'clinic':
-        return 'Klinika';
+        return 'Клиника';
       case 'pharmacy':
-        return 'Dorixona';
+        return 'Аптека';
       case 'polyclinic':
-        return 'Poliklinika';
+        return 'Поликлиника';
+      case 'wholesale':
+        return 'Оптовик';
       default:
-        return orgType ?? 'Boshqa';
+        return orgType ?? 'Другое';
     }
   }
 }

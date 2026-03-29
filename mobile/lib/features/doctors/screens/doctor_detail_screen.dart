@@ -214,7 +214,15 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
           child: _buildActionButton(
             icon: Icons.event_available_rounded,
             label: 'Визит',
-            onTap: () {},
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CreateVisitScreen(
+                  doctorId: doctor.id,
+                  doctorName: doctor.fullName,
+                ),
+              ),
+            ),
             color: AppColors.accent,
           ),
         ),
@@ -576,7 +584,7 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
           _buildDivider(),
           _buildPrettyRow(Icons.category_rounded, 'Категория', doctor.category?.name ?? 'VIP'),
           _buildDivider(),
-          _buildPrettyRow(Icons.place_rounded, 'Регион', doctor.region?.name ?? 'Tashkent'),
+          _buildPrettyRow(Icons.place_rounded, 'Регион', doctor.region?.name ?? 'Ташкент'),
           _buildPrettyRow(Icons.verified_user_rounded, 'Статус', doctor.isActive ? 'Активен' : 'Неактивен', 
             valColor: doctor.isActive ? AppColors.statusApproved : AppColors.textSecondary),
         ],
@@ -596,9 +604,6 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
         children: [
           if (doctor.contact1 != null)
             _buildPrettyRow(Icons.phone_iphone_rounded, 'Основной', doctor.contact1!, isPhone: true),
-          if (doctor.contact1 != null && doctor.contact2 != null) _buildDivider(),
-          if (doctor.contact2 != null)
-            _buildPrettyRow(Icons.phone_android_rounded, 'Дополнительный', doctor.contact2!, isPhone: true),
         ],
       ),
     );

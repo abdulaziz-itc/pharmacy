@@ -37,7 +37,7 @@ class _ReservationDetailScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Bron #${widget.reservationId}'),
+        title: Text('Бронь #${widget.reservationId}'),
         backgroundColor: AppColors.surface,
       ),
       body: reservation == null
@@ -72,7 +72,7 @@ class _ReservationDetailScreenState
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Bron #${reservation.id}',
+                      'Бронь #${reservation.id}',
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -115,7 +115,7 @@ class _ReservationDetailScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Ma\'lumotlar',
+                  'Детали',
                   style: GoogleFonts.poppins(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -125,24 +125,24 @@ class _ReservationDetailScreenState
                 const SizedBox(height: 16),
                 _buildDetailRow(
                   Icons.person_outline_rounded,
-                  'Mijoz',
+                  'Клиент',
                   reservation.customerName,
                 ),
                 _buildDetailRow(
                   Icons.calendar_today_rounded,
-                  'Sana',
+                  'Дата',
                   reservation.date,
                 ),
                 if (reservation.invoice != null)
                   _buildDetailRow(
                     Icons.receipt_outlined,
-                    'Hisob-faktura',
+                    'Счет-фактура',
                     reservation.invoice!,
                   ),
                 if (reservation.notes != null)
                   _buildDetailRow(
                     Icons.note_outlined,
-                    'Izoh',
+                    'Комментарий',
                     reservation.notes!,
                     isLast: true,
                   ),

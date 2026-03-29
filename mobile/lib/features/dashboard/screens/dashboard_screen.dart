@@ -173,7 +173,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                     ),
                     child: Text(
-                      'Қўллаш',
+                      'Применить',
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -289,14 +289,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 stats.pendingReservations.toString(),
                 Icons.receipt_long_rounded,
                 const Color(0xFFF59E0B),
-                onTap: () => context.push('/reservations'),
+                onTap: () => context.push('/reservations?year=${state.selectedYear}&month=${state.selectedMonth}'),
               ),
               _buildStatCard(
                 'Задолженность',
                 _formatAmount(stats.totalDebt),
                 Icons.account_balance_wallet_rounded,
                 const Color(0xFFEF4444),
-                onTap: () => context.push('/invoices?showDebts=true'),
+                onTap: () => context.push('/invoices?showDebts=true&year=${state.selectedYear}&month=${state.selectedMonth}'),
               ),
               _buildStatCard(
                 'Выполненные визиты',
@@ -376,8 +376,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            '${_formatAmount(stats.totalSales)} UZS',
+            '${_formatAmount(stats.totalSales)} сум',
             style: GoogleFonts.poppins(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -392,7 +391,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               _buildHeroStat(
                 'Бонус баланс',
-                '${_formatAmount(stats.bonusBalance)} UZS',
+                '${_formatAmount(stats.bonusBalance)} сум',
                 Icons.stars_rounded,
               ),
               const SizedBox(width: 30),

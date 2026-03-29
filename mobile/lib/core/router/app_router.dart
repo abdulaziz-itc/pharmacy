@@ -127,11 +127,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: 16),
-            Text('Sahifa topilmadi: ${state.matchedLocation}'),
+            Text('Страница не найдена: ${state.matchedLocation}'),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => context.go('/'),
-              child: const Text('Bosh sahifaga'),
+              child: const Text('На главную'),
             ),
           ],
         ),
@@ -146,8 +146,8 @@ class _CreateReservationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Bron yaratish')),
-      body: const Center(child: Text('Tez kunda...')),
+      appBar: AppBar(title: const Text('Создание брони')),
+      body: const Center(child: Text('Скоро...')),
     );
   }
 }

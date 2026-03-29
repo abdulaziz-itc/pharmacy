@@ -222,7 +222,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isDoc ? visit.doctor!.fullName : (visit.subject ?? 'Tashkilot'),
+                      isDoc ? visit.doctor!.fullName : (visit.subject ?? 'Организация'),
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,

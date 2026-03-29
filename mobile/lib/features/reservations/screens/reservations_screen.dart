@@ -12,7 +12,10 @@ import '../../../shared/widgets/status_badge.dart';
 import '../providers/reservations_provider.dart';
 
 class ReservationsScreen extends ConsumerStatefulWidget {
-  const ReservationsScreen({super.key});
+  final int? year;
+  final int? month;
+
+  const ReservationsScreen({super.key, this.year, this.month});
 
   @override
   ConsumerState<ReservationsScreen> createState() => _ReservationsScreenState();
@@ -21,7 +24,7 @@ class ReservationsScreen extends ConsumerStatefulWidget {
 class _ReservationsScreenState extends ConsumerState<ReservationsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<String> _statuses = ['Barchasi', 'Kutilmoqda', 'Tasdiqlangan', 'Yakunlangan', 'Bekor qilingan'];
+  final List<String> _statuses = ['Все', 'Ожидание', 'Подтверждено', 'Завершено', 'Отменено'];
   final List<String?> _statusValues = [null, 'pending', 'approved', 'completed', 'cancelled'];
 
   @override
@@ -32,7 +35,10 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen>
       setState(() {});
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(reservationsProvider.notifier).loadReservations();
+      ref.read(reservationsProvider.notifier).loadReservations(
+            year: widget.year,
+            month: widget.month,
+          );
     });
   }
 
@@ -55,7 +61,7 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Bronlar'),
+        title: const Text('Бронирования'),
         backgroundColor: AppColors.surface,
         bottom: TabBar(
           controller: _tabController,
@@ -97,7 +103,7 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen>
 
     if (state.status == ReservationsLoadStatus.error && state.reservations.isEmpty) {
       return ErrorView(
-        message: state.errorMessage ?? 'Xatolik',
+        message: state.errorMessage ?? 'Ошибка',
         onRetry: () =>
             ref.read(reservationsProvider.notifier).loadReservations(),
         fullScreen: true,
@@ -111,13 +117,16 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen>
             state.reservations, _statusValues[entry.key]);
         if (filtered.isEmpty) {
           return const EmptyView(
-            title: 'Bronlar topilmadi',
+            title: 'Бронирования не найдены',
             icon: Icons.receipt_long_outlined,
           );
         }
         return RefreshIndicator(
           onRefresh: () =>
-              ref.read(reservationsProvider.notifier).loadReservations(),
+              ref.read(reservationsProvider.notifier).loadReservations(
+                year: widget.year,
+                month: widget.month,
+              ),
           color: AppColors.primary,
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 8),

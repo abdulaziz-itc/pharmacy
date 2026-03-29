@@ -62,13 +62,13 @@ class VisitPlanModel {
   String get displayVisitType {
     switch (visitType?.toLowerCase()) {
       case 'field':
-        return 'Dala tashrifi';
+        return 'Полевой визит';
       case 'office':
-        return 'Ofis tashrifi';
+        return 'Офисный визит';
       case 'online':
-        return 'Online';
+        return 'Онлайн';
       default:
-        return visitType ?? 'Tashrifot';
+        return visitType ?? 'Визит';
     }
   }
 }

@@ -143,7 +143,7 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
         controller: _searchController,
         style: GoogleFonts.inter(fontSize: 14),
         decoration: InputDecoration(
-          hintText: 'Поиск mahsulot...',
+          hintText: 'Поиск товара...',
           hintStyle: GoogleFonts.inter(color: AppColors.textHint),
           prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
           filled: true,
@@ -201,8 +201,7 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(product.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                Text('${product.price.toStringAsFixed(0)} UZS', style: GoogleFonts.inter(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text('${product.price.toStringAsFixed(0)} сум', style: GoogleFonts.inter(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -236,7 +235,7 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
                 child: Text(item.product.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),
               ),
               Text(
-                '${item.total.toStringAsFixed(0)} UZS',
+                '${item.total.toStringAsFixed(0)} сум',
                 style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
               ),
             ],
@@ -292,7 +291,7 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
             children: [
               Text('Итого:', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
               Text(
-                '${state.cartTotal.toStringAsFixed(0)} UZS',
+                '${state.cartTotal.toStringAsFixed(0)} сум',
                 style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
               ),
             ],

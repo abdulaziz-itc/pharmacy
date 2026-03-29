@@ -42,7 +42,7 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Tashriflar'),
+        title: const Text('Визиты'),
         backgroundColor: AppColors.surface,
         bottom: TabBar(
           controller: _tabController,
@@ -58,7 +58,7 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Rejalangan'),
+                  const Text('Запланировано'),
                   const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -83,7 +83,7 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Bajarilgan'),
+                  const Text('Выполнено'),
                   const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -120,13 +120,11 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
       return const ShimmerList(count: 5);
     }
 
-    if (state.status == VisitsLoadStatus.error && state.visits.isEmpty) {
       return ErrorView(
-        message: state.errorMessage ?? 'Xatolik',
+        message: state.errorMessage ?? 'Ошибка',
         onRetry: () => ref.read(visitsProvider.notifier).loadVisits(),
         fullScreen: true,
       );
-    }
 
     return TabBarView(
       controller: _tabController,
@@ -139,20 +137,18 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
 
   Widget _buildVisitsList(List<VisitPlanModel> visits,
       {required bool isPending}) {
-    if (visits.isEmpty) {
       return EmptyView(
         title: isPending
-            ? 'Rejalangan tashriflar yo\'q'
-            : 'Bajarilgan tashriflar yo\'q',
+            ? 'Нет запланированных визитов'
+            : 'Нет выполненных визитов',
         subtitle:
-            isPending ? 'Yangi tashrif qo\'shing' : '',
+            isPending ? 'Добавьте новый визит' : '',
         icon: Icons.calendar_today_outlined,
         onAction: isPending
             ? () => context.push('/visits/create')
             : null,
-        actionLabel: isPending ? 'Tashrif qo\'shish' : null,
+        actionLabel: isPending ? 'Добавить визит' : null,
       );
-    }
 
     return RefreshIndicator(
       onRefresh: () => ref.read(visitsProvider.notifier).loadVisits(),
@@ -208,8 +204,7 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      visit.doctor?.fullName ?? visit.subject ?? 'Nomsiz tashrif',
+                      visit.doctor?.fullName ?? visit.subject ?? 'Визит без названия',
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -271,7 +266,7 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(success ? 'Tashrif bajarildi!' : 'Xatolik yuz berdi'),
+                content: Text(success ? 'Визит выполнен!' : 'Произошла ошибка'),
                 backgroundColor: success ? AppColors.statusApproved : AppColors.error,
               ),
             );
@@ -287,7 +282,7 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
             children: [
               Icon(Icons.check_circle_outline, size: 18, color: AppColors.statusApproved),
               SizedBox(width: 8),
-              Text('Bajarildi'),
+              Text('Выполнено'),
             ],
           ),
         ),
@@ -297,7 +292,7 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
             children: [
               Icon(Icons.delete_outline, size: 18, color: AppColors.error),
               SizedBox(width: 8),
-              Text('O\'chirish'),
+              Text('Удалить'),
             ],
           ),
         ),
