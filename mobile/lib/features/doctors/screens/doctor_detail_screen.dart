@@ -16,6 +16,9 @@ class DoctorDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
+  late int _selectedMonth;
+  late int _selectedYear;
+
   @override
   void initState() {
     super.initState();
@@ -574,7 +577,6 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
           _buildPrettyRow(Icons.category_rounded, 'Категория', doctor.category?.name ?? 'VIP'),
           _buildDivider(),
           _buildPrettyRow(Icons.place_rounded, 'Регион', doctor.region?.name ?? 'Tashkent'),
-          _buildDivider(),
           _buildPrettyRow(Icons.verified_user_rounded, 'Статус', doctor.isActive ? 'Активен' : 'Неактивен', 
             valColor: doctor.isActive ? AppColors.statusApproved : AppColors.textSecondary),
         ],
@@ -584,6 +586,7 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
 
   Widget _buildContactCard(DoctorModel doctor) {
     return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
@@ -595,7 +598,54 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
             _buildPrettyRow(Icons.phone_iphone_rounded, 'Основной', doctor.contact1!, isPhone: true),
           if (doctor.contact1 != null && doctor.contact2 != null) _buildDivider(),
           if (doctor.contact2 != null)
+            _buildPrettyRow(Icons.phone_android_rounded, 'Дополнительный', doctor.contact2!, isPhone: true),
+        ],
       ),
+    );
+  }
+
+  Widget _buildPrettyRow(IconData icon, String label, String value, {Color? valColor, bool isPhone = false}) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 16, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: valColor ?? AppColors.textPrimary,
+                  decoration: isPhone ? TextDecoration.underline : null,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Divider(height: 1, color: AppColors.divider),
     );
   }
 }
