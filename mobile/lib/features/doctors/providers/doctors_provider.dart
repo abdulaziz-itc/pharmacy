@@ -144,6 +144,16 @@ class DoctorsNotifier extends StateNotifier<DoctorsState> {
       );
     }
   }
+
+  Future<bool> createDoctor(Map<String, dynamic> data) async {
+    try {
+      await _apiClient.post(ApiEndpoints.doctors, data: data);
+      await loadDoctors(refresh: true);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 final doctorsProvider =

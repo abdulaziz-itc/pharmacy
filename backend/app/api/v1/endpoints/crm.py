@@ -224,13 +224,39 @@ async def create_med_org(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
+    # Allow MED_REP to create organizations
+    allowed = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN, UserRole.MED_REP}
+    if current_user.role not in allowed:
         raise HTTPException(status_code=400, detail="Not enough permissions")
+    
+    # Auto-assign MedRep if they are the creator
+    if current_user.role == UserRole.MED_REP:
+        if not med_org_in.assigned_rep_ids:
+            med_org_in.assigned_rep_ids = [current_user.id]
+        elif current_user.id not in med_org_in.assigned_rep_ids:
+            med_org_in.assigned_rep_ids.append(current_user.id)
+
     med_org = await crud_crm.create_med_org(db, obj_in=med_org_in)
+    
+    # Automatically create a warehouse for Pharmacy or Wholesale
+    from app.models.crm import MedicalOrganizationType
+    if med_org.org_type in [MedicalOrganizationType.PHARMACY, MedicalOrganizationType.WHOLESALE]:
+        from app.models.warehouse import Warehouse, WarehouseType
+        # Check if warehouse already exists (unlikely for new org)
+        warehouse_check = await db.execute(select(Warehouse).where(Warehouse.med_org_id == med_org.id))
+        if not warehouse_check.scalars().first():
+            new_warehouse = Warehouse(
+                name=f"Sklad: {med_org.name}",
+                warehouse_type=WarehouseType.PHARMACY if med_org.org_type == MedicalOrganizationType.PHARMACY else WarehouseType.CENTRAL,
+                med_org_id=med_org.id
+            )
+            db.add(new_warehouse)
+            await db.commit()
+
     from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "MedicalOrganization", med_org.id,
-        f"Добавлена организация: {med_org.name}",
+        f"Добавленa организация: {med_org.name}",
         request
     )
     return med_org
@@ -346,8 +372,15 @@ async def create_doctor(
     doctor_in: DoctorCreate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
+    # Allow MED_REP to create doctors
+    allowed = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN, UserRole.MED_REP}
+    if current_user.role not in allowed:
         raise HTTPException(status_code=400, detail="Not enough permissions")
+    
+    # Auto-assign MedRep if they are the creator
+    if current_user.role == UserRole.MED_REP:
+        doctor_in.assigned_rep_id = current_user.id
+
     doctor = await crud_crm.create_doctor(db, obj_in=doctor_in)
     from app.services.audit_service import log_action
     await log_action(db, current_user, "CREATE", "Doctor", doctor.id,

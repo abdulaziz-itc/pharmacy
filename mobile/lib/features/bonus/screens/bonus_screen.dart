@@ -99,6 +99,11 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                     const Color(0xFFF8FAFC),
                     const Color(0xFF64748B),
                     Icons.payments_outlined,
+                    onTap: () => _showFilteredHistorySheet(
+                      context,
+                      'Начислено',
+                      bonus.history.where((h) => h.type == 'accrual').toList(),
+                    ),
                   ),
                   _buildStatCard(
                     'ВСЕГО ВЫПЛАЧЕНО',
@@ -107,6 +112,11 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                     const Color(0xFFE8F5E9),
                     const Color(0xFF2E7D32),
                     Icons.check_circle_outline,
+                    onTap: () => _showFilteredHistorySheet(
+                      context,
+                      'Выплачено',
+                      bonus.history.where((h) => h.type == 'accrual' && h.isPaid).toList(),
+                    ),
                   ),
                   _buildStatCard(
                     'ОСТАТОК К ВЫПЛАТЕ',
@@ -115,6 +125,11 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                     const Color(0xFFF3E5F5),
                     const Color(0xFF7B1FA2),
                     Icons.info_outline,
+                    onTap: () => _showFilteredHistorySheet(
+                      context,
+                      'К выплате',
+                      bonus.history.where((h) => h.type == 'accrual' && !h.isPaid).toList(),
+                    ),
                   ),
                   _buildStatCard(
                     'РАСПРЕДЕЛЕННЫЕ БОНУСЫ',
@@ -123,6 +138,11 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                     const Color(0xFFFFF3E0),
                     const Color(0xFFE65100),
                     Icons.people_outline,
+                    onTap: () => _showFilteredHistorySheet(
+                      context,
+                      'Распределено',
+                      bonus.history.where((h) => h.isAllocation).toList(),
+                    ),
                   ),
                   _buildStatCard(
                     'ОСТАТОК НА БАЛАНСЕ',
@@ -131,6 +151,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                     const Color(0xFFF3E5F5),
                     const Color(0xFF6200EA),
                     Icons.balance_outlined,
+                    onTap: () {}, // Current balance is just a total
                   ),
                 ],
               ),
@@ -148,26 +169,18 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      // Show all history
-                    },
-                    child: const Text('См. все'),
-                  ),
                 ],
               ),
               const SizedBox(height: 12),
-              if (bonus.history.isEmpty)
+              if (bonus.history.isEmpty) ...[
+                const SizedBox(height: 40),
                 Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: Text(
-                      'История пуста',
-                      style: GoogleFonts.inter(color: AppColors.textSecondary),
-                    ),
+                  child: Text(
+                    'История пуста',
+                    style: GoogleFonts.inter(color: AppColors.textSecondary),
                   ),
-                )
-              else
+                ),
+              ] else
                 Container(
                   decoration: BoxDecoration(
                     color: AppColors.surface,
@@ -177,7 +190,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: bonus.history.length,
+                    itemCount: bonus.history.length > 10 ? 10 : bonus.history.length,
                     separatorBuilder: (_, __) =>
                         const Divider(height: 1, indent: 16, endIndent: 16),
                     itemBuilder: (context, index) {
@@ -191,9 +204,9 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
           ),
         ),
         
-        // Distribution Action Bar (Blue Bar from screenshot)
+        // Distribution Action Bar - FIX OVERFLOW
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
@@ -210,41 +223,47 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Мой бонусный баланс',
-                            style: GoogleFonts.inter(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              fontSize: 14,
+                          const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 14),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Мой баланс',
+                              style: GoogleFonts.inter(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 13,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        '${_formatAmount(bonus.balance)} UZS',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                      FittedBox(
+                        child: Text(
+                          '${_formatAmount(bonus.balance)} UZS',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 12),
                 ElevatedButton(
                   onPressed: () => _showAllocationDialog(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white.withValues(alpha: 0.2),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Прикрепить к врачу'),
+                  child: const Text('Прикрепить', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -260,87 +279,189 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
     String subtitle, 
     Color bgColor, 
     Color textColor,
-    IconData icon,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: 0,
-            top: 0,
-            child: Icon(
-              icon,
-              color: textColor.withValues(alpha: 0.1),
-              size: 48,
+    IconData icon, {
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: textColor.withValues(alpha: 0.8),
-                ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Icon(
+                icon,
+                color: textColor.withValues(alpha: 0.1),
+                size: 48,
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      value,
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: textColor.withValues(alpha: 0.8),
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        value,
+                        style: GoogleFonts.poppins(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                      fontSize: 9,
-                      color: Colors.black54,
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 9,
+                        color: Colors.black54,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-              Row(
+                  ],
+                ),
+                Row(
+                  children: [
+                    Icon(Icons.touch_app_outlined, size: 10, color: Colors.blue.shade700),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Детали',
+                      style: GoogleFonts.inter(
+                        fontSize: 8,
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFilteredHistorySheet(BuildContext context, String title, List<BonusHistoryItem> items) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
                 children: [
-                  Icon(Icons.touch_app_outlined, size: 10, color: Colors.blue.shade700),
-                  const SizedBox(width: 4),
                   Text(
-                    'Нажмите для деталей',
-                    style: GoogleFonts.inter(
-                      fontSize: 8,
-                      color: Colors.blue.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    title,
+                    style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${items.length} записей',
+                    style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
                   ),
                 ],
               ),
-            ],
-          ),
-        ],
+            ),
+            Expanded(
+              child: items.isEmpty 
+                ? Center(child: Text('Записей не найдено', style: GoogleFonts.inter(color: AppColors.textSecondary)))
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const Divider(height: 24),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                item.date.length > 10 ? item.date.substring(0, 10) : item.date,
+                                style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint, fontWeight: FontWeight.w500),
+                              ),
+                              Text(
+                                '${item.amount > 0 ? '+' : ''}${_formatAmount(item.amount)} UZS',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 15, 
+                                  fontWeight: FontWeight.bold, 
+                                  color: item.isAllocation ? Colors.orange : (item.isAccrual ? Colors.green : Colors.red),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          if (item.invoiceId != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                'Счет-фактура: #${item.invoiceId}',
+                                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                              ),
+                            ),
+                          if (item.doctorName != null)
+                            Text(
+                              'Врач: ${item.doctorName}',
+                              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+                            ),
+                          if (item.productName != null)
+                            Text(
+                              'Продукт: ${item.productName}',
+                              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+                            ),
+                          if (item.description != null && item.description!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                item.description!,
+                                style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint, fontStyle: FontStyle.italic),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }

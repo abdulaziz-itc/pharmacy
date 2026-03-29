@@ -15,6 +15,8 @@ import '../../features/reservations/screens/reservation_detail_screen.dart';
 import '../../features/visits/screens/create_visit_screen.dart';
 import '../../features/main/providers/main_provider.dart';
 import '../../features/bonus/screens/bonus_screen.dart';
+import '../../features/doctors/screens/create_doctor_screen.dart';
+import '../../features/organizations/screens/create_organization_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -70,6 +72,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
           return DoctorDetailScreen(doctorId: id);
         },
+      ),
+      GoRoute(
+        path: '/doctors/create',
+        name: 'doctor_create',
+        builder: (context, state) => const CreateDoctorScreen(),
       ),
       GoRoute(
         path: '/reservations',
@@ -129,6 +136,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/organizations',
         name: 'organizations',
         builder: (context, state) => const OrganizationsScreen(),
+      ),
+      GoRoute(
+        path: '/organizations/create',
+        name: 'organization_create',
+        builder: (context, state) => const CreateOrganizationScreen(),
       ),
       GoRoute(
         path: '/bonus',

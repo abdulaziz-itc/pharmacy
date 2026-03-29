@@ -6,6 +6,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/doctor_model.dart';
 import '../../visits/screens/create_visit_screen.dart';
 import '../providers/doctors_provider.dart';
+import '../../bonus/providers/bonus_provider.dart';
+import 'package:intl/intl.dart';
 
 class DoctorDetailScreen extends ConsumerStatefulWidget {
   final int doctorId;
@@ -107,6 +109,8 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildQuickActions(doctor),
+                const SizedBox(height: 32),
+                _buildDoctorBonusSection(doctor),
                 const SizedBox(height: 32),
                 _buildPlanHeader(),
                 const SizedBox(height: 12),
@@ -653,5 +657,88 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Divider(height: 1, color: AppColors.divider),
     );
+  }
+
+  Widget _buildDoctorBonusSection(DoctorModel doctor) {
+    final bonusAsync = ref.watch(doctorBonusStatsProvider(DoctorBonusParams(
+      id: widget.doctorId,
+      month: _selectedMonth,
+      year: _selectedYear,
+    )));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('БОНУСЫ ЗА ПЕРИОD', Icons.stars_rounded),
+        const SizedBox(height: 12),
+        bonusAsync.when(
+          data: (bonus) => Row(
+            children: [
+              Expanded(
+                child: _buildSimpleBonusCard(
+                  'Начислено',
+                  '${_formatAmount(bonus.totalAccrued)} UZS',
+                  const Color(0xFFE8F5E9),
+                  const Color(0xFF2E7D32),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSimpleBonusCard(
+                  'Выплачено',
+                  '${_formatAmount(bonus.totalPaid)} UZS',
+                  const Color(0xFFE3F2FD),
+                  const Color(0xFF1565C0),
+                ),
+              ),
+            ],
+          ),
+          loading: () => const Center(child: LinearProgressIndicator()),
+          error: (err, _) => Text(
+            'Ошибка загрузки бонусов',
+            style: GoogleFonts.inter(color: AppColors.error, fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSimpleBonusCard(String label, String value, Color bgColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: textColor.withValues(alpha: 0.8),
+            ),
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatAmount(double amount) {
+    final formatter = NumberFormat('#,##0', 'ru_RU');
+    return formatter.format(amount);
   }
 }

@@ -144,6 +144,16 @@ class OrganizationsNotifier extends StateNotifier<OrganizationsState> {
     }
   }
 
+  Future<bool> createOrganization(Map<String, dynamic> data) async {
+    try {
+      await _apiClient.post(ApiEndpoints.medOrgs, data: data);
+      await loadOrganizations();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   List<MedOrgModel> get filteredOrgs {
     if (state.searchQuery.isEmpty) return state.organizations;
     return state.organizations

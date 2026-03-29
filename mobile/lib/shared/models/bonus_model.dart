@@ -11,6 +11,9 @@ class BonusHistoryItem {
   final String? productName;
   final int? targetMonth;
   final int? targetYear;
+  final bool isPaid;
+  final int? invoiceId;
+  final int? reservationId;
 
   const BonusHistoryItem({
     required this.id,
@@ -24,6 +27,9 @@ class BonusHistoryItem {
     this.productName,
     this.targetMonth,
     this.targetYear,
+    this.isPaid = false,
+    this.invoiceId,
+    this.reservationId,
   });
 
   factory BonusHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -42,6 +48,9 @@ class BonusHistoryItem {
       productName: product != null ? product['name'] as String? : null,
       targetMonth: json['target_month'] as int?,
       targetYear: json['target_year'] as int?,
+      isPaid: json['is_paid'] as bool? ?? false,
+      invoiceId: json['invoice_id'] as int?,
+      reservationId: json['reservation_id'] as int?,
     );
   }
 

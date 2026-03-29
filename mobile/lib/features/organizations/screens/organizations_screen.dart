@@ -323,6 +323,10 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
             ),
           ],
         ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => GoRouter.of(context).push('/organizations/create'),
+        backgroundColor: const Color(0xFF10B981),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
       ),
     );
   }
