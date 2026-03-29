@@ -152,9 +152,39 @@ final doctorsProvider =
   return DoctorsNotifier(apiClient);
 });
 
-final doctorPlansProvider = FutureProvider.family<List<DoctorPlan>, int>((ref, id) async {
+class DoctorPlansParams {
+  final int id;
+  final int month;
+  final int year;
+
+  const DoctorPlansParams({
+    required this.id,
+    required this.month,
+    required this.year,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DoctorPlansParams &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          month == other.month &&
+          year == other.year;
+
+  @override
+  int get hashCode => id.hashCode ^ month.hashCode ^ year.hashCode;
+}
+
+final doctorPlansProvider = FutureProvider.family<List<DoctorPlan>, DoctorPlansParams>((ref, params) async {
   final apiClient = ref.watch(apiClientProvider);
-  final response = await apiClient.get(ApiEndpoints.doctorPlans(id));
+  final response = await apiClient.get(
+    ApiEndpoints.doctorPlans(params.id),
+    queryParameters: {
+      'month': params.month,
+      'year': params.year,
+    },
+  );
   final List<dynamic> data = response.data as List<dynamic>;
   return data.map((json) => DoctorPlan.fromJson(json as Map<String, dynamic>)).toList();
 });

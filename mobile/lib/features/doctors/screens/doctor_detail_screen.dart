@@ -19,15 +19,20 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    final now = DateTime.now();
+    _selectedMonth = now.month;
+    _selectedYear = now.year;
+    
+    // Defer loading so ref is available
+    Future.microtask(() {
       ref.read(doctorsProvider.notifier).loadDoctorDetail(widget.doctorId);
     });
   }
 
-  Future<void> _callDoctor(String phone) async {
-    final uri = Uri.parse('tel:$phone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+  void _callDoctor(String phone) async {
+    final Uri url = Uri.parse('tel:$phone');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
     }
   }
 
@@ -37,75 +42,119 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
     final doctor = state.selectedDoctor;
 
     if (state.status == DoctorsLoadStatus.error && doctor == null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-              const SizedBox(height: 16),
-              Text(
-                'Ошибка загрузки данных',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                state.errorMessage ?? 'Произошла непредвиденная ошибка',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => ref.read(doctorsProvider.notifier).loadDoctorDetail(widget.doctorId),
-                child: const Text('Повторить'),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildErrorView(state.errorMessage);
     }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: doctor == null
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : _buildContent(doctor),
+    );
+  }
+
+  Widget _buildErrorView(String? error) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: 16),
+            Text(
+              'Ошибка загрузки данных',
+              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                error ?? 'Произошла непредвиденная ошибка. Пожалуйста, убедитесь, что сервер обновлен.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: AppColors.textSecondary),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => ref.read(doctorsProvider.notifier).loadDoctorDetail(widget.doctorId),
+              child: Text('Повторить', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildContent(DoctorModel doctor) {
     return CustomScrollView(
       slivers: [
-        SliverAppBar(
-          expandedHeight: 220,
-          pinned: true,
-          flexibleSpace: FlexibleSpaceBar(
-            background: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.accent],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 60),
-                  Container(
-                    width: 70,
-                    height: 70,
+        _buildAppBar(doctor),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildQuickActions(doctor),
+                const SizedBox(height: 32),
+                _buildPlanHeader(),
+                const SizedBox(height: 12),
+                _buildMonthYearSelector(),
+                const SizedBox(height: 16),
+                _buildPlanExecutionList(),
+                const SizedBox(height: 40),
+                _buildSectionTitle('ИНФОРМАЦИЯ', Icons.info_outline_rounded),
+                const SizedBox(height: 12),
+                _buildInfoCard(doctor),
+                const SizedBox(height: 24),
+                _buildSectionTitle('КОНТАКТЫ', Icons.alternate_email_rounded),
+                const SizedBox(height: 12),
+                _buildContactCard(doctor),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppBar(DoctorModel doctor) {
+    return SliverAppBar(
+      expandedHeight: 220,
+      pinned: true,
+      stretch: true,
+      backgroundColor: AppColors.primary,
+      flexibleSpace: FlexibleSpaceBar(
+        stretchModes: const [StretchMode.zoomBackground],
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primary, AppColors.accent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                Hero(
+                  tag: 'doctor_avatar_${doctor.id}',
+                  child: Container(
+                    width: 72,
+                    height: 72,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        width: 2,
-                      ),
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
                     ),
                     child: Center(
                       child: Text(
@@ -118,239 +167,52 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    doctor.fullName,
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (doctor.specialty != null)
-                    Text(
-                      doctor.specialty!.name,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          title: Text(
-            doctor.fullName,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          iconTheme: const IconThemeData(color: Colors.white),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Quick actions
-                Row(
-                  children: [
-                    if (doctor.contact1 != null)
-                      Expanded(
-                        child: _buildActionButton(
-                          icon: Icons.phone_rounded,
-                          label: 'Qo\'ng\'iroq',
-                          onTap: () => _callDoctor(doctor.contact1!),
-                          color: AppColors.statusApproved,
-                        ),
-                      ),
-                    if (doctor.contact1 != null) const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildActionButton(
-                        icon: Icons.calendar_today_rounded,
-                        label: 'Tashrif',
-                        onTap: () {},
-                        color: AppColors.accent,
-                      ),
-                    ),
-                  ],
                 ),
-                const SizedBox(height: 24),
-                // Plan execution section
-                _buildPlanExecutionSection(),
-                const SizedBox(height: 24),
-                // Info card
-                _buildInfoCard(doctor),
-                const SizedBox(height: 16),
-                // Contact card
-                if (doctor.contact1 != null || doctor.contact2 != null)
-                  _buildContactCard(doctor),
+                const SizedBox(height: 12),
+                Text(
+                  doctor.fullName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  doctor.specialty?.name ?? 'Врач',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildPlanExecutionSection() {
-    final plansAsync = ref.watch(doctorPlansProvider(widget.doctorId));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.trending_up, color: AppColors.primary, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              'ВЫПОЛНЕНИЕ ПЛАНОВ',
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        plansAsync.when(
-          data: (plans) {
-            if (plans.isEmpty) {
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.divider),
-                ),
-                child: Center(
-                  child: Text(
-                    'Планов на текущий месяц нет',
-                    style: GoogleFonts.inter(color: AppColors.textSecondary),
-                  ),
-                ),
-              );
-            }
-
-            return ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              itemCount: plans.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final plan = plans[index];
-                return _buildPlanCard(plan);
-              },
-            );
-          },
-          loading: () => const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24.0),
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-          error: (err, _) => Center(
-            child: Text(
-              'Ошибка загрузки планов',
-              style: GoogleFonts.inter(color: AppColors.error),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPlanCard(DoctorPlan plan) {
-    final double percent = plan.percentage;
-    final Color progressColor = percent >= 100 
-        ? AppColors.statusApproved 
-        : percent >= 50 
-            ? AppColors.primary 
-            : AppColors.statusCancelled;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  plan.productName,
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              Text(
-                '${percent.toInt()}%',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: progressColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: percent / 100,
-              backgroundColor: AppColors.divider.withOpacity(0.3),
-              valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-              minHeight: 6,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildPlanStat('ПЛАН', plan.targetQuantity.toString()),
-              _buildPlanStat('ФАКТ', plan.factQuantity.toString()),
-            ],
-          ),
-        ],
-      ),
+      iconTheme: const IconThemeData(color: Colors.white),
     );
   }
 
-  Widget _buildPlanStat(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildQuickActions(DoctorModel doctor) {
+    return Row(
       children: [
-        Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textSecondary,
-            letterSpacing: 0.5,
+        if (doctor.contact1 != null)
+          Expanded(
+            child: _buildActionButton(
+              icon: Icons.phone_in_talk_rounded,
+              label: 'Позвонить',
+              onTap: () => _callDoctor(doctor.contact1!),
+              color: AppColors.statusApproved,
+            ),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+        if (doctor.contact1 != null) const SizedBox(width: 12),
+        Expanded(
+          child: _buildActionButton(
+            icon: Icons.event_available_rounded,
+            label: 'Визит',
+            onTap: () {},
+            color: AppColors.accent,
           ),
         ),
       ],
@@ -363,14 +225,15 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
     required VoidCallback onTap,
     required Color color,
   }) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -380,7 +243,7 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
             Text(
               label,
               style: GoogleFonts.inter(
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),
@@ -391,55 +254,329 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
     );
   }
 
-  Widget _buildInfoCard(DoctorModel doctor) {
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.textSecondary),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlanHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildSectionTitle('ВЫПОЛНЕНИЕ ПЛАНОВ', Icons.analytics_rounded),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            '$_selectedYear',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMonthYearSelector() {
+    final List<String> months = [
+      'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+      'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'
+    ];
+
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: 12,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final monthIdx = index + 1;
+          final isSelected = _selectedMonth == monthIdx;
+          return GestureDetector(
+            onTap: () => setState(() => _selectedMonth = monthIdx),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? AppColors.primary : AppColors.divider,
+                ),
+                boxShadow: isSelected ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  )
+                ] : null,
+              ),
+              child: Center(
+                child: Text(
+                  months[index],
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? Colors.white : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPlanExecutionList() {
+    final plansAsync = ref.watch(doctorPlansProvider(DoctorPlansParams(
+      id: widget.doctorId,
+      month: _selectedMonth,
+      year: _selectedYear,
+    )));
+
+    return plansAsync.when(
+      data: (plans) {
+        if (plans.isEmpty) {
+          return _buildEmptyPlansState();
+        }
+        return ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          itemCount: plans.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) => _buildModernPlanCard(plans[index]),
+        );
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40.0),
+          child: CircularProgressIndicator(strokeWidth: 2.5),
+        ),
+      ),
+      error: (err, _) => _buildPlansErrorState(),
+    );
+  }
+
+  Widget _buildEmptyPlansState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.assignment_turned_in_rounded, size: 48, color: AppColors.divider),
+          const SizedBox(height: 12),
+          Text(
+            'На этот месяц планов не найдено',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlansErrorState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.error.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.error.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.cloud_off_rounded, color: AppColors.error),
+          const SizedBox(height: 8),
+          Text(
+            'Ошибка загрузки планов.\nПожалуйста, обновите сервер.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernPlanCard(DoctorPlan plan) {
+    final double percent = plan.percentage;
+    final Color color = percent >= 100 
+        ? AppColors.statusApproved 
+        : percent >= 50 
+            ? AppColors.primary 
+            : AppColors.statusCancelled;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Ma\'lumotlar',
-            style: GoogleFonts.poppins(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      plan.productName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Ежемесячный план по продукту',
+                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${percent.toInt()}%',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Stack(
+            children: [
+              Container(
+                height: 8,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.divider.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutCubic,
+                height: 8,
+                width: (MediaQuery.of(context).size.width - 72) * (percent > 100 ? 1 : percent / 100),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [color.withOpacity(0.7), color]),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(color: color.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              _buildModernStat('ПЛАН', plan.targetQuantity.toString(), Icons.outlined_flag_rounded),
+              const Spacer(),
+              _buildModernStat('ФАКТ', plan.factQuantity.toString(), Icons.check_circle_outline_rounded, color: color),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernStat(String label, String value, IconData icon, {Color? color}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 12, color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.5,
+              ),
             ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: color ?? AppColors.textPrimary,
           ),
-          const SizedBox(height: 16),
-          _buildInfoRow(
-            Icons.local_hospital_outlined,
-            'Tashkilot',
-            doctor.medOrg?.name ?? 'Ko\'rsatilmagan',
-          ),
-          _buildInfoRow(
-            Icons.medical_services_outlined,
-            'Mutaxassislik',
-            doctor.specialty?.name ?? 'Ko\'rsatilmagan',
-          ),
-          _buildInfoRow(
-            Icons.star_outline_rounded,
-            'Kategoriya',
-            doctor.category?.name ?? 'Ko\'rsatilmagan',
-          ),
-          _buildInfoRow(
-            Icons.location_on_outlined,
-            'Viloyat/Shahar',
-            doctor.region?.name ?? 'Ko\'rsatilmagan',
-          ),
-          _buildInfoRow(
-            Icons.circle_outlined,
-            'Holat',
-            doctor.isActive ? 'Faol' : 'Nofaol',
-            isLast: true,
-            valueColor: doctor.isActive
-                ? AppColors.statusApproved
-                : AppColors.textSecondary,
-          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard(DoctorModel doctor) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        children: [
+          _buildPrettyRow(Icons.business_rounded, 'Организация', doctor.medOrg?.name ?? 'Не указано'),
+          _buildDivider(),
+          _buildPrettyRow(Icons.category_rounded, 'Категория', doctor.category?.name ?? 'VIP'),
+          _buildDivider(),
+          _buildPrettyRow(Icons.place_rounded, 'Регион', doctor.region?.name ?? 'Tashkent'),
+          _buildDivider(),
+          _buildPrettyRow(Icons.verified_user_rounded, 'Статус', doctor.isActive ? 'Активен' : 'Неактивен', 
+            valColor: doctor.isActive ? AppColors.statusApproved : AppColors.textSecondary),
         ],
       ),
     );
@@ -447,128 +584,17 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
 
   Widget _buildContactCard(DoctorModel doctor) {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.divider),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Aloqa',
-            style: GoogleFonts.poppins(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
           if (doctor.contact1 != null)
-            _buildContactRow(doctor.contact1!, doctor.contact2 == null),
+            _buildPrettyRow(Icons.phone_iphone_rounded, 'Основной', doctor.contact1!, isPhone: true),
+          if (doctor.contact1 != null && doctor.contact2 != null) _buildDivider(),
           if (doctor.contact2 != null)
-            _buildContactRow(doctor.contact2!, true),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContactRow(String phone, bool isLast) {
-    return GestureDetector(
-      onTap: () => _callDoctor(phone),
-      child: Container(
-        padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-        margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
-        decoration: isLast
-            ? null
-            : const BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: AppColors.divider),
-                ),
-              ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.statusApproved.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.phone_rounded,
-                color: AppColors.statusApproved,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              phone,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.accent,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(
-    IconData icon,
-    String label,
-    String value, {
-    bool isLast = false,
-    Color? valueColor,
-  }) {
-    return Container(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-      margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
-      decoration: isLast
-          ? null
-          : const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: AppColors.divider),
-              ),
-            ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: valueColor ?? AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
