@@ -36,6 +36,10 @@ class ApiEndpoints {
   static const String notifications = '/notifications';
   static String markNotificationRead(int id) => '/notifications/$id/read';
 
+  // Invoices & Debt
+  static const String invoices = '/sales/invoices/';
+  static String invoiceDetail(int id) => '/sales/invoices/$id';
+
   // User Visits
   static String userVisits(int userId) => '/users/$userId/visits';
 }

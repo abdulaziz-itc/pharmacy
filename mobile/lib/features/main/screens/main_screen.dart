@@ -11,18 +11,18 @@ import '../../organizations/screens/organizations_screen.dart';
 import '../../products/screens/products_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 
-class MainScreen extends ConsumerStatefulWidget {
-  final int initialIndex;
+import '../providers/main_provider.dart';
 
-  const MainScreen({super.key, this.initialIndex = 2}); // Center tab (Plan) by default
+class MainScreen extends ConsumerStatefulWidget {
+  final int? initialIndex;
+
+  const MainScreen({super.key, this.initialIndex});
 
   @override
   ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends ConsumerState<MainScreen> {
-  late int _currentIndex;
-
   final List<Widget> _screens = const [
     ProductsScreen(), // 1. Продукты
     DoctorsScreen(), // 2. Врачи
@@ -35,19 +35,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.initialIndex != null) {
+        ref.read(mainScreenTabIndexProvider.notifier).state = widget.initialIndex!;
+      }
       ref.read(notificationsProvider.notifier).loadNotifications();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentIndex = ref.watch(mainScreenTabIndexProvider);
     final unreadCount = ref.watch(unreadNotificationsCountProvider);
 
     return Scaffold(
       body: IndexedStack(
-        index: _currentIndex,
+        index: currentIndex,
         children: _screens,
       ),
       bottomNavigationBar: Container(
@@ -121,9 +124,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     required String label,
     bool isCenter = false,
   }) {
-    final isActive = _currentIndex == index;
+    final currentIndex = ref.watch(mainScreenTabIndexProvider);
+    final isActive = currentIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () => ref.read(mainScreenTabIndexProvider.notifier).state = index,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -171,9 +175,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     required String label,
     int badgeCount = 0,
   }) {
-    final isActive = _currentIndex == index;
+    final currentIndex = ref.watch(mainScreenTabIndexProvider);
+    final isActive = currentIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () => ref.read(mainScreenTabIndexProvider.notifier).state = index,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -233,7 +238,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               style: GoogleFonts.inter(
                 fontSize: 8.5,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                color: isActive ? AppColors.primary : AppColors.textHint,
+                color: isActive ? const Color(0xFFFBBF24) : AppColors.textHint,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

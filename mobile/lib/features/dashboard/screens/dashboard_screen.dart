@@ -9,6 +9,8 @@ import '../../../shared/models/dashboard_model.dart';
 import '../../../shared/widgets/error_view.dart';
 import '../../../shared/widgets/loading_shimmer.dart';
 import '../providers/dashboard_provider.dart';
+import '../../main/providers/main_provider.dart';
+import 'package:go_router/go_router.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -34,6 +36,158 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return formatter.format(amount);
   }
 
+  String _getMonthName(int month) {
+    const months = [
+      'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ];
+    return months[month - 1];
+  }
+
+  void _showFilterPicker(BuildContext context, WidgetRef ref, DashboardState state) {
+    int tempYear = state.selectedYear;
+    int tempMonth = state.selectedMonth;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Даврни танланг',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    // Year Picker
+                    Expanded(
+                      flex: 1,
+                      child: ListWheelScrollView.useDelegate(
+                        itemExtent: 50,
+                        physics: const FixedExtentScrollPhysics(),
+                        onSelectedItemChanged: (index) {
+                          setModalState(() {
+                            tempYear = 2023 + index;
+                          });
+                        },
+                        childDelegate: ListWheelChildBuilderDelegate(
+                          childCount: 10,
+                          builder: (context, index) {
+                            final year = 2023 + index;
+                            final isSelected = year == tempYear;
+                            return Center(
+                              child: Text(
+                                year.toString(),
+                                style: GoogleFonts.poppins(
+                                  fontSize: isSelected ? 22 : 18,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    // Month Picker
+                    Expanded(
+                      flex: 2,
+                      child: ListWheelScrollView.useDelegate(
+                        itemExtent: 50,
+                        physics: const FixedExtentScrollPhysics(),
+                        onSelectedItemChanged: (index) {
+                          setModalState(() {
+                            tempMonth = index + 1;
+                          });
+                        },
+                        childDelegate: ListWheelChildBuilderDelegate(
+                          childCount: 12,
+                          builder: (context, index) {
+                            final month = index + 1;
+                            final isSelected = month == tempMonth;
+                            return Center(
+                              child: Text(
+                                _getMonthName(month),
+                                style: GoogleFonts.poppins(
+                                  fontSize: isSelected ? 20 : 16,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      ref.read(dashboardProvider.notifier).updateFilter(tempYear, tempMonth);
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleType(Radius.circular(16)),
+                    ),
+                    child: Text(
+                      'Қўллаш',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dashboardState = ref.watch(dashboardProvider);
@@ -53,6 +207,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         backgroundColor: AppColors.surface,
         elevation: 0,
         centerTitle: false,
+        actions: [
+          IconButton(
+            onPressed: () => _showFilterPicker(context, ref, dashboardState),
+            icon: const Icon(Icons.calendar_month_rounded, color: AppColors.primary),
+            tooltip: 'Фильтр',
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () => ref.read(dashboardProvider.notifier).refresh(),
@@ -72,7 +234,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               )
             else if (dashboardState.stats != null)
               SliverToBoxAdapter(
-                child: _buildDashboardContent(dashboardState.stats!),
+                child: _buildDashboardContent(dashboardState.stats!, dashboardState),
               )
             else
               const SliverToBoxAdapter(child: ShimmerDashboard()),
@@ -82,14 +244,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildDashboardContent(DashboardStatsModel stats) {
+  Widget _buildDashboardContent(DashboardStatsModel stats, DashboardState state) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Hero card - Total Sales
-          _buildHeroCard(stats),
+          GestureDetector(
+            onTap: () => context.push('/invoices?showDebts=false'),
+            child: _buildHeroCard(stats, state),
+          ),
           const SizedBox(height: 24),
           // Stats grid
           Text(
@@ -115,24 +280,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 stats.activeDoctors.toString(),
                 Icons.people_alt_rounded,
                 const Color(0xFF6366F1),
+                onTap: () => ref.read(mainScreenTabIndexProvider.notifier).state = 1,
               ),
               _buildStatCard(
                 'Ожидаемые брони',
                 stats.pendingReservations.toString(),
                 Icons.receipt_long_rounded,
                 const Color(0xFFF59E0B),
-              ),
-              _buildStatCard(
-                'Выполненные визиты',
-                stats.completedVisits.toString(),
-                Icons.check_circle_outline_rounded,
-                AppColors.primary,
+                onTap: () => context.push('/reservations'),
               ),
               _buildStatCard(
                 'Задолженность',
                 _formatAmount(stats.totalDebt),
                 Icons.account_balance_wallet_rounded,
                 const Color(0xFFEF4444),
+                onTap: () => context.push('/invoices?showDebts=true'),
+              ),
+              _buildStatCard(
+                'Выполненные визиты',
+                stats.completedVisits.toString(),
+                Icons.check_circle_outline_rounded,
+                AppColors.primary,
+                onTap: () => ref.read(mainScreenTabIndexProvider.notifier).state = 2,
               ),
             ],
           ),
@@ -159,7 +328,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildHeroCard(DashboardStatsModel stats) {
+  Widget _buildHeroCard(DashboardStatsModel stats, DashboardState state) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -194,7 +363,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'За месяц',
+                  '${_getMonthName(state.selectedMonth)} ${state.selectedYear}',
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     color: Colors.white,
@@ -267,53 +436,56 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+      String title, String value, IconData icon, Color color, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+          ],
+          border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
             ),
-          ),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }

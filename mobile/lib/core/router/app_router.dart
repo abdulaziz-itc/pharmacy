@@ -8,9 +8,12 @@ import '../../features/doctors/screens/doctor_detail_screen.dart';
 import '../../features/main/screens/main_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/organizations/screens/organizations_screen.dart';
+import '../../features/reservations/screens/reservations_screen.dart';
+import '../../features/reservations/screens/invoices_screen.dart';
+import '../../features/reservations/screens/invoice_detail_screen.dart';
 import '../../features/reservations/screens/reservation_detail_screen.dart';
 import '../../features/visits/screens/create_visit_screen.dart';
-import '../../core/theme/app_theme.dart';
+import '../../features/main/providers/main_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -53,7 +56,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/',
         name: 'home',
-        builder: (context, state) => const MainScreen(),
+        builder: (context, state) {
+          final indexStr = state.uri.queryParameters['index'];
+          final index = int.tryParse(indexStr ?? '');
+          return MainScreen(initialIndex: index);
+        },
       ),
       GoRoute(
         path: '/doctors/:id',
@@ -62,6 +69,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
           return DoctorDetailScreen(doctorId: id);
         },
+      ),
+      GoRoute(
+        path: '/reservations',
+        name: 'reservations',
+        builder: (context, state) => const ReservationsScreen(),
       ),
       GoRoute(
         path: '/reservations/create',
@@ -74,6 +86,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
           return ReservationDetailScreen(reservationId: id);
+        },
+      ),
+      GoRoute(
+        path: '/invoices',
+        name: 'invoices',
+        builder: (context, state) {
+          final showDebts = state.uri.queryParameters['showDebts'] == 'true';
+          return InvoicesScreen(initialShowDebts: showDebts);
+        },
+      ),
+      GoRoute(
+        path: '/invoices/:id',
+        name: 'invoice_detail',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return InvoiceDetailScreen(invoiceId: id);
         },
       ),
       GoRoute(
