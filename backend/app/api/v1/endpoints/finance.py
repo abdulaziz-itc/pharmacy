@@ -36,7 +36,7 @@ async def read_debtors(
         
     query = (
         select(Invoice)
-        .join(Reservation)
+        .join(Reservation, Invoice.reservation_id == Reservation.id)
         .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL]))
         .order_by(Invoice.date.desc())
     )
@@ -112,7 +112,7 @@ async def read_global_stats(
     total_sales = total_sales_result.scalar() or 0.0
     
     # Total Payments
-    total_payments_query = select(func.sum(Invoice.paid_amount)).join(Reservation)
+    total_payments_query = select(func.sum(Invoice.paid_amount)).join(Reservation, Invoice.reservation_id == Reservation.id)
     if is_team_manager:
         total_payments_query = total_payments_query.where(Reservation.created_by_id.in_(descendant_ids))
     if final_region_ids:
