@@ -300,6 +300,21 @@ async def read_doctors(
         rep_id=rep_id,
         rep_ids=rep_ids
     )
+    
+@router.get("/doctors/{id}", response_model=Doctor)
+async def read_doctor(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Get doctor by ID.
+    """
+    doctor = await crud_crm.get_doctor(db, id=id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    return doctor
 
 @router.post("/doctors", response_model=Doctor)
 async def create_doctor(

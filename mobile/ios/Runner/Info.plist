@@ -68,7 +68,7 @@
 		<false/>
 		<key>NSExceptionDomains</key>
 		<dict>
-			<key>heartly.uz</key>
+			<key>maax.uz</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>
 				<false/>

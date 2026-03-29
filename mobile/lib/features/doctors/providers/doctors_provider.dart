@@ -132,12 +132,16 @@ class DoctorsNotifier extends StateNotifier<DoctorsState> {
   }
 
   Future<void> loadDoctorDetail(int id) async {
+    state = state.copyWith(selectedDoctor: null, status: DoctorsLoadStatus.loading);
     try {
       final response = await _apiClient.get(ApiEndpoints.doctorDetail(id));
       final doctor = DoctorModel.fromJson(response.data as Map<String, dynamic>);
-      state = state.copyWith(selectedDoctor: doctor);
+      state = state.copyWith(selectedDoctor: doctor, status: DoctorsLoadStatus.loaded);
     } catch (e) {
-      // silently fail for detail
+      state = state.copyWith(
+        status: DoctorsLoadStatus.error,
+        errorMessage: e.toString(),
+      );
     }
   }
 }

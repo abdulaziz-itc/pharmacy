@@ -36,6 +36,37 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
     final state = ref.watch(doctorsProvider);
     final doctor = state.selectedDoctor;
 
+    if (state.status == DoctorsLoadStatus.error && doctor == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+              const SizedBox(height: 16),
+              Text(
+                'Ошибка загрузки данных',
+                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                state.errorMessage ?? 'Произошла непредвиденная ошибка',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => ref.read(doctorsProvider.notifier).loadDoctorDetail(widget.doctorId),
+                child: const Text('Повторить'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: doctor == null

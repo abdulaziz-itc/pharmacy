@@ -7,6 +7,9 @@ class ApiEndpoints {
   // Dashboard
   static const String dashboardStats = '/dashboard/stats';
 
+  // Products
+  static const String products = '/products';
+
   // Doctors
   static const String doctors = '/crm/doctors';
   static String doctorDetail(int id) => '/crm/doctors/$id';
