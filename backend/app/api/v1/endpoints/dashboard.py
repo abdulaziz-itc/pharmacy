@@ -1,14 +1,16 @@
 from typing import Any, List
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, literal
 from datetime import datetime, timedelta
 
 from app.api import deps
 from app.models.sales import Reservation, ReservationStatus, Invoice, InvoiceStatus, Plan
-from app.models.crm import Doctor, Notification
+from app.models.crm import MedicalOrganization, Doctor, Notification, Region, user_regions
 from app.models.visit import Visit, VisitPlan
 from app.models.ledger import BonusLedger
+from app.models.user import UserRole
+from app.crud.crud_user import get_descendant_ids
 from app.schemas.dashboard import DashboardStats, ActivityItem, RevenueForecastPoint
 
 router = APIRouter()
@@ -19,13 +21,6 @@ async def get_dashboard_stats(
     current_user: Any = Depends(deps.get_current_user),
     region_id: int = None,
 ) -> Any:
-    from app.models.user import UserRole
-    from app.crud.crud_user import get_descendant_ids
-    from app.models.crm import MedicalOrganization, Doctor, Notification
-    from app.models.sales import Reservation, ReservationStatus, Invoice, InvoiceStatus
-    from app.models.visit import VisitPlan
-    from app.models.ledger import BonusLedger
-    
     # 0. Role Definition
     # Global roles see aggregate data for the entire company
     is_global = current_user.role in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN, UserRole.HRD]
@@ -41,9 +36,7 @@ async def get_dashboard_stats(
             allowed_region_ids = [r.id for r in current_user.assigned_regions]
         except Exception:
             # Fallback if relationship not loaded
-            from sqlalchemy import select
-            from app.models.crm import Region, user_regions
-            stmt = select(Region.id).join(user_regions).where(user_regions.c.user_id == current_user.id)
+            stmt = select(Region.id).join(user_regions, Region.id == user_regions.c.region_id).where(user_regions.c.user_id == current_user.id)
             res = await db.execute(stmt)
             allowed_region_ids = res.scalars().all()
             
