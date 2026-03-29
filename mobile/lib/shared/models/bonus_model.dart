@@ -5,34 +5,59 @@ class BonusHistoryItem {
   final String type;
   final String? description;
 
+  final int? doctorId;
+  final String? doctorName;
+  final int? productId;
+  final String? productName;
+  final int? targetMonth;
+  final int? targetYear;
+
   const BonusHistoryItem({
     required this.id,
     required this.date,
     required this.amount,
     required this.type,
     this.description,
+    this.doctorId,
+    this.doctorName,
+    this.productId,
+    this.productName,
+    this.targetMonth,
+    this.targetYear,
   });
 
   factory BonusHistoryItem.fromJson(Map<String, dynamic> json) {
+    final doctor = json['doctor'] as Map<String, dynamic>?;
+    final product = json['product'] as Map<String, dynamic>?;
+
     return BonusHistoryItem(
       id: json['id'] as int? ?? 0,
       date: json['date'] as String? ?? json['created_at'] as String? ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
-      type: json['type'] as String? ?? 'accrual',
-      description: json['description'] as String?,
+      type: json['ledger_type'] as String? ?? json['type'] as String? ?? 'accrual',
+      description: json['notes'] as String? ?? json['description'] as String?,
+      doctorId: doctor != null ? doctor['id'] as int? : json['doctor_id'] as int?,
+      doctorName: doctor != null ? doctor['full_name'] as String? : null,
+      productId: product != null ? product['id'] as int? : json['product_id'] as int?,
+      productName: product != null ? product['name'] as String? : null,
+      targetMonth: json['target_month'] as int?,
+      targetYear: json['target_year'] as int?,
     );
   }
 
-  bool get isAccrual => type.toLowerCase() == 'accrual' || amount > 0;
+  bool get isAccrual => type.toLowerCase() == 'accrual' || (type.toLowerCase() == 'payment' && amount > 0);
+  bool get isAllocation => type.toLowerCase() == 'offset';
 
   String get displayType {
     switch (type.toLowerCase()) {
       case 'accrual':
-        return 'Hisoblandi';
+        return 'Начислено';
       case 'payment':
-        return 'To\'landi';
-      case 'deduction':
-        return 'Ayirildi';
+        return 'Выплачено';
+      case 'offset':
+        return 'Распределено';
+      case 'reversal':
+        return 'Возврат';
       default:
         return type;
     }
@@ -43,12 +68,14 @@ class BonusBalanceModel {
   final double balance;
   final double totalAccrued;
   final double totalPaid;
+  final double totalAllocated;
   final List<BonusHistoryItem> history;
 
   const BonusBalanceModel({
     required this.balance,
     required this.totalAccrued,
     required this.totalPaid,
+    required this.totalAllocated,
     required this.history,
   });
 
@@ -58,6 +85,7 @@ class BonusBalanceModel {
       balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
       totalAccrued: (json['total_accrued'] as num?)?.toDouble() ?? 0.0,
       totalPaid: (json['total_paid'] as num?)?.toDouble() ?? 0.0,
+      totalAllocated: (json['total_allocated'] as num?)?.toDouble() ?? 0.0,
       history: historyList
           .map((e) => BonusHistoryItem.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -69,6 +97,7 @@ class BonusBalanceModel {
       balance: 0,
       totalAccrued: 0,
       totalPaid: 0,
+      totalAllocated: 0,
       history: [],
     );
   }

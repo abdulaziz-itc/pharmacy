@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,7 +6,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/bonus_model.dart';
 import '../../../shared/widgets/error_view.dart';
 import '../../../shared/widgets/loading_shimmer.dart';
+import '../../doctors/providers/doctors_provider.dart';
 import '../providers/bonus_provider.dart';
+import '../widgets/allocation_dialog.dart';
 
 class BonusScreen extends ConsumerStatefulWidget {
   const BonusScreen({super.key});
@@ -61,7 +62,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
 
     if (state.status == BonusLoadStatus.error) {
       return ErrorView(
-        message: state.errorMessage ?? 'Xatolik',
+        message: state.errorMessage ?? 'Ошибка',
         onRetry: () => ref.read(bonusProvider.notifier).loadBonusBalance(),
         fullScreen: true,
       );
@@ -74,295 +75,340 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
     }
 
     final bonus = state.bonusBalance!;
+    final remainderToPay = bonus.totalAccrued - bonus.totalPaid;
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return Column(
       children: [
-        // Balance hero card
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              const Icon(
-                Icons.account_balance_wallet_rounded,
-                color: Colors.white,
-                size: 36,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Joriy balans',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: Colors.white.withValues(alpha: 0.8),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${_formatAmount(bonus.balance)} so\'m',
-                style: GoogleFonts.poppins(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
+              // Grid of 5 Stat Cards
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.6,
                 children: [
-                  Expanded(
-                    child: _buildBalanceStat(
-                      'Jami hisoblandi',
-                      '${_formatAmount(bonus.totalAccrued)} so\'m',
-                      Icons.trending_up_rounded,
+                  _buildStatCard(
+                    'ВСЕГО НАЧИСЛЕНО',
+                    '${_formatAmount(bonus.totalAccrued)} UZS',
+                    'Общая заработанная сумма',
+                    const Color(0xFFF8FAFC),
+                    const Color(0xFF64748B),
+                    Icons.payments_outlined,
+                  ),
+                  _buildStatCard(
+                    'ВСЕГО ВЫПЛАЧЕНО',
+                    '${_formatAmount(bonus.totalPaid)} UZS',
+                    'Сумма переведенная на ваш баланс',
+                    const Color(0xFFE8F5E9),
+                    const Color(0xFF2E7D32),
+                    Icons.check_circle_outline,
+                  ),
+                  _buildStatCard(
+                    'ОСТАТОК К ВЫПЛАТЕ',
+                    '${_formatAmount(remainderToPay > 0 ? remainderToPay : 0)} UZS',
+                    'Ожидает утверждения директором',
+                    const Color(0xFFF3E5F5),
+                    const Color(0xFF7B1FA2),
+                    Icons.info_outline,
+                  ),
+                  _buildStatCard(
+                    'РАСПРЕДЕЛЕННЫЕ БОНУСЫ',
+                    '${_formatAmount(bonus.totalAllocated)} UZS',
+                    'Прикреплено к врачам',
+                    const Color(0xFFFFF3E0),
+                    const Color(0xFFE65100),
+                    Icons.people_outline,
+                  ),
+                  _buildStatCard(
+                    'ОСТАТОК НА БАЛАНСЕ',
+                    '${_formatAmount(bonus.balance)} UZS',
+                    'Доступно для распределения',
+                    const Color(0xFFF3E5F5),
+                    const Color(0xFF6200EA),
+                    Icons.balance_outlined,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // History Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'История',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  Container(
-                    width: 1,
-                    height: 40,
-                    color: Colors.white.withValues(alpha: 0.3),
+                  TextButton(
+                    onPressed: () {
+                      // Show all history
+                    },
+                    child: const Text('См. все'),
                   ),
-                  Expanded(
-                    child: _buildBalanceStat(
-                      'Jami to\'landi',
-                      '${_formatAmount(bonus.totalPaid)} so\'m',
-                      Icons.trending_down_rounded,
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (bonus.history.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Text(
+                      'История пуста',
+                      style: GoogleFonts.inter(color: AppColors.textSecondary),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: bonus.history.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, indent: 16, endIndent: 16),
+                    itemBuilder: (context, index) {
+                      final item = bonus.history[index];
+                      return _buildHistoryItem(item);
+                    },
+                  ),
+                ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+        
+        // Distribution Action Bar (Blue Bar from screenshot)
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Мой бонусный баланс',
+                            style: GoogleFonts.inter(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_formatAmount(bonus.balance)} UZS',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => _showAllocationDialog(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Прикрепить к врачу'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(
+    String label, 
+    String value, 
+    String subtitle, 
+    Color bgColor, 
+    Color textColor,
+    IconData icon,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Icon(
+              icon,
+              color: textColor.withValues(alpha: 0.1),
+              size: 48,
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: textColor.withValues(alpha: 0.8),
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 9,
+                      color: Colors.black54,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Icon(Icons.touch_app_outlined, size: 10, color: Colors.blue.shade700),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Нажмите для деталей',
+                    style: GoogleFonts.inter(
+                      fontSize: 8,
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 20),
-        // Pie chart
-        if (bonus.totalAccrued > 0) ...[
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.divider),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bonus taqsimoti',
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    SizedBox(
-                      height: 120,
-                      width: 120,
-                      child: PieChart(
-                        PieChartData(
-                          sections: [
-                            PieChartSectionData(
-                              color: AppColors.statusApproved,
-                              value: bonus.totalPaid,
-                              title: '',
-                              radius: 45,
-                            ),
-                            PieChartSectionData(
-                              color: AppColors.accent,
-                              value: bonus.balance,
-                              title: '',
-                              radius: 45,
-                            ),
-                          ],
-                          centerSpaceRadius: 20,
-                          sectionsSpace: 2,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLegendItem(
-                            'To\'langan',
-                            AppColors.statusApproved,
-                            '${_formatAmount(bonus.totalPaid)} so\'m',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildLegendItem(
-                            'Qolgan balans',
-                            AppColors.accent,
-                            '${_formatAmount(bonus.balance)} so\'m',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
         ],
-        // History
-        if (bonus.history.isNotEmpty) ...[
-          Text(
-            'Tarix',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.divider),
-            ),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: bonus.history.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-              itemBuilder: (context, index) {
-                final item = bonus.history[index];
-                return _buildHistoryItem(item);
-              },
-            ),
-          ),
-        ],
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
-  Widget _buildBalanceStat(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white, size: 18),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 10,
-            color: Colors.white.withValues(alpha: 0.7),
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLegendItem(String label, Color color, String value) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildHistoryItem(BonusHistoryItem item) {
-    final isAccrual = item.isAccrual;
     return ListTile(
       leading: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: (isAccrual ? AppColors.statusApproved : AppColors.statusCancelled)
+          color: (item.isAllocation ? Colors.orange : (item.isAccrual ? Colors.green : Colors.red))
               .withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
-          isAccrual
-              ? Icons.arrow_downward_rounded
-              : Icons.arrow_upward_rounded,
-          color: isAccrual ? AppColors.statusApproved : AppColors.statusCancelled,
+          item.isAllocation 
+              ? Icons.people_outline 
+              : (item.isAccrual ? Icons.add_circle_outline : Icons.remove_circle_outline),
+          color: item.isAllocation ? Colors.orange : (item.isAccrual ? Colors.green : Colors.red),
           size: 20,
         ),
       ),
       title: Text(
         item.displayType,
         style: GoogleFonts.inter(
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
         ),
       ),
-      subtitle: Text(
-        item.description ?? item.date,
-        style: GoogleFonts.inter(
-          fontSize: 12,
-          color: AppColors.textSecondary,
-        ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (item.doctorName != null)
+            Text(
+              'Врач: ${item.doctorName}',
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.textPrimary),
+            ),
+          if (item.productName != null)
+            Text(
+              'Продукт: ${item.productName}',
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          Text(
+            item.description ?? item.date,
+            style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+          ),
+        ],
       ),
       trailing: Text(
-        '${isAccrual ? '+' : '-'}${_formatAmount(item.amount.abs())} so\'m',
-        style: GoogleFonts.inter(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: isAccrual ? AppColors.statusApproved : AppColors.statusCancelled,
+        '${item.amount > 0 ? '+' : ''}${_formatAmount(item.amount)} UZS',
+        style: GoogleFonts.poppins(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: item.isAllocation ? Colors.orange : (item.isAccrual ? Colors.green : Colors.red),
         ),
       ),
+    );
+  }
+
+  void _showAllocationDialog(BuildContext context) {
+    final balance = ref.read(bonusProvider).bonusBalance?.balance ?? 0.0;
+    
+    // Pre-load doctors if not already loaded
+    ref.read(doctorsProvider.notifier).loadDoctors(refresh: true);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AllocationDialog(availableBalance: balance),
     );
   }
 }

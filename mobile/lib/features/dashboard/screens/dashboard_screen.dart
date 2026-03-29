@@ -390,10 +390,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           Row(
             children: [
-              _buildHeroStat(
-                'Бонус баланс',
-                '${_formatAmount(stats.bonusBalance)} сум',
-                Icons.stars_rounded,
+              GestureDetector(
+                onTap: () => context.push('/bonus'),
+                child: _buildHeroStat(
+                  'Бонус баланс',
+                  '${_formatAmount(stats.bonusBalance)} сум',
+                  Icons.stars_rounded,
+                ),
               ),
               const SizedBox(width: 30),
               _buildHeroStat(

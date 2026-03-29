@@ -54,6 +54,34 @@ class BonusNotifier extends StateNotifier<BonusState> {
       );
     }
   }
+
+  Future<bool> allocateBonus({
+    required int doctorId,
+    required int productId,
+    required double amount,
+    required int month,
+    required int year,
+    String? notes,
+  }) async {
+    try {
+      await _apiClient.post(
+        '/sales/allocate-bonus/',
+        data: {
+          'doctor_id': doctorId,
+          'product_id': productId,
+          'quantity': 1, // Assuming 1 for logic where amount is direct
+          'amount_per_unit': amount,
+          'target_month': month,
+          'target_year': year,
+          'notes': notes,
+        },
+      );
+      await loadBonusBalance();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 final bonusProvider =

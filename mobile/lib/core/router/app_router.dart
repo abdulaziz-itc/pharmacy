@@ -14,6 +14,7 @@ import '../../features/reservations/screens/invoice_detail_screen.dart';
 import '../../features/reservations/screens/reservation_detail_screen.dart';
 import '../../features/visits/screens/create_visit_screen.dart';
 import '../../features/main/providers/main_provider.dart';
+import '../../features/bonus/screens/bonus_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -128,6 +129,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/organizations',
         name: 'organizations',
         builder: (context, state) => const OrganizationsScreen(),
+      ),
+      GoRoute(
+        path: '/bonus',
+        name: 'bonus',
+        builder: (context, state) => const BonusScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
