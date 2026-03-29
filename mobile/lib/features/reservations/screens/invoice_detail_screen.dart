@@ -32,7 +32,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-      appBar: AppBar(
         title: Text('Фактура #${widget.invoiceId}'),
         backgroundColor: AppColors.surface,
       ),

@@ -73,7 +73,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reservations',
         name: 'reservations',
-        builder: (context, state) => const ReservationsScreen(),
+        builder: (context, state) {
+          final year = int.tryParse(state.uri.queryParameters['year'] ?? '');
+          final month = int.tryParse(state.uri.queryParameters['month'] ?? '');
+          return ReservationsScreen(year: year, month: month);
+        },
       ),
       GoRoute(
         path: '/reservations/create',
@@ -93,7 +97,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'invoices',
         builder: (context, state) {
           final showDebts = state.uri.queryParameters['showDebts'] == 'true';
-          return InvoicesScreen(initialShowDebts: showDebts);
+          final year = int.tryParse(state.uri.queryParameters['year'] ?? '');
+          final month = int.tryParse(state.uri.queryParameters['month'] ?? '');
+          return InvoicesScreen(
+            initialShowDebts: showDebts,
+            year: year,
+            month: month,
+          );
         },
       ),
       GoRoute(

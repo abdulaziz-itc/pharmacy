@@ -376,6 +376,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 10),
+          Text(
             '${_formatAmount(stats.totalSales)} сум',
             style: GoogleFonts.poppins(
               fontSize: 28,
