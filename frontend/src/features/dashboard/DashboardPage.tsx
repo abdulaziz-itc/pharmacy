@@ -174,41 +174,41 @@ export default function DashboardPage() {
             {/* High Impact Metrics Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <MetricCard
-                    title="Общие продажи"
-                    value={`${stats?.total_sales?.toLocaleString() ?? 0} сум`}
+                    title={user?.role === 'hrd' ? "Штат сотрудников" : "Общие продажи"}
+                    value={user?.role === 'hrd' ? `${stats?.total_sales ?? 0}` : `${stats?.total_sales?.toLocaleString() ?? 0} сум`}
                     change={stats?.total_sales_change}
                     isUp={true}
                     icon={TrendingUp}
                     color="blue"
-                    onClick={() => navigate('/reports')}
+                    onClick={() => navigate(user?.role === 'hrd' ? '/users' : '/reports')}
                 />
                 <MetricCard
-                    title="Количество проданных товаров"
+                    title={user?.role === 'hrd' ? "Охват врачей" : "Количество проданных товаров"}
                     value={stats?.active_doctors?.toLocaleString() ?? 0}
                     change={stats?.active_doctors_change}
                     isUp={true}
                     icon={Users}
                     color="indigo"
-                    onClick={() => navigate('/reports')}
+                    onClick={() => navigate(user?.role === 'hrd' ? '/crm/doctors' : '/reports')}
                 />
                 <MetricCard
-                    title="Начисленные бонусы"
-                    value={`${stats?.pending_reservations?.toLocaleString() ?? 0} сум`}
+                    title={user?.role === 'hrd' ? "Активность (24ч)" : "Начисленные бонусы"}
+                    value={stats?.pending_reservations?.toLocaleString() ?? 0}
                     change={stats?.pending_reservations_label}
                     isUp={false}
                     icon={CalendarClock}
                     color="orange"
                     isStatic={true}
-                    onClick={() => navigate('/bonuses')}
+                    onClick={() => navigate('/notifications')}
                 />
                 <MetricCard
-                    title="Дебиторская задолженность"
-                    value={`${stats?.total_debt?.toLocaleString() ?? 0} сум`}
+                    title={user?.role === 'hrd' ? "Выполнено визитов" : "Дебиторская задолженность"}
+                    value={user?.role === 'hrd' ? stats?.total_debt?.toLocaleString() : `${stats?.total_debt?.toLocaleString() ?? 0} сум`}
                     change={stats?.total_debt_change}
                     isUp={false}
                     icon={Wallet}
                     color="rose"
-                    onClick={() => navigate('/debtors')}
+                    onClick={() => navigate(user?.role === 'hrd' ? '/visits' : '/debtors')}
                 />
             </div>
 

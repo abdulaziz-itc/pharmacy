@@ -62,6 +62,9 @@ async def read_plans(
     doctor_id: int = None,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
+    if current_user.role == UserRole.MED_REP:
+        med_rep_id = current_user.id
+    
     return await crud_sales.get_plans(db, skip=skip, limit=limit, month=month, year=year, med_rep_id=med_rep_id, doctor_id=doctor_id)
 
 @router.put("/plans/{id}", response_model=Plan)

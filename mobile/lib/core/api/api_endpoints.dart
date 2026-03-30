@@ -13,7 +13,7 @@ class ApiEndpoints {
   // Doctors
   static const String doctors = '/crm/doctors';
   static String doctorDetail(int id) => '/crm/doctors/$id';
-  static String doctorPlans(int id) => '/crm/doctors/$id';
+  static String doctorPlans(int id) => '/crm/doctors/$id/plans';
   
   // CRM Lookups
   static const String regions = '/crm/regions/';

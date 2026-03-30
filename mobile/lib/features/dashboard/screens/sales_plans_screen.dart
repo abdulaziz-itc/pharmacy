@@ -280,20 +280,33 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
         final productName = grouped.keys.elementAt(index);
         final productPlans = grouped[productName]!;
         
-        // Calculate product totals
-        int totalTarget = 0;
-        int totalFact = 0;
-        for (var p in productPlans) {
-          totalTarget += p.targetQuantity;
-          totalFact += p.factQuantity;
-        }
+        // Corrected calculation logic:
+        // 1. Total Target comes from "General Plans" (no doctor assigned)
+        // 2. Doctor Plans are subsets of the General Plan
+        // 3. Vacant = Total Target - Sum(Doctor Targets)
+        
+        final generalPlans = productPlans.where((p) => p.doctor == null && p.medOrg == null).toList();
+        final detailedPlans = productPlans.where((p) => p.doctor != null || p.medOrg != null).toList();
+        
+        final int totalTarget = generalPlans.fold(0, (sum, p) => sum + p.targetQuantity);
+        final int assignedTarget = detailedPlans.fold(0, (sum, p) => sum + p.targetQuantity);
+        final int vacantTarget = (totalTarget - assignedTarget).clamp(0, totalTarget);
+        
+        // Total Fact is the sum of all facts assigned across all plans
+        final int totalFact = productPlans.fold(0, (sum, p) => sum + p.factQuantity);
 
-        return _buildProductPlanCard(productName, totalTarget, totalFact, productPlans);
+        return _buildProductPlanCard(
+          productName, 
+          totalTarget > 0 ? totalTarget : assignedTarget, // Fallback if no general plan
+          totalFact, 
+          detailedPlans,
+          vacantTarget: totalTarget > 0 ? vacantTarget : 0,
+        );
       },
     );
   }
 
-  Widget _buildProductPlanCard(String name, int target, int fact, List<DoctorPlan> detailedPlans) {
+  Widget _buildProductPlanCard(String name, int target, int fact, List<DoctorPlan> detailedPlans, {int vacantTarget = 0}) {
     final percentage = target > 0 ? (fact / target) * 100 : 0.0;
     final color = percentage >= 100 ? Colors.green : (percentage > 50 ? AppColors.primary : Colors.orange);
 
@@ -363,9 +376,39 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
           children: [
             const Divider(height: 1),
             ...detailedPlans.map((p) => _buildDoctorRow(p)).toList(),
+            if (vacantTarget > 0)
+              _buildVacantRow(vacantTarget),
             const SizedBox(height: 12),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildVacantRow(int target) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Вакант (не распределено)',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textHint,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          Text(
+            '0 / $target',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textHint,
+            ),
+          ),
+        ],
       ),
     );
   }

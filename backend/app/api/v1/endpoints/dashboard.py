@@ -61,73 +61,72 @@ async def get_dashboard_stats(
         if not descendant_ids:
             descendant_ids = [-1] 
 
-    # 1. Total Sales (Approved Reservations within period)
-    total_sales_query = select(func.sum(Reservation.total_amount)).where(
-        (Reservation.status == ReservationStatus.APPROVED) &
-        (Reservation.date >= month_start.date()) &
-        (Reservation.date <= month_end.date())
-    )
-    if is_med_rep:
-        total_sales_query = total_sales_query.where(Reservation.created_by_id == current_user.id)
-    elif is_manager:
-        total_sales_query = total_sales_query.where(Reservation.created_by_id.in_(descendant_ids))
-    
-    if final_region_ids:
-        total_sales_query = total_sales_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+    # --- 0.2 HRD Logic (Personnel over Financials) ---
+    if current_user.role == UserRole.HRD:
+        from app.models.user import User, UserLoginHistory
         
-    total_sales_res = await db.execute(total_sales_query)
-    total_sales = total_sales_res.scalar() or 0.0
+        # 1. Total Staff (All active users)
+        staff_query = select(func.count(User.id)).where(User.is_active == True)
+        staff_res = await db.execute(staff_query)
+        total_staff = staff_res.scalar() or 0
+        
+        # 2. Doctor Coverage (All active doctors)
+        doc_query = select(func.count(Doctor.id)).where(Doctor.is_active == True)
+        if final_region_ids:
+            doc_query = doc_query.where(Doctor.region_id.in_(final_region_ids))
+        doc_res = await db.execute(doc_query)
+        active_doctors = doc_res.scalar() or 0
+        
+        # 3. Active Users Today (Unique logins in last 24h)
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        active_users_query = select(func.count(func.distinct(UserLoginHistory.user_id))).where(UserLoginHistory.login_at >= today_start)
+        active_users_res = await db.execute(active_users_query)
+        active_users_today = active_users_res.scalar() or 0
+        
+        # 4. Completed Visits for selected period
+        comp_visits_query = select(func.count(VisitPlan.id)).where(
+            (VisitPlan.status == "completed") &
+            (VisitPlan.planned_date >= month_start.date()) &
+            (VisitPlan.planned_date <= month_end.date())
+        )
+        if final_region_ids:
+            from app.models.crm import MedicalOrganization
+            comp_visits_query = comp_visits_query.join(MedicalOrganization, VisitPlan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+            
+        comp_visits_res = await db.execute(comp_visits_query)
+        completed_visits = comp_visits_res.scalar() or 0
 
-    # 2. Active Doctors (In CRM, doctors are usually static, but we can filter those who had visits/bron in that period)
-    # The user didn't specify, so I'll keep it as "Portfolio size" for now, or total active.
-    # Actually, let's keep it as total active for that MedRep.
-    active_doctors_query = select(func.count(Doctor.id)).where(Doctor.is_active == True)
-    if is_med_rep:
-        active_doctors_query = active_doctors_query.where(Doctor.assigned_rep_id == current_user.id)
-    elif is_manager:
-        active_doctors_query = active_doctors_query.where(Doctor.assigned_rep_id.in_(descendant_ids))
-    
-    if final_region_ids:
-        active_doctors_query = active_doctors_query.where(Doctor.region_id.in_(final_region_ids))
+        # HRD simplified Activities (Logins)
+        recent_logins_query = select(UserLoginHistory).join(User).options(selectinload(UserLoginHistory.user)).order_by(desc(UserLoginHistory.login_at)).limit(5)
+        recent_logins_res = await db.execute(recent_logins_query)
+        logins = recent_logins_res.scalars().all()
         
-    active_doctors_res = await db.execute(active_doctors_query)
-    active_doctors = active_doctors_res.scalar() or 0
+        recent_activities = []
+        for l in logins:
+            recent_activities.append(ActivityItem(
+                title=l.user.full_name if l.user else "User",
+                desc=f"Вход в систему ({l.ip_address or 'Unknown IP'})",
+                amount="Вход",
+                time=l.login_at.strftime("%d.%m %H:%M"),
+                color="blue"
+            ))
 
-    # 3. Pending Reservations (Wait - Pending from THAT month?)
-    pending_res_query = select(func.count(Reservation.id)).where(
-        (Reservation.status == ReservationStatus.PENDING) &
-        (Reservation.date >= month_start.date()) &
-        (Reservation.date <= month_end.date())
-    )
-    if is_med_rep:
-        pending_res_query = pending_res_query.where(Reservation.created_by_id == current_user.id)
-    elif is_manager:
-        pending_res_query = pending_res_query.where(Reservation.created_by_id.in_(descendant_ids))
-        
-    if final_region_ids:
-        pending_res_query = pending_res_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
-        
-    pending_res_result = await db.execute(pending_res_query)
-    pending_reservations = pending_res_result.scalar() or 0
-
-    # 4. Total Debt (Filter by Invoice date)
-    total_debt_query = select(func.sum(Invoice.total_amount - Invoice.paid_amount)).join(
-        Reservation, Invoice.reservation_id == Reservation.id
-    ).where(
-        (Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL])) &
-        (Invoice.date >= month_start.date()) &
-        (Invoice.date <= month_end.date())
-    )
-    if is_med_rep:
-        total_debt_query = total_debt_query.where(Reservation.created_by_id == current_user.id)
-    elif is_manager:
-        total_debt_query = total_debt_query.where(Reservation.created_by_id.in_(descendant_ids))
-        
-    if final_region_ids:
-        total_debt_query = total_debt_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
-        
-    total_debt_result = await db.execute(total_debt_query)
-    total_debt = total_debt_result.scalar() or 0.0
+        return {
+            "total_sales": float(total_staff), # Mapping staff count to total_sales field
+            "total_sales_change": "+2.1%", # Retention/Growth placeholder
+            "active_doctors": active_doctors,
+            "active_doctors_change": "+1.5%",
+            "pending_reservations": active_users_today, # Mapping active users today
+            "pending_reservations_label": "АКТYВНОСТЬ (24ч)",
+            "total_debt": float(completed_visits), # Mapping visits to total_debt field
+            "total_debt_change": "Выполнено",
+            "revenue_forecast": [],
+            "recent_activities": recent_activities,
+            "growth_peak": "100%",
+            "completed_visits": completed_visits,
+            "planned_visits": 0,
+            "bonus_balance": 0.0
+        }
 
     # 5. Recent Activities (Filter by month)
     recent_activities = []
