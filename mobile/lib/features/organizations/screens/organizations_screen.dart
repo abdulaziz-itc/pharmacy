@@ -57,7 +57,7 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
         ),
         body: Flex(
           direction: Axis.vertical,
-          children: [
+          children: <Widget>[
             if (isEmbedded) _buildOrgTabs(l10n),
             Container(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -75,7 +75,7 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
             ),
             Expanded(
               child: TabBarView(
-                children: [
+                children: <Widget>[
                   _buildContent(state, filteredOrgs.where((o) => o.orgType?.toLowerCase() != 'pharmacy' && o.orgType?.toLowerCase() != 'wholesale').toList(), l10n),
                   _buildContent(state, filteredOrgs.where((o) => o.orgType?.toLowerCase() == 'pharmacy' || o.orgType?.toLowerCase() == 'wholesale').toList(), l10n),
                 ],

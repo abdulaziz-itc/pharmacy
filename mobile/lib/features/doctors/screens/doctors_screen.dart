@@ -55,11 +55,11 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: isEmbedded ? null : AppBar(
         title: Text(l10n.doctors),
-        actions: const [NotificationAction()],
+        actions: [NotificationAction()],
       ),
       body: Flex(
         direction: Axis.vertical,
-        children: [
+        children: <Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: TextField(
@@ -100,7 +100,7 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
       return ErrorView(message: state.errorMessage ?? l10n.error, onRetry: () => ref.read(doctorsProvider.notifier).loadDoctors(refresh: true), fullScreen: true);
     }
     if (state.doctors.isEmpty) {
-      return EmptyView(title: l10n.get('nothing_found') ?? 'Врачи не найдены', subtitle: l10n.get('try_changing_search') ?? 'Попробуйте изменить параметры поиска', icon: Icons.person_search_rounded);
+      return EmptyView(title: l10n.get('nothing_found') ?? 'Врачи не найдены', icon: Icons.person_search_rounded);
     }
 
     return ListView.builder(
@@ -119,8 +119,8 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
             leading: Hero(
               tag: 'doctor_avatar_${doctor.id}',
               child: CircleAvatar(
-                backgroundColor: AppColors.accent.withValues(alpha: 0.1),
-                child: Text(doctor.initials, style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.accent)),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                child: Text(doctor.initials),
               ),
             ),
             title: Text(doctor.fullName, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),

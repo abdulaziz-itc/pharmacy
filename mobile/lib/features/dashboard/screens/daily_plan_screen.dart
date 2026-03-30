@@ -96,13 +96,13 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
 
     return Flex(
       direction: Axis.vertical,
-      children: [
+      children: <Widget>[
         WeeklyCalendar(selectedDate: _selectedDate, onDateSelected: (date) => setState(() => _selectedDate = date)),
         _buildTabs(l10n),
         Expanded(
           child: TabBarView(
             controller: _tabController,
-            children: [
+            children: <Widget>[
               _buildVisitList(doctorVisits, l10n.doctors, l10n),
               _buildVisitList(orgVisits, l10n.organizations, l10n),
             ],
