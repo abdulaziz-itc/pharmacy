@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AppColors {
+// ... existing colors ...
   static const Color primary = Color(0xFF1E3A8A);
   static const Color accent = Color(0xFF3B82F6);
   static const Color secondary = Color(0xFF06B6D4);
@@ -227,6 +230,8 @@ class AppTheme {
         contentTextStyle: GoogleFonts.inter(fontSize: 14),
       ),
     );
+  }
+
   static ThemeData get darkTheme {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primary,
@@ -273,7 +278,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+          side: const BorderSide(color: Color(0xFF334155), width: 1),
         ),
       ),
     );
@@ -306,6 +311,3 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
     }
   }
 }
-
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';

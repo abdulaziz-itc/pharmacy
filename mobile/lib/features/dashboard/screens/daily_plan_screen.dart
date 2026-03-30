@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_view.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../shared/widgets/loading_shimmer.dart';
 import '../../visits/providers/visits_provider.dart';
 import '../../visits/screens/create_visit_screen.dart';
@@ -38,36 +39,29 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: AppColors.surface,
           elevation: 0,
-          title: Text(
-            'План',
-            style: GoogleFonts.poppins(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          title: Text(l10n.plan),
           bottom: TabBar(
             indicatorColor: const Color(0xFFFBBF24),
             labelColor: const Color(0xFFFBBF24),
             unselectedLabelColor: AppColors.textSecondary,
             labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
             indicatorSize: TabBarIndicatorSize.tab,
-            tabs: const [
-              Tab(text: 'Визиты'),
-              Tab(text: 'Продажи'),
+            tabs: [
+              Tab(text: l10n.get('visits') ?? 'Визиты'),
+              Tab(text: l10n.get('sales') ?? 'Продажи'),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            _buildDailyVisitsSection(),
+            _buildDailyVisitsSection(l10n),
             const SalesPlansScreen(),
           ],
         ),
@@ -97,7 +91,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
     );
   }
 
-  Widget _buildDailyVisitsSection() {
+  Widget _buildDailyVisitsSection(S l10n) {
     final visitsState = ref.watch(visitsProvider);
     
     // Filter visits by date and type
@@ -113,13 +107,13 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
           selectedDate: _selectedDate,
           onDateSelected: (date) => setState(() => _selectedDate = date),
         ),
-        _buildTabs(), // Inner tabs for Doctors/Orgs
+        _buildTabs(l10n), // Inner tabs for Doctors/Orgs
         Expanded(
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildVisitList(doctorVisits, 'Врачи'),
-              _buildVisitList(orgVisits, 'Организации'),
+              _buildVisitList(doctorVisits, l10n.doctors, l10n),
+              _buildVisitList(orgVisits, l10n.organizations, l10n),
             ],
           ),
         ),
@@ -128,7 +122,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
   }
 
 
-  Widget _buildTabs() {
+  Widget _buildTabs(S l10n) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       height: 44,
@@ -140,7 +134,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
         controller: _tabController,
         indicatorPadding: const EdgeInsets.all(4),
         indicator: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
@@ -150,19 +144,19 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
             ),
           ],
         ),
-        labelColor: AppColors.primary,
+        labelColor: AppColors.accent,
         unselectedLabelColor: AppColors.textSecondary,
         labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
         dividerColor: Colors.transparent,
-        tabs: const [
-          Tab(text: 'Врачи'),
-          Tab(text: 'Организации'),
+        tabs: [
+          Tab(text: l10n.doctors),
+          Tab(text: l10n.organizations),
         ],
       ),
     );
   }
 
-  Widget _buildVisitList(List<dynamic> visits, String type) {
+  Widget _buildVisitList(List<dynamic> visits, String type, S l10n) {
     if (visits.isEmpty) {
       return Center(
         child: Column(
@@ -171,7 +165,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
             Icon(Icons.event_note_rounded, size: 64, color: AppColors.textHint.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text(
-              'На сегодня нет визитов ($type)',
+              '${l10n.get('no_visits_today') ?? 'На сегодня нет визитов'} ($type)',
               style: GoogleFonts.inter(
                 fontSize: 14,
                 color: AppColors.textSecondary,

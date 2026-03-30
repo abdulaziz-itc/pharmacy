@@ -7,7 +7,7 @@ import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/notifications/screens/notifications_screen.dart';
 import '../../../features/organizations/screens/organizations_screen.dart';
 import 'package:dio/dio.dart';
-import '../../../shared/api/api_client.dart';
+import '../../../core/api/api_client.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});

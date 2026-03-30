@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_view.dart';
 import '../providers/products_provider.dart';
+import '../../../core/l10n/l10n.dart';
 
 class ProductsScreen extends ConsumerWidget {
   const ProductsScreen({super.key});
@@ -134,16 +135,6 @@ class ProductsScreen extends ConsumerWidget {
                 Text(
                   '${product.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ')} сум',
                   style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.accent),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-  ),
                 ),
               ],
             ),
