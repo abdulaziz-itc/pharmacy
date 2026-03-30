@@ -11,17 +11,12 @@ class ProductsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(filteredProductsProvider);
+    final l10n = context.l10n;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(
-          'Продукты',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
+        title: Text(l10n.products),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -31,14 +26,14 @@ class ProductsScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          _buildSearchBar(ref),
+          _buildSearchBar(ref, l10n),
           Expanded(
             child: productsAsync.when(
               data: (products) {
                 if (products.isEmpty) {
-                  return const EmptyView(
-                    title: 'Ничего не найдено',
-                    subtitle: 'Попробуйте изменить запрос поиска',
+                  return EmptyView(
+                    title: l10n.get('nothing_found') ?? 'Ничего не найдено',
+                    subtitle: l10n.get('try_changing_search') ?? 'Попробуйте изменить запрос поиска',
                   );
                 }
                 return RefreshIndicator(
@@ -48,7 +43,7 @@ class ProductsScreen extends ConsumerWidget {
                     itemCount: products.length,
                     itemBuilder: (context, index) {
                       final product = products[index];
-                      return _buildProductCard(product);
+                      return _buildProductCard(context, product);
                     },
                   ),
                 );
@@ -63,12 +58,12 @@ class ProductsScreen extends ConsumerWidget {
                     const Icon(Icons.error_outline, size: 48, color: AppColors.error),
                     const SizedBox(height: 16),
                     Text(
-                      'Ошибка загрузки данных',
+                      l10n.error,
                       style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                     ),
                     TextButton(
                       onPressed: () => ref.refresh(productsProvider),
-                      child: const Text('Повторить'),
+                      child: Text(l10n.get('retry') ?? 'Повторить'),
                     ),
                   ],
                 ),
@@ -80,50 +75,36 @@ class ProductsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSearchBar(WidgetRef ref) {
+  Widget _buildSearchBar(WidgetRef ref, S l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: AppColors.surface,
+      color: Colors.transparent,
       child: TextField(
         onChanged: (value) => ref.read(searchQueryProvider.notifier).state = value,
         decoration: InputDecoration(
-          hintText: 'Поиск лекарств...',
-          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textHint),
-          filled: true,
-          fillColor: AppColors.background,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+          hintText: '${l10n.get('search_medicine') ?? 'Поиск лекарств'}...',
+          prefixIcon: const Icon(Icons.search_rounded),
         ),
       ),
     );
   }
 
-  Widget _buildProductCard(dynamic product) {
+  Widget _buildProductCard(BuildContext context, dynamic product) {
     return Card(
-      elevation: 0,
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.divider, width: 1),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.medical_services_outlined,
-                color: AppColors.primary,
-                size: 24,
+            Hero(
+              tag: 'product_icon_${product.id}',
+              child: Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.medical_services_outlined, color: AppColors.primary, size: 24),
               ),
             ),
             const SizedBox(width: 16),
@@ -133,19 +114,12 @@ class ProductsScreen extends ConsumerWidget {
                 children: [
                   Text(
                     product.name,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
+                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   if (product.categoryName != null)
                     Text(
                       product.categoryName!,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
+                      style: GoogleFonts.inter(fontSize: 13, color: Theme.of(context).textTheme.bodySmall?.color),
                     ),
                 ],
               ),
@@ -154,19 +128,22 @@ class ProductsScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  'Цена',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppColors.textHint,
-                  ),
+                  context.l10n.get('price') ?? 'Цена',
+                  style: GoogleFonts.inter(fontSize: 12, color: Theme.of(context).textTheme.labelSmall?.color),
                 ),
                 Text(
                   '${product.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ')} сум',
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.accent),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+  ),
                 ),
               ],
             ),

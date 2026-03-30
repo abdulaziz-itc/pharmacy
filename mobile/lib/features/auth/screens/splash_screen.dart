@@ -158,31 +158,64 @@ class HeartlyLogo extends StatelessWidget {
 class HeartlyLogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF0EA5E9).withValues(alpha: 0.4)
+    final width = size.width;
+    final height = size.height;
+
+    // Drawing a full heart
+    final path = Path();
+    path.moveTo(width / 2, height / 4);
+    
+    // Top left curve
+    path.cubicTo(
+      width / 4, 0, 
+      0, height / 4, 
+      0, height / 2,
+    );
+    
+    // Bottom left curve
+    path.cubicTo(
+      0, height * 3 / 4, 
+      width / 2, height, 
+      width / 2, height,
+    );
+    
+    // Bottom right curve
+    path.cubicTo(
+      width / 2, height, 
+      width, height * 3 / 4, 
+      width, height / 2,
+    );
+    
+    // Top right curve
+    path.cubicTo(
+      width, height / 4, 
+      width * 3 / 4, 0, 
+      width / 2, height / 4,
+    );
+
+    final paint1 = Paint()
+      ..color = const Color(0xFF0EA5E9).withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
+    
+    canvas.drawPath(path, paint1);
 
-    // Drawing the heart-like shapes from the logo
-    // Shape 1 (Light Blue)
-    final path1 = Path();
-    path1.moveTo(size.width * 0.7, size.height * 0.2);
-    path1.quadraticBezierTo(size.width * 0.95, size.height * 0.1, size.width, size.height * 0.4);
-    path1.quadraticBezierTo(size.width, size.height * 0.8, size.width * 0.7, size.height);
-    path1.lineTo(size.width * 0.6, size.height * 0.82);
-    path1.close();
-    canvas.drawPath(path1, paint);
+    // Inner smaller heart for accent
+    final innerPath = Path();
+    final scale = 0.7;
+    final dx = width * (1 - scale) / 2;
+    final dy = height * (1 - scale) / 2;
+    
+    innerPath.moveTo(dx + (width * scale) / 2, dy + (height * scale) / 4);
+    innerPath.cubicTo(dx + (width * scale) / 4, dy, dx, dy + (height * scale) / 4, dx, dy + (height * scale) / 2);
+    innerPath.cubicTo(dx, dy + (height * scale) * 3 / 4, dx + (width * scale) / 2, dy + (height * scale), dx + (width * scale) / 2, dy + (height * scale));
+    innerPath.cubicTo(dx + (width * scale) / 2, dy + (height * scale), dx + width * scale, dy + (height * scale) * 3 / 4, dx + width * scale, dy + (height * scale) / 2);
+    innerPath.cubicTo(dx + width * scale, dy + (height * scale) / 4, dx + (width * scale) * 3 / 4, dy, dx + (width * scale) / 2, dy + (height * scale) / 4);
 
-    // Shape 2 (Darker Blue Overlay)
     final paint2 = Paint()
       ..color = const Color(0xFF0EA5E9)
       ..style = PaintingStyle.fill;
     
-    final path2 = Path();
-    path2.moveTo(size.width * 0.65, size.height * 0.3);
-    path2.quadraticBezierTo(size.width * 0.8, size.height * 0.2, size.width * 0.9, size.height * 0.5);
-    path2.quadraticBezierTo(size.width * 0.85, size.height * 0.75, size.width * 0.65, size.height * 0.9);
-    path2.close();
-    canvas.drawPath(path2, paint2);
+    canvas.drawPath(innerPath, paint2);
   }
 
   @override

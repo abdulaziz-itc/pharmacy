@@ -61,7 +61,16 @@ async def get_dashboard_stats(
         if not descendant_ids:
             descendant_ids = [-1] 
 
-    # --- 0.2 HRD Logic (Personnel over Financials) ---
+    # --- 0.2 Metric Initialization ---
+    total_sales = 0.0
+    active_doctors = 0
+    pending_reservations = 0
+    total_debt = 0.0
+    completed_visits = 0
+    planned_visits = 0
+    bonus_balance = 0.0
+
+    # --- 0.3 HRD Logic (Personnel over Financials) ---
     if current_user.role == UserRole.HRD:
         from app.models.user import User, UserLoginHistory
         

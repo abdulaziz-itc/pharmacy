@@ -63,10 +63,22 @@ export default function DashboardPage() {
             if (selectedRegion !== 'all') {
                 params.region_id = selectedRegion;
             }
-            const response = await api.get('/domain/analytics/dashboard/global', {
+            
+            const isHRD = user?.role === 'hrd';
+            const endpoint = isHRD ? '/dashboard/stats' : '/domain/analytics/dashboard/global';
+            
+            const response = await api.get(endpoint, {
                 params
             });
+            
             const data = response.data;
+            
+            // If it's HRD, the backend already returns the mapped DashboardStats
+            if (isHRD) {
+                return data;
+            }
+            
+            // Otherwise, map the Global Analytics data to our DashboardStats interface
             return {
                 total_sales: data.total_revenue,
                 total_sales_change: "+12.5%", 
@@ -79,6 +91,9 @@ export default function DashboardPage() {
                 revenue_forecast: [],
                 recent_activities: [],
                 growth_peak: "0%",
+                completed_visits: 0,
+                planned_visits: 0,
+                bonus_balance: data.total_bonus_accrued
             };
         },
     });

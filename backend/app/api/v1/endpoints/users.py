@@ -192,6 +192,35 @@ async def read_user_me(
     """
     return current_user
 
+@router.put("/me", response_model=UserSchema)
+async def update_user_me(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    user_in: UserUpdate,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request,
+) -> Any:
+    """
+    Update my own profile.
+    """
+    # Restrict what users can update about themselves
+    # For now, let them update full_name and password
+    update_data = {}
+    if user_in.full_name is not None:
+        update_data["full_name"] = user_in.full_name
+    if user_in.password is not None:
+        update_data["password"] = user_in.password
+        
+    user = await crud_user.update(db, db_obj=current_user, obj_in=update_data)
+    
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "UPDATE_ME", "User", user.id,
+        f"Пользователь обновил свой профиль: {user.username}",
+        request
+    )
+    return user
+
 @router.get("/med-reps")
 async def get_med_reps(
     role: Optional[str] = Query(None, description="Filter by role"),

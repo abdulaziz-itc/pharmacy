@@ -2,29 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/notifications/screens/notifications_screen.dart';
 import '../../../features/organizations/screens/organizations_screen.dart';
+import 'package:dio/dio.dart';
+import '../../../shared/api/api_client.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _isUpdatingPassword = false;
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
+    final l10n = context.l10n;
+    final currentLocale = ref.watch(localeProvider);
+    final themeMode = ref.watch(themeProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Profil'),
-        backgroundColor: AppColors.surface,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {},
-          ),
-        ],
+        title: Text(l10n.profile),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -38,26 +45,19 @@ class ProfileScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        width: 3,
+                  Hero(
+                    tag: 'profile_avatar',
+                    child: Container(
+                      width: 88, height: 88,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 3),
                       ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        user?.fullName.isNotEmpty == true
-                            ? user!.fullName[0].toUpperCase()
-                            : '?',
-                        style: GoogleFonts.poppins(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      child: Center(
+                        child: Text(
+                          user?.fullName.isNotEmpty == true ? user!.fullName[0].toUpperCase() : '?',
+                          style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),
                     ),
@@ -65,37 +65,13 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text(
                     user?.fullName ?? '',
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+                    style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '@${user?.username ?? ''}',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      user?.displayRole ?? '',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    style: GoogleFonts.inter(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
                   ),
                 ],
               ),
@@ -107,171 +83,88 @@ class ProfileScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   _buildMenuSection(
-                    context,
-                    title: 'Navigatsiya',
-                    items: [
-                      _MenuItem(
-                        icon: Icons.business_outlined,
-                        label: 'Tibbiy tashkilotlar',
-                        color: AppColors.accent,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const OrganizationsScreen(),
-                          ),
-                        ),
-                      ),
-                      _MenuItem(
-                        icon: Icons.notifications_outlined,
-                        label: 'Bildirishnomalar',
-                        color: AppColors.statusPending,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const NotificationsScreen(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMenuSection(
-                    context,
-                    title: 'Ilova',
+                    title: l10n.settings,
                     items: [
                       _MenuItem(
                         icon: Icons.language_outlined,
-                        label: 'Til: O\'zbek',
+                        label: '${l10n.language}: ${currentLocale.languageCode == 'uz' ? 'O\'zbek' : 'Русский'}',
                         color: AppColors.primary,
-                        onTap: () {},
+                        onTap: () => _showLanguageDialog(context),
                       ),
                       _MenuItem(
-                        icon: Icons.color_lens_outlined,
-                        label: 'Mavzu',
+                        icon: themeMode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
+                        label: l10n.darkMode,
                         color: AppColors.statusCompleted,
-                        onTap: () {},
-                      ),
-                      _MenuItem(
-                        icon: Icons.info_outline_rounded,
-                        label: 'Ilova haqida',
-                        color: AppColors.textSecondary,
-                        onTap: () => _showAbout(context),
+                        trailing: Switch.adaptive(
+                          value: themeMode == ThemeMode.dark,
+                          onChanged: (_) => ref.read(themeProvider.notifier).toggleTheme(),
+                          activeColor: AppColors.accent,
+                        ),
+                        onTap: () => ref.read(themeProvider.notifier).toggleTheme(),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   _buildMenuSection(
-                    context,
-                    title: 'Hisob',
+                    title: l10n.profile,
                     items: [
                       _MenuItem(
                         icon: Icons.lock_outline_rounded,
-                        label: 'Parolni o\'zgartirish',
+                        label: l10n.changePassword,
                         color: AppColors.statusPending,
-                        onTap: () {},
+                        onTap: () => _showChangePasswordDialog(context),
                       ),
                       _MenuItem(
                         icon: Icons.logout_rounded,
-                        label: 'Chiqish',
+                        label: l10n.logout,
                         color: AppColors.error,
                         isDestructive: true,
                         onTap: () => _showLogoutDialog(context, ref),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'PharmaRep v1.0.0',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: AppColors.textHint,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '© 2024 Heartly Systems',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: AppColors.textHint,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
                 ],
               ),
             ),
+            const SizedBox(height: 32),
+            Text('PharmaRep v1.1.0', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint)),
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMenuSection(
-    BuildContext context, {
-    required String title,
-    required List<_MenuItem> items,
-  }) {
+  Widget _buildMenuSection({required String title, required List<_MenuItem> items}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-              letterSpacing: 0.5,
-            ),
-          ),
+          child: Text(title.toUpperCase(), style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0)),
         ),
         Container(
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.divider),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: items.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, indent: 56),
+            separatorBuilder: (_, __) => const Divider(height: 1, indent: 56),
             itemBuilder: (context, index) {
               final item = items[index];
               return ListTile(
                 leading: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: item.color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(color: item.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                   child: Icon(item.icon, color: item.color, size: 18),
                 ),
-                title: Text(
-                  item.label,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: item.isDestructive
-                        ? AppColors.error
-                        : AppColors.textPrimary,
-                  ),
-                ),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.textHint,
-                  size: 18,
-                ),
+                title: Text(item.label, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500)),
+                trailing: item.trailing ?? const Icon(Icons.chevron_right_rounded, size: 18),
                 onTap: item.onTap,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
               );
             },
           ),
@@ -280,75 +173,98 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+  void _showLanguageDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'Chiqish',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-        ),
-        content: Text(
-          'Hisobingizdan chiqishni xohlaysizmi?',
-          style: GoogleFonts.inter(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Bekor qilish',
-              style: GoogleFonts.inter(color: AppColors.textSecondary),
+        title: Text(context.l10n.language),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('O\'zbek'),
+              onTap: () { ref.read(localeProvider.notifier).setLocale('uz'); Navigator.pop(context); },
+              trailing: ref.read(localeProvider).languageCode == 'uz' ? const Icon(Icons.check, color: AppColors.success) : null,
             ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ref.read(authProvider.notifier).logout();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
+            ListTile(
+              title: const Text('Русский'),
+              onTap: () { ref.read(localeProvider.notifier).setLocale('ru'); Navigator.pop(context); },
+              trailing: ref.read(localeProvider).languageCode == 'ru' ? const Icon(Icons.check, color: AppColors.success) : null,
             ),
-            child: Text(
-              'Chiqish',
-              style: GoogleFonts.inter(color: Colors.white),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  void _showAbout(BuildContext context) {
+  void _showChangePasswordDialog(BuildContext context) {
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final l10n = context.l10n;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Row(
-          children: [
-            const Icon(
-              Icons.medical_services_rounded,
-              color: AppColors.primary,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'PharmaRep',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(l10n.changePassword),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: newPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(labelText: l10n.get('new_password')),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(labelText: l10n.get('confirm_password')),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+            ElevatedButton(
+              onPressed: _isUpdatingPassword ? null : () async {
+                if (newPasswordController.text != confirmPasswordController.text) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+                  return;
+                }
+                setDialogState(() => _isUpdatingPassword = true);
+                try {
+                  final apiClient = ref.read(apiClientProvider);
+                  await apiClient.put('/users/me', data: {'password': newPasswordController.text});
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.get('password_changed'))));
+                  }
+                } catch (e) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.error}: $e')));
+                } finally {
+                  if (context.mounted) setDialogState(() => _isUpdatingPassword = false);
+                }
+              },
+              child: _isUpdatingPassword ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(l10n.save),
             ),
           ],
         ),
-        content: Text(
-          'Versiya: 1.0.0\n\nTibbiy vakillar uchun maxsus ishlab chiqilgan professional ilova.\n\n© 2024 Heartly Systems',
-          style: GoogleFonts.inter(color: AppColors.textSecondary),
-        ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.logout),
+        content: const Text('Are you sure you want to logout?'),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.cancel)),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            onPressed: () { Navigator.pop(context); ref.read(authProvider.notifier).logout(); },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: Text(context.l10n.logout, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -361,13 +277,7 @@ class _MenuItem {
   final String label;
   final Color color;
   final VoidCallback onTap;
+  final Widget? trailing;
   final bool isDestructive;
-
-  const _MenuItem({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-    this.isDestructive = false,
-  });
+  const _MenuItem({required this.icon, required this.label, required this.color, required this.onTap, this.trailing, this.isDestructive = false});
 }
