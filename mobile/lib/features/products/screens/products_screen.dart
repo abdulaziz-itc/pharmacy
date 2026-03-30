@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_view.dart';
+import '../../../shared/widgets/notification_action.dart';
 import '../providers/products_provider.dart';
 import '../../../core/l10n/l10n.dart';
 
@@ -19,6 +20,7 @@ class ProductsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l10n.products),
         actions: [
+          const NotificationAction(),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () => ref.refresh(productsProvider),
@@ -49,19 +51,14 @@ class ProductsScreen extends ConsumerWidget {
                   ),
                 );
               },
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
+              loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
               error: (err, stack) => Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.error_outline, size: 48, color: AppColors.error),
                     const SizedBox(height: 16),
-                    Text(
-                      l10n.error,
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                    ),
+                    Text(l10n.error, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                     TextButton(
                       onPressed: () => ref.refresh(productsProvider),
                       child: Text(l10n.get('retry') ?? 'Повторить'),
@@ -79,7 +76,6 @@ class ProductsScreen extends ConsumerWidget {
   Widget _buildSearchBar(WidgetRef ref, S l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.transparent,
       child: TextField(
         onChanged: (value) => ref.read(searchQueryProvider.notifier).state = value,
         decoration: InputDecoration(
@@ -101,10 +97,7 @@ class ProductsScreen extends ConsumerWidget {
               tag: 'product_icon_${product.id}',
               child: Container(
                 width: 48, height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.medical_services_outlined, color: AppColors.primary, size: 24),
               ),
             ),
@@ -113,28 +106,19 @@ class ProductsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    product.name,
-                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  Text(product.name, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
                   if (product.categoryName != null)
-                    Text(
-                      product.categoryName!,
-                      style: GoogleFonts.inter(fontSize: 13, color: Theme.of(context).textTheme.bodySmall?.color),
-                    ),
+                    Text(product.categoryName!, style: GoogleFonts.inter(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
                 ],
               ),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  context.l10n.get('price') ?? 'Цена',
-                  style: GoogleFonts.inter(fontSize: 12, color: Theme.of(context).textTheme.labelSmall?.color),
-                ),
+                Text(context.l10n.get('price') ?? 'Цена', style: GoogleFonts.inter(fontSize: 11, color: Theme.of(context).textTheme.labelSmall?.color)),
                 Text(
                   '${product.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ')} сум',
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.accent),
+                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent),
                 ),
               ],
             ),
