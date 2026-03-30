@@ -47,9 +47,9 @@ class _ClinicsScreenState extends ConsumerState<ClinicsScreen> with SingleTicker
         ],
         child: TabBarView(
           controller: _tabController,
-          children: const [
-            DoctorsScreen(),
-            OrganizationsScreen(),
+          children: [
+            const DoctorsScreen(),
+            const OrganizationsScreen(),
           ],
         ),
       ),

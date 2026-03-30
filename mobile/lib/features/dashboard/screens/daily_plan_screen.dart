@@ -94,7 +94,8 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
     final doctorVisits = dayVisits.where((v) => v.doctor != null).toList();
     final orgVisits = dayVisits.where((v) => v.doctor == null).toList();
 
-    return Column(
+    return Flex(
+      direction: Axis.vertical,
       children: [
         WeeklyCalendar(selectedDate: _selectedDate, onDateSelected: (date) => setState(() => _selectedDate = date)),
         _buildTabs(l10n),

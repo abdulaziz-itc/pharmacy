@@ -57,7 +57,8 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
         title: Text(l10n.doctors),
         actions: const [NotificationAction()],
       ),
-      body: Column(
+      body: Flex(
+        direction: Axis.vertical,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),

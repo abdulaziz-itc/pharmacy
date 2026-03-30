@@ -55,7 +55,8 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
             child: _buildOrgTabs(l10n),
           ),
         ),
-        body: Column(
+        body: Flex(
+          direction: Axis.vertical,
           children: [
             if (isEmbedded) _buildOrgTabs(l10n),
             Container(
