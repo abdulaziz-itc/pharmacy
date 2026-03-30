@@ -32,7 +32,7 @@ class _ClinicsScreenState extends ConsumerState<ClinicsScreen> with SingleTicker
     final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.get('clients') ?? 'Клиенты'),
+        title: Text(l10n.translate('clients') ?? 'Клиенты'),
         bottom: TabBar(
           controller: _tabController,
           tabs: [

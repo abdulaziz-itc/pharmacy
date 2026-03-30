@@ -64,7 +64,7 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: '${l10n.get('search_organization') ?? 'Поиск организации'}...',
+                  hintText: '${l10n.translate('search_organization') ?? 'Поиск организации'}...',
                   prefixIcon: const Icon(Icons.search_rounded),
                 ),
                 onChanged: (value) {
@@ -112,8 +112,8 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
         labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
         dividerColor: Colors.transparent,
         tabs: [
-          Tab(text: l10n.get('hospitals') ?? 'Больницы'),
-          Tab(text: l10n.get('pharmacies') ?? 'Аптеки'),
+          Tab(text: l10n.translate('hospitals') ?? 'Больницы'),
+          Tab(text: l10n.translate('pharmacies') ?? 'Аптеки'),
         ],
       ),
     );

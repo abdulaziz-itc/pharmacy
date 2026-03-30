@@ -59,27 +59,27 @@ class S {
     },
   };
 
-  String get(String key) => _values[locale.languageCode]?[key] ?? key;
+  String translate(String key) => _values[locale.languageCode]?[key] ?? key;
 
-  String get products => get('products');
-  String get doctors => get('doctors');
-  String get plan => get('plan');
-  String get organizations => get('organizations');
-  String get notifications => get('notifications');
-  String get reports => get('reports');
-  String get profile => get('profile');
-  String get settings => get('settings');
-  String get language => get('language');
-  String get theme => get('theme');
-  String get darkMode => get('dark_mode');
-  String get changePassword => get('change_password');
-  String get logout => get('logout');
-  String get appAbout => get('app_about');
-  String get version => get('version');
-  String get cancel => get('cancel');
-  String get save => get('save');
-  String get error => get('error');
-  String get update => get('update');
+  String get products => translate('products');
+  String get doctors => translate('doctors');
+  String get plan => translate('plan');
+  String get organizations => translate('organizations');
+  String get notifications => translate('notifications');
+  String get reports => translate('reports');
+  String get profile => translate('profile');
+  String get settings => translate('settings');
+  String get language => translate('language');
+  String get theme => translate('theme');
+  String get darkMode => translate('dark_mode');
+  String get changePassword => translate('change_password');
+  String get logout => translate('logout');
+  String get appAbout => translate('app_about');
+  String get version => translate('version');
+  String get cancel => translate('cancel');
+  String get save => translate('save');
+  String get error => translate('error');
+  String get update => translate('update');
 }
 
 final localeProvider = StateNotifierProvider<LocaleNotifier, Locale>((ref) {

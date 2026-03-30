@@ -66,7 +66,7 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: '${l10n.get('search_doctor') ?? 'Поиск врача'}...',
+                hintText: '${l10n.translate('search_doctor') ?? 'Поиск врача'}...',
                 prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.clear, size: 18),

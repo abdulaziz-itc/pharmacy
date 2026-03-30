@@ -56,8 +56,8 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
             labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
             indicatorSize: TabBarIndicatorSize.tab,
             tabs: [
-              Tab(text: l10n.get('visits') ?? 'Визиты'),
-              Tab(text: l10n.get('sales') ?? 'Продажи'),
+              Tab(text: l10n.translate('visits') ?? 'Визиты'),
+              Tab(text: l10n.translate('sales') ?? 'Продажи'),
             ],
           ),
         ),
@@ -138,7 +138,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
           children: [
             Icon(Icons.event_note_rounded, size: 64, color: AppColors.textHint.withValues(alpha: 0.3)),
             const SizedBox(height: 16),
-            Text('${l10n.get('no_visits_today') ?? 'На сегодня нет визитов'} ($type)', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
+            Text('${l10n.translate('no_visits_today') ?? 'На сегодня нет виizitov'} ($type)', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
           ],
         ),
       );
