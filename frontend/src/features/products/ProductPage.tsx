@@ -20,6 +20,7 @@ export default function ProductPage() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const user = useAuthStore((state) => state.user);
     const isMedRep = user?.role === 'med_rep';
+    const isEditable = !isMedRep && user?.role !== 'hrd';
 
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [selectedManufacturer, setSelectedManufacturer] = useState("all");
@@ -67,7 +68,7 @@ export default function ProductPage() {
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Продукты</h1>
                     <p className="text-slate-500 font-medium mt-1">Управление фармацевтическими продуктами, уровнем запасов и ценами.</p>
                 </div>
-                {!isMedRep && (
+                {isEditable && (
                     <div className="flex gap-3">
                         <Button
                             onClick={() => setIsCategoryModalOpen(true)}

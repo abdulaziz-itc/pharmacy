@@ -119,6 +119,8 @@ class DoctorPlan {
   final int year;
   final DoctorModel? doctor;
   final MedOrgRef? medOrg;
+  final int productId;
+  final int medRepId;
 
   const DoctorPlan({
     required this.id,
@@ -129,6 +131,8 @@ class DoctorPlan {
     required this.year,
     this.doctor,
     this.medOrg,
+    required this.productId,
+    required this.medRepId,
   });
 
   factory DoctorPlan.fromJson(Map<String, dynamic> json) {
@@ -141,6 +145,8 @@ class DoctorPlan {
       year: json['year'] as int? ?? 0,
       doctor: json['doctor'] != null ? DoctorModel.fromJson(json['doctor'] as Map<String, dynamic>) : null,
       medOrg: json['med_org'] != null ? MedOrgRef.fromJson(json['med_org'] as Map<String, dynamic>) : null,
+      productId: json['product_id'] as int? ?? 0,
+      medRepId: json['med_rep_id'] as int? ?? 0,
     );
   }
 

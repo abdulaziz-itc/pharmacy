@@ -12,6 +12,7 @@ import '../../features/reservations/screens/reservations_screen.dart';
 import '../../features/reservations/screens/invoices_screen.dart';
 import '../../features/reservations/screens/invoice_detail_screen.dart';
 import '../../features/reservations/screens/reservation_detail_screen.dart';
+import '../../features/reservations/screens/create_reservation_screen.dart';
 import '../../features/visits/screens/create_visit_screen.dart';
 import '../../features/main/providers/main_provider.dart';
 import '../../features/bonus/screens/bonus_screen.dart';
@@ -90,7 +91,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reservations/create',
         name: 'reservation_create',
-        builder: (context, state) => const _CreateReservationScreen(),
+        builder: (context, state) {
+          final orgId = int.tryParse(state.uri.queryParameters['orgId'] ?? '');
+          final orgName = state.uri.queryParameters['orgName'];
+          return CreateReservationScreen(orgId: orgId, orgName: orgName);
+        },
       ),
       GoRoute(
         path: '/reservations/:id',
@@ -168,14 +173,3 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class _CreateReservationScreen extends StatelessWidget {
-  const _CreateReservationScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Создание брони')),
-      body: const Center(child: Text('Скоро...')),
-    );
-  }
-}

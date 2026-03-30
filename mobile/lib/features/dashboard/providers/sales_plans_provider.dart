@@ -100,6 +100,34 @@ class SalesPlansNotifier extends StateNotifier<SalesPlansState> {
     }
   }
 
+  Future<bool> assignPlanToDoctor({
+    required int doctorId,
+    required int productId,
+    required int targetQuantity,
+    required int month,
+    required int year,
+    required int medRepId,
+  }) async {
+    try {
+      await _apiClient.post(
+        ApiEndpoints.salesPlans,
+        data: {
+          'med_rep_id': medRepId,
+          'doctor_id': doctorId,
+          'product_id': productId,
+          'target_quantity': targetQuantity,
+          'target_amount': 0, // Backend expects target_amount, but we'll focus on quantity
+          'month': month,
+          'year': year,
+        },
+      );
+      await loadPlans(); // Refresh plans
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<void> updateFilter(int year, int month) async {
     await loadPlans(year: year, month: month);
   }

@@ -5,6 +5,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/doctor_model.dart';
 import '../../../shared/widgets/error_view.dart';
 import '../../../shared/widgets/loading_shimmer.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../doctors/providers/doctors_provider.dart';
 import '../providers/sales_plans_provider.dart';
 
 class SalesPlansScreen extends ConsumerStatefulWidget {
@@ -301,12 +303,14 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
           totalFact, 
           detailedPlans,
           vacantTarget: totalTarget > 0 ? vacantTarget : 0,
+          productId: productPlans.first.productId,
+          medRepId: productPlans.first.medRepId,
         );
       },
     );
   }
 
-  Widget _buildProductPlanCard(String name, int target, int fact, List<DoctorPlan> detailedPlans, {int vacantTarget = 0}) {
+  Widget _buildProductPlanCard(String name, int target, int fact, List<DoctorPlan> detailedPlans, {int vacantTarget = 0, required int productId, required int medRepId}) {
     final percentage = target > 0 ? (fact / target) * 100 : 0.0;
     final color = percentage >= 100 ? Colors.green : (percentage > 50 ? AppColors.primary : Colors.orange);
 
@@ -377,7 +381,7 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
             const Divider(height: 1),
             ...detailedPlans.map((p) => _buildDoctorRow(p)).toList(),
             if (vacantTarget > 0)
-              _buildVacantRow(vacantTarget),
+              _buildVacantRow(vacantTarget, productId, medRepId, name),
             const SizedBox(height: 12),
           ],
         ),
@@ -385,19 +389,21 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
     );
   }
 
-  Widget _buildVacantRow(int target) {
+  Widget _buildVacantRow(int target, int productId, int medRepId, String productName) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(20, 5, 12, 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Вакант (не распределено)',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textHint,
-              fontStyle: FontStyle.italic,
+          Expanded(
+            child: Text(
+              'Вакант (не распределено)',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textHint,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
           Text(
@@ -408,7 +414,136 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
               color: AppColors.textHint,
             ),
           ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: () => _showAssignDialog(target, productId, medRepId, productName),
+            icon: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primary, size: 20),
+            tooltip: 'Прикрепить к врачу',
+          ),
         ],
+      ),
+    );
+  }
+
+  void _showAssignDialog(int vacantTarget, int productId, int medRepId, String productName) {
+    final state = ref.watch(salesPlansProvider);
+    final doctorsState = ref.watch(doctorsProvider);
+    DoctorModel? selectedDoctor;
+    final qtyController = TextEditingController();
+
+    if (doctorsState.status == DoctorsLoadStatus.initial) {
+      ref.read(doctorsProvider.notifier).loadDoctors(refresh: true);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Прикрепить к врачу', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(productName, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
+                    const SizedBox(height: 24),
+                    
+                    // Doctor Selector
+                    Text('Выберите врача', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.divider),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<DoctorModel>(
+                          value: selectedDoctor,
+                          isExpanded: true,
+                          hint: const Text('Выберите врача'),
+                          items: doctorsState.doctors.map((d) {
+                            return DropdownMenuItem(value: d, child: Text(d.fullName, style: GoogleFonts.inter(fontSize: 14)));
+                          }).toList(),
+                          onChanged: (val) => setModalState(() => selectedDoctor = val),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Quantity Input
+                    Text('Количество (макс: $vacantTarget)', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: qtyController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        hintText: 'Введите количество',
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 32),
+                    
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final qty = int.tryParse(qtyController.text) ?? 0;
+                          if (selectedDoctor == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Выберите врача')));
+                            return;
+                          }
+                          if (qty <= 0 || qty > vacantTarget) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Введите корректное количество (1 - $vacantTarget)')));
+                            return;
+                          }
+
+                          final success = await ref.read(salesPlansProvider.notifier).assignPlanToDoctor(
+                            doctorId: selectedDoctor!.id,
+                            productId: productId,
+                            targetQuantity: qty,
+                            month: state.selectedMonth,
+                            year: state.selectedYear,
+                            medRepId: medRepId,
+                          );
+
+                          if (success && mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('План успешно прикреплен'), backgroundColor: AppColors.statusApproved));
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: Text('Подтвердить', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

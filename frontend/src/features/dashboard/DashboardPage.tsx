@@ -180,16 +180,16 @@ export default function DashboardPage() {
                     isUp={true}
                     icon={TrendingUp}
                     color="blue"
-                    onClick={() => navigate(user?.role === 'hrd' ? '/users' : '/reports')}
+                    onClick={() => navigate(user?.role === 'hrd' ? '/hrd/users' : '/reports')}
                 />
                 <MetricCard
-                    title={user?.role === 'hrd' ? "Охват врачей" : "Количество проданных товаров"}
+                    title={user?.role === 'hrd' ? "Охват врачей" : "Количество проdanных товаров"}
                     value={stats?.active_doctors?.toLocaleString() ?? 0}
                     change={stats?.active_doctors_change}
                     isUp={true}
                     icon={Users}
                     color="indigo"
-                    onClick={() => navigate(user?.role === 'hrd' ? '/crm/doctors' : '/reports')}
+                    onClick={() => navigate(user?.role === 'hrd' ? '/doctors' : '/reports')}
                 />
                 <MetricCard
                     title={user?.role === 'hrd' ? "Активность (24ч)" : "Начисленные бонусы"}
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                     icon={CalendarClock}
                     color="orange"
                     isStatic={true}
-                    onClick={() => navigate('/notifications')}
+                    onClick={() => navigate(user?.role === 'hrd' ? '/hrd/login-history' : '/notifications')}
                 />
                 <MetricCard
                     title={user?.role === 'hrd' ? "Выполнено визитов" : "Дебиторская задолженность"}
@@ -208,7 +208,7 @@ export default function DashboardPage() {
                     isUp={false}
                     icon={Wallet}
                     color="rose"
-                    onClick={() => navigate(user?.role === 'hrd' ? '/visits' : '/debtors')}
+                    onClick={() => navigate(user?.role === 'hrd' ? '/med-reps' : '/debtors')}
                 />
             </div>
 

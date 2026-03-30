@@ -130,7 +130,7 @@ export const createColumns = (
         }
     ];
 
-    if (!isMedRep) {
+    if (!isMedRep && role !== 'hrd') {
         cols.push(
             {
                 id: "add_expenses",
