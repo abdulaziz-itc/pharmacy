@@ -57,8 +57,9 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
         title: Text(l10n.doctors),
         actions: [NotificationAction()],
       ),
-      body: Flex(
-        direction: Axis.vertical,
+      body: ListView(
+        controller: _scrollController,
+        padding: EdgeInsets.zero,
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -83,7 +84,7 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
               },
             ),
           ),
-          Expanded(child: _buildContent(state, l10n)),
+          _buildContent(state, l10n),
         ],
       ),
       floatingActionButton: isEmbedded ? null : FloatingActionButton(
@@ -104,7 +105,8 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
     }
 
     return ListView.builder(
-      controller: _scrollController,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: state.doctors.length + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
