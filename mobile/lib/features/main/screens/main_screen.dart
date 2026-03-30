@@ -58,7 +58,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildNavItem(index: 0, icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart_rounded, label: l10n.reports),
-                _buildNavItem(index: 1, icon: Icons.group_outlined, activeIcon: Icons.group_rounded, label: l10n.get('clients') ?? 'Клиенты'),
+                _buildNavItem(index: 1, icon: Icons.group_outlined, activeIcon: Icons.group_rounded, label: l10n.translate('clients') ?? 'Клиенты'),
                 _buildNavItem(index: 2, icon: Icons.calendar_today_outlined, activeIcon: Icons.calendar_today_rounded, label: l10n.plan),
                 _buildNavItem(index: 3, icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view_rounded, label: l10n.products),
                 _buildNavItem(index: 4, icon: Icons.account_circle_outlined, activeIcon: Icons.account_circle_rounded, label: l10n.profile),

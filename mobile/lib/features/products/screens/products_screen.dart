@@ -35,8 +35,8 @@ class ProductsScreen extends ConsumerWidget {
               data: (products) {
                 if (products.isEmpty) {
                   return EmptyView(
-                    title: l10n.get('nothing_found') ?? 'Ничего не найдено',
-                    subtitle: l10n.get('try_changing_search') ?? 'Попробуйте изменить запрос поиска',
+                    title: l10n.translate('nothing_found') ?? 'Ничего не найдено',
+                    subtitle: l10n.translate('try_changing_search') ?? 'Попробуйте изменить запрос поиска',
                   );
                 }
                 return RefreshIndicator(
@@ -61,7 +61,7 @@ class ProductsScreen extends ConsumerWidget {
                     Text(l10n.error, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                     TextButton(
                       onPressed: () => ref.refresh(productsProvider),
-                      child: Text(l10n.get('retry') ?? 'Повторить'),
+                      child: Text(l10n.translate('retry') ?? 'Повторить'),
                     ),
                   ],
                 ),
@@ -79,7 +79,7 @@ class ProductsScreen extends ConsumerWidget {
       child: TextField(
         onChanged: (value) => ref.read(searchQueryProvider.notifier).state = value,
         decoration: InputDecoration(
-          hintText: '${l10n.get('search_medicine') ?? 'Поиск лекарств'}...',
+          hintText: '${l10n.translate('search_medicine') ?? 'Поиск лекарств'}...',
           prefixIcon: const Icon(Icons.search_rounded),
         ),
       ),
@@ -115,7 +115,7 @@ class ProductsScreen extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(context.l10n.get('price') ?? 'Цена', style: GoogleFonts.inter(fontSize: 11, color: Theme.of(context).textTheme.labelSmall?.color)),
+                Text(context.l10n.translate('price') ?? 'Цена', style: GoogleFonts.inter(fontSize: 11, color: Theme.of(context).textTheme.labelSmall?.color)),
                 Text(
                   '${product.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ')} сум',
                   style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent),

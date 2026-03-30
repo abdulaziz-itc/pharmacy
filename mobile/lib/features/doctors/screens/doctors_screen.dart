@@ -101,7 +101,7 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
       return ErrorView(message: state.errorMessage ?? l10n.error, onRetry: () => ref.read(doctorsProvider.notifier).loadDoctors(refresh: true), fullScreen: true);
     }
     if (state.doctors.isEmpty) {
-      return EmptyView(title: l10n.get('nothing_found') ?? 'Врачи не найдены', icon: Icons.person_search_rounded);
+      return EmptyView(title: l10n.translate('nothing_found') ?? 'Врачи не найдены', icon: Icons.person_search_rounded);
     }
 
     return ListView.builder(

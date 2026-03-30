@@ -122,7 +122,7 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
   Widget _buildContent(OrganizationsState state, List<MedOrgModel> orgs, S l10n) {
     if (state.status == OrgsLoadStatus.loading) return const ShimmerList(count: 6);
     if (state.status == OrgsLoadStatus.error) return ErrorView(message: state.errorMessage ?? l10n.error, onRetry: () => ref.read(organizationsProvider.notifier).loadOrganizations());
-    if (orgs.isEmpty) return EmptyView(title: l10n.get('nothing_found') ?? 'Ничего не найдено', icon: Icons.business_rounded);
+    if (orgs.isEmpty) return EmptyView(title: l10n.translate('nothing_found') ?? 'Ничего не найдено', icon: Icons.business_rounded);
 
     return RefreshIndicator(
       onRefresh: () => ref.read(organizationsProvider.notifier).loadOrganizations(),

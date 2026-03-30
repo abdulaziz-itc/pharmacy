@@ -66,7 +66,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(l10n.get('select_period') ?? 'Выберите период', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(l10n.translate('select_period') ?? 'Выберите период', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
                     IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
                   ],
                 ),
@@ -115,7 +115,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ref.read(dashboardProvider.notifier).updateFilter(tempYear, tempMonth);
                       Navigator.pop(context);
                     },
-                    child: Text(l10n.get('apply') ?? 'Применить'),
+                    child: Text(l10n.translate('apply') ?? 'Применить'),
                   ),
                 ),
               ),
@@ -169,21 +169,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         children: [
           _buildHeroCard(stats, state, l10n),
           const SizedBox(height: 24),
-          Text(l10n.get('indicators') ?? 'Показатели', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+          Text(l10n.translate('indicators') ?? 'Показатели', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 14),
           GridView.count(
             shrinkWrap: true, padding: EdgeInsets.zero, physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.4,
             children: [
-              _buildStatCard(l10n.get('active_doctors') ?? 'Активные врачи', stats.activeDoctors.toString(), Icons.people_alt_rounded, const Color(0xFF6366F1), onTap: () => ref.read(mainScreenTabIndexProvider.notifier).state = 1),
-              _buildStatCard(l10n.get('pending_reservations') ?? 'Ожидаемые брони', stats.pendingReservations.toString(), Icons.receipt_long_rounded, const Color(0xFFF59E0B), onTap: () => context.push('/reservations?year=${state.selectedYear}&month=${state.selectedMonth}')),
-              _buildStatCard(l10n.get('total_debt') ?? 'Задолженность', _formatAmount(stats.totalDebt), Icons.account_balance_wallet_rounded, const Color(0xFFEF4444), onTap: () => context.push('/invoices?showDebts=true&year=${state.selectedYear}&month=${state.selectedMonth}')),
-              _buildStatCard(l10n.get('completed_visits') ?? 'Выполненные визиты', stats.completedVisits.toString(), Icons.check_circle_outline_rounded, AppColors.success, onTap: () => ref.read(mainScreenTabIndexProvider.notifier).state = 2),
+              _buildStatCard(l10n.translate('active_doctors') ?? 'Активные врачи', stats.activeDoctors.toString(), Icons.people_alt_rounded, const Color(0xFF6366F1), onTap: () => ref.read(mainScreenTabIndexProvider.notifier).state = 1),
+              _buildStatCard(l10n.translate('pending_reservations') ?? 'Ожидаемые брони', stats.pendingReservations.toString(), Icons.receipt_long_rounded, const Color(0xFFF59E0B), onTap: () => context.push('/reservations?year=${state.selectedYear}&month=${state.selectedMonth}')),
+              _buildStatCard(l10n.translate('total_debt') ?? 'Задолженность', _formatAmount(stats.totalDebt), Icons.account_balance_wallet_rounded, const Color(0xFFEF4444), onTap: () => context.push('/invoices?showDebts=true&year=${state.selectedYear}&month=${state.selectedMonth}')),
+              _buildStatCard(l10n.translate('completed_visits') ?? 'Выполненные визиты', stats.completedVisits.toString(), Icons.check_circle_outline_rounded, AppColors.success, onTap: () => ref.read(mainScreenTabIndexProvider.notifier).state = 2),
             ],
           ),
           const SizedBox(height: 24),
           if (stats.revenueForecast.isNotEmpty) ...[
-            Text(l10n.get('revenue_forecast') ?? 'Прогноз выручки', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(l10n.translate('revenue_forecast') ?? 'Прогноз выручки', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 14),
             _buildRevenueChart(stats.revenueForecast),
           ],
@@ -205,7 +205,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(l10n.get('total_sales') ?? 'Общие продажи', style: GoogleFonts.inter(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500)),
+              Text(l10n.translate('total_sales') ?? 'Общие продажи', style: GoogleFonts.inter(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500)),
               Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(20)), child: Text('${_getMonthName(state.selectedMonth, l10n)} ${state.selectedYear}', style: GoogleFonts.inter(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600))),
             ],
           ),
@@ -214,9 +214,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Divider(color: Colors.white12, height: 1)),
           Row(
             children: [
-              GestureDetector(onTap: () => context.push('/bonus'), child: _buildHeroStat(l10n.get('bonus_balance') ?? 'Бонус баланс', '${_formatAmount(stats.bonusBalance)} сум', Icons.stars_rounded)),
+              GestureDetector(onTap: () => context.push('/bonus'), child: _buildHeroStat(l10n.translate('bonus_balance') ?? 'Бонус баланс', '${_formatAmount(stats.bonusBalance)} сум', Icons.stars_rounded)),
               const SizedBox(width: 30),
-              _buildHeroStat(l10n.get('planned_visits') ?? 'Визиты', '${stats.plannedVisits}', Icons.calendar_today_rounded),
+              _buildHeroStat(l10n.translate('planned_visits') ?? 'Визиты', '${stats.plannedVisits}', Icons.calendar_today_rounded),
             ],
           ),
         ],
@@ -294,14 +294,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(l10n.get('visit_completion') ?? 'Выполнение визитов', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+              Text(l10n.translate('visit_completion') ?? 'Выполнение визитов', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
               Text('${stats.completedVisits} / ${stats.plannedVisits}', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
             ],
           ),
           const SizedBox(height: 16),
           ClipRRect(borderRadius: BorderRadius.circular(10), child: LinearProgressIndicator(value: progress.clamp(0, 1), backgroundColor: AppColors.divider.withValues(alpha: 0.3), color: AppColors.success, minHeight: 10)),
           const SizedBox(height: 10),
-          Text('${(progress * 100).toStringAsFixed(0)}% ${l10n.get('completed') ?? 'завершено'}', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
+          Text('${(progress * 100).toStringAsFixed(0)}% ${l10n.translate('completed') ?? 'завершено'}', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
         ],
       ),
     );

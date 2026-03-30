@@ -213,13 +213,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               TextField(
                 controller: newPasswordController,
                 obscureText: true,
-                decoration: InputDecoration(labelText: l10n.get('new_password')),
+                decoration: InputDecoration(labelText: l10n.translate('new_password')),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: confirmPasswordController,
                 obscureText: true,
-                decoration: InputDecoration(labelText: l10n.get('confirm_password')),
+                decoration: InputDecoration(labelText: l10n.translate('confirm_password')),
               ),
             ],
           ),
@@ -237,7 +237,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   await apiClient.put('/users/me', data: {'password': newPasswordController.text});
                   if (context.mounted) {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.get('password_changed'))));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('password_changed'))));
                   }
                 } catch (e) {
                   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.error}: $e')));
