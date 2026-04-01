@@ -211,12 +211,6 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : Text(l10n.submitAllocation),
                 ),
-shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: _isSubmitting 
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Подтвердить распределение'),
-                ),
               ],
             ),
           ),
