@@ -1,19 +1,19 @@
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 from .crm import Doctor, MedicalOrganization
 
 class VisitPlanBase(BaseModel):
     planned_date: datetime
     subject: Optional[str] = None
-    description: Optional[str] = None
+    notes: Optional[str] = None
     visit_type: Optional[str] = None
     doctor_id: Optional[int] = None
     med_org_id: Optional[int] = None
     status: Optional[str] = "planned"
 
 class VisitPlanCreate(VisitPlanBase):
-    med_rep_id: Optional[int] = None
+    pass
 
 class VisitPlanUpdate(VisitPlanBase):
     pass
@@ -21,12 +21,14 @@ class VisitPlanUpdate(VisitPlanBase):
 class VisitPlan(VisitPlanBase):
     id: int
     med_rep_id: int
-    # Assuming Doctor and MedicalOrganization are defined elsewhere or will be imported
-    # from .doctor import Doctor
-    # from .medical_organization import MedicalOrganization
     doctor: Optional[Doctor] = None
     med_org: Optional[MedicalOrganization] = None
     status: Optional[str] = None # pending, completed, cancelled
+
+    @computed_field
+    @property
+    def is_completed(self) -> bool:
+        return self.status == "completed"
 
     class Config:
         from_attributes = True

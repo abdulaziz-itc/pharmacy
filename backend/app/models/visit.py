@@ -24,7 +24,7 @@ class VisitPlan(Base):
     med_org_id = Column(Integer, ForeignKey("medicalorganization.id"), nullable=True)
     planned_date = Column(DateTime, nullable=False)
     subject = Column(String, nullable=True)
-    description = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
     visit_type = Column(String, nullable=True) # "Плановый", etc.
     status = Column(String, default="planned") # planned, completed, cancelled
     
