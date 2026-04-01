@@ -81,7 +81,7 @@ export function DoctorPlansTable({ data: initialData }: DoctorPlansTableProps) {
 
     // Form State
     const [subject, setSubject] = React.useState("");
-    const [description, setDescription] = React.useState("");
+    const [notes, setNotes] = React.useState("");
     const [doctorId, setDoctorId] = React.useState("");
     const [date, setDate] = React.useState("");
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -118,7 +118,7 @@ export function DoctorPlansTable({ data: initialData }: DoctorPlansTableProps) {
                 doctor_id: parseInt(doctorId),
                 planned_date: new Date(date).toISOString(),
                 subject: subject,
-                description: description,
+                notes: notes,
                 visit_type: "Плановый"
             });
 
@@ -126,7 +126,7 @@ export function DoctorPlansTable({ data: initialData }: DoctorPlansTableProps) {
 
             setIsAddOpen(false);
             setSubject("");
-            setDescription("");
+            setNotes("");
             setDoctorId("");
             setDate("");
         } catch (error) {
@@ -193,11 +193,11 @@ export function DoctorPlansTable({ data: initialData }: DoctorPlansTableProps) {
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="description" className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Описание</Label>
+                                    <Label htmlFor="notes" className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Описание</Label>
                                     <Input
-                                        id="description"
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
+                                        id="notes"
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
                                         placeholder="Детали и цели визита"
                                         className="h-12 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all font-medium"
                                     />
