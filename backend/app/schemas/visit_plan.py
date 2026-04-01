@@ -20,6 +20,7 @@ class VisitPlanBase(BaseModel):
     status: Optional[str] = "planned"
 
 class VisitPlanCreate(VisitPlanBase):
+    med_rep_id: Optional[int] = None
     is_completed: Optional[bool] = None
 
 class VisitPlanUpdate(VisitPlanBase):

@@ -104,7 +104,9 @@ async def create_visit_plan(
     """
     try:
         data = plan_in.model_dump()
-        data["med_rep_id"] = current_user.id
+        # Use med_rep_id from payload if provided (e.g. by a manager), fallback to current_user.id
+        if not data.get("med_rep_id"):
+            data["med_rep_id"] = current_user.id
         
         # Strip timezone to avoid database errors with TIMESTAMP WITHOUT TIME ZONE
         if data.get("planned_date") and data["planned_date"].tzinfo:

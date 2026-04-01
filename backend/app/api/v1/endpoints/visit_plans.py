@@ -64,9 +64,12 @@ async def create_visit_plan(
     elif is_completed is False:
         data["status"] = "planned"
     
+    # Use med_rep_id from data if provided (e.g. by a manager), fallback to current_user.id
+    final_med_rep_id = data.get("med_rep_id") or current_user.id
+    
     db_obj = VisitPlan(
         **data,
-        med_rep_id=current_user.id
+        med_rep_id=final_med_rep_id
     )
     db.add(db_obj)
     await db.commit()
