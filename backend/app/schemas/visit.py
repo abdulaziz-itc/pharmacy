@@ -1,4 +1,12 @@
-from pydantic import BaseModel, ConfigDict, computed_field, Field, AliasChoices
+from typing import Optional, Any, Union
+try:
+    from pydantic import BaseModel, ConfigDict, computed_field, Field, AliasChoices
+except ImportError:
+    # Fallback for Pydantic v1
+    from pydantic import BaseModel, Field
+    from pydantic import validator as computed_field
+    ConfigDict = None
+    AliasChoices = None
 from datetime import datetime
 
 # Visit Schemas
@@ -21,7 +29,12 @@ class VisitInDBBase(VisitBase):
     id: int
     visit_date: datetime
     
-    model_config = ConfigDict(from_attributes=True)
+    if ConfigDict:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+            from_attributes = True
 
 class Visit(VisitInDBBase):
     pass
@@ -33,7 +46,7 @@ class VisitPlanBase(BaseModel):
     med_org_id: Optional[int] = None
     planned_date: datetime
     subject: Optional[str] = None
-    notes: Optional[str] = Field(None, validation_alias=AliasChoices('notes', 'description'))
+    notes: Optional[str] = Field(None, validation_alias=AliasChoices('notes', 'description')) if AliasChoices else Field(None, alias='description')
     visit_type: Optional[str] = "Плановый"
     status: Optional[str] = "planned"
 
@@ -43,17 +56,33 @@ class VisitPlanCreate(VisitPlanBase):
 class VisitPlanUpdate(BaseModel):
     planned_date: Optional[datetime] = None
     subject: Optional[str] = None
-    notes: Optional[str] = Field(None, validation_alias=AliasChoices('notes', 'description'))
+    notes: Optional[str] = Field(None, validation_alias=AliasChoices('notes', 'description')) if AliasChoices else Field(None, alias='description')
     visit_type: Optional[str] = None
     is_completed: Optional[int] = None
 
 class VisitPlanInDBBase(VisitPlanBase):
     id: int
     
-    model_config = ConfigDict(from_attributes=True)
+    if ConfigDict:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+            from_attributes = True
 
 class VisitPlan(VisitPlanInDBBase):
-    @computed_field
-    @property
-    def is_completed(self) -> bool:
-        return self.status == "completed"
+    if computed_field:
+        try:
+            @computed_field
+            @property
+            def is_completed(self) -> bool:
+                return self.status == "completed"
+        except:
+            # Fallback for v1 if needed
+            @property
+            def is_completed(self) -> bool:
+                return self.status == "completed"
+    else:
+        @property
+        def is_completed(self) -> bool:
+            return self.status == "completed"
