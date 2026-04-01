@@ -41,7 +41,11 @@ async def get_visit_plans(
         query = query.where(VisitPlan.med_rep_id == current_user.id)
 
     result = await db.execute(query)
-    return result.scalars().all()
+    plans = result.scalars().all()
+    print(f"DEBUG: Found {len(plans)} visit plans for med_rep_id={med_rep_id or current_user.id}")
+    if plans:
+        print(f"DEBUG: First plan structure: {plans[0].id} | {plans[0].planned_date} | {plans[0].doctor_id}")
+    return plans
 
 
 @router.post("/", response_model=VisitPlanSchema)

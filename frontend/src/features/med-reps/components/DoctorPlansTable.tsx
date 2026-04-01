@@ -88,6 +88,9 @@ export function DoctorPlansTable({ data: initialData }: DoctorPlansTableProps) {
     const [date, setDate] = React.useState("");
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+    console.log("DEBUG: DoctorPlansTable initialData reached:", initialData);
+    console.log("DEBUG: Current selected month:", month);
+
     React.useEffect(() => {
         const monthMap: Record<string, number> = {
             "january": 0, "february": 1, "march": 2, "april": 3, "may": 4, "june": 5,
