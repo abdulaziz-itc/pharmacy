@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 from datetime import datetime
 
 # Visit Schemas
@@ -30,11 +30,13 @@ class Visit(VisitInDBBase):
 # Visit Plan Schemas
 class VisitPlanBase(BaseModel):
     med_rep_id: Optional[int] = None
-    doctor_id: int
+    doctor_id: Optional[int] = None
+    med_org_id: Optional[int] = None
     planned_date: datetime
     subject: Optional[str] = None
     notes: Optional[str] = None
     visit_type: Optional[str] = "Плановый"
+    status: Optional[str] = "planned"
 
 class VisitPlanCreate(VisitPlanBase):
     pass
@@ -48,9 +50,11 @@ class VisitPlanUpdate(BaseModel):
 
 class VisitPlanInDBBase(VisitPlanBase):
     id: int
-    is_completed: int
     
     model_config = ConfigDict(from_attributes=True)
 
 class VisitPlan(VisitPlanInDBBase):
-    pass
+    @computed_field
+    @property
+    def is_completed(self) -> bool:
+        return self.status == "completed"
