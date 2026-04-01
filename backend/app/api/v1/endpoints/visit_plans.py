@@ -52,8 +52,16 @@ async def create_visit_plan(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Create new visit plan."""
+    data = visit_plan_in.dict()
+    is_completed = data.pop("is_completed", None)
+    
+    if is_completed is True:
+        data["status"] = "completed"
+    elif is_completed is False:
+        data["status"] = "planned"
+    
     db_obj = VisitPlan(
-        **visit_plan_in.dict(),
+        **data,
         med_rep_id=current_user.id
     )
     db.add(db_obj)
@@ -78,6 +86,13 @@ async def update_visit_plan(
         raise HTTPException(status_code=404, detail="Visit plan not found")
 
     update_data = visit_plan_in.dict(exclude_unset=True)
+    is_completed = update_data.pop("is_completed", None)
+    
+    if is_completed is True:
+        update_data["status"] = "completed"
+    elif is_completed is False:
+        update_data["status"] = "planned"
+
     for field in update_data:
         setattr(db_obj, field, update_data[field])
 

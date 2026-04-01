@@ -193,7 +193,6 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
       'doctor_id': _selectedDoctorId,
       'subject': _subjectController.text.trim(),
       'visit_type': _visitType,
-      'is_completed': false,
       if (_notesController.text.isNotEmpty)
         'notes': _notesController.text.trim(),
     };
