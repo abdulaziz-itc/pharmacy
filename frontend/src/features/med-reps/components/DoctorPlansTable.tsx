@@ -88,8 +88,16 @@ export function DoctorPlansTable({ data: initialData }: DoctorPlansTableProps) {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     React.useEffect(() => {
-        setData(initialData);
-    }, [initialData]);
+        setData(initialData.filter((plan) => {
+            // Extract year, month, day from YYYY-MM-DD string part
+            const [year, monthNum, day] = plan.planned_date.split('T')[0].split('-').map(Number);
+            const planDate = new Date(year, monthNum - 1, day);
+            const planMonth = planDate
+                .toLocaleString("en-US", { month: "long" })
+                .toLowerCase();
+            return planMonth === month;
+        }));
+    }, [initialData, month]);
 
     React.useEffect(() => {
         const fetchDoctors = async () => {
@@ -117,7 +125,7 @@ export function DoctorPlansTable({ data: initialData }: DoctorPlansTableProps) {
             await createVisitPlan({
                 med_rep_id: parseInt(id),
                 doctor_id: parseInt(doctorId),
-                planned_date: new Date(date).toISOString(),
+                planned_date: date.split('T')[0], // Use only the date part YYYY-MM-DD to avoid timezone shifts
                 subject: subject,
                 notes: notes,
                 visit_type: "Плановый"
