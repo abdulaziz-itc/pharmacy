@@ -75,7 +75,8 @@ interface DoctorPlansTableProps {
 export function DoctorPlansTable({ data: initialData }: DoctorPlansTableProps) {
     const { id } = useParams<{ id: string }>();
     const [data, setData] = React.useState(initialData);
-    const [month, setMonth] = React.useState("february");
+    const currentMonth = new Date().toLocaleString('en-US', { month: 'long' }).toLowerCase();
+    const [month, setMonth] = React.useState(currentMonth);
     const [isAddOpen, setIsAddOpen] = React.useState(false);
     const [doctors, setDoctors] = React.useState<any[]>([]);
 
@@ -122,6 +123,7 @@ export function DoctorPlansTable({ data: initialData }: DoctorPlansTableProps) {
                 visit_type: "Плановый"
             });
 
+            alert("План успешно создан!");
             window.location.reload();
 
             setIsAddOpen(false);
