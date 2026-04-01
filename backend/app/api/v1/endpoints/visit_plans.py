@@ -56,6 +56,10 @@ async def create_visit_plan(
         data = visit_plan_in.dict()
         is_completed = data.pop("is_completed", None)
         
+        # Strip timezone to avoid database errors with TIMESTAMP WITHOUT TIME ZONE
+        if data.get("planned_date") and data["planned_date"].tzinfo:
+            data["planned_date"] = data["planned_date"].replace(tzinfo=None)
+            
         if is_completed is True:
             data["status"] = "completed"
         elif is_completed is False:

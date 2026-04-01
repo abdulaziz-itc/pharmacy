@@ -1,5 +1,4 @@
-from typing import Optional, Any
-from pydantic import BaseModel, ConfigDict, computed_field, Field
+from pydantic import BaseModel, ConfigDict, computed_field, Field, AliasChoices
 from datetime import datetime
 
 # Visit Schemas
@@ -34,7 +33,7 @@ class VisitPlanBase(BaseModel):
     med_org_id: Optional[int] = None
     planned_date: datetime
     subject: Optional[str] = None
-    notes: Optional[str] = Field(None, validation_alias='description')
+    notes: Optional[str] = Field(None, validation_alias=AliasChoices('notes', 'description'))
     visit_type: Optional[str] = "Плановый"
     status: Optional[str] = "planned"
 
@@ -44,7 +43,7 @@ class VisitPlanCreate(VisitPlanBase):
 class VisitPlanUpdate(BaseModel):
     planned_date: Optional[datetime] = None
     subject: Optional[str] = None
-    notes: Optional[str] = Field(None, validation_alias='description')
+    notes: Optional[str] = Field(None, validation_alias=AliasChoices('notes', 'description'))
     visit_type: Optional[str] = None
     is_completed: Optional[int] = None
 

@@ -105,6 +105,11 @@ async def create_visit_plan(
     try:
         data = plan_in.model_dump()
         data["med_rep_id"] = current_user.id
+        
+        # Strip timezone to avoid database errors with TIMESTAMP WITHOUT TIME ZONE
+        if data.get("planned_date") and data["planned_date"].tzinfo:
+            data["planned_date"] = data["planned_date"].replace(tzinfo=None)
+            
         plan = VisitPlan(**data)
         db.add(plan)
         await db.commit()
