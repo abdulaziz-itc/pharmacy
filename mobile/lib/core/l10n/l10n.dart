@@ -828,6 +828,7 @@ class S {
   String get notesPlaceholder => translate('notes_placeholder');
   String get periodLabel => translate('period_label');
   String get attachToDoctorTitle => translate('attach_to_doctor_title');
+  String get delete => translate('delete');
 }
 
 final localeProvider = StateNotifierProvider<LocaleNotifier, Locale>((ref) {

@@ -332,7 +332,6 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
       child: Icon(Icons.more_horiz_rounded, color: AppColors.textHint, size: 24),
     );
   }
-}
 
   Widget _buildChip(IconData icon, String text) {
     return Row(
