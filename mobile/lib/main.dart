@@ -8,9 +8,13 @@ import 'core/l10n/l10n.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('uz', null);
-  await initializeDateFormatting('ru', null);
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    await initializeDateFormatting('uz_UZ', null).catchError((_) => initializeDateFormatting('uz', null));
+    await initializeDateFormatting('ru_RU', null).catchError((_) => initializeDateFormatting('ru', null));
+  } catch (e) {
+    debugPrint('Initialization error: $e');
+  }
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

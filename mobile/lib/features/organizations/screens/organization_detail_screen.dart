@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/med_org_model.dart';
 import '../../../shared/models/doctor_model.dart';
@@ -56,29 +57,29 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
   Widget build(BuildContext context) {
     final state = ref.watch(organizationsProvider);
     final org = state.selectedOrg;
+    final l10n = context.l10n;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          org?.name ?? 'Организация',
-          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+          org?.name ?? l10n.organizations,
+          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: AppColors.surface,
-        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppColors.primary,
           indicatorWeight: 3,
+          indicatorSize: TabBarIndicatorSize.tab,
           labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700),
+          unselectedLabelColor: AppColors.textHint,
+          labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
           unselectedLabelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
-          dividerColor: AppColors.divider.withValues(alpha: 0.5),
-          tabs: const [
-            Tab(text: 'Информация'),
-            Tab(text: 'Врачи'),
-            Tab(text: 'Склад'),
+          dividerColor: Theme.of(context).dividerColor,
+          tabs: [
+            Tab(text: l10n.organizationDetails),
+            Tab(text: l10n.doctorsTab),
+            Tab(text: l10n.stockTab),
           ],
         ),
       ),
@@ -86,32 +87,32 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
           ? const ShimmerList(count: 5)
           : state.status == OrgsLoadStatus.error
               ? ErrorView(
-                  message: state.errorMessage ?? 'Ошибка загрузки',
+                  message: state.errorMessage ?? l10n.loadingError,
                   onRetry: () => ref.read(organizationsProvider.notifier).loadOrgDetails(widget.orgId),
                 )
               : TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildGeneralInfo(org!),
-                    _buildDoctorsList(state.orgDoctors),
-                    _buildStockList(state.orgStock),
+                    _buildGeneralInfo(org!, l10n),
+                    _buildDoctorsList(state.orgDoctors, l10n),
+                    _buildStockList(state.orgStock, l10n),
                   ],
                 ),
-      bottomNavigationBar: org != null ? _buildBottomActions(org) : null,
+      bottomNavigationBar: org != null ? _buildBottomActions(org, l10n) : null,
     );
   }
 
-  Widget _buildGeneralInfo(MedOrgModel org) {
+  Widget _buildGeneralInfo(MedOrgModel org, S l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          _buildInfoItem(Icons.business_rounded, 'Название', org.name),
-          _buildInfoItem(Icons.category_rounded, 'Тип', org.displayType),
-          _buildInfoItem(Icons.location_on_rounded, 'Регион', org.regionName ?? 'Не указан'),
-          _buildInfoItem(Icons.map_rounded, 'Адрес', org.address ?? 'Не указан'),
+          _buildInfoItem(Icons.business_rounded, l10n.nameLabel, org.name),
+          _buildInfoItem(Icons.category_rounded, l10n.typeLabel, org.displayType),
+          _buildInfoItem(Icons.location_on_rounded, l10n.regionLabel, org.regionName ?? l10n.notSpecified),
+          _buildInfoItem(Icons.map_rounded, l10n.addressLabel, org.address ?? l10n.notSpecified),
           if (org.doctorsCount != null)
-            _buildInfoItem(Icons.people_alt_rounded, 'Количество врачей', org.doctorsCount.toString()),
+            _buildInfoItem(Icons.people_alt_rounded, l10n.doctorsCountLabel, org.doctorsCount.toString()),
         ],
       ),
     );
@@ -119,15 +120,15 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
 
   Widget _buildInfoItem(IconData icon, String label, String value) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -138,7 +139,7 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: AppColors.primary, size: 20),
@@ -149,18 +150,19 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
+                  label.toUpperCase(),
                   style: GoogleFonts.inter(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: AppColors.textHint,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   value,
                   style: GoogleFonts.inter(
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
@@ -173,35 +175,33 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
     );
   }
 
-  Widget _buildDoctorsList(List<DoctorModel> doctors) {
+  Widget _buildDoctorsList(List<DoctorModel> doctors, S l10n) {
     if (doctors.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-             Icon(Icons.people_outline_rounded, size: 64, color: AppColors.textHint.withValues(alpha: 0.4)),
+            Icon(Icons.people_outline_rounded, size: 64, color: AppColors.textHint.withValues(alpha: 0.2)),
             const SizedBox(height: 24),
             Text(
-              'Врачи не найдены',
-              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              l10n.doctorsNotFound,
+              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 8),
             Text(
-              'К этой организации еще не прикреплено ни одного врача',
+              l10n.noDoctorsAttached,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+              style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _showAttachDoctorDialog,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Прикрепить врача'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: _showAttachDoctorDialog,
+                icon: const Icon(Icons.add_rounded),
+                label: Text(l10n.attachDoctor),
               ),
             ),
           ],
@@ -210,7 +210,7 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       itemCount: doctors.length + 1,
       itemBuilder: (context, index) {
         if (index == doctors.length) {
@@ -220,22 +220,25 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
               child: TextButton.icon(
                 onPressed: _showAttachDoctorDialog,
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Прикрепить еще врача'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                label: Text(l10n.attachAnotherDoctor),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  textStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           );
         }
         final doctor = doctors[index];
         return Container(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
               radius: 22,
               backgroundColor: AppColors.primary.withValues(alpha: 0.1),
@@ -246,13 +249,13 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
             ),
             title: Text(
               doctor.fullName,
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             subtitle: Text(
-              doctor.specialty?.name ?? 'Специальность не указана',
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+              doctor.specialty?.name ?? l10n.specialtyNotSpecified,
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint),
             ),
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textHint, size: 22),
+            trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textHint, size: 24),
             onTap: () {
               // Option to view doctor detail
             },
@@ -262,24 +265,24 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
     );
   }
 
-  Widget _buildStockList(List<Map<String, dynamic>> stock) {
+  Widget _buildStockList(List<Map<String, dynamic>> stock, S l10n) {
     if (stock.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textHint.withValues(alpha: 0.4)),
+            Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textHint.withValues(alpha: 0.2)),
             const SizedBox(height: 24),
             Text(
-              'Остатки не найдены',
-              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              l10n.stockNotFound,
+              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 8),
             Text(
-              'В данной организации отсутствуют товары на складе',
+              l10n.noStockItems,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+              style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -287,64 +290,57 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       itemCount: stock.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final item = stock[index];
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(10),
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.medication_rounded, color: AppColors.primary, size: 20),
+                child: const Icon(Icons.medication_rounded, color: AppColors.primary, size: 22),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item['product_name'] ?? 'Неизвестный товар',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                      item['product_name'] ?? l10n.unknownProduct,
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     if (item['category'] != null)
                       Text(
                         item['category'],
-                        style: GoogleFonts.inter(fontSize: 11, color: AppColors.textHint),
+                        style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint),
                       ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '${item['quantity']} шт',
+                  '${item['quantity']} ${l10n.pcs}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF10B981),
-                    fontWeight: FontWeight.bold,
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w900,
                     fontSize: 12,
                   ),
                 ),
@@ -356,41 +352,35 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
     );
   }
 
-  Widget _buildBottomActions(MedOrgModel org) {
+  Widget _buildBottomActions(MedOrgModel org, S l10n) {
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, 12 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).secondaryHeaderColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -4),
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 15,
+            offset: const Offset(0, -5),
           ),
         ],
       ),
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateReservationScreen(
-                orgId: widget.orgId,
-                orgName: org.name,
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CreateReservationScreen(
+                  orgId: widget.orgId,
+                  orgName: org.name,
+                ),
               ),
-            ),
-          );
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-        child: Text(
-          'Создать бронь',
-          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold),
+            );
+          },
+          child: Text(l10n.createReservation),
         ),
       ),
     );
@@ -414,6 +404,7 @@ class _AttachDoctorBottomSheetState extends ConsumerState<_AttachDoctorBottomShe
   Widget build(BuildContext context) {
     final doctorsState = ref.watch(doctorsProvider);
     final allDoctors = doctorsState.doctors;
+    final l10n = context.l10n;
     
     final filtered = allDoctors.where((d) => 
       d.fullName.toLowerCase().contains(_query.toLowerCase()) && 
@@ -421,33 +412,33 @@ class _AttachDoctorBottomSheetState extends ConsumerState<_AttachDoctorBottomShe
     ).toList();
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         children: [
-          const SizedBox(height: 8),
           Container(
+            margin: const EdgeInsets.symmetric(vertical: 12),
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.divider,
+              color: Theme.of(context).dividerColor,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+            padding: const EdgeInsets.fromLTRB(24, 8, 12, 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Прикрепить врача',
-                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  l10n.attachDoctor,
+                  style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  icon: const Icon(Icons.close_rounded),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -457,26 +448,11 @@ class _AttachDoctorBottomSheetState extends ConsumerState<_AttachDoctorBottomShe
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: TextField(
               controller: _searchController,
-              style: GoogleFonts.inter(fontSize: 14),
               decoration: InputDecoration(
-                hintText: 'Поиск врача...',
-                hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.textHint),
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
+                hintText: l10n.searchDoctorHint,
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
                 filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-                ),
+                fillColor: Theme.of(context).cardColor,
               ),
               onChanged: (val) => setState(() => _query = val),
             ),
@@ -484,25 +460,25 @@ class _AttachDoctorBottomSheetState extends ConsumerState<_AttachDoctorBottomShe
           const SizedBox(height: 16),
           Expanded(
             child: filtered.isEmpty
-                ? const EmptyView(
-                    title: 'Врачи не найдены',
-                    subtitle: 'Попробуйте изменить параметры поиска',
+                ? EmptyView(
+                    title: l10n.doctorsNotFound,
+                    subtitle: l10n.searchParamsEmpty,
                     icon: Icons.person_search_rounded,
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final doctor = filtered[index];
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
+                        margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+                          border: Border.all(color: Theme.of(context).dividerColor),
                         ),
                         child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           leading: CircleAvatar(
                             radius: 20,
                             backgroundColor: AppColors.primary.withValues(alpha: 0.1),
@@ -513,28 +489,28 @@ class _AttachDoctorBottomSheetState extends ConsumerState<_AttachDoctorBottomShe
                           ),
                           title: Text(
                             doctor.fullName,
-                            style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                            style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           subtitle: Text(
-                            doctor.specialty?.name ?? 'Специальность не указана',
-                            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                            doctor.specialty?.name ?? l10n.specialtyNotSpecified,
+                            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint),
                           ),
-                          trailing: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 24),
+                          trailing: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 28),
                           onTap: () async {
                             final success = await ref.read(organizationsProvider.notifier)
                                 .attachDoctorToOrg(doctor.id, widget.orgId);
                             if (success && mounted) {
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Врач успешно прикреплен'),
-                                  backgroundColor: AppColors.statusApproved,
+                                SnackBar(
+                                  content: Text(l10n.doctorAttachedSuccess),
+                                  backgroundColor: AppColors.success,
                                 ),
                               );
                             } else if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Ошибка при прикреплении врача'),
+                                SnackBar(
+                                  content: Text(l10n.doctorAttachError),
                                   backgroundColor: AppColors.error,
                                 ),
                               );

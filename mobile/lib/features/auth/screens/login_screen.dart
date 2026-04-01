@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
@@ -67,7 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       final error = ref.read(authProvider).errorMessage;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error ?? 'Произошла ошибка'),
+          content: Text(error ?? context.l10n.unexpectedError),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -77,16 +78,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeProvider);
     final authState = ref.watch(authProvider);
     final isLoading = authState.status == AuthStatus.loading;
+    final l10n = context.l10n;
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [AppColors.primary, Color(0xFF1E40AF), Color(0xFF1D4ED8)],
+            colors: themeMode == ThemeMode.dark
+                ? [const Color(0xFF0B0F19), const Color(0xFF151B2C)]
+                : [AppColors.primary, const Color(0xFF1E40AF)],
           ),
         ),
         child: SafeArea(
@@ -131,7 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Для мед. представителей',
+                          l10n.forMedReps,
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             color: Colors.white.withValues(alpha: 0.8),
@@ -147,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     child: Container(
                       padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
@@ -156,6 +161,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             offset: const Offset(0, 10),
                           ),
                         ],
+                        border: Border.all(
+                          color: Theme.of(context).dividerColor,
+                          width: 1,
+                        ),
                       ),
                       child: Form(
                         key: _formKey,
@@ -163,19 +172,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Вход',
+                              l10n.login,
                               style: GoogleFonts.poppins(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: Theme.of(context).textTheme.displayLarge?.color,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Войдите в свой аккаунт',
+                              l10n.enterCredentials,
                               style: GoogleFonts.inter(
                                 fontSize: 14,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(context).textTheme.bodyMedium?.color,
                               ),
                             ),
                             const SizedBox(height: 28),
@@ -184,17 +193,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               keyboardType: TextInputType.text,
                               textInputAction: TextInputAction.next,
                               autocorrect: false,
-                              decoration: const InputDecoration(
-                                labelText: 'Имя пользователя',
+                              decoration: InputDecoration(
+                                labelText: l10n.username,
                                 hintText: 'username',
-                                prefixIcon: Icon(
+                                prefixIcon: const Icon(
                                   Icons.person_outline_rounded,
-                                  color: AppColors.textHint,
                                 ),
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Введите имя пользователя';
+                                  return l10n.enterUsername;
                                 }
                                 return null;
                               },
@@ -206,18 +214,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               textInputAction: TextInputAction.done,
                               onFieldSubmitted: (_) => _submit(),
                               decoration: InputDecoration(
-                                labelText: 'Пароль',
+                                labelText: l10n.password,
                                 hintText: '••••••••',
                                 prefixIcon: const Icon(
                                   Icons.lock_outline_rounded,
-                                  color: AppColors.textHint,
                                 ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _obscurePassword
                                         ? Icons.visibility_off_outlined
                                         : Icons.visibility_outlined,
-                                    color: AppColors.textHint,
                                   ),
                                   onPressed: () {
                                     setState(() {
@@ -228,10 +234,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Введите пароль';
+                                  return l10n.enterPassword;
                                 }
                                 if (value.length < 4) {
-                                  return 'Пароль должен содержать минимум 4 символа';
+                                  return l10n.passwordTooShort;
                                 }
                                 return null;
                               },
@@ -242,13 +248,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               height: 52,
                               child: ElevatedButton(
                                 onPressed: isLoading ? null : _submit,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
                                 child: isLoading
                                     ? const SizedBox(
                                         width: 22,
@@ -259,7 +258,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                         ),
                                       )
                                     : Text(
-                                        'Вход',
+                                        l10n.login,
                                         style: GoogleFonts.inter(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,
@@ -273,6 +272,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ),
                   ),
                   const SizedBox(height: 32),
+                  // Language selector
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildLangButton(context, 'uz', 'O\'Z'),
+                      const SizedBox(width: 12),
+                      _buildLangButton(context, 'ru', 'РУ'),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
                   Text(
                     '© 2024 Heartly Systems',
                     style: GoogleFonts.inter(
@@ -284,6 +293,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLangButton(BuildContext context, String code, String label) {
+    final currentLocale = ref.watch(localeProvider);
+    final isSelected = currentLocale.languageCode == code;
+
+    return GestureDetector(
+      onTap: () => ref.read(localeProvider.notifier).setLocale(code),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? Colors.white.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.1),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.6),
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
       ),

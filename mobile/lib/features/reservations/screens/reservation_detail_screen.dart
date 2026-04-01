@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/reservation_model.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -33,37 +34,46 @@ class _ReservationDetailScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(reservationsProvider);
     final reservation = state.selectedReservation;
+    final l10n = context.l10n;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Бронь #${widget.reservationId}'),
-        backgroundColor: AppColors.surface,
+        title: Text('${l10n.reservationNumber}${widget.reservationId}'),
       ),
       body: reservation == null
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             )
-          : _buildContent(reservation),
+          : _buildContent(reservation, l10n),
     );
   }
 
-  Widget _buildContent(ReservationModel reservation) {
+  Widget _buildContent(ReservationModel reservation, S l10n) {
     final formatter = NumberFormat('#,##0', 'en_US');
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header card
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.accent],
+                colors: [AppColors.primary, Color(0xFF6366F1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,77 +82,80 @@ class _ReservationDetailScreenState
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Бронь #${reservation.id}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                      '${l10n.reservationNumber}${reservation.id}',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
+                        letterSpacing: 0.5,
                       ),
                     ),
                     StatusBadge(status: reservation.status),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Text(
-                  '${formatter.format(reservation.totalAmount)} so\'m',
-                  style: GoogleFonts.poppins(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
+                  '${formatter.format(reservation.totalAmount)} ${l10n.sumCurrency}',
+                  style: GoogleFonts.inter(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
                     color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Umumiy summa',
+                  l10n.totalAmountLabel,
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           // Details
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.divider),
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Theme.of(context).dividerColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Детали',
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                  l10n.detailsTitleLabel.toUpperCase(),
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textHint,
+                    letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 _buildDetailRow(
                   Icons.person_outline_rounded,
-                  'Клиент',
+                  l10n.clientLabel,
                   reservation.customerName,
                 ),
                 _buildDetailRow(
                   Icons.calendar_today_rounded,
-                  'Дата',
+                  l10n.date,
                   reservation.date,
                 ),
                 if (reservation.invoice != null)
                   _buildDetailRow(
                     Icons.receipt_outlined,
-                    'Счет-фактура',
+                    l10n.invoiceLabel,
                     reservation.invoice!,
                   ),
-                if (reservation.notes != null)
+                if (reservation.notes != null && reservation.notes!.isNotEmpty)
                   _buildDetailRow(
                     Icons.note_outlined,
-                    'Комментарий',
+                    l10n.comment,
                     reservation.notes!,
                     isLast: true,
                   ),
@@ -150,13 +163,13 @@ class _ReservationDetailScreenState
             ),
           ),
           if (reservation.items.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider),
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Theme.of(context).dividerColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,53 +178,54 @@ class _ReservationDetailScreenState
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Mahsulotlar',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                        l10n.productsLabel.toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textHint,
+                          letterSpacing: 1.2,
                         ),
                       ),
                       Text(
-                        '${reservation.items.length} ta',
+                        '${reservation.items.length} ${l10n.countSuffix}',
                         style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   ...reservation.items.asMap().entries.map((entry) {
                     final item = entry.value;
                     final isLast = entry.key == reservation.items.length - 1;
                     return Container(
-                      padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-                      margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
+                      padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+                      margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
                       decoration: isLast
                           ? null
-                          : const BoxDecoration(
+                          : BoxDecoration(
                               border: Border(
-                                bottom:
-                                    BorderSide(color: AppColors.divider),
+                                bottom: BorderSide(color: Theme.of(context).dividerColor),
                               ),
                             ),
                       child: Row(
                         children: [
                           Container(
-                            width: 40,
-                            height: 40,
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(
-                              color: AppColors.accent.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
                               Icons.medication_outlined,
-                              color: AppColors.accent,
-                              size: 20,
+                              color: AppColors.primary,
+                              size: 22,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,26 +233,27 @@ class _ReservationDetailScreenState
                                 Text(
                                   item.productName,
                                   style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
                                     color: AppColors.textPrimary,
                                   ),
                                 ),
+                                const SizedBox(height: 4),
                                 Text(
-                                  '${item.quantity} dona × ${formatter.format(item.price)} so\'m',
+                                  '${item.quantity} ${l10n.pcs} × ${formatter.format(item.price)} ${l10n.sumCurrency}',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
-                                    color: AppColors.textSecondary,
+                                    color: AppColors.textHint,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                           Text(
-                            '${formatter.format(item.totalAmount)} so\'m',
+                            '${formatter.format(item.totalAmount)}',
                             style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
                               color: AppColors.textPrimary,
                             ),
                           ),
@@ -250,7 +265,7 @@ class _ReservationDetailScreenState
               ),
             ),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
         ],
       ),
     );
@@ -263,43 +278,46 @@ class _ReservationDetailScreenState
     bool isLast = false,
   }) {
     return Container(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-      margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+      margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
       decoration: isLast
           ? null
-          : const BoxDecoration(
+          : BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: AppColors.divider),
+                bottom: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: AppColors.primary, size: 18),
+            child: Icon(icon, color: AppColors.primary, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
+                  label.toUpperCase(),
                   style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                    color: AppColors.textHint,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
                 ),

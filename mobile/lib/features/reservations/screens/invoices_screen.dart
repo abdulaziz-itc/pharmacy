@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/invoice_model.dart';
 import '../../../shared/widgets/empty_view.dart';
@@ -29,13 +30,12 @@ class InvoicesScreen extends ConsumerStatefulWidget {
 class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<String> _tabs = ['Все', 'Долги'];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: _tabs.length,
+      length: 2,
       vsync: this,
       initialIndex: widget.initialShowDebts ? 1 : 0,
     );
@@ -66,49 +66,74 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(invoicesProvider);
+    final l10n = context.l10n;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Фактуры'),
-        backgroundColor: AppColors.surface,
-        bottom: TabBar(
-          controller: _tabController,
-          labelStyle: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: FontWeight.normal,
-          ),
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.primary,
-          indicatorWeight: 3,
-          tabs: _tabs.map((t) => Tab(text: t)).toList(),
+        title: Text(l10n.invoicesTitle),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50),
+          child: _buildTabBar(l10n),
         ),
       ),
-      body: _buildContent(state),
+      body: _buildContent(state, l10n),
     );
   }
 
-  Widget _buildContent(InvoicesState state) {
+  Widget _buildTabBar(S l10n) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      height: 42,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicatorPadding: const EdgeInsets.all(4),
+        indicator: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        labelColor: Colors.white,
+        unselectedLabelColor: AppColors.textSecondary,
+        labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+        unselectedLabelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+        dividerColor: Colors.transparent,
+        tabs: [
+          Tab(text: l10n.allFilter),
+          Tab(text: l10n.debtsTab),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent(InvoicesState state, S l10n) {
     if (state.status == InvoicesLoadStatus.loading) {
       return const ShimmerList(count: 6);
     }
 
     if (state.status == InvoicesLoadStatus.error && state.invoices.isEmpty) {
       return ErrorView(
-        message: state.errorMessage ?? 'Xatolik',
+        message: state.errorMessage ?? l10n.errorOccurred,
         onRetry: _loadData,
         fullScreen: true,
       );
     }
 
     if (state.invoices.isEmpty) {
-      return const EmptyView(
-        title: 'Фактуры не найдены',
+      return EmptyView(
+        title: l10n.nothingFound,
         icon: Icons.receipt_long_outlined,
       );
     }
@@ -117,126 +142,161 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
       onRefresh: () async => _loadData(),
       color: AppColors.primary,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.only(top: 8, bottom: 24),
         itemCount: state.invoices.length,
-        itemBuilder: (context, index) => _buildInvoiceCard(state.invoices[index]),
+        itemBuilder: (context, index) => _buildInvoiceCard(state.invoices[index], l10n),
       ),
     );
   }
 
-  Widget _buildInvoiceCard(InvoiceModel invoice) {
+  Widget _buildInvoiceCard(InvoiceModel invoice, S l10n) {
     final formatter = NumberFormat('#,##0', 'en_US');
-    return GestureDetector(
-      onTap: () => context.push('/invoices/${invoice.id}'),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.push('/invoices/${invoice.id}'),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.divider),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                        invoice.facturaNumber ?? 'Фактура #${invoice.id}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            invoice.facturaNumber ?? '${l10n.invoiceLabel} #${invoice.id}',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.calendar_today_outlined, size: 12, color: AppColors.textHint),
+                              const SizedBox(width: 6),
+                              Text(
+                                invoice.date.split('T')[0],
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    Text(
-                      invoice.date.split('T')[0],
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: AppColors.textHint,
+                    const SizedBox(width: 12),
+                    _buildStatusBadge(invoice),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.business_rounded, size: 16, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        invoice.customerName ?? l10n.unknownOrganization,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
-                _buildStatusBadge(invoice),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.business_rounded, size: 16, color: AppColors.textHint),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    invoice.customerName ?? 'Неизвестная организация',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.totalAmountLabel.toUpperCase(),
+                            style: GoogleFonts.inter(fontSize: 10, color: AppColors.textHint, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${formatter.format(invoice.totalAmount)} ${l10n.sumCurrency}',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            (invoice.hasDebt ? l10n.debtLabel : l10n.paidLabel).toUpperCase(),
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              color: invoice.hasDebt ? AppColors.error : AppColors.success,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${formatter.format(invoice.hasDebt ? invoice.debt : invoice.paidAmount)} ${l10n.sumCurrency}',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: invoice.hasDebt ? AppColors.error : AppColors.success,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Общая сумма',
-                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textHint),
-                    ),
-                    Text(
-                      '${formatter.format(invoice.totalAmount)} сум',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      invoice.hasDebt ? 'Долг' : 'Оплачено',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: invoice.hasDebt ? AppColors.error : AppColors.success,
-                      ),
-                    ),
-                    Text(
-                      '${formatter.format(invoice.hasDebt ? invoice.debt : invoice.paidAmount)} сум',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: invoice.hasDebt ? AppColors.error : AppColors.success,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -248,7 +308,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
       case 'paid':
         color = AppColors.success;
       case 'partial':
-        color = const Color(0xFFFBBF24);
+        color = AppColors.primary;
       case 'unpaid':
         color = AppColors.error;
       case 'cancelled':
@@ -258,16 +318,17 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Text(
         invoice.displayStatus,
         style: GoogleFonts.inter(
           fontSize: 11,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.bold,
           color: color,
         ),
       ),

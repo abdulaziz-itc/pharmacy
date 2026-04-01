@@ -127,7 +127,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 32),
-            Text('PharmaRep v1.1.0', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint)),
+            Text('${l10n.version} 1.1.0', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint)),
             const SizedBox(height: 24),
           ],
         ),
@@ -178,18 +178,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(context.l10n.language),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               title: const Text('O\'zbek'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onTap: () { ref.read(localeProvider.notifier).setLocale('uz'); Navigator.pop(context); },
-              trailing: ref.read(localeProvider).languageCode == 'uz' ? const Icon(Icons.check, color: AppColors.success) : null,
+              trailing: ref.read(localeProvider).languageCode == 'uz' ? const Icon(Icons.check_circle_rounded, color: AppColors.success) : null,
             ),
+            const SizedBox(height: 8),
             ListTile(
               title: const Text('Русский'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onTap: () { ref.read(localeProvider.notifier).setLocale('ru'); Navigator.pop(context); },
-              trailing: ref.read(localeProvider).languageCode == 'ru' ? const Icon(Icons.check, color: AppColors.success) : null,
+              trailing: ref.read(localeProvider).languageCode == 'ru' ? const Icon(Icons.check_circle_rounded, color: AppColors.success) : null,
             ),
           ],
         ),
@@ -207,28 +211,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(l10n.changePassword),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: newPasswordController,
                 obscureText: true,
-                decoration: InputDecoration(labelText: l10n.translate('new_password')),
+                decoration: InputDecoration(
+                  labelText: l10n.newPassword,
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextField(
                 controller: confirmPasswordController,
                 obscureText: true,
-                decoration: InputDecoration(labelText: l10n.translate('confirm_password')),
+                decoration: InputDecoration(
+                  labelText: l10n.confirmPassword,
+                  prefixIcon: const Icon(Icons.lock_rounded),
+                ),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.cancel, style: TextStyle(color: Theme.of(context).hintColor)),
+            ),
             ElevatedButton(
               onPressed: _isUpdatingPassword ? null : () async {
                 if (newPasswordController.text != confirmPasswordController.text) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.passwordsNoMatch)));
                   return;
                 }
                 setDialogState(() => _isUpdatingPassword = true);
@@ -237,7 +251,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   await apiClient.put('/users/me', data: {'password': newPasswordController.text});
                   if (context.mounted) {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('password_changed'))));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.passwordChanged)));
                   }
                 } catch (e) {
                   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.error}: $e')));
@@ -245,7 +259,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   if (context.mounted) setDialogState(() => _isUpdatingPassword = false);
                 }
               },
-              child: _isUpdatingPassword ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(l10n.save),
+              child: _isUpdatingPassword 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
+                : Text(l10n.save),
             ),
           ],
         ),
@@ -258,13 +274,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(context.l10n.logout),
-        content: const Text('Are you sure you want to logout?'),
+        content: Text(context.l10n.logoutConfirmation),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(context.l10n.cancel, style: TextStyle(color: Theme.of(context).hintColor)),
+          ),
           ElevatedButton(
-            onPressed: () { Navigator.pop(context); ref.read(authProvider.notifier).logout(); },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: Text(context.l10n.logout, style: const TextStyle(color: Colors.white)),
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(authProvider.notifier).logout();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(context.l10n.logout),
           ),
         ],
       ),

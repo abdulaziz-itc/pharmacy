@@ -64,7 +64,7 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: '${l10n.translate('search_organization') ?? 'Поиск организации'}...',
+                  hintText: '${l10n.searchOrganization}...',
                   prefixIcon: const Icon(Icons.search_rounded),
                 ),
                 onChanged: (value) {
@@ -95,25 +95,34 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
   Widget _buildOrgTabs(S l10n) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      height: 40,
+      height: 42,
       decoration: BoxDecoration(
-        color: AppColors.divider.withValues(alpha: 0.1),
+        color: Theme.of(context).cardColor.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: TabBar(
-        indicatorPadding: const EdgeInsets.all(3),
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicatorPadding: const EdgeInsets.all(4),
         indicator: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(9),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        labelColor: AppColors.accent,
+        labelColor: Colors.white,
         unselectedLabelColor: AppColors.textSecondary,
-        labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+        labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+        unselectedLabelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
         dividerColor: Colors.transparent,
         tabs: [
-          Tab(text: l10n.translate('hospitals') ?? 'Больницы'),
-          Tab(text: l10n.translate('pharmacies') ?? 'Аптеки'),
+          Tab(text: l10n.hospitals),
+          Tab(text: l10n.pharmacies),
         ],
       ),
     );
@@ -122,12 +131,12 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
   Widget _buildContent(OrganizationsState state, List<MedOrgModel> orgs, S l10n) {
     if (state.status == OrgsLoadStatus.loading) return const ShimmerList(count: 6);
     if (state.status == OrgsLoadStatus.error) return ErrorView(message: state.errorMessage ?? l10n.error, onRetry: () => ref.read(organizationsProvider.notifier).loadOrganizations());
-    if (orgs.isEmpty) return EmptyView(title: l10n.translate('nothing_found') ?? 'Ничего не найдено', icon: Icons.business_rounded);
+    if (orgs.isEmpty) return EmptyView(title: l10n.nothingFound, icon: Icons.business_rounded);
 
     return RefreshIndicator(
       onRefresh: () => ref.read(organizationsProvider.notifier).loadOrganizations(),
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.only(top: 8, bottom: 24),
         itemCount: orgs.length,
         itemBuilder: (context, index) => _buildOrgCard(orgs[index]),
       ),
@@ -135,17 +144,61 @@ class _OrganizationsScreenState extends ConsumerState<OrganizationsScreen> {
   }
 
   Widget _buildOrgCard(MedOrgModel org) {
-    return Card(
+    final isPharmacy = org.orgType?.toLowerCase() == 'pharmacy';
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         onTap: () => context.push('/organizations/${org.id}'),
-        leading: CircleAvatar(
-          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-          child: Icon(org.orgType?.toLowerCase() == 'pharmacy' ? Icons.local_pharmacy_rounded : Icons.local_hospital_rounded, color: AppColors.primary, size: 20),
+        leading: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: (isPharmacy ? AppColors.success : AppColors.primary).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            isPharmacy ? Icons.local_pharmacy_rounded : Icons.local_hospital_rounded, 
+            color: isPharmacy ? AppColors.success : AppColors.primary, 
+            size: 24,
+          ),
         ),
-        title: Text(org.name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
-        subtitle: Text(org.displayType, style: GoogleFonts.inter(fontSize: 12)),
-        trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+        title: Text(
+          org.name, 
+          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(
+            children: [
+              Icon(Icons.location_on_outlined, size: 12, color: AppColors.textSecondary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  org.displayType, 
+                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textHint, size: 20),
       ),
     );
   }

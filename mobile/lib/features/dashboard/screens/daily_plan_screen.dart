@@ -119,6 +119,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
       decoration: BoxDecoration(color: AppColors.divider.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
       child: TabBar(
         controller: _tabController,
+        indicatorSize: TabBarIndicatorSize.tab,
         indicatorPadding: const EdgeInsets.all(4),
         indicator: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(10), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]),
         labelColor: AppColors.accent,

@@ -46,28 +46,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _checkAuth() async {
-    // Show splash animation for at least 2 seconds
-    await Future.delayed(const Duration(seconds: 2));
-    
-    final hasToken = await _storage.hasToken();
-    if (hasToken) {
-      final info = await _storage.getUserInfo();
-      final userId = int.tryParse(info['userId'] ?? '');
-      if (userId != null) {
-        state = AuthState(
-          status: AuthStatus.authenticated,
-          user: UserModel(
-            id: userId,
-            fullName: info['fullName'] ?? '',
-            username: info['username'] ?? '',
-            role: info['role'] ?? '',
-            isActive: true,
-          ),
-        );
+    try {
+      // Show splash animation for at least 2 seconds
+      await Future.delayed(const Duration(seconds: 2));
+      
+      final hasToken = await _storage.hasToken();
+      if (hasToken) {
+        final info = await _storage.getUserInfo();
+        final userId = int.tryParse(info['userId'] ?? '');
+        if (userId != null) {
+          state = AuthState(
+            status: AuthStatus.authenticated,
+            user: UserModel(
+              id: userId,
+              fullName: info['fullName'] ?? '',
+              username: info['username'] ?? '',
+              role: info['role'] ?? '',
+              isActive: true,
+            ),
+          );
+        } else {
+          state = const AuthState(status: AuthStatus.unauthenticated);
+        }
       } else {
         state = const AuthState(status: AuthStatus.unauthenticated);
       }
-    } else {
+    } catch (e) {
+      debugPrint('Auth check error: $e');
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
   }

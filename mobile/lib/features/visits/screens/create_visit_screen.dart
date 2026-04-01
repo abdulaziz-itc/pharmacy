@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/doctors/providers/doctors_provider.dart';
 import '../providers/visits_provider.dart';
@@ -53,34 +54,135 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      lastDate: DateTime.now().add(const Duration(days: 90)),
     );
-    if (picked != null) {
+    if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
     }
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final visitsState = ref.watch(visitsProvider);
+    final doctorsState = ref.watch(doctorsProvider);
+    final l10n = context.l10n;
+
+    final List<Map<String, String>> visitTypes = [
+      {'value': 'field', 'label': l10n.fieldVisit},
+      {'value': 'office', 'label': l10n.officeVisit},
+      {'value': 'online', 'label': l10n.onlineVisit},
+    ];
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text(l10n.createVisitPlan),
+        actions: [
+          TextButton(
+            onPressed: visitsState.isSubmitting ? null : _submit,
+            child: Text(
+              l10n.saveAction.toUpperCase(),
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primary,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionTitle(l10n.selectDoctor, Icons.person_search_rounded),
+              const SizedBox(height: 12),
+              _buildDoctorSelector(l10n, doctorsState.doctors),
+              
+              const SizedBox(height: 32),
+              _buildSectionTitle(l10n.visitDate, Icons.calendar_today_rounded),
+              const SizedBox(height: 12),
+              _buildDatePicker(l10n),
+              
+              const SizedBox(height: 32),
+              _buildSectionTitle(l10n.visitType, Icons.category_rounded),
+              const SizedBox(height: 12),
+              _buildTypeSelector(visitTypes),
+              
+              const SizedBox(height: 32),
+              _buildSectionTitle(l10n.visitSubject, Icons.subject_rounded),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _subjectController,
+                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: '${l10n.visitSubject}...',
+                  hintStyle: GoogleFonts.inter(color: AppColors.textHint, fontSize: 14),
+                  prefixIcon: const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 20),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return l10n.enterSubject;
+                  }
+                  return null;
+                },
+              ),
+              
+              const SizedBox(height: 32),
+              _buildSectionTitle(l10n.commentOptional, Icons.notes_rounded),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _notesController,
+                maxLines: 4,
+                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: '${l10n.commentOptional}...',
+                  hintStyle: GoogleFonts.inter(color: AppColors.textHint, fontSize: 14),
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
+              
+              const SizedBox(height: 48),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: visitsState.isSubmitting ? null : _submit,
+                  child: visitsState.isSubmitting
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Text(l10n.savePlan.toUpperCase()),
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _submit() async {
+    final l10n = context.l10n;
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDoctorId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Выберите врача'),
+        SnackBar(
+          content: Text(l10n.selectDoctor),
           backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -100,316 +202,300 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('План визита создан!'),
-            backgroundColor: AppColors.statusApproved,
+          SnackBar(
+            content: Text(l10n.visitPlanCreated),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
           ),
         );
         Navigator.of(context).pop();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Произошла ошибка'),
+          SnackBar(
+            content: Text(l10n.unexpectedError),
             backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final visitsState = ref.watch(visitsProvider);
-    final doctorsState = ref.watch(doctorsProvider);
+  Widget _buildSectionTitle(String title, [IconData? icon]) {
+    return Row(
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(width: 8),
+        ],
+        Text(
+          title.toUpperCase(),
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textHint,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('План визита'),
-        backgroundColor: AppColors.surface,
-        actions: [
-          TextButton(
-            onPressed: visitsState.isSubmitting ? null : _submit,
-            child: Text(
-              'Сохранить',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+  Widget _buildDoctorSelector(S l10n, List doctors) {
+    return InkWell(
+      onTap: () => _showDoctorPicker(doctors),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.person_search_rounded, color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                _selectedDoctorName ?? l10n.selectDoctor,
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: _selectedDoctorName != null ? FontWeight.w700 : FontWeight.w500,
+                  color: _selectedDoctorName != null ? AppColors.textPrimary : AppColors.textHint,
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Doctor selector
-              _buildSectionTitle('Выбор врача'),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () => _showDoctorPicker(doctorsState.doctors),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.person_outline_rounded,
-                        color: AppColors.textHint,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _selectedDoctorName ?? 'Выберите врача',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: _selectedDoctorName != null
-                                ? AppColors.textPrimary
-                                : AppColors.textHint,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.arrow_drop_down_rounded,
-                        color: AppColors.textHint,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Date picker
-              _buildSectionTitle('Дата визита'),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: _pickDate,
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_rounded,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        DateFormat('dd MMMM yyyy', 'ru').format(_selectedDate),
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Visit type
-              _buildSectionTitle('Тип визита'),
-              const SizedBox(height: 8),
-              Row(
-                children: _visitTypes.map((type) {
-                  final isSelected = _visitType == type['value'];
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _visitType = type['value']!),
-                      child: Container(
-                        margin: EdgeInsets.only(
-                          right: type != _visitTypes.last ? 8 : 0,
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primary
-                              : AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.primary
-                                : AppColors.border,
-                          ),
-                        ),
-                        child: Text(
-                          type['label']!,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              // Subject
-              _buildSectionTitle('Тема'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _subjectController,
-                decoration: const InputDecoration(
-                  hintText: 'Цель визита...',
-                  prefixIcon: Icon(Icons.subject_rounded, color: AppColors.textHint),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Введите тему';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              // Notes
-              _buildSectionTitle('Комментарий (опционально)'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _notesController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'Дополнительная информация...',
-                  alignLabelWithHint: true,
-                ),
-              ),
-              const SizedBox(height: 32),
-              // Submit button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: visitsState.isSubmitting ? null : _submit,
-                  child: visitsState.isSubmitting
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
-                        )
-                      : const Text('Сохранить план'),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textHint),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.inter(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textSecondary,
+  Widget _buildDatePicker(S l10n) {
+    return InkWell(
+      onTap: _pickDate,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.statusPending.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.calendar_month_rounded, color: AppColors.statusPending, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              DateFormat('dd MMMM yyyy', l10n.locale.languageCode).format(_selectedDate),
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  Widget _buildTypeSelector(List<Map<String, String>> types) {
+    return Row(
+      children: types.map((type) {
+        final isSelected = _visitType == type['value'];
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _visitType = type['value']!),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: EdgeInsets.only(right: type != types.last ? 10 : 0),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected ? AppColors.primary : Theme.of(context).dividerColor,
+                ),
+                boxShadow: isSelected ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ] : null,
+              ),
+              child: Text(
+                type['label']!,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   void _showDoctorPicker(List doctors) {
+    final l10n = context.l10n;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          maxChildSize: 0.9,
-          minChildSize: 0.4,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.divider,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Выбор врача',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 40,
+                offset: const Offset(0, -10),
+              ),
+            ],
+          ),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.8,
+            maxChildSize: 0.95,
+            minChildSize: 0.5,
+            expand: false,
+            builder: (context, scrollController) {
+              return Column(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 16),
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).dividerColor,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    controller: scrollController,
-                    itemCount: doctors.length,
-                    itemBuilder: (context, index) {
-                      final doctor = doctors[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.accent.withValues(alpha: 0.2),
-                          child: Text(
-                            doctor.initials,
-                            style: GoogleFonts.inter(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          l10n.selectDoctor,
+                          style: GoogleFonts.inter(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close_rounded),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Theme.of(context).cardColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.separated(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 48),
+                      itemCount: doctors.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final doctor = doctors[index];
+                        return ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          tileColor: Theme.of(context).cardColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: Theme.of(context).dividerColor),
+                          ),
+                          leading: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                doctor.initials,
+                                style: GoogleFonts.inter(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                        title: Text(
-                          doctor.fullName,
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                          title: Text(
+                            doctor.fullName,
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
-                        ),
-                        subtitle: doctor.specialty != null
-                            ? Text(
-                                doctor.specialty!.name,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppColors.accent,
-                                ),
-                              )
-                            : null,
-                        onTap: () {
-                          setState(() {
-                            _selectedDoctorId = doctor.id;
-                            _selectedDoctorName = doctor.fullName;
-                          });
-                          Navigator.pop(context);
-                        },
-                      );
-                    },
+                          subtitle: doctor.specialty != null
+                              ? Text(
+                                  doctor.specialty!.name,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    color: AppColors.textHint,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                )
+                              : null,
+                          onTap: () {
+                            setState(() {
+                              _selectedDoctorId = doctor.id;
+                              _selectedDoctorName = doctor.fullName;
+                            });
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         );
       },
     );

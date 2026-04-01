@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/l10n/l10n.dart';
+import '../../../core/theme/app_theme.dart';
 import '../providers/doctors_provider.dart';
 import '../providers/crm_lookups_provider.dart';
 import '../../organizations/providers/organizations_provider.dart';
@@ -33,10 +35,15 @@ class _CreateDoctorScreenState extends ConsumerState<CreateDoctorScreen> {
   }
 
   Future<void> _submit() async {
+    final l10n = context.l10n;
     if (!_formKey.currentState!.validate()) return;
     if (_selectedRegionId == null || _selectedSpecialtyId == null || _selectedOrgId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Пожалуйста, заполните обязательные поля (Регион, Специальность, Организация)')),
+        SnackBar(
+          content: Text(l10n.fillRequiredFields),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
@@ -58,13 +65,21 @@ class _CreateDoctorScreenState extends ConsumerState<CreateDoctorScreen> {
         if (mounted) {
           context.pop();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Врач успешно добавлен')),
+            SnackBar(
+              content: Text(l10n.doctorAddedSuccess),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ошибка при создании врача')),
+            SnackBar(
+              content: Text(l10n.doctorCreateError),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         }
       }
@@ -79,12 +94,13 @@ class _CreateDoctorScreenState extends ConsumerState<CreateDoctorScreen> {
     final categoriesAsync = ref.watch(doctorCategoriesProvider);
     final regionsAsync = ref.watch(regionsProvider);
     final organizationsState = ref.watch(organizationsProvider);
+    final l10n = context.l10n;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Добавить врача',
+          l10n.addDoctorTitle,
           style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         backgroundColor: Colors.white,
@@ -95,86 +111,82 @@ class _CreateDoctorScreenState extends ConsumerState<CreateDoctorScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSectionTitle('ОСНОВНАЯ ИНФОРМАЦИЯ'),
-              const SizedBox(height: 12),
+              _buildSectionTitle(l10n.mainInfoSection),
+              const SizedBox(height: 16),
               _buildTextField(
                 controller: _nameController,
-                label: 'ФИО Врача *',
-                icon: Icons.person_outline,
-                validator: (v) => v == null || v.isEmpty ? 'Введите ФИО' : null,
+                label: '${l10n.doctorFullNameLabel} *',
+                icon: Icons.person_outline_rounded,
+                validator: (v) => v == null || v.isEmpty ? l10n.enterFullNameHint : null,
               ),
               const SizedBox(height: 16),
               _buildTextField(
                 controller: _contactController,
-                label: 'Контактный телефон',
+                label: l10n.contactPhoneLabel,
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
               ),
-              const SizedBox(height: 24),
-              _buildSectionTitle('КАТЕГОРИЗАЦИЯ'),
-              const SizedBox(height: 12),
+              const SizedBox(height: 32),
+              _buildSectionTitle(l10n.categorizationSection),
+              const SizedBox(height: 16),
               
-              // Specialty Dropdown
               specialtiesAsync.when(
                 data: (list) => _buildDropdown<int>(
-                  label: 'Специальность *',
+                  label: '${l10n.specialtyLabel} *',
                   value: _selectedSpecialtyId,
                   items: list.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))).toList(),
                   onChanged: (v) => setState(() => _selectedSpecialtyId = v),
                   icon: Icons.medical_services_outlined,
                 ),
-                loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const Text('Ошибка загрузки специальностей'),
+                loading: () => const LinearProgressIndicator(color: AppColors.primary, backgroundColor: Colors.transparent),
+                error: (_, __) => Text(l10n.specialtiesLoadError, style: GoogleFonts.inter(color: AppColors.error, fontSize: 12)),
               ),
               const SizedBox(height: 16),
 
-              // Category Dropdown
               categoriesAsync.when(
                 data: (list) => _buildDropdown<int>(
-                  label: 'Категория',
+                  label: l10n.categoryLabel,
                   value: _selectedCategoryId,
                   items: list.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))).toList(),
                   onChanged: (v) => setState(() => _selectedCategoryId = v),
-                  icon: Icons.star_outline,
+                  icon: Icons.star_outline_rounded,
                 ),
-                loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const Text('Ошибка загрузки категорий'),
+                loading: () => const LinearProgressIndicator(color: AppColors.primary, backgroundColor: Colors.transparent),
+                error: (_, __) => Text(l10n.categoriesLoadError, style: GoogleFonts.inter(color: AppColors.error, fontSize: 12)),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
-              _buildSectionTitle('ЛОКАЦИЯ И МЕСТО РАБОТЫ'),
-              const SizedBox(height: 12),
+              _buildSectionTitle(l10n.locationWorkSection),
+              const SizedBox(height: 16),
 
-              // Region Dropdown
               regionsAsync.when(
                 data: (list) => _buildDropdown<int>(
-                  label: 'Регион *',
+                  label: '${l10n.regionLabel} *',
                   value: _selectedRegionId,
                   items: list.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))).toList(),
                   onChanged: (v) => setState(() => _selectedRegionId = v),
                   icon: Icons.map_outlined,
                 ),
-                loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const Text('Ошибка загрузки регионов'),
+                loading: () => const LinearProgressIndicator(color: AppColors.primary, backgroundColor: Colors.transparent),
+                error: (_, __) => Text(l10n.regionsLoadError, style: GoogleFonts.inter(color: AppColors.error, fontSize: 12)),
               ),
               const SizedBox(height: 16),
 
-              // Organization Dropdown
               _buildDropdown<int>(
-                label: 'Организация *',
+                label: '${l10n.organization} *',
                 value: _selectedOrgId,
                 items: organizationsState.organizations.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))).toList(),
                 onChanged: (v) => setState(() => _selectedOrgId = v),
                 icon: Icons.business_outlined,
               ),
               
-              const SizedBox(height: 40),
+              const SizedBox(height: 48),
               
               SizedBox(
                 width: double.infinity,
@@ -182,20 +194,20 @@ class _CreateDoctorScreenState extends ConsumerState<CreateDoctorScreen> {
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
                   child: _isSubmitting
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : Text(
-                          'СОХРАНИТЬ',
+                          l10n.saveAction.toUpperCase(),
                           style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1),
                         ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -207,9 +219,9 @@ class _CreateDoctorScreenState extends ConsumerState<CreateDoctorScreen> {
     return Text(
       title,
       style: GoogleFonts.inter(
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: FontWeight.w800,
-        color: Colors.blueGrey[400],
+        color: AppColors.textHint,
         letterSpacing: 1.2,
       ),
     );
@@ -224,22 +236,23 @@ class _CreateDoctorScreenState extends ConsumerState<CreateDoctorScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
         validator: validator,
+        style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15),
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: const Color(0xFF2563EB), size: 20),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          filled: true,
-          fillColor: Colors.white,
+          labelStyle: GoogleFonts.inter(color: AppColors.textHint),
+          prefixIcon: Icon(icon, color: AppColors.primary, size: 22),
+          border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
@@ -255,23 +268,17 @@ class _CreateDoctorScreenState extends ConsumerState<CreateDoctorScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: DropdownButtonFormField<T>(
         value: value,
         items: items,
         onChanged: onChanged,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: const Color(0xFF2563EB), size: 20),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          filled: true,
-          fillColor: Colors.white,
-        ),
       ),
     );
   }

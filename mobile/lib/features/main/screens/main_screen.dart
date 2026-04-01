@@ -48,7 +48,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+              width: 1,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.05),
+              blurRadius: 15,
+              offset: const Offset(0, -5),
+            )
+          ],
         ),
         child: SafeArea(
           child: Container(
@@ -57,11 +69,36 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildNavItem(index: 0, icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart_rounded, label: l10n.reports),
-                _buildNavItem(index: 1, icon: Icons.group_outlined, activeIcon: Icons.group_rounded, label: l10n.translate('clients') ?? 'Клиенты'),
-                _buildNavItem(index: 2, icon: Icons.calendar_today_outlined, activeIcon: Icons.calendar_today_rounded, label: l10n.plan),
-                _buildNavItem(index: 3, icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view_rounded, label: l10n.products),
-                _buildNavItem(index: 4, icon: Icons.account_circle_outlined, activeIcon: Icons.account_circle_rounded, label: l10n.profile),
+                _buildNavItem(
+                  index: 0,
+                  icon: Icons.dashboard_outlined,
+                  activeIcon: Icons.dashboard_rounded,
+                  label: l10n.home,
+                ),
+                _buildNavItem(
+                  index: 1,
+                  icon: Icons.business_outlined,
+                  activeIcon: Icons.business_rounded,
+                  label: l10n.organizationsNav,
+                ),
+                _buildNavItem(
+                  index: 2,
+                  icon: Icons.calendar_today_outlined,
+                  activeIcon: Icons.calendar_today_rounded,
+                  label: l10n.plan,
+                ),
+                _buildNavItem(
+                  index: 3,
+                  icon: Icons.inventory_2_outlined,
+                  activeIcon: Icons.inventory_2_rounded,
+                  label: l10n.products,
+                ),
+                _buildNavItem(
+                  index: 4,
+                  icon: Icons.person_outline,
+                  activeIcon: Icons.person,
+                  label: l10n.profileNav,
+                ),
               ],
             ),
           ),

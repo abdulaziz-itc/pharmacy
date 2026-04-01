@@ -35,6 +35,7 @@ class _ClinicsScreenState extends ConsumerState<ClinicsScreen> with SingleTicker
         title: Text(l10n.translate('clients') ?? 'Клиенты'),
         bottom: TabBar(
           controller: _tabController,
+          indicatorSize: TabBarIndicatorSize.tab,
           tabs: [
             Tab(text: l10n.doctors),
             Tab(text: l10n.organizations),

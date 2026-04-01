@@ -55,6 +55,7 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: isEmbedded ? null : AppBar(
         title: Text(l10n.doctors),
+        backgroundColor: Colors.transparent,
         actions: [NotificationAction()],
       ),
       body: ListView(
@@ -62,26 +63,47 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
         padding: EdgeInsets.zero,
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: '${l10n.translate('search_doctor') ?? 'Поиск врача'}...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref.read(doctorsProvider.notifier).search('');
-                  },
-                ),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Theme.of(context).dividerColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              onChanged: (value) {
-                setState(() {});
-                if (value.isEmpty || value.length >= 2) {
-                  ref.read(doctorsProvider.notifier).search(value);
-                }
-              },
+              child: TextField(
+                controller: _searchController,
+                style: GoogleFonts.inter(fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color),
+                decoration: InputDecoration(
+                  hintText: '${l10n.searchDoctor}...',
+                  hintStyle: GoogleFonts.inter(color: AppColors.textHint),
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 22),
+                  suffixIcon: _searchController.text.isNotEmpty 
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textHint),
+                        onPressed: () {
+                          _searchController.clear();
+                          ref.read(doctorsProvider.notifier).search('');
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                ),
+                onChanged: (value) {
+                  setState(() {});
+                  if (value.isEmpty || value.length >= 2) {
+                    ref.read(doctorsProvider.notifier).search(value);
+                  }
+                },
+              ),
             ),
           ),
           _buildContent(state, l10n),
@@ -90,7 +112,7 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
       floatingActionButton: isEmbedded ? null : FloatingActionButton(
         heroTag: 'doctors_fab',
         onPressed: () => context.push('/doctors/create'),
-        child: const Icon(Icons.add, size: 28),
+        child: const Icon(Icons.add_rounded, size: 28),
       ),
     );
   }
@@ -98,36 +120,118 @@ class _DoctorsScreenState extends ConsumerState<DoctorsScreen> {
   Widget _buildContent(DoctorsState state, S l10n) {
     if (state.status == DoctorsLoadStatus.loading) return const ShimmerList(count: 6);
     if (state.status == DoctorsLoadStatus.error) {
-      return ErrorView(message: state.errorMessage ?? l10n.error, onRetry: () => ref.read(doctorsProvider.notifier).loadDoctors(refresh: true), fullScreen: true);
+      return ErrorView(
+        message: state.errorMessage ?? l10n.errorOccurred, 
+        onRetry: () => ref.read(doctorsProvider.notifier).loadDoctors(refresh: true), 
+        fullScreen: true
+      );
     }
     if (state.doctors.isEmpty) {
-      return EmptyView(title: l10n.translate('nothing_found') ?? 'Врачи не найдены', icon: Icons.person_search_rounded);
+      return EmptyView(
+        title: l10n.nothingFound, 
+        icon: Icons.person_search_rounded
+      );
     }
 
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(bottom: 24),
       itemCount: state.doctors.length + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= state.doctors.length) {
-          return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24), 
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary))
+          );
         }
         final doctor = state.doctors[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-          child: ListTile(
-            onTap: () => context.push('/doctors/${doctor.id}'),
-            leading: Hero(
-              tag: 'doctor_avatar_${doctor.id}',
-              child: CircleAvatar(
-                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                child: Text(doctor.initials),
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Theme.of(context).dividerColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => context.push('/doctors/${doctor.id}'),
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Hero(
+                      tag: 'doctor_avatar_${doctor.id}',
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          doctor.initials,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            doctor.fullName,
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).textTheme.titleLarge?.color,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              doctor.specialty?.name ?? l10n.specialtyLabel,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.textHint, size: 22),
+                  ],
+                ),
               ),
             ),
-            title: Text(doctor.fullName, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
-            subtitle: Text(doctor.specialty?.name ?? '', style: GoogleFonts.inter(fontSize: 12)),
-            trailing: const Icon(Icons.chevron_right_rounded, size: 20),
           ),
         );
       },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../l10n/l10n.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
@@ -8,6 +9,7 @@ import '../../features/doctors/screens/doctor_detail_screen.dart';
 import '../../features/main/screens/main_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/organizations/screens/organizations_screen.dart';
+import '../../features/organizations/screens/organization_detail_screen.dart';
 import '../../features/reservations/screens/reservations_screen.dart';
 import '../../features/reservations/screens/invoices_screen.dart';
 import '../../features/reservations/screens/invoice_detail_screen.dart';
@@ -50,107 +52,115 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/splash',
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (context, state) => _fadeTransition(state, const SplashScreen()),
       ),
       GoRoute(
         path: '/login',
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => _fadeTransition(state, const LoginScreen()),
       ),
       GoRoute(
         path: '/',
         name: 'home',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final indexStr = state.uri.queryParameters['index'];
           final index = int.tryParse(indexStr ?? '');
-          return MainScreen(initialIndex: index);
+          return _fadeTransition(state, MainScreen(initialIndex: index));
         },
       ),
       GoRoute(
         path: '/doctors/create',
         name: 'doctor_create',
-        builder: (context, state) => const CreateDoctorScreen(),
+        pageBuilder: (context, state) => _fadeTransition(state, const CreateDoctorScreen()),
       ),
       GoRoute(
         path: '/doctors/:id',
         name: 'doctor_detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
-          return DoctorDetailScreen(doctorId: id);
+          return _fadeTransition(state, DoctorDetailScreen(doctorId: id));
         },
       ),
       GoRoute(
         path: '/reservations',
         name: 'reservations',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final year = int.tryParse(state.uri.queryParameters['year'] ?? '');
           final month = int.tryParse(state.uri.queryParameters['month'] ?? '');
-          return ReservationsScreen(year: year, month: month);
+          return _fadeTransition(state, ReservationsScreen(year: year, month: month));
         },
       ),
       GoRoute(
         path: '/reservations/create',
         name: 'reservation_create',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final orgId = int.tryParse(state.uri.queryParameters['orgId'] ?? '');
           final orgName = state.uri.queryParameters['orgName'];
-          return CreateReservationScreen(orgId: orgId, orgName: orgName);
+          return _fadeTransition(state, CreateReservationScreen(orgId: orgId, orgName: orgName));
         },
       ),
       GoRoute(
         path: '/reservations/:id',
         name: 'reservation_detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
-          return ReservationDetailScreen(reservationId: id);
+          return _fadeTransition(state, ReservationDetailScreen(reservationId: id));
         },
       ),
       GoRoute(
         path: '/invoices',
         name: 'invoices',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final showDebts = state.uri.queryParameters['showDebts'] == 'true';
           final year = int.tryParse(state.uri.queryParameters['year'] ?? '');
           final month = int.tryParse(state.uri.queryParameters['month'] ?? '');
-          return InvoicesScreen(
+          return _fadeTransition(state, InvoicesScreen(
             initialShowDebts: showDebts,
             year: year,
             month: month,
-          );
+          ));
         },
       ),
       GoRoute(
         path: '/invoices/:id',
         name: 'invoice_detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
-          return InvoiceDetailScreen(invoiceId: id);
+          return _fadeTransition(state, InvoiceDetailScreen(invoiceId: id));
         },
       ),
       GoRoute(
         path: '/visits/create',
         name: 'visit_create',
-        builder: (context, state) => const CreateVisitScreen(),
+        pageBuilder: (context, state) => _fadeTransition(state, const CreateVisitScreen()),
       ),
       GoRoute(
         path: '/notifications',
         name: 'notifications',
-        builder: (context, state) => const NotificationsScreen(),
+        pageBuilder: (context, state) => _fadeTransition(state, const NotificationsScreen()),
       ),
       GoRoute(
         path: '/organizations',
         name: 'organizations',
-        builder: (context, state) => const OrganizationsScreen(),
+        pageBuilder: (context, state) => _fadeTransition(state, const OrganizationsScreen()),
       ),
       GoRoute(
         path: '/organizations/create',
         name: 'organization_create',
-        builder: (context, state) => const CreateOrganizationScreen(),
+        pageBuilder: (context, state) => _fadeTransition(state, const CreateOrganizationScreen()),
+      ),
+      GoRoute(
+        path: '/organizations/:id',
+        name: 'organization_detail',
+        pageBuilder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return _fadeTransition(state, OrganizationDetailScreen(orgId: id));
+        },
       ),
       GoRoute(
         path: '/bonus',
         name: 'bonus',
-        builder: (context, state) => const BonusScreen(),
+        pageBuilder: (context, state) => _fadeTransition(state, const BonusScreen()),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
@@ -158,13 +168,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
-            const SizedBox(height: 16),
-            Text('Страница не найдена: ${state.matchedLocation}'),
+            Text('${context.l10n.pageNotFound}: ${state.matchedLocation}'),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => context.go('/'),
-              child: const Text('На главную'),
+              child: Text(context.l10n.goHome),
             ),
           ],
         ),
@@ -173,3 +181,16 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
+CustomTransitionPage _fadeTransition(GoRouterState state, Widget child) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+        child: child,
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 300),
+  );
+}

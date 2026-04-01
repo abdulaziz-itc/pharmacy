@@ -33,10 +33,11 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
   }
 
   Future<void> _submit() async {
+    final l10n = context.l10n;
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDoctorId == null || _selectedProductId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Пожалуйста, выберите врача и продукт')),
+        SnackBar(content: Text(l10n.selectDoctorProductError)),
       );
       return;
     }
@@ -57,11 +58,11 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
       if (success) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Бонус успешно распределен')),
+          SnackBar(content: Text(l10n.allocationSuccess)),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ошибка при распределении бонуса')),
+          SnackBar(content: Text(l10n.allocationError)),
         );
       }
     }
@@ -71,6 +72,7 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
   Widget build(BuildContext context) {
     final doctorsState = ref.watch(doctorsProvider);
     final productsAsync = ref.watch(productsProvider);
+    final l10n = context.l10n;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -87,7 +89,7 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Прикрепить к врачу',
+                      l10n.attachToDoctorTitle,
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -103,10 +105,10 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                 const SizedBox(height: 16),
                 
                 // Doctor Selection
-                Text('Выберите врача', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(l10n.selectDoctor, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
-                  decoration: _inputDecoration('Поиск врача...'),
+                  decoration: _inputDecoration(l10n.searchDoctorHint),
                   items: doctorsState.doctors.map((d) {
                     return DropdownMenuItem(
                       value: d.id,
@@ -114,16 +116,16 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                     );
                   }).toList(),
                   onChanged: (val) => setState(() => _selectedDoctorId = val),
-                  validator: (val) => val == null ? 'Выберите врача' : null,
+                  validator: (val) => val == null ? l10n.selectDoctor : null,
                 ),
                 const SizedBox(height: 16),
 
                 // Product Selection
-                Text('Выберите продукт', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(l10n.selectProduct, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 8),
                 productsAsync.when(
                   data: (products) => DropdownButtonFormField<int>(
-                    decoration: _inputDecoration('Поиск продукта...'),
+                    decoration: _inputDecoration(l10n.searchProduct),
                     items: products.map((p) {
                       return DropdownMenuItem(
                         value: p.id,
@@ -131,34 +133,34 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                       );
                     }).toList(),
                     onChanged: (val) => setState(() => _selectedProductId = val),
-                    validator: (val) => val == null ? 'Выберите продукт' : null,
+                    validator: (val) => val == null ? l10n.selectProduct : null,
                   ),
                   loading: () => const LinearProgressIndicator(),
-                  error: (e, _) => Text('Ошибка загрузки продуктов: $e'),
+                  error: (e, _) => Text('${l10n.errorLoading} $e'),
                 ),
                 const SizedBox(height: 16),
 
                 // Amount
-                Text('Сумма (Доступно: ${NumberFormat('#,##0').format(widget.availableBalance)} UZS)', 
+                Text('${l10n.enterAmount} (${l10n.availableBalance}: ${NumberFormat('#,##0').format(widget.availableBalance)} UZS)', 
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _amountController,
                   keyboardType: TextInputType.number,
-                  decoration: _inputDecoration('Введите сумму'),
+                  decoration: _inputDecoration(l10n.enterAmount),
                   validator: (val) {
-                    if (val == null || val.isEmpty) return 'Введите сумму';
+                    if (val == null || val.isEmpty) return l10n.enterAmount;
                     final amount = double.tryParse(val);
-                    if (amount == null) return 'Некорректная сумма';
-                    if (amount > widget.availableBalance) return 'Недостаточно средств';
-                    if (amount <= 0) return 'Сумма должна быть больше 0';
+                    if (amount == null) return l10n.error;
+                    if (amount > widget.availableBalance) return l10n.debtRemainder; // Reuse debtRemainder for insufficient funds
+                    if (amount <= 0) return l10n.error;
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
 
                 // Date Picker (Month/Year)
-                Text('Период (Месяц/Год)', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(l10n.periodLabel, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 8),
                 InkWell(
                   onTap: () async {
@@ -180,7 +182,7 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                       children: [
                         const Icon(Icons.calendar_today, size: 16, color: Colors.blue),
                         const SizedBox(width: 8),
-                        Text(DateFormat('MMMM yyyy').format(_selectedDate)),
+                        Text(DateFormat('MMMM yyyy', l10n.locale.languageCode).format(_selectedDate)),
                       ],
                     ),
                   ),
@@ -188,11 +190,11 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                 const SizedBox(height: 16),
 
                 // Notes
-                Text('Примечание (опционально)', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(l10n.notesPlaceholder, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _notesController,
-                  decoration: _inputDecoration('Напишите что-нибудь...'),
+                  decoration: _inputDecoration(l10n.notesPlaceholder),
                   maxLines: 2,
                 ),
                 const SizedBox(height: 24),
@@ -204,6 +206,12 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isSubmitting 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text(l10n.submitAllocation),
+                ),
+shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _isSubmitting 
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))

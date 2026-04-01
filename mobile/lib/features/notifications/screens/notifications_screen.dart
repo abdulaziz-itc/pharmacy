@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/notification_model.dart';
 import '../../../shared/widgets/empty_view.dart';
@@ -26,54 +27,38 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     });
   }
 
-  String _formatDate(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr).toLocal();
-      final now = DateTime.now();
-      final diff = now.difference(date);
-      if (diff.inMinutes < 60) {
-        return '${diff.inMinutes} мин. назад';
-      } else if (diff.inHours < 24) {
-        return '${diff.inHours} ч. назад';
-      } else if (diff.inDays < 7) {
-        return '${diff.inDays} дн. назад';
-      }
-      return DateFormat('dd.MM.yyyy').format(date);
-    } catch (e) {
-      return dateStr;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(notificationsProvider);
+    final l10n = context.l10n;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         centerTitle: false,
         title: Row(
           children: [
-            Text(
-              'Уведомления',
-              style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary),
-            ),
+            Text(l10n.notifications),
             if (state.unreadCount > 0) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.error,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.error.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Text(
                   '${state.unreadCount}',
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w900,
                     color: Colors.white,
                   ),
                 ),
@@ -81,113 +66,126 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             ],
           ],
         ),
-        backgroundColor: AppColors.surface,
-        elevation: 0,
         actions: [
           if (state.unreadCount > 0)
             TextButton(
-              onPressed: () =>
-                  ref.read(notificationsProvider.notifier).markAllAsRead(),
+              onPressed: () => ref.read(notificationsProvider.notifier).markAllAsRead(),
               child: Text(
-                'Прочитать все',
+                l10n.readAllAction.toUpperCase(),
                 style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                   color: AppColors.primary,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
         ],
       ),
-      body: _buildContent(state),
+      body: _buildContent(state, l10n),
     );
   }
 
-  Widget _buildContent(NotificationsState state) {
+  String _formatDate(String dateStr, S l10n) {
+    try {
+      final date = DateTime.parse(dateStr).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      if (diff.inMinutes < 60) {
+        return '${diff.inMinutes} ${l10n.minutesAgo}';
+      } else if (diff.inHours < 24) {
+        return '${diff.inHours} ${l10n.hoursAgo}';
+      } else if (diff.inDays < 7) {
+        return '${diff.inDays} ${l10n.daysAgo}';
+      }
+      return DateFormat('dd.MM.yyyy').format(date);
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  Widget _buildContent(NotificationsState state, S l10n) {
     if (state.status == NotifLoadStatus.loading) {
       return const ShimmerList(count: 6);
     }
 
     if (state.status == NotifLoadStatus.error && state.notifications.isEmpty) {
       return ErrorView(
-        message: state.errorMessage ?? 'Ошибка загрузки',
-        onRetry: () =>
-            ref.read(notificationsProvider.notifier).loadNotifications(),
+        message: state.errorMessage ?? l10n.errorLoading,
+        onRetry: () => ref.read(notificationsProvider.notifier).loadNotifications(),
         fullScreen: true,
       );
     }
 
     if (state.notifications.isEmpty) {
-      return const EmptyView(
-        title: 'Уведомлений нет',
-        subtitle: 'Ваши новые уведомления появятся здесь',
+      return EmptyView(
+        title: l10n.noNotifications,
+        subtitle: l10n.noNotificationsSubtitle,
         icon: Icons.notifications_none_rounded,
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () =>
-          ref.read(notificationsProvider.notifier).loadNotifications(),
+      onRefresh: () => ref.read(notificationsProvider.notifier).loadNotifications(),
       color: AppColors.primary,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         itemCount: state.notifications.length,
         itemBuilder: (context, index) {
-          return _buildNotificationCard(state.notifications[index]);
+          return _buildNotificationCard(state.notifications[index], l10n);
         },
       ),
     );
   }
 
-  Widget _buildNotificationCard(NotificationModel notification) {
+  Widget _buildNotificationCard(NotificationModel notification, S l10n) {
     return GestureDetector(
       onTap: () {
         if (notification.isUnread) {
-          ref
-              .read(notificationsProvider.notifier)
-              .markAsRead(notification.id);
+          ref.read(notificationsProvider.notifier).markAsRead(notification.id);
         }
       },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: notification.isUnread
-                ? AppColors.primary.withValues(alpha: 0.1)
-                : AppColors.divider.withValues(alpha: 0.5),
+                ? AppColors.primary.withValues(alpha: 0.3)
+                : Theme.of(context).dividerColor,
+            width: notification.isUnread ? 1.5 : 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 color: notification.isUnread
                     ? AppColors.primary.withValues(alpha: 0.1)
-                    : AppColors.background,
-                borderRadius: BorderRadius.circular(14),
+                    : Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
                 _getNotificationIcon(notification.topic),
-                color: notification.isUnread
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
-                size: 24,
+                color: notification.isUnread ? AppColors.primary : AppColors.textHint,
+                size: 26,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,9 +198,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                           notification.topic,
                           style: GoogleFonts.inter(
                             fontSize: 14,
-                            fontWeight: notification.isUnread
-                                ? FontWeight.w700
-                                : FontWeight.w600,
+                            fontWeight: notification.isUnread ? FontWeight.w900 : FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
                           maxLines: 1,
@@ -210,21 +206,23 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         ),
                       ),
                       Text(
-                        _formatDate(notification.createdAt),
+                        _formatDate(notification.createdAt, l10n),
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           color: AppColors.textHint,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     notification.message,
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       color: AppColors.textSecondary,
                       height: 1.5,
+                      fontWeight: notification.isUnread ? FontWeight.w600 : FontWeight.w400,
                     ),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/warehouse_model.dart';
 import '../../../shared/models/product_model.dart';
@@ -66,60 +67,65 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(reservationsProvider);
+    final l10n = context.l10n;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Создание брони',
-          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+          l10n.createReservation,
+          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: AppColors.surface,
-        elevation: 0,
         centerTitle: false,
       ),
       body: Column(
         children: [
-          _buildTopSection(state),
-          _buildSearchSection(),
-          Expanded(child: _buildCartOrResults(state)),
+          _buildTopSection(l10n, state),
+          _buildSearchSection(l10n),
+          Expanded(child: _buildCartOrResults(l10n, state)),
         ],
       ),
-      bottomNavigationBar: _buildBottomBar(state),
+      bottomNavigationBar: _buildBottomBar(l10n, state),
     );
   }
 
-  Widget _buildTopSection(ReservationsState state) {
+  Widget _buildTopSection(S l10n, ReservationsState state) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.divider, width: 0.5)),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).secondaryHeaderColor,
+        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor, width: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Выберите склад',
-            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+            l10n.selectWarehouse.toUpperCase(),
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textHint,
+              letterSpacing: 1.2,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.divider),
+              border: Border.all(color: Theme.of(context).dividerColor),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<WarehouseModel>(
                 value: state.selectedWarehouse,
                 isExpanded: true,
-                hint: const Text('Выберите склад'),
+                dropdownColor: Theme.of(context).cardColor,
+                hint: Text(l10n.selectWarehouse, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textHint)),
                 items: state.warehouses.map((w) {
                   return DropdownMenuItem(
                     value: w,
-                    child: Text(w.name, style: GoogleFonts.inter(fontSize: 14)),
+                    child: Text(w.name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500)),
                   );
                 }).toList(),
                 onChanged: (val) {
@@ -135,65 +141,63 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
     );
   }
 
-  Widget _buildSearchSection() {
+  Widget _buildSearchSection(S l10n) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      color: AppColors.surface,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      color: Theme.of(context).secondaryHeaderColor,
       child: TextField(
         controller: _searchController,
         style: GoogleFonts.inter(fontSize: 14),
         decoration: InputDecoration(
-          hintText: 'Поиск товара...',
-          hintStyle: GoogleFonts.inter(color: AppColors.textHint),
-          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
+          hintText: l10n.searchProduct,
+          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
           filled: true,
-          fillColor: AppColors.background,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          fillColor: Theme.of(context).cardColor,
         ),
         onChanged: (val) => ref.read(reservationsProvider.notifier).searchProducts(val),
       ),
     );
   }
 
-  Widget _buildCartOrResults(ReservationsState state) {
+  Widget _buildCartOrResults(S l10n, ReservationsState state) {
     if (state.availableProducts.isNotEmpty) {
-      return ListView.builder(
-        padding: const EdgeInsets.all(16),
+      return ListView.separated(
+        padding: const EdgeInsets.all(20),
         itemCount: state.availableProducts.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final product = state.availableProducts[index];
-          return _buildProductSearchResult(product);
+          return _buildProductSearchResult(l10n, product);
         },
       );
     }
 
     if (state.cart.isEmpty) {
-      return const EmptyView(
-        title: 'Корзина пуста',
-        subtitle: 'Найдите нужные продукты через поиск',
-        icon: Icons.add_shopping_cart_rounded,
+      return EmptyView(
+        title: l10n.cartEmpty,
+        subtitle: l10n.searchHint,
+        icon: Icons.shopping_basket_outlined,
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
       itemCount: state.cart.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final item = state.cart[index];
-        return _buildCartItem(item);
+        return _buildCartItem(l10n, item);
       },
     );
   }
 
-  Widget _buildProductSearchResult(ProductModel product) {
+  Widget _buildProductSearchResult(S l10n, ProductModel product) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Row(
         children: [
@@ -201,12 +205,20 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${product.price.toStringAsFixed(0)} сум', style: GoogleFonts.inter(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text(
+                  product.name,
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${product.price.toStringAsFixed(0)} ${l10n.sumCurrency}',
+                  style: GoogleFonts.inter(color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary),
+            icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 28),
             onPressed: () {
               ref.read(reservationsProvider.notifier).addToCart(product);
               _searchController.clear();
@@ -218,50 +230,60 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
     );
   }
 
-  Widget _buildCartItem(CartItem item) {
+  Widget _buildCartItem(S l10n, CartItem item) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
       child: Column(
         children: [
           Row(
             children: [
               Expanded(
-                child: Text(item.product.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),
+                child: Text(item.product.name, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
               ),
+              const SizedBox(width: 12),
               Text(
-                '${item.total.toStringAsFixed(0)} сум',
-                style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                '${item.total.toStringAsFixed(0)} ${l10n.sumCurrency}',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.textPrimary),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Цена: ${item.price.toStringAsFixed(0)}',
-                style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                '${l10n.priceLabel}: ${item.price.toStringAsFixed(0)}',
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint, fontWeight: FontWeight.w500),
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(10),
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                 ),
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.remove_rounded, size: 18),
+                      icon: const Icon(Icons.remove_rounded, size: 20, color: AppColors.primary),
                       onPressed: () => ref.read(reservationsProvider.notifier).updateCartQuantity(item.product.id, -1),
                     ),
-                    Text('${item.quantity}', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                    Text(
+                      '${item.quantity}',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
                     IconButton(
-                      icon: const Icon(Icons.add_rounded, size: 18),
+                      icon: const Icon(Icons.add_rounded, size: 20, color: AppColors.primary),
                       onPressed: () => ref.read(reservationsProvider.notifier).updateCartQuantity(item.product.id, 1),
                     ),
                   ],
@@ -274,14 +296,20 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
     );
   }
 
-  Widget _buildBottomBar(ReservationsState state) {
+  Widget _buildBottomBar(S l10n, ReservationsState state) {
     if (state.cart.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, 12 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(24, 16, 24, 16 + MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
+        color: Theme.of(context).secondaryHeaderColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 15,
+            offset: const Offset(0, -5),
+          )
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -289,28 +317,22 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Итого:', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
+              Text(l10n.total + ':', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textHint)),
               Text(
-                '${state.cartTotal.toStringAsFixed(0)} сум',
-                style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                '${state.cartTotal.toStringAsFixed(0)} ${l10n.sumCurrency}',
+                style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primary),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
+            height: 56,
             child: ElevatedButton(
               onPressed: state.isCreating ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
-              ),
               child: state.isCreating
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Text('Создать бронь', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
+                  ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                  : Text(l10n.createReservation),
             ),
           ),
         ],

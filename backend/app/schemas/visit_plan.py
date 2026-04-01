@@ -13,7 +13,7 @@ class VisitPlanBase(BaseModel):
     status: Optional[str] = "planned"
 
 class VisitPlanCreate(VisitPlanBase):
-    med_rep_id: int
+    med_rep_id: Optional[int] = None
 
 class VisitPlanUpdate(VisitPlanBase):
     pass
