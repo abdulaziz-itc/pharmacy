@@ -102,7 +102,9 @@ async def create_visit_plan(
     """
     Create a new visit plan.
     """
-    plan = VisitPlan(**plan_in.model_dump())
+    data = plan_in.model_dump()
+    data["med_rep_id"] = current_user.id
+    plan = VisitPlan(**data)
     db.add(plan)
     await db.commit()
     await db.refresh(plan)

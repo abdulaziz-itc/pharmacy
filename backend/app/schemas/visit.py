@@ -29,11 +29,11 @@ class Visit(VisitInDBBase):
 
 # Visit Plan Schemas
 class VisitPlanBase(BaseModel):
-    med_rep_id: int
+    med_rep_id: Optional[int] = None
     doctor_id: int
     planned_date: datetime
     subject: Optional[str] = None
-    description: Optional[str] = None
+    notes: Optional[str] = None
     visit_type: Optional[str] = "Плановый"
 
 class VisitPlanCreate(VisitPlanBase):
@@ -42,7 +42,7 @@ class VisitPlanCreate(VisitPlanBase):
 class VisitPlanUpdate(BaseModel):
     planned_date: Optional[datetime] = None
     subject: Optional[str] = None
-    description: Optional[str] = None
+    notes: Optional[str] = None
     visit_type: Optional[str] = None
     is_completed: Optional[int] = None
 
