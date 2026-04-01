@@ -77,15 +77,17 @@ export function PharmacyPlansTable({ data: initialData }: PharmacyPlansTableProp
     const [data, setData] = React.useState(initialData);
 
     React.useEffect(() => {
+        const monthMap: Record<string, number> = {
+            "january": 0, "february": 1, "march": 2, "april": 3, "may": 4, "june": 5,
+            "july": 6, "august": 7, "september": 8, "october": 9, "november": 10, "december": 11
+        };
+        const targetMonthIndex = monthMap[month];
+
         setData(initialData.filter((plan) => {
             if (!plan.planned_date) return false;
-            // Extract year, month, day from YYYY-MM-DD string part
             const [year, monthNum, day] = plan.planned_date.split('T')[0].split('-').map(Number);
             const planDate = new Date(year, monthNum - 1, day);
-            const planMonth = planDate
-                .toLocaleString("en-US", { month: "long" })
-                .toLowerCase();
-            return planMonth === month;
+            return planDate.getMonth() === targetMonthIndex;
         }));
     }, [initialData, month]);
     const [isAddOpen, setIsAddOpen] = React.useState(false);
