@@ -137,7 +137,7 @@ class S {
       'notes_placeholder': 'Напишите что-нибудь...',
       'period_label': 'Период (Месяц/Год)',
       'attach_to_doctor_title': 'Прикрепить к врачу',
-      'create_visit_plan': 'План визиta',
+      'create_visit_plan': 'План визита',
       'save_plan': 'Сохранить план',
       'visit_date': 'Дата визита',
       'visit_type': 'Тип визита',
@@ -275,7 +275,7 @@ class S {
       'reservations_not_found': 'Бронирования не найдены',
       'items_count': 'продуктов',
     },
-    'uz': {
+      'uz': {
       'products': 'Mahsulotlar',
       'doctors': 'Shifokorlar',
       'plan': 'Reja',
@@ -306,7 +306,6 @@ class S {
       'total_sales': 'Umumiy savdo',
       'bonus_balance': 'Bonus balansi',
       'planned_visits': 'Rejalashtirilgan tashriflar',
-      'indicators': 'Ko\'rsatkichlar',
       'active_doctors': 'Faol shifokorlar',
       'pending_reservations': 'Kutilayotgan bronlar',
       'total_debt': 'Umumiy qarzdorlik',

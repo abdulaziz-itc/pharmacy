@@ -253,7 +253,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
           border: Border.all(color: Theme.of(context).dividerColor),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: Colors.black.withOpacity(0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -264,7 +264,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: AppColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.person_search_rounded, color: AppColors.primary, size: 20),
@@ -299,7 +299,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
           border: Border.all(color: Theme.of(context).dividerColor),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: Colors.black.withOpacity(0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -310,7 +310,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.statusPending.withValues(alpha: 0.1),
+                color: AppColors.statusPending.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.calendar_month_rounded, color: AppColors.statusPending, size: 20),
@@ -321,7 +321,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
               style: GoogleFonts.inter(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: null,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -349,7 +349,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                 ),
                 boxShadow: isSelected ? [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
+                    color: AppColors.primary.withOpacity(0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   )
@@ -384,7 +384,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
+                color: Colors.black.withOpacity(0.5),
                 blurRadius: 40,
                 offset: const Offset(0, -10),
               ),
@@ -417,7 +417,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
-                            color: null,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         IconButton(
@@ -449,7 +449,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                             width: 48,
                             height: 48,
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
+                              color: AppColors.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Center(
@@ -468,7 +468,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              color: null,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           subtitle: doctor.specialty != null
