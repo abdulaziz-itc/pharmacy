@@ -52,23 +52,26 @@ async def create_visit_plan(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Create new visit plan."""
-    data = visit_plan_in.dict()
-    is_completed = data.pop("is_completed", None)
-    
-    if is_completed is True:
-        data["status"] = "completed"
-    elif is_completed is False:
-        data["status"] = "planned"
-    
-    db_obj = VisitPlan(
-        **data,
-        med_rep_id=current_user.id
-    )
-    db.add(db_obj)
-    await db.commit()
-    await db.refresh(db_obj)
-    # Re-fetch with relationships to avoid async lazy-load error
-    return await _get_plan_with_relations(db, db_obj.id)
+    try:
+        data = visit_plan_in.dict()
+        is_completed = data.pop("is_completed", None)
+        
+        if is_completed is True:
+            data["status"] = "completed"
+        elif is_completed is False:
+            data["status"] = "planned"
+        
+        db_obj = VisitPlan(
+            **data,
+            med_rep_id=current_user.id
+        )
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        return await _get_plan_with_relations(db, db_obj.id)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{plan_id}", response_model=VisitPlanSchema)

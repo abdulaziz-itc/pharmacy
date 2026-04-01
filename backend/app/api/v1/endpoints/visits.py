@@ -102,10 +102,14 @@ async def create_visit_plan(
     """
     Create a new visit plan.
     """
-    data = plan_in.model_dump()
-    data["med_rep_id"] = current_user.id
-    plan = VisitPlan(**data)
-    db.add(plan)
-    await db.commit()
-    await db.refresh(plan)
-    return plan
+    try:
+        data = plan_in.model_dump()
+        data["med_rep_id"] = current_user.id
+        plan = VisitPlan(**data)
+        db.add(plan)
+        await db.commit()
+        await db.refresh(plan)
+        return plan
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
