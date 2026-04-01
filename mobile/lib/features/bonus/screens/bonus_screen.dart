@@ -166,7 +166,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: null,
                     ),
                   ),
                 ],
@@ -434,7 +434,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                               padding: const EdgeInsets.only(bottom: 4),
                               child: Text(
                                 'Счет-фактура: #${item.invoiceId}',
-                                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
                               ),
                             ),
                           if (item.doctorName != null)
@@ -497,7 +497,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
           if (item.doctorName != null)
             Text(
               'Врач: ${item.doctorName}',
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.textPrimary),
+              style: GoogleFonts.inter(fontSize: 12),
             ),
           if (item.productName != null)
             Text(

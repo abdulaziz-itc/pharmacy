@@ -259,7 +259,7 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen>
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: null,
                       ),
                     ),
                   ],

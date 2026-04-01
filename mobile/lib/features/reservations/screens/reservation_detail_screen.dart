@@ -235,7 +235,7 @@ class _ReservationDetailScreenState
                                   style: GoogleFonts.inter(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
+                                    color: null,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -254,7 +254,7 @@ class _ReservationDetailScreenState
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w900,
-                              color: AppColors.textPrimary,
+                              color: null,
                             ),
                           ),
                         ],
@@ -318,7 +318,7 @@ class _ReservationDetailScreenState
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: null,
                   ),
                 ),
               ],

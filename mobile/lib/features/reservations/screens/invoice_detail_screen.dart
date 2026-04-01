@@ -212,7 +212,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -258,7 +258,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
+                    color: null,
                   ),
                 ),
                 const SizedBox(height: 2),

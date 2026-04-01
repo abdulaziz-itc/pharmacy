@@ -247,7 +247,7 @@ class _CreateDoctorScreenState extends ConsumerState<CreateDoctorScreen> {
         controller: controller,
         keyboardType: keyboardType,
         validator: validator,
-        style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15),
+        style: GoogleFonts.inter(fontSize: 15),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: GoogleFonts.inter(color: AppColors.textHint),

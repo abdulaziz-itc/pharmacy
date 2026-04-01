@@ -182,7 +182,7 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
         controller: controller,
         keyboardType: keyboardType,
         validator: validator,
-        style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary),
+        style: GoogleFonts.inter(fontSize: 14),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: GoogleFonts.inter(color: AppColors.textHint),
@@ -213,7 +213,7 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
         items: items,
         onChanged: onChanged,
         dropdownColor: Theme.of(context).cardColor,
-        style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary),
+        style: GoogleFonts.inter(fontSize: 14),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: GoogleFonts.inter(color: AppColors.textHint),

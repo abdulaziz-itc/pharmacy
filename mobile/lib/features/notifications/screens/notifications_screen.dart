@@ -199,7 +199,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: notification.isUnread ? FontWeight.w900 : FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: null,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

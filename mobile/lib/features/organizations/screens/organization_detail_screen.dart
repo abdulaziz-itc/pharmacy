@@ -164,7 +164,7 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
                   style: GoogleFonts.inter(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: null,
                   ),
                 ),
               ],
@@ -186,7 +186,7 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
             const SizedBox(height: 24),
             Text(
               l10n.doctorsNotFound,
-              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -276,7 +276,7 @@ class _OrganizationDetailScreenState extends ConsumerState<OrganizationDetailScr
             const SizedBox(height: 24),
             Text(
               l10n.stockNotFound,
-              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(

@@ -123,7 +123,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _subjectController,
-                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 15),
+                style: GoogleFonts.inter(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
                 decoration: InputDecoration(
                   hintText: '${l10n.visitSubject}...',
                   hintStyle: GoogleFonts.inter(color: AppColors.textHint, fontSize: 14),
@@ -143,7 +143,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
               TextFormField(
                 controller: _notesController,
                 maxLines: 4,
-                style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 14),
+                style: GoogleFonts.inter(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: '${l10n.commentOptional}...',
                   hintStyle: GoogleFonts.inter(color: AppColors.textHint, fontSize: 14),
@@ -276,7 +276,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 15,
                   fontWeight: _selectedDoctorName != null ? FontWeight.w700 : FontWeight.w500,
-                  color: _selectedDoctorName != null ? AppColors.textPrimary : AppColors.textHint,
+                  color: _selectedDoctorName != null ? Theme.of(context).colorScheme.onSurface : AppColors.textHint,
                 ),
               ),
             ),
@@ -321,7 +321,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
               style: GoogleFonts.inter(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: null,
               ),
             ),
           ],
@@ -417,7 +417,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary,
+                            color: null,
                           ),
                         ),
                         IconButton(
@@ -468,7 +468,7 @@ class _CreateVisitScreenState extends ConsumerState<CreateVisitScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: null,
                             ),
                           ),
                           subtitle: doctor.specialty != null

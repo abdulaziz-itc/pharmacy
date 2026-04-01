@@ -187,7 +187,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                             style: GoogleFonts.inter(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: null,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -231,7 +231,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: null,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -263,7 +263,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: null,
                             ),
                           ),
                         ],

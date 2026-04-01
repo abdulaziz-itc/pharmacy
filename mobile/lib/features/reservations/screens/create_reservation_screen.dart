@@ -254,7 +254,7 @@ class _CreateReservationScreenState extends ConsumerState<CreateReservationScree
               const SizedBox(width: 12),
               Text(
                 '${item.total.toStringAsFixed(0)} ${l10n.sumCurrency}',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.textPrimary),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14),
               ),
             ],
           ),

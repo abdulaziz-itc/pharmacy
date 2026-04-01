@@ -69,7 +69,7 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: null,
                       ),
                     ),
                     IconButton(
@@ -227,7 +227,7 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: null,
                     ),
                   ),
                 ],
@@ -340,7 +340,7 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: null,
                 ),
               ),
               const SizedBox(height: 8),
@@ -566,7 +566,7 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+                    color: null,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

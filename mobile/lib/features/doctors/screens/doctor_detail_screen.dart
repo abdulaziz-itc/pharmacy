@@ -73,7 +73,7 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
             const SizedBox(height: 16),
             Text(
               l10n.loadDataError,
-              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Padding(
@@ -274,7 +274,7 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: null,
               ),
             ),
           ],
@@ -491,7 +491,7 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 17,
                         fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
+                        color: null,
                         height: 1.2,
                       ),
                     ),
