@@ -80,21 +80,13 @@ export default function MedRepDetailPage() {
                 const visits = await getVisitPlans(repId);
 
                 setDoctorPlans(visits.filter((v: any) => v.doctor_id !== null).map((p: any) => ({
-                    id: p.id,
-                    doctorName: p.doctor?.full_name || "Unknown Doctor",
-                    date: p.planned_date.split('T')[0],
-                    status: p.status === 'confirmed' ? 'Выполнен' : 'В ожидании', // Map status
-                    visit_type: p.visit_type,
-                    subject: p.subject
+                    ...p,
+                    doctorName: p.doctor?.full_name || "Unknown Doctor"
                 })));
 
                 setPharmacyPlans(visits.filter((v: any) => v.med_org_id !== null).map((p: any) => ({
-                    id: p.id,
-                    pharmacyName: p.med_org?.name || "Unknown Pharmacy",
-                    date: p.planned_date.split('T')[0],
-                    status: p.status === 'confirmed' ? 'Выполнен' : 'В ожидании',
-                    visit_type: p.visit_type,
-                    subject: p.subject
+                    ...p,
+                    pharmacyName: p.med_org?.name || "Unknown Pharmacy"
                 })));
 
                 // Fetch Notifications (Current User for now)

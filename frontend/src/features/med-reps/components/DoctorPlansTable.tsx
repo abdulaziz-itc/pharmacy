@@ -38,21 +38,22 @@ const columns: ColumnDef<any>[] = [
         cell: ({ row }) => <span className="font-medium text-slate-900">{row.original.doctorName}</span>
     },
     {
-        accessorKey: "date",
+        accessorKey: "planned_date",
         header: "ДАТА",
-        cell: ({ row }) => <span className="text-slate-600">{row.original.date}</span>
+        cell: ({ row }) => <span className="text-slate-600">{row.original.planned_date ? row.original.planned_date.split('T')[0] : "—"}</span>
     },
     {
         accessorKey: "status",
         header: "СТАТУС",
         cell: ({ row }) => {
             const status = row.original.status;
+            const mappedStatus = status === 'confirmed' ? 'Выполнен' : (status === 'planned' ? 'В ожидании' : status);
             return (
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status === "Выполнен" ? "bg-emerald-100 text-emerald-700" :
-                    status === "В ожидании" ? "bg-amber-100 text-amber-700" :
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${mappedStatus === "Выполнен" ? "bg-emerald-100 text-emerald-700" :
+                    mappedStatus === "В ожидании" ? "bg-amber-100 text-amber-700" :
                         "bg-slate-100 text-slate-700"
                     }`}>
-                    {status}
+                    {mappedStatus}
                 </span>
             );
         }
