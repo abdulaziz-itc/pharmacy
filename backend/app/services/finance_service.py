@@ -278,6 +278,7 @@ class FinancialService:
                     doctor_id=doctor_id,
                     amount=bonus_amount,
                     ledger_type=LedgerType.ACCRUAL,
+                    fact_id=fact.id,
                     payment_id=None, # This is an assignment, not a direct payment record
                     notes=f"Бонус распределен из счет-фактуры #{rec.invoice_id} ({actual_assign_quantity} шт.)"
                 )
@@ -390,6 +391,7 @@ class FinancialService:
                     target_month=target_month,
                     target_year=target_year,
                     doctor_id=doctor_id,
+                    fact_id=fact.id,
                     notes=notes or f"Бонус выплачен врачу {doctor.full_name}{product_name} ({quantity} шт.)"
                 )
                 db.add(medrep_offset)
@@ -402,6 +404,7 @@ class FinancialService:
                     ledger_type=LedgerType.ACCRUAL,
                     target_month=target_month,
                     target_year=target_year,
+                    fact_id=fact.id,
                     notes=notes or f"Бонус от медпреда за {quantity} шт.{product_name}"
                 )
                 db.add(doctor_accrual)
@@ -435,4 +438,59 @@ class FinancialService:
             except Exception as e:
                 await transaction.rollback()
                 raise HTTPException(status_code=500, detail=f"Ошибка при распределении: {str(e)}")
+
+    @staticmethod
+    async def delete_doctor_fact_assignment(db: AsyncSession, fact_id: int):
+        """
+        Deletes a fact assignment and reverses all related ledger and payment entries.
+        """
+        from app.models.sales import DoctorFactAssignment
+        from app.models.ledger import BonusLedger
+
+        # 1. Fetch the fact
+        fact = await db.get(DoctorFactAssignment, fact_id)
+        if not fact:
+            raise HTTPException(status_code=404, detail="Фakt topilmadi")
+
+        # 2. Delete related BonusLedger entries
+        stmt_ledger = select(BonusLedger).where(BonusLedger.fact_id == fact_id)
+        ledger_res = await db.execute(stmt_ledger)
+        ledger_entries = ledger_res.scalars().all()
+        for entry in ledger_entries:
+            await db.delete(entry)
+
+        # 3. If no fact_id, match by criteria (for old records)
+        if not ledger_entries:
+            from app.models.ledger import LedgerType
+            # Match recent OFFSET and ACCRUAL for this rep/doctor/product/month/year/amount
+            # This is a fallback to help delete the user's '1' quantity entries
+            stmt_fallback = select(BonusLedger).where(
+                BonusLedger.med_rep_id == fact.med_rep_id,
+                BonusLedger.doctor_id == fact.doctor_id,
+                BonusLedger.product_id == fact.product_id,
+                BonusLedger.target_month == fact.month,
+                BonusLedger.target_year == fact.year
+            ).limit(10)
+            fallback_res = await db.execute(stmt_fallback)
+            for entry in fallback_res.scalars().all():
+                await db.delete(entry)
+
+        # 4. Delete related BonusPayment entries
+        from app.models.sales import BonusPayment
+        stmt_payment = select(BonusPayment).where(
+            BonusPayment.med_rep_id == fact.med_rep_id,
+            BonusPayment.doctor_id == fact.doctor_id,
+            BonusPayment.product_id == fact.product_id,
+            BonusPayment.for_month == fact.month,
+            BonusPayment.for_year == fact.year
+        )
+        payment_res = await db.execute(stmt_payment)
+        for pmt in payment_res.scalars().all():
+            await db.delete(pmt)
+
+        # 5. Delete the fact itself
+        await db.delete(fact)
+
+        await db.commit()
+        return {"status": "success", "message": "Фakt va barcha bog'liq bonuslar o'chirildi"}
 

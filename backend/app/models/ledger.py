@@ -32,6 +32,7 @@ class BonusLedger(Base):
     # Context references
     invoice_item_id = Column(Integer, ForeignKey("reservationitem.id"), nullable=True)
     payment_id = Column(Integer, ForeignKey("payment.id"), nullable=True)
+    fact_id = Column(Integer, ForeignKey("doctor_fact_assignment.id"), nullable=True)
     
     # Target period for assigned bonuses
     target_month = Column(Integer, nullable=True)

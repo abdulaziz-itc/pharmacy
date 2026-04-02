@@ -114,3 +114,8 @@ export const getInvoices = async (params: any = {}) => {
     const response = await axiosInstance.get('/sales/invoices/', { params });
     return response.data;
 };
+
+export const deleteDoctorFact = async (id: number) => {
+    const response = await axiosInstance.delete(`/sales/doctor-facts/${id}`);
+    return response.data;
+};

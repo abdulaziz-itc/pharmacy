@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { getMedRepBonusBalance, allocateBonus } from '@/api/orders-management';
-import { getPlans } from '@/api/sales';
+import { getPlans, deleteDoctorFact } from '@/api/sales';
 import { toast } from 'sonner';
-import { Wallet, ArrowUpRight, ArrowDownLeft, Clock, Eye, Banknote, CheckCircle2, AlertCircle, Users, Scale } from 'lucide-react';
+import { Wallet, ArrowUpRight, ArrowDownLeft, Clock, Eye, Banknote, CheckCircle2, AlertCircle, Users, Scale, Trash2 } from 'lucide-react';
 import { BonusDetailModal } from './BonusDetailModal';
 import { DoctorDetailModal } from './DoctorDetailModal';
 
@@ -158,6 +158,18 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
             toast.error(error.response?.data?.detail || "Ошибка при прикреплении");
         } finally {
             setIsSubmitting(false);
+        }
+    };
+    const handleDeleteFact = async (id: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!window.confirm("Haqiqatan ham ushbu faktni o'chirmoqchimisiz? Bu amal bonus hisob-kitobini ham bekor qiladi.")) return;
+
+        try {
+            await deleteDoctorFact(id);
+            toast.success("Fakt muvaffaqiyatli o'chirildi");
+            loadData(filterMonth, filterYear);
+        } catch (error: any) {
+            toast.error(error.response?.data?.detail || "O'chirishda xatolik");
         }
     };
 
@@ -392,12 +404,23 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                                         )}
                                     </div>
 
-                                    {/* Amount */}
-                                    <div className="shrink-0 text-right">
+                                    {/* Amount & Delete */}
+                                    <div className="shrink-0 text-right flex flex-col items-end gap-2">
                                         <p className={`text-lg font-black ${h.ledger_type === 'accrual' ? 'text-emerald-600' : 'text-amber-600'}`}>
                                             {h.ledger_type === 'accrual' ? '+' : '-'}{Math.abs(h.amount).toLocaleString('ru-RU')}
                                         </p>
                                         <p className="text-[10px] text-slate-400 font-medium">UZS</p>
+                                        
+                                        {h.ledger_type === 'offset' && h.id && (
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                                onClick={(e) => handleDeleteFact(h.id, e)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -506,7 +529,7 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                                 <TableHead>Тип</TableHead>
                                 <TableHead>Продукт</TableHead>
                                 <TableHead>Комментарий</TableHead>
-                                <TableHead className="text-right">Сумма</TableHead>
+                                <TableHead className="text-right whitespace-nowrap">Сумма / Действие</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -554,8 +577,22 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                                                 )}
                                             </div>
                                         </TableCell>
-                                        <TableCell className={`text-right font-bold ${h.ledger_type === 'accrual' ? 'text-green-600' : 'text-slate-900'}`}>
-                                            {h.ledger_type === 'accrual' ? '+' : '-'} {h.amount.toLocaleString('ru-RU')} UZS
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center justify-end gap-3">
+                                                <span className={`font-bold ${h.ledger_type === 'accrual' ? 'text-green-600' : 'text-slate-900'}`}>
+                                                    {h.ledger_type === 'accrual' ? '+' : '-'} {h.amount.toLocaleString('ru-RU')} UZS
+                                                </span>
+                                                {h.ledger_type === 'offset' && h.id && (
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-8 w-8 text-slate-300 hover:text-red-600 hover:bg-red-50"
+                                                        onClick={(e) => handleDeleteFact(h.id, e)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))
