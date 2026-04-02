@@ -232,13 +232,9 @@ class FinancialService:
                 if not rec:
                     raise HTTPException(status_code=404, detail="Unassigned record not found or not owned by you")
 
-                # Calculation based on units, not just packs
-                units_per_pack = product.units_per_pack or 1
-                available_packs = rec.paid_quantity - rec.assigned_quantity
-                available_units = available_packs * units_per_pack
-                
-                if quantity > available_units:
-                    raise HTTPException(status_code=400, detail=f"Only {available_units} units available for assignment")
+                available = rec.paid_quantity - rec.assigned_quantity
+                if quantity > available:
+                    raise HTTPException(status_code=400, detail=f"Only {available} units available for assignment")
 
                 # 2. Fetch product for marketing_expense and exact discounted price from reservation item
                 from app.models.sales import Invoice, Reservation, ReservationItem
@@ -288,8 +284,8 @@ class FinancialService:
                 )
                 db.add(accrual)
 
-                # 5. Update Record (convert units back to packs)
-                rec.assigned_quantity += (quantity / units_per_pack)
+                # 5. Update Record
+                rec.assigned_quantity += quantity
                 
                 await db.commit()
                 return fact
