@@ -12,10 +12,25 @@ class DoctorRef {
   }
 }
 
+class MedOrgRef {
+  final int id;
+  final String name;
+
+  const MedOrgRef({required this.id, required this.name});
+
+  factory MedOrgRef.fromJson(Map<String, dynamic> json) {
+    return MedOrgRef(
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+    );
+  }
+}
+
 class VisitPlanModel {
   final int id;
   final String plannedDate;
   final DoctorRef? doctor;
+  final MedOrgRef? medOrg;
   final String? subject;
   final bool isCompleted;
   final String? visitType;
@@ -26,6 +41,7 @@ class VisitPlanModel {
     required this.id,
     required this.plannedDate,
     this.doctor,
+    this.medOrg,
     this.subject,
     required this.isCompleted,
     this.visitType,
@@ -40,6 +56,9 @@ class VisitPlanModel {
       doctor: json['doctor'] != null
           ? DoctorRef.fromJson(json['doctor'] as Map<String, dynamic>)
           : null,
+      medOrg: json['med_org'] != null
+          ? MedOrgRef.fromJson(json['med_org'] as Map<String, dynamic>)
+          : null,
       subject: json['subject'] as String?,
       isCompleted: json['is_completed'] as bool? ?? false,
       visitType: json['visit_type'] as String?,
@@ -52,6 +71,7 @@ class VisitPlanModel {
     return {
       'planned_date': plannedDate,
       if (doctor != null) 'doctor_id': doctor!.id,
+      if (medOrg != null) 'med_org_id': medOrg!.id,
       if (subject != null) 'subject': subject,
       'is_completed': isCompleted,
       if (visitType != null) 'visit_type': visitType,

@@ -159,7 +159,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
               decoration: BoxDecoration(color: (visit.isCompleted ? AppColors.success : AppColors.primary).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
               child: Icon(isDoc ? Icons.person_rounded : Icons.business_rounded, color: visit.isCompleted ? AppColors.success : AppColors.primary, size: 22),
             ),
-            title: Text(isDoc ? visit.doctor!.fullName : (visit.subject ?? l10n.organizations), style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+            title: Text(isDoc ? visit.doctor!.fullName : (visit.medOrg?.name ?? visit.subject ?? l10n.organizations), style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
             subtitle: Text(visit.displayVisitType, style: GoogleFonts.inter(fontSize: 12)),
             trailing: visit.isCompleted ? const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20) : const Icon(Icons.chevron_right_rounded, size: 20),
           ),
