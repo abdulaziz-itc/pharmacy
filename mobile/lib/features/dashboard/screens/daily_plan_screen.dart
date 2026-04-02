@@ -10,6 +10,7 @@ import '../../../shared/widgets/notification_action.dart';
 import '../../visits/providers/visits_provider.dart';
 import '../../visits/screens/create_visit_screen.dart';
 import '../../../shared/widgets/weekly_calendar.dart';
+import '../widgets/visit_plan_details_sheet.dart';
 import 'sales_plans_screen.dart';
 
 class DailyPlanScreen extends ConsumerStatefulWidget {
@@ -154,6 +155,14 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => VisitPlanDetailsSheet(visit: visit),
+              );
+            },
             leading: Container(
               width: 44, height: 44,
               decoration: BoxDecoration(color: (visit.isCompleted ? AppColors.success : AppColors.primary).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),

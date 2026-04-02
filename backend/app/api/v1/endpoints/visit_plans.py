@@ -17,6 +17,7 @@ async def _get_plan_with_relations(db: AsyncSession, plan_id: int) -> VisitPlan:
     result = await db.execute(
         select(VisitPlan)
         .options(
+            selectinload(VisitPlan.med_rep),
             selectinload(VisitPlan.doctor).selectinload(Doctor.med_org).selectinload(MedicalOrganization.assigned_reps).selectinload(User.assigned_regions),
             selectinload(VisitPlan.doctor).selectinload(Doctor.med_org).selectinload(MedicalOrganization.region),
             selectinload(VisitPlan.doctor).selectinload(Doctor.specialty),
@@ -40,6 +41,7 @@ async def get_visit_plans(
     """Retrieve visit plans."""
     try:
         query = select(VisitPlan).options(
+            selectinload(VisitPlan.med_rep),
             selectinload(VisitPlan.doctor).selectinload(Doctor.med_org).selectinload(MedicalOrganization.assigned_reps).selectinload(User.assigned_regions),
             selectinload(VisitPlan.doctor).selectinload(Doctor.med_org).selectinload(MedicalOrganization.region),
             selectinload(VisitPlan.doctor).selectinload(Doctor.specialty),
