@@ -44,7 +44,13 @@ async def get_visit_plans(
         result = await db.execute(query)
         plans = result.scalars().all()
         print(f"DEBUG: Found {len(plans)} visit plans for med_rep_id={med_rep_id or current_user.id}")
-        return plans
+        
+        # Manually validate to catch serialization errors inside the try block
+        if hasattr(VisitPlanSchema, "model_validate"):
+            validated_plans = [VisitPlanSchema.model_validate(p, from_attributes=True) for p in plans]
+        else:
+            validated_plans = [VisitPlanSchema.from_orm(p) for p in plans]
+        return validated_plans
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()

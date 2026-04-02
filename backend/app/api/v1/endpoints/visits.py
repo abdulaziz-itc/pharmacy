@@ -91,7 +91,14 @@ async def get_user_plans(
         .order_by(VisitPlan.planned_date.desc())
     )
     plans = result.scalars().all()
-    return plans
+    
+    # Version-agnostic validation to catch serialization/lazy-load errors
+    if hasattr(VisitPlanSchema, "model_validate"):
+        validated_plans = [VisitPlanSchema.model_validate(p, from_attributes=True) for p in plans]
+    else:
+        validated_plans = [VisitPlanSchema.from_orm(p) for p in plans]
+        
+    return validated_plans
 
 @router.post("/plans/", response_model=VisitPlanSchema)
 async def create_visit_plan(
