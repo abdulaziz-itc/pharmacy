@@ -105,7 +105,7 @@ class VisitsNotifier extends StateNotifier<VisitsState> {
     try {
       await _apiClient.put(
         ApiEndpoints.visitPlanDetail(id),
-        data: {'is_completed': true, 'completed_at': DateTime.now().toIso8601String()},
+        data: {'is_completed': true},
       );
       final updatedVisits = state.visits.map((v) {
         if (v.id == id) {
@@ -113,6 +113,8 @@ class VisitsNotifier extends StateNotifier<VisitsState> {
             id: v.id,
             plannedDate: v.plannedDate,
             doctor: v.doctor,
+            medOrg: v.medOrg,
+            medRep: v.medRep,
             subject: v.subject,
             isCompleted: true,
             visitType: v.visitType,

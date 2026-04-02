@@ -152,6 +152,24 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
       itemBuilder: (context, index) {
         final visit = visits[index];
         final isDoc = visit.doctor != null;
+        final DateTime parsedDate = DateTime.tryParse(visit.plannedDate) ?? DateTime.now();
+        final DateTime today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+        final DateTime visitDate = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+        final bool isOverdue = !visit.isCompleted && visitDate.isBefore(today);
+
+        Color statusColor;
+        String statusText;
+        if (visit.isCompleted) {
+          statusColor = AppColors.success; // Yashil
+          statusText = l10n.completedStatus;
+        } else if (isOverdue) {
+          statusColor = AppColors.error; // Qizil
+          statusText = l10n.plannedStatus;
+        } else {
+          statusColor = AppColors.statusPending; // Sariq
+          statusText = l10n.plannedStatus;
+        }
+
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
@@ -165,11 +183,11 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
             },
             leading: Container(
               width: 44, height: 44,
-              decoration: BoxDecoration(color: (visit.isCompleted ? AppColors.success : AppColors.primary).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-              child: Icon(isDoc ? Icons.person_rounded : Icons.business_rounded, color: visit.isCompleted ? AppColors.success : AppColors.primary, size: 22),
+              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+              child: Icon(isDoc ? Icons.person_rounded : Icons.business_rounded, color: statusColor, size: 22),
             ),
             title: Text(isDoc ? visit.doctor!.fullName : (visit.medOrg?.name ?? visit.subject ?? l10n.organizations), style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
-            subtitle: Text('${visit.displayVisitType} • ${visit.isCompleted ? l10n.completedStatus : l10n.plannedStatus}', style: GoogleFonts.inter(fontSize: 12, color: visit.isCompleted ? AppColors.success : AppColors.textHint)),
+            subtitle: Text('${visit.displayVisitType} • $statusText', style: GoogleFonts.inter(fontSize: 12, color: statusColor, fontWeight: FontWeight.w500)),
             trailing: visit.isCompleted ? const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20) : const Icon(Icons.chevron_right_rounded, size: 20),
           ),
         );
