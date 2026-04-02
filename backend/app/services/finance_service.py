@@ -232,13 +232,8 @@ class FinancialService:
                 if not rec:
                     raise HTTPException(status_code=404, detail="Unassigned record not found or not owned by you")
 
-                # 2. Calculation based on units, not just packs
-                units_per_pack = product.units_per_pack or 1
-                available_packs = rec.paid_quantity - rec.assigned_quantity
-                available_units = available_packs * units_per_pack
-                
-                if quantity > available_units:
-                    raise HTTPException(status_code=400, detail=f"Only {available_units} units available for assignment")
+                # 2. Assign exactly what was requested (No clipping/Cheklov yo'q)
+                actual_assign_quantity = quantity
 
                 # 2. Fetch product for marketing_expense and exact discounted price from reservation item
                 from app.models.sales import Invoice, Reservation, ReservationItem
@@ -268,7 +263,7 @@ class FinancialService:
                     med_rep_id=med_rep_id,
                     doctor_id=doctor_id,
                     product_id=rec.product_id,
-                    quantity=quantity,
+                    quantity=actual_assign_quantity,
                     amount=fact_amount,
                     month=now.month,
                     year=now.year
@@ -278,18 +273,18 @@ class FinancialService:
 
                 # 4. Create Bonus Ledger (Pro-rata bonus realization)
                 # Round to nearest integer to avoid fractions ("kopeyki")
-                bonus_amount = float(round(quantity * (reservation_item.marketing_amount or 0)))
+                bonus_amount = float(round(actual_assign_quantity * (reservation_item.marketing_amount or 0)))
                 accrual = BonusLedger(
                     doctor_id=doctor_id,
                     amount=bonus_amount,
                     ledger_type=LedgerType.ACCRUAL,
                     payment_id=None, # This is an assignment, not a direct payment record
-                    notes=f"Бонус распределен из счет-фактуры #{rec.invoice_id} ({quantity} шт.)"
+                    notes=f"Бонус распределен из счет-фактуры #{rec.invoice_id} ({actual_assign_quantity} шт.)"
                 )
                 db.add(accrual)
 
-                # 5. Update Record (convert units back to packs)
-                rec.assigned_quantity += (quantity / units_per_pack)
+                # 5. Update Record
+                rec.assigned_quantity += actual_assign_quantity
                 
                 await db.commit()
                 return fact
