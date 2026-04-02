@@ -169,7 +169,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
               child: Icon(isDoc ? Icons.person_rounded : Icons.business_rounded, color: visit.isCompleted ? AppColors.success : AppColors.primary, size: 22),
             ),
             title: Text(isDoc ? visit.doctor!.fullName : (visit.medOrg?.name ?? visit.subject ?? l10n.organizations), style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
-            subtitle: Text(visit.displayVisitType, style: GoogleFonts.inter(fontSize: 12)),
+            subtitle: Text('${visit.displayVisitType} • ${visit.isCompleted ? l10n.completedStatus : l10n.plannedStatus}', style: GoogleFonts.inter(fontSize: 12, color: visit.isCompleted ? AppColors.success : AppColors.textHint)),
             trailing: visit.isCompleted ? const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20) : const Icon(Icons.chevron_right_rounded, size: 20),
           ),
         );

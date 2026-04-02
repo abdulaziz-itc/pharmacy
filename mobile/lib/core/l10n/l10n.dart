@@ -274,6 +274,9 @@ class S {
       'confirmed_status': 'Подтверждено',
       'reservations_not_found': 'Бронирования не найдены',
       'items_count': 'продуктов',
+      'mark_completed': 'Отметить выполненным',
+      'created_by': 'Автор/Создатель',
+      'comments': 'Комментарии',
     },
       'uz': {
       'products': 'Mahsulotlar',
@@ -538,6 +541,9 @@ class S {
       'reservations_not_found': 'Bronlar topilmadi',
       'items_count': 'ta mahsulot',
       'status': 'Status',
+      'mark_completed': 'Bajarildi qilish',
+      'created_by': 'Yaratuvchi',
+      'comments': 'Izohlar',
     },
   };
 
