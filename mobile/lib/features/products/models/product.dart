@@ -5,12 +5,15 @@ class Product {
   final String? categoryName;
   final List<String>? manufacturers;
 
+  final double marketingExpense;
+
   Product({
     required this.id,
     required this.name,
     required this.price,
     this.categoryName,
     this.manufacturers,
+    this.marketingExpense = 0.0,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -24,6 +27,7 @@ class Product {
               .map((m) => m['name'] as String)
               .toList()
           : null,
+      marketingExpense: (json['marketing_expense'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
