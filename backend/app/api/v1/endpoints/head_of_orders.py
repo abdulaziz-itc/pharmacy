@@ -26,9 +26,24 @@ from app.schemas.warehouse import WarehouseCreate, StockFulfillment, Warehouse a
 async def get_warehouses(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
+    include_pharmacy: bool = False,
 ) -> Any:
     from sqlalchemy.orm import selectinload
-    result = await db.execute(select(Warehouse).options(selectinload(Warehouse.stocks)))
+    from app.models.warehouse import WarehouseType
+    from app.models.crm import MedicalOrganization
+    from sqlalchemy import or_
+    
+    query = select(Warehouse).options(selectinload(Warehouse.stocks))
+    if not include_pharmacy:
+        query = query.outerjoin(MedicalOrganization, Warehouse.med_org_id == MedicalOrganization.id)
+        query = query.where(
+            or_(
+                Warehouse.med_org_id == None,
+                MedicalOrganization.org_type != "pharmacy"
+            )
+        )
+        
+    result = await db.execute(query)
     return result.scalars().all()
 
 @router.post("/warehouses/", response_model=WarehouseSchema)

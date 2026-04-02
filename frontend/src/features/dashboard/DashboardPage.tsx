@@ -45,8 +45,8 @@ export default function DashboardPage() {
     const user = useAuthStore((state) => state.user);
     const { regions, fetchRegions } = useRegionStore();
 
-    const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
-    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+    const [selectedMonth, setSelectedMonth] = useState<number | undefined>(undefined);
+    const [selectedYear, setSelectedYear] = useState<number | undefined>(undefined);
     const [selectedRegion, setSelectedRegion] = useState<string>('all');
 
     useEffect(() => {
@@ -122,7 +122,12 @@ export default function DashboardPage() {
                     <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
                         Обзор <span className="text-gradient">аналитики</span>
                     </h1>
-                    <p className="text-slate-500 mt-2 font-medium">Мониторинг за {months[selectedMonth-1]} {selectedYear} года.</p>
+                    <p className="text-slate-500 mt-2 font-medium">
+                        {(!selectedMonth || !selectedYear) 
+                            ? "Мониторинг за все время." 
+                            : `Мониторинг за ${months[selectedMonth-1]} ${selectedYear} года.`
+                        }
+                    </p>
                 </div>
                 <div className="flex items-center gap-3">
                     {/* Region Filter */}
@@ -140,19 +145,21 @@ export default function DashboardPage() {
                     )}
 
                     <select 
-                        value={selectedMonth} 
-                        onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                        value={selectedMonth || ""} 
+                        onChange={(e) => setSelectedMonth(e.target.value ? parseInt(e.target.value) : undefined)}
                         className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
                     >
+                        <option value="">Все месяцы</option>
                         {months.map((m, i) => (
                             <option key={i+1} value={i+1}>{m}</option>
                         ))}
                     </select>
                     <select 
-                        value={selectedYear} 
-                        onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                        value={selectedYear || ""} 
+                        onChange={(e) => setSelectedYear(e.target.value ? parseInt(e.target.value) : undefined)}
                         className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
                     >
+                        <option value="">Все годы</option>
                         {[2024, 2025, 2026].map(y => (
                             <option key={y} value={y}>{y}</option>
                         ))}

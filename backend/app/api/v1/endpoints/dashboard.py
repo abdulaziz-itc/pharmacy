@@ -24,15 +24,16 @@ async def get_dashboard_stats(
     month: int = None,
 ) -> Any:
     # 0. Time Range Definition
-    now = datetime.utcnow()
-    target_year = year or now.year
-    target_month = month or now.month
+    is_global_mode = not year or not month
     
-    # Calculate start and end of the period
-    import calendar
-    month_start = datetime(target_year, target_month, 1)
-    last_day = calendar.monthrange(target_year, target_month)[1]
-    month_end = datetime(target_year, target_month, last_day, 23, 59, 59)
+    month_start = None
+    month_end = None
+    
+    if not is_global_mode:
+        import calendar
+        month_start = datetime(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        month_end = datetime(year, month, last_day, 23, 59, 59)
 
     # 0.1 Role Definition
     is_global = current_user.role in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN, UserRole.HRD]
@@ -139,12 +140,15 @@ async def get_dashboard_stats(
 
     # --- 0.4 KPIs CALCULATION ---
     
-    # 1. Total Sales (Realized Invoices this month)
+    # 1. Total Sales (Realized Invoices)
     sales_query = select(func.sum(Invoice.total_amount)).where(
-        (Invoice.status != InvoiceStatus.CANCELLED) &
-        (Invoice.date >= month_start) &
-        (Invoice.date <= month_end)
+        Invoice.status != InvoiceStatus.CANCELLED
     )
+    if not is_global_mode:
+        sales_query = sales_query.where(
+            (Invoice.date >= month_start) &
+            (Invoice.date <= month_end)
+        )
     if is_med_rep:
         sales_query = sales_query.join(Reservation).where(Reservation.created_by_id == current_user.id)
     elif is_manager:

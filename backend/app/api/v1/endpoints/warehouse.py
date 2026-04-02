@@ -19,6 +19,7 @@ router = APIRouter()
 async def get_warehouses(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
+    include_pharmacy: bool = False,
 ) -> Any:
     # Allowed roles for listing warehouses
     allowed = {
@@ -35,11 +36,23 @@ async def get_warehouses(
     if current_user.role not in allowed:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    result = await db.execute(
-        select(Warehouse).options(
-            selectinload(Warehouse.stocks).selectinload(Stock.product)
-        )
+    from app.models.warehouse import WarehouseType
+    from app.models.crm import MedicalOrganization
+    from sqlalchemy import or_
+    
+    query = select(Warehouse).options(
+        selectinload(Warehouse.stocks).selectinload(Stock.product)
     )
+    if not include_pharmacy:
+        query = query.outerjoin(MedicalOrganization, Warehouse.med_org_id == MedicalOrganization.id)
+        query = query.where(
+            or_(
+                Warehouse.med_org_id == None,
+                MedicalOrganization.org_type != "pharmacy"
+            )
+        )
+        
+    result = await db.execute(query)
     warehouses = result.scalars().all()
     
     # Map product_name for each stock item to satisfy the schema

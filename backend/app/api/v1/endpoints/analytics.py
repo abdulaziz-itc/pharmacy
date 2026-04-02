@@ -38,17 +38,37 @@ async def get_global_realtime_dashboard(
     ]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
-    if not month:
-        month = datetime.utcnow().month
-    if not year:
-        year = datetime.utcnow().year
+    # Date Filtering Logic
+    start_date = None
+    end_date = None
+    prev_start_date = None
+    prev_end_date = None
+    
+    is_global_mode = not month or not year
+    
+    if not is_global_mode:
+        # Start of period
+        start_date = datetime(year, month, 1)
+        if month == 12:
+            end_date = datetime(year + 1, 1, 1)
+        else:
+            end_date = datetime(year, month + 1, 1)
+
+        # Calculate previous period boundaries
+        if month == 1:
+            prev_m, prev_y = 12, year - 1
+        else:
+            prev_m, prev_y = month - 1, year
+        prev_start_date = datetime(prev_y, prev_m, 1)
         
-    # Start of period
-    start_date = datetime(year, month, 1)
-    if month == 12:
-        end_date = datetime(year + 1, 1, 1)
+        if prev_m == 12:
+            prev_end_date = datetime(prev_y + 1, 1, 1)
+        else:
+            prev_end_date = datetime(prev_y, prev_m + 1, 1)
     else:
-        end_date = datetime(year, month + 1, 1)
+        # Global mode: Compare this year vs last year (as an example of comparative context)
+        # Or just show absolute totals without date filter
+        pass
 
     # Regional Restriction for RM
     allowed_region_ids = None
@@ -78,30 +98,31 @@ async def get_global_realtime_dashboard(
     # Helper to build core queries
     from app.models.sales import InvoiceStatus
     def build_queries(start_tgt, end_tgt):
-        _rev = select(func.sum(Payment.amount)).where(
-            and_(Payment.date >= start_tgt, Payment.date < end_tgt)
-        )
+        _rev = select(func.sum(Payment.amount))
+        if start_tgt and end_tgt:
+            _rev = _rev.where(and_(Payment.date >= start_tgt, Payment.date < end_tgt))
+            
         _bonus = select(func.sum(BonusLedger.amount)).where(
-            and_(
-                BonusLedger.ledger_type == LedgerType.ACCRUAL,
-                BonusLedger.created_at >= start_tgt,
-                BonusLedger.created_at < end_tgt
-            )
+            BonusLedger.ledger_type == LedgerType.ACCRUAL,
         )
+        if start_tgt and end_tgt:
+            _bonus = _bonus.where(and_(BonusLedger.created_at >= start_tgt, BonusLedger.created_at < end_tgt))
+            
         _qty = select(func.sum(ReservationItem.quantity)).join(
             Reservation, ReservationItem.reservation_id == Reservation.id
         ).join(
             Invoice, Invoice.reservation_id == Reservation.id
-        ).where(
-            and_(Invoice.date >= start_tgt, Invoice.date < end_tgt)
         )
-        # Debt is total up to the given end date (not just for that month)
+        if start_tgt and end_tgt:
+            _qty = _qty.where(and_(Invoice.date >= start_tgt, Invoice.date < end_tgt))
+            
+        # Debt is total up to the given end date (or current if global)
         _debt = select(func.sum(Invoice.total_amount - Invoice.paid_amount)).where(
-            and_(
-                Invoice.date < end_tgt,
-                Invoice.status != InvoiceStatus.CANCELLED
-            )
+            Invoice.status != InvoiceStatus.CANCELLED
         )
+        if end_tgt:
+            _debt = _debt.where(Invoice.date < end_tgt)
+            
         return _rev, _bonus, _qty, _debt
 
     curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q = build_queries(start_date, end_date)
