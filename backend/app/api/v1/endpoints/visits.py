@@ -127,3 +127,21 @@ async def create_visit_plan(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/plans/{plan_id}")
+async def delete_visit_plan(
+    plan_id: int,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Delete a visit plan.
+    """
+    result = await db.execute(select(VisitPlan).where(VisitPlan.id == plan_id))
+    db_obj = result.scalar_one_or_none()
+    if not db_obj:
+        raise HTTPException(status_code=404, detail="Visit plan not found")
+
+    await db.delete(db_obj)
+    await db.commit()
+    return {"ok": True, "id": plan_id}

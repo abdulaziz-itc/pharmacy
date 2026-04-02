@@ -20,11 +20,40 @@ import {
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { createVisitPlan } from "../../../api/visits";
+import { createVisitPlan, deleteVisitPlan } from "../../../api/visits";
 import { getDoctors } from "../../../api/crm";
 import { useParams } from "react-router-dom";
 import { DatePicker } from "../../../components/ui/date-picker";
 
+const DeletePlanButton = ({ planId }: { planId: number }) => {
+    const [isDeleting, setIsDeleting] = React.useState(false);
+
+    const handleDelete = async () => {
+        if (!window.confirm("Вы уверены, что хотите удалить этот план?")) return;
+        setIsDeleting(true);
+        try {
+            await deleteVisitPlan(planId);
+            window.location.reload();
+        } catch (error) {
+            console.error("Failed to delete plan", error);
+            alert("Ошибка при удалении плана");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    return (
+        <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+        >
+            <Trash2 className="h-4 w-4" />
+        </Button>
+    );
+};
 
 const columns: ColumnDef<any>[] = [
     {
@@ -61,11 +90,7 @@ const columns: ColumnDef<any>[] = [
     {
         id: "actions",
         header: "УДАЛИТЬ",
-        cell: () => (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50">
-                <Trash2 className="h-4 w-4" />
-            </Button>
-        )
+        cell: ({ row }) => <DeletePlanButton planId={row.original.id} />
     }
 ];
 

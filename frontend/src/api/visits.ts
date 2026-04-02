@@ -19,3 +19,8 @@ export const createVisitPlan = async (planData: any) => {
     const response = await axiosInstance.post('/users/plans/', planData);
     return response.data;
 };
+
+export const deleteVisitPlan = async (planId: number) => {
+    const response = await axiosInstance.delete(`/users/plans/${planId}`);
+    return response.data;
+};
