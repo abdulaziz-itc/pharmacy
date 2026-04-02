@@ -139,7 +139,7 @@ async def get_deletion_requests(
 ) -> Any:
     """List all reservations and invoices pending deletion."""
     
-    if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.INVESTOR]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     try:
