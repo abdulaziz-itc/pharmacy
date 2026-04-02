@@ -54,17 +54,6 @@ async def get_global_realtime_dashboard(
         else:
             end_date = datetime(year, month + 1, 1)
 
-        # Calculate previous period boundaries
-        if month == 1:
-            prev_m, prev_y = 12, year - 1
-        else:
-            prev_m, prev_y = month - 1, year
-        prev_start_date = datetime(prev_y, prev_m, 1)
-        
-        if prev_m == 12:
-            prev_end_date = datetime(prev_y + 1, 1, 1)
-        else:
-            prev_end_date = datetime(prev_y, prev_m + 1, 1)
     else:
         # Global mode: Compare this year vs last year (as an example of comparative context)
         # Or just show absolute totals without date filter
@@ -83,17 +72,18 @@ async def get_global_realtime_dashboard(
         # RM must have at least one region, otherwise no data
         final_region_ids = [-1]
 
-    # Calculate previous period boundaries
-    if month == 1:
-        prev_m, prev_y = 12, year - 1
-    else:
-        prev_m, prev_y = month - 1, year
-    prev_start_date = datetime(prev_y, prev_m, 1)
-    
-    if prev_m == 12:
-        prev_end_date = datetime(prev_y + 1, 1, 1)
-    else:
-        prev_end_date = datetime(prev_y, prev_m + 1, 1)
+    # Calculate previous period boundaries (only if not in global mode)
+    if not is_global_mode:
+        if month == 1:
+            prev_m, prev_y = 12, year - 1
+        else:
+            prev_m, prev_y = month - 1, year
+        prev_start_date = datetime(prev_y, prev_m, 1)
+        
+        if prev_m == 12:
+            prev_end_date = datetime(prev_y + 1, 1, 1)
+        else:
+            prev_end_date = datetime(prev_y, prev_m + 1, 1)
 
     # Helper to build core queries
     from app.models.sales import InvoiceStatus

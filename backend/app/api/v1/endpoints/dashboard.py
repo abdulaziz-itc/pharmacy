@@ -93,12 +93,13 @@ async def get_dashboard_stats(
         active_users_res = await db.execute(active_users_query)
         active_users_today = active_users_res.scalar() or 0
         
-        # 4. Completed Visits for selected period
-        comp_visits_query = select(func.count(VisitPlan.id)).where(
-            (VisitPlan.status == "completed") &
-            (VisitPlan.planned_date >= month_start.date()) &
-            (VisitPlan.planned_date <= month_end.date())
-        )
+        # 4. Completed Visits
+        comp_visits_query = select(func.count(VisitPlan.id)).where(VisitPlan.status == "completed")
+        if not is_global_mode:
+            comp_visits_query = comp_visits_query.where(
+                (VisitPlan.planned_date >= month_start.date()) &
+                (VisitPlan.planned_date <= month_end.date())
+            )
         if final_region_ids:
             from app.models.crm import MedicalOrganization
             comp_visits_query = comp_visits_query.join(MedicalOrganization, VisitPlan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
@@ -180,16 +181,19 @@ async def get_dashboard_stats(
     debt_res = await db.execute(debt_query)
     total_debt = debt_res.scalar() or 0.0
 
-    # 3. Active Doctors (Doctors with activity in selected month)
-    # Using unique doctors from VisitPlans and Reservations
-    active_docs_res_stmt = select(func.distinct(Reservation.med_org_id)).where(
-        (Reservation.date >= month_start.date()) &
-        (Reservation.date <= month_end.date())
-    )
-    active_docs_visit_stmt = select(func.distinct(VisitPlan.med_org_id)).where(
-        (VisitPlan.planned_date >= month_start.date()) &
-        (VisitPlan.planned_date <= month_end.date())
-    )
+    # 3. Active Doctors
+    active_docs_res_stmt = select(func.distinct(Reservation.med_org_id))
+    active_docs_visit_stmt = select(func.distinct(VisitPlan.med_org_id))
+    
+    if not is_global_mode:
+        active_docs_res_stmt = active_docs_res_stmt.where(
+            (Reservation.date >= month_start.date()) &
+            (Reservation.date <= month_end.date())
+        )
+        active_docs_visit_stmt = active_docs_visit_stmt.where(
+            (VisitPlan.planned_date >= month_start.date()) &
+            (VisitPlan.planned_date <= month_end.date())
+        )
     
     if is_med_rep:
         active_docs_res_stmt = active_docs_res_stmt.where(Reservation.created_by_id == current_user.id)
@@ -227,12 +231,14 @@ async def get_dashboard_stats(
     # 5. Recent Activities (Filter by month)
     recent_activities = []
     
-    # Notifications (Filtered by created_at)
-    notif_query = select(Notification).where(
-        (Notification.recipient_id == current_user.id) &
-        (Notification.created_at >= month_start) &
-        (Notification.created_at <= month_end)
-    ).order_by(desc(Notification.created_at)).limit(5)
+    # Notifications
+    notif_query = select(Notification).where(Notification.recipient_id == current_user.id)
+    if not is_global_mode:
+        notif_query = notif_query.where(
+            (Notification.created_at >= month_start) &
+            (Notification.created_at <= month_end)
+        )
+    notif_query = notif_query.order_by(desc(Notification.created_at)).limit(5)
     notif_result = await db.execute(notif_query)
     notifications = notif_result.scalars().all()
     
@@ -246,10 +252,13 @@ async def get_dashboard_stats(
         ))
 
     # Reservations
-    res_query = select(Reservation).where(
-        (Reservation.date >= month_start.date()) &
-        (Reservation.date <= month_end.date())
-    ).order_by(desc(Reservation.date)).limit(10)
+    res_query = select(Reservation)
+    if not is_global_mode:
+        res_query = res_query.where(
+            (Reservation.date >= month_start.date()) &
+            (Reservation.date <= month_end.date())
+        )
+    res_query = res_query.order_by(desc(Reservation.date)).limit(10)
     
     if is_med_rep:
         res_query = res_query.where(Reservation.created_by_id == current_user.id)
@@ -276,23 +285,27 @@ async def get_dashboard_stats(
         ActivityItem(title="Нет событий", desc="За это время событий не зафиксировано", amount="", time="", color="blue")
     ]
 
-    # 6. Revenue Forecast (Centering around filter month)
-    months = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
+    # 6. Revenue Forecast
+    months_list = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
     forecast = []
+    current_m = month or datetime.utcnow().month
     for i in range(-2, 4):
-        m_idx = (target_month - 1 + i) % 12
-        forecast.append(RevenueForecastPoint(month=months[m_idx], value=20.0 + (i * 5) + (target_month % 5)))
+        m_idx = (current_m - 1 + i) % 12
+        forecast.append(RevenueForecastPoint(month=months_list[m_idx], value=20.0 + (i * 5) + (current_m % 5)))
 
     # 7. Visit Stats
-    planned_visits_query = select(func.count(VisitPlan.id)).where(
-        (VisitPlan.planned_date >= month_start.date()) &
-        (VisitPlan.planned_date <= month_end.date())
-    )
-    completed_visits_query = select(func.count(VisitPlan.id)).where(
-        (VisitPlan.status == "completed") &
-        (VisitPlan.planned_date >= month_start.date()) &
-        (VisitPlan.planned_date <= month_end.date())
-    )
+    planned_visits_query = select(func.count(VisitPlan.id))
+    completed_visits_query = select(func.count(VisitPlan.id)).where(VisitPlan.status == "completed")
+    
+    if not is_global_mode:
+        planned_visits_query = planned_visits_query.where(
+            (VisitPlan.planned_date >= month_start.date()) &
+            (VisitPlan.planned_date <= month_end.date())
+        )
+        completed_visits_query = completed_visits_query.where(
+            (VisitPlan.planned_date >= month_start.date()) &
+            (VisitPlan.planned_date <= month_end.date())
+        )
     
     if is_med_rep:
         planned_visits_query = planned_visits_query.where(VisitPlan.med_rep_id == current_user.id)
@@ -307,11 +320,13 @@ async def get_dashboard_stats(
     completed_visits_res = await db.execute(completed_visits_query)
     completed_visits = completed_visits_res.scalar() or 0
 
-    # 8. Bonus Balance (Filter by month)
-    bonus_balance_query = select(func.sum(BonusLedger.amount)).where(
-        (BonusLedger.created_at >= month_start) &
-        (BonusLedger.created_at <= month_end)
-    )
+    # 8. Bonus Balance
+    bonus_balance_query = select(func.sum(BonusLedger.amount))
+    if not is_global_mode:
+        bonus_balance_query = bonus_balance_query.where(
+            (BonusLedger.created_at >= month_start) &
+            (BonusLedger.created_at <= month_end)
+        )
     if is_med_rep:
         bonus_balance_query = bonus_balance_query.where(BonusLedger.user_id == current_user.id)
     elif is_manager:
