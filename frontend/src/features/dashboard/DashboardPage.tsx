@@ -79,18 +79,19 @@ export default function DashboardPage() {
             }
             
             // Otherwise, map the Global Analytics data to our DashboardStats interface
+            // Now mapping the real dynamic values from backend
             return {
                 total_sales: data.total_revenue,
-                total_sales_change: "+12.5%", 
+                total_sales_change: data.revenue_change || "0%", 
                 active_doctors: data.total_items_sold, 
-                active_doctors_change: "+4.2%",
+                active_doctors_change: data.items_sold_change || "0%",
                 pending_reservations: data.total_bonus_accrued,
                 pending_reservations_label: "БОНУСЫ НАЧИСЛЕНЫ",
-                total_debt: 0,
-                total_debt_change: "-2.1%",
+                total_debt: data.total_debt || 0,
+                total_debt_change: data.debt_change || "0%",
                 revenue_forecast: [],
-                recent_activities: [],
-                growth_peak: "0%",
+                recent_activities: data.recent_activities || [],
+                growth_peak: data.growth_peak || "0%",
                 completed_visits: 0,
                 planned_visits: 0,
                 bonus_balance: data.total_bonus_accrued
@@ -192,16 +193,16 @@ export default function DashboardPage() {
                     title={user?.role === 'hrd' ? "Штат сотрудников" : "Общие продажи"}
                     value={user?.role === 'hrd' ? `${stats?.total_sales ?? 0}` : `${stats?.total_sales?.toLocaleString() ?? 0} сум`}
                     change={stats?.total_sales_change}
-                    isUp={true}
+                    isUp={stats?.total_sales_change?.startsWith('+')}
                     icon={TrendingUp}
                     color="blue"
                     onClick={() => navigate(user?.role === 'hrd' ? '/hrd/users' : '/reports')}
                 />
                 <MetricCard
-                    title={user?.role === 'hrd' ? "Охват врачей" : "Количество проdanных товаров"}
+                    title={user?.role === 'hrd' ? "Охват врачей" : "Количество проданных товаров"}
                     value={stats?.active_doctors?.toLocaleString() ?? 0}
                     change={stats?.active_doctors_change}
-                    isUp={true}
+                    isUp={stats?.active_doctors_change?.startsWith('+')}
                     icon={Users}
                     color="indigo"
                     onClick={() => navigate(user?.role === 'hrd' ? '/doctors' : '/reports')}
@@ -220,7 +221,7 @@ export default function DashboardPage() {
                     title={user?.role === 'hrd' ? "Выполнено визитов" : "Дебиторская задолженность"}
                     value={user?.role === 'hrd' ? stats?.total_debt?.toLocaleString() : `${stats?.total_debt?.toLocaleString() ?? 0} сум`}
                     change={stats?.total_debt_change}
-                    isUp={false}
+                    isUp={!stats?.total_debt_change?.startsWith('+')} 
                     icon={Wallet}
                     color="rose"
                     onClick={() => navigate(user?.role === 'hrd' ? '/med-reps' : '/debtors')}

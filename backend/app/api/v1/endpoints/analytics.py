@@ -63,71 +63,175 @@ async def get_global_realtime_dashboard(
         # RM must have at least one region, otherwise no data
         final_region_ids = [-1]
 
-    # 1. Total Revenue (Paid amount from payments this month)
-    rev_query = select(func.sum(Payment.amount)).where(
-        and_(Payment.date >= start_date, Payment.date < end_date)
-    )
+    # Calculate previous period boundaries
+    if month == 1:
+        prev_m, prev_y = 12, year - 1
+    else:
+        prev_m, prev_y = month - 1, year
+    prev_start_date = datetime(prev_y, prev_m, 1)
     
-    # 2. Total Bonus Accrued (Accruals this month)
-    bonus_query = select(func.sum(BonusLedger.amount)).where(
-        and_(
-            BonusLedger.ledger_type == LedgerType.ACCRUAL,
-            BonusLedger.created_at >= start_date,
-            BonusLedger.created_at < end_date
-        )
-    )
+    if prev_m == 12:
+        prev_end_date = datetime(prev_y + 1, 1, 1)
+    else:
+        prev_end_date = datetime(prev_y, prev_m + 1, 1)
 
-    # 3. Total Items Sold (Quantity from invoices this month)
-    qty_query = select(func.sum(ReservationItem.quantity)).join(
-        Reservation, ReservationItem.reservation_id == Reservation.id
-    ).join(
-        Invoice, Invoice.reservation_id == Reservation.id
-    ).where(
-        and_(Invoice.date >= start_date, Invoice.date < end_date)
-    )
+    # Helper to build core queries
+    from app.models.sales import InvoiceStatus
+    def build_queries(start_tgt, end_tgt):
+        _rev = select(func.sum(Payment.amount)).where(
+            and_(Payment.date >= start_tgt, Payment.date < end_tgt)
+        )
+        _bonus = select(func.sum(BonusLedger.amount)).where(
+            and_(
+                BonusLedger.ledger_type == LedgerType.ACCRUAL,
+                BonusLedger.created_at >= start_tgt,
+                BonusLedger.created_at < end_tgt
+            )
+        )
+        _qty = select(func.sum(ReservationItem.quantity)).join(
+            Reservation, ReservationItem.reservation_id == Reservation.id
+        ).join(
+            Invoice, Invoice.reservation_id == Reservation.id
+        ).where(
+            and_(Invoice.date >= start_tgt, Invoice.date < end_tgt)
+        )
+        # Debt is total up to the given end date (not just for that month)
+        _debt = select(func.sum(Invoice.total_amount - Invoice.paid_amount)).where(
+            and_(
+                Invoice.date < end_tgt,
+                Invoice.status != InvoiceStatus.CANCELLED
+            )
+        )
+        return _rev, _bonus, _qty, _debt
+
+    curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q = build_queries(start_date, end_date)
+    prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q = build_queries(prev_start_date, prev_end_date)
     
     # Apply hierarchy filter if not director/admin
     is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
     
-    rep_ids = None
     if is_team_manager:
         from app.crud.crud_user import get_descendant_ids
         rep_ids = await get_descendant_ids(db, current_user.id)
         if not rep_ids:
             rep_ids = [-1]
         
-        # 1a. Filter payments by team
-        rev_query = rev_query.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id).where(
-            Reservation.created_by_id.in_(rep_ids)
-        )
-        
-        # 2a. Filter bonuses by team
-        bonus_query = bonus_query.where(BonusLedger.user_id.in_(rep_ids))
-        
-        # 3a. Filter qty by team
-        qty_query = qty_query.where(Reservation.created_by_id.in_(rep_ids))
+        def apply_team(_rq, _bq, _qq, _dq):
+            _rq = _rq.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
+            _bq = _bq.where(BonusLedger.user_id.in_(rep_ids))
+            _qq = _qq.where(Reservation.created_by_id.in_(rep_ids))
+            _dq = _dq.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
+            return _rq, _bq, _qq, _dq
+            
+        curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q = apply_team(curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q)
+        prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q = apply_team(prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q)
 
     # Apply region filter
     if final_region_ids:
-        # Note: rev_query already joined Reservation above if is_team_manager
-        if not is_team_manager:
-            rev_query = rev_query.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
-        
-        rev_query = rev_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
-        
-        # qty_query already joined Reservation and Invoice
-        qty_query = qty_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+        def apply_region(_rq, _qq, _dq):
+            if not is_team_manager:
+                _rq = _rq.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
+                _dq = _dq.join(Reservation, Invoice.reservation_id == Reservation.id)
+            _rq = _rq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+            _qq = _qq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+            _dq = _dq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+            return _rq, _qq, _dq
+            
+        curr_rev_q, curr_qty_q, curr_debt_q = apply_region(curr_rev_q, curr_qty_q, curr_debt_q)
+        prev_rev_q, prev_qty_q, prev_debt_q = apply_region(prev_rev_q, prev_qty_q, prev_debt_q)
 
-    rev_res = await db.execute(rev_query)
-    bonus_res = await db.execute(bonus_query)
-    qty_res = await db.execute(qty_query)
+    # Executing Current
+    c_rev = (await db.execute(curr_rev_q)).scalar() or 0.0
+    c_bon = (await db.execute(curr_bonus_q)).scalar() or 0.0
+    c_qty = (await db.execute(curr_qty_q)).scalar() or 0
+    c_debt = (await db.execute(curr_debt_q)).scalar() or 0.0
+    
+    # Executing Previous
+    p_rev = (await db.execute(prev_rev_q)).scalar() or 0.0
+    p_bon = (await db.execute(prev_bonus_q)).scalar() or 0.0
+    p_qty = (await db.execute(prev_qty_q)).scalar() or 0
+    p_debt = (await db.execute(prev_debt_q)).scalar() or 0.0
+
+    # Trend calculation
+    def calc_trend(current, prev):
+        if prev == 0 and current == 0:
+            return "0%"
+        if prev == 0:
+            return "+100%"
+        change = ((current - prev) / prev) * 100
+        sign = "+" if change > 0 else ""
+        return f"{sign}{change:.1f}%"
+
+    rev_change = calc_trend(c_rev, p_rev)
+    bon_change = calc_trend(c_bon, p_bon)
+    qty_change = calc_trend(c_qty, p_qty)
+    debt_change = calc_trend(c_debt, p_debt)
+    
+    # Growth peak (max of positive changes, else 0%)
+    changes = []
+    for measure, c in [('rev', rev_change), ('bon', bon_change), ('qty', qty_change)]: 
+        try:
+            val = float(str(c).replace('%', '').replace('+', ''))
+            if measure == 'bon': # For bonus, decrease is good, increase is bad
+                val = -val
+            changes.append(val)
+        except ValueError:
+            pass
+    if changes and max(changes) > 0:
+        growth_peak = f"+{max(changes):.1f}%"
+    else:
+        growth_peak = "0%"
+
+    # Recent activities (last 5 payments/invoices)
+    activities = []
+    if current_user.role in [UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN]:
+        # Latest Payments
+        recent_payments = (await db.execute(
+            select(Payment).order_by(Payment.date.desc()).limit(3)
+        )).scalars().all()
+        for p in recent_payments:
+            activities.append({
+                "title": "Оплата фактуры",
+                "desc": p.comment or "Поступление средств",
+                "amount": f"+{p.amount:,.0f} UZS",
+                "time": p.date.strftime("%d.%m.%Y %H:%M"),
+                "color": "green",
+                "dt": p.date
+            })
+            
+        # Latest Invoices
+        recent_invoices = (await db.execute(
+            select(Invoice).order_by(Invoice.date.desc()).limit(3)
+        )).scalars().all()
+        for i in recent_invoices:
+            activities.append({
+                "title": "Новая фактура",
+                "desc": f"Фактура №{i.factura_number or i.id}",
+                "amount": f"{i.total_amount:,.0f} UZS",
+                "time": i.date.strftime("%d.%m.%Y %H:%M"),
+                "color": "blue",
+                "dt": i.date
+            })
+            
+        # Sort combined and take top 5
+        activities.sort(key=lambda x: x["dt"], reverse=True)
+        activities = activities[:5]
+        for a in activities:
+            del a["dt"] # remove date obj
 
     return {
         "month": month,
         "year": year,
-        "total_revenue": rev_res.scalar() or 0.0,
-        "total_bonus_accrued": bonus_res.scalar() or 0.0,
-        "total_items_sold": qty_res.scalar() or 0,
+        "total_revenue": c_rev,
+        "total_bonus_accrued": c_bon,
+        "total_items_sold": c_qty,
+        "total_debt": c_debt,
+        "revenue_change": rev_change,
+        "bonus_change": bon_change,
+        "items_sold_change": qty_change,
+        "debt_change": debt_change,
+        "growth_peak": growth_peak,
+        "recent_activities": activities
     }
 
 @router.get("/dashboard/director-report-excel")
