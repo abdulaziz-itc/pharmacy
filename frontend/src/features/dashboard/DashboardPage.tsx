@@ -222,7 +222,7 @@ export default function DashboardPage() {
                     icon={CalendarClock}
                     color="orange"
                     isStatic={true}
-                    onClick={() => navigate(user?.role === 'hrd' ? '/hrd/login-history' : '/notifications')}
+                    onClick={() => navigate(user?.role === 'hrd' ? '/hrd/login-history' : '/bonuses')}
                 />
                 <MetricCard
                     title={user?.role === 'hrd' ? "Выполнено визитов" : "Дебиторская задолженность"}
