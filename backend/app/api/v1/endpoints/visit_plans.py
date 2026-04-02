@@ -125,8 +125,10 @@ async def update_visit_plan(
     
     if is_completed is True:
         update_data["status"] = "completed"
+        db_obj.completed_at = datetime.utcnow()
     elif is_completed is False:
         update_data["status"] = "planned"
+        db_obj.completed_at = None
 
     for field in update_data:
         setattr(db_obj, field, update_data[field])

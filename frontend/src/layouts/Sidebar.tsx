@@ -56,7 +56,7 @@ const getSidebarItems = (role?: string, userId?: number) => {
         { icon: Building2, label: 'Оптовые компании', href: '/head-of-orders?tab=wholesale', roles: ['head_of_orders'] },
         { icon: PieChart, label: 'Отчеты', href: '/head-of-orders?tab=reports', roles: ['head_of_orders'] },
         // Warehouse Management
-        { icon: Warehouse, label: 'Склады', href: '/warehouse', roles: ['admin', 'investor', 'director', 'head_of_warehouse'] },
+        { icon: Warehouse, label: 'Склады', href: '/warehouse', roles: ['admin', 'investor', 'director', 'deputy_director', 'head_of_warehouse'] },
         { icon: Activity, label: 'Удаление (План)', href: '/deletion-approval', roles: ['admin', 'investor', 'director', 'head_of_warehouse'] },
     ];
 

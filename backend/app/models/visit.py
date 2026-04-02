@@ -27,6 +27,7 @@ class VisitPlan(Base):
     notes = Column(Text, nullable=True)
     visit_type = Column(String, nullable=True) # "Плановый", etc.
     status = Column(String, default="planned") # planned, completed, cancelled
+    completed_at = Column(DateTime, nullable=True)
     
     # Relationships
     med_rep = relationship("User", foreign_keys=[med_rep_id])

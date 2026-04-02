@@ -7,6 +7,7 @@ import { AddWarehouseModal } from './AddWarehouseModal';
 import { AddStockModal } from './AddStockModal';
 import { useProductStore } from '../../store/productStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { useAuthStore } from '../../store/authStore';
 
 export default function WarehouseManagementPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -17,6 +18,9 @@ export default function WarehouseManagementPage() {
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number | null>(null);
   const { products, fetchProducts } = useProductStore();
+  const user = useAuthStore((state) => state.user);
+  
+  const isReadOnly = user?.role === 'deputy_director';
 
   const loadData = async () => {
     setIsLoading(true);
@@ -35,7 +39,8 @@ export default function WarehouseManagementPage() {
     loadData();
   }, []);
 
-  const getProductName = (productId: number) => {
+  const getProductName = (productId: number, stockProductName?: string) => {
+    if (stockProductName) return stockProductName;
     return products.find(p => p.id === productId)?.name || `Продукт #${productId}`;
   };
 
@@ -43,8 +48,12 @@ export default function WarehouseManagementPage() {
     <PageContainer>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Управление складами</h1>
-          <p className="text-slate-500 font-medium mt-1">Просмотр остатков и пополнение запасов на складах.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+            {isReadOnly ? 'Остатки на складах' : 'Управление складами'}
+          </h1>
+          <p className="text-slate-500 font-medium mt-1">
+            {isReadOnly ? 'Просмотр актуальных остатков продукции на всех складах.' : 'Просмотр остатков и пополнение запасов на складах.'}
+          </p>
         </div>
         <div className="flex gap-3">
           <Button
@@ -54,13 +63,15 @@ export default function WarehouseManagementPage() {
           >
             <RefreshCcw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button
-            onClick={() => setIsAddWarehouseModalOpen(true)}
-            className="h-12 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2 shadow-lg shadow-blue-500/20 transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            Создать склад
-          </Button>
+          {!isReadOnly && (
+            <Button
+              onClick={() => setIsAddWarehouseModalOpen(true)}
+              className="h-12 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2 shadow-lg shadow-blue-500/20 transition-all"
+            >
+              <Plus className="w-5 h-5" />
+              Создать склад
+            </Button>
+          )}
         </div>
       </div>
 
@@ -88,17 +99,19 @@ export default function WarehouseManagementPage() {
                       </span>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0 rounded-lg hover:bg-blue-50 text-blue-600"
-                    onClick={() => {
-                      setSelectedWarehouseId(warehouse.id);
-                      setIsAddStockModalOpen(true);
-                    }}
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
+                  {!isReadOnly && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 rounded-lg hover:bg-blue-50 text-blue-600"
+                      onClick={() => {
+                        setSelectedWarehouseId(warehouse.id);
+                        setIsAddStockModalOpen(true);
+                      }}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="pt-4">
@@ -109,26 +122,28 @@ export default function WarehouseManagementPage() {
                         <div className="flex items-center gap-2">
                           <Package className="w-4 h-4 text-slate-400" />
                           <span className="text-sm font-bold text-slate-700 truncate max-w-[150px]">
-                            {getProductName(stock.product_id)}
+                            {getProductName(stock.product_id, stock.product_name)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">
                             {stock.quantity}
                           </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
-                            onClick={() => {
-                              setSelectedWarehouseId(warehouse.id);
-                              setSelectedProductId(stock.product_id);
-                              setSelectedQuantity(stock.quantity);
-                              setIsAddStockModalOpen(true);
-                            }}
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </Button>
+                          {!isReadOnly && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                              onClick={() => {
+                                setSelectedWarehouseId(warehouse.id);
+                                setSelectedProductId(stock.product_id);
+                                setSelectedQuantity(stock.quantity);
+                                setIsAddStockModalOpen(true);
+                              }}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))
@@ -145,7 +160,7 @@ export default function WarehouseManagementPage() {
         </div>
       )}
 
-      {warehouses.length === 0 && !isLoading && (
+      {!isReadOnly && warehouses.length === 0 && !isLoading && (
         <div className="bg-white rounded-[40px] p-20 text-center shadow-2xl shadow-slate-200/60 border border-slate-100">
           <div className="w-20 h-20 bg-slate-50 rounded-[30px] flex items-center justify-center mx-auto mb-6">
             <WarehouseIcon className="w-10 h-10 text-slate-300" />
@@ -159,6 +174,16 @@ export default function WarehouseManagementPage() {
             <Plus className="w-5 h-5" />
             Создать первый склад
           </Button>
+        </div>
+      )}
+
+      {isReadOnly && warehouses.length === 0 && !isLoading && (
+        <div className="bg-white rounded-[40px] p-20 text-center shadow-2xl shadow-slate-200/60 border border-slate-100">
+          <div className="w-20 h-20 bg-slate-50 rounded-[30px] flex items-center justify-center mx-auto mb-6">
+            <WarehouseIcon className="w-10 h-10 text-slate-300" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">Склады не найдены</h3>
+          <p className="text-slate-500 max-w-md mx-auto font-medium">В настоящее время список складов пуст.</p>
         </div>
       )}
 

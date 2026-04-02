@@ -26,6 +26,7 @@ class VisitPlanCreate(VisitPlanBase):
 
 class VisitPlanUpdate(VisitPlanBase):
     is_completed: Optional[bool] = None
+    completed_at: Optional[datetime] = None
 
 class VisitPlan(VisitPlanBase):
     id: int
@@ -34,6 +35,7 @@ class VisitPlan(VisitPlanBase):
     doctor: Optional[Doctor] = None
     med_org: Optional[MedicalOrganization] = None
     status: Optional[str] = None # pending, completed, cancelled
+    completed_at: Optional[datetime] = None
 
     if computed_field and hasattr(computed_field, '__name__') and computed_field.__name__ == 'computed_field':
         @computed_field

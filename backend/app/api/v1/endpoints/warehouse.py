@@ -35,8 +35,22 @@ async def get_warehouses(
     if current_user.role not in allowed:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    result = await db.execute(select(Warehouse).options(selectinload(Warehouse.stocks)))
-    return result.scalars().all()
+    result = await db.execute(
+        select(Warehouse).options(
+            selectinload(Warehouse.stocks).selectinload(Stock.product)
+        )
+    )
+    warehouses = result.scalars().all()
+    
+    # Map product_name for each stock item to satisfy the schema
+    for warehouse in warehouses:
+        for stock in warehouse.stocks:
+            if stock.product:
+                stock.product_name = stock.product.name
+            else:
+                stock.product_name = "Unknown Product"
+                
+    return warehouses
 
 @router.post("/warehouses/", response_model=WarehouseSchema)
 async def create_warehouse(

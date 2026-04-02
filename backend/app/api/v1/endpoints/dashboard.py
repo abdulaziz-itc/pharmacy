@@ -137,6 +137,89 @@ async def get_dashboard_stats(
             "bonus_balance": 0.0
         }
 
+    # --- 0.4 KPIs CALCULATION ---
+    
+    # 1. Total Sales (Realized Invoices this month)
+    sales_query = select(func.sum(Invoice.total_amount)).where(
+        (Invoice.status != InvoiceStatus.CANCELLED) &
+        (Invoice.date >= month_start) &
+        (Invoice.date <= month_end)
+    )
+    if is_med_rep:
+        sales_query = sales_query.join(Reservation).where(Reservation.created_by_id == current_user.id)
+    elif is_manager:
+        sales_query = sales_query.join(Reservation).where(Reservation.created_by_id.in_(descendant_ids))
+    
+    if final_region_ids:
+        if "Reservation" not in str(sales_query): # Join only if not already joined
+            sales_query = sales_query.join(Reservation)
+        sales_query = sales_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+    
+    sales_res = await db.execute(sales_query)
+    total_sales = sales_res.scalar() or 0.0
+
+    # 2. Total Debt (Cumulative unpaid amount)
+    debt_query = select(func.sum(Invoice.total_amount - Invoice.paid_amount)).where(
+        (Invoice.status != InvoiceStatus.CANCELLED) &
+        (Invoice.paid_amount < Invoice.total_amount)
+    )
+    if is_med_rep:
+        debt_query = debt_query.join(Reservation).where(Reservation.created_by_id == current_user.id)
+    elif is_manager:
+        debt_query = debt_query.join(Reservation).where(Reservation.created_by_id.in_(descendant_ids))
+        
+    if final_region_ids:
+        if "Reservation" not in str(debt_query):
+            debt_query = debt_query.join(Reservation)
+        debt_query = debt_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+    
+    debt_res = await db.execute(debt_query)
+    total_debt = debt_res.scalar() or 0.0
+
+    # 3. Active Doctors (Doctors with activity in selected month)
+    # Using unique doctors from VisitPlans and Reservations
+    active_docs_res_stmt = select(func.distinct(Reservation.med_org_id)).where(
+        (Reservation.date >= month_start.date()) &
+        (Reservation.date <= month_end.date())
+    )
+    active_docs_visit_stmt = select(func.distinct(VisitPlan.med_org_id)).where(
+        (VisitPlan.planned_date >= month_start.date()) &
+        (VisitPlan.planned_date <= month_end.date())
+    )
+    
+    if is_med_rep:
+        active_docs_res_stmt = active_docs_res_stmt.where(Reservation.created_by_id == current_user.id)
+        active_docs_visit_stmt = active_docs_visit_stmt.where(VisitPlan.med_rep_id == current_user.id)
+    elif is_manager:
+        active_docs_res_stmt = active_docs_res_stmt.where(Reservation.created_by_id.in_(descendant_ids))
+        active_docs_visit_stmt = active_docs_visit_stmt.where(VisitPlan.med_rep_id.in_(descendant_ids))
+        
+    if final_region_ids:
+        active_docs_res_stmt = active_docs_res_stmt.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+        active_docs_visit_stmt = active_docs_visit_stmt.join(MedicalOrganization, VisitPlan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+
+    res_docs = await db.execute(active_docs_res_stmt)
+    visit_docs = await db.execute(active_docs_visit_stmt)
+    
+    # Actually counting ORGs as proxies for "activity points" or combining IDs
+    unique_org_ids = set(res_docs.scalars().all()) | set(visit_docs.scalars().all())
+    active_doctors = len(unique_org_ids)
+
+    # 4. Pending Reservations
+    pending_res_query = select(func.count(Reservation.id)).where(
+        Reservation.status.in_([ReservationStatus.PENDING, ReservationStatus.DRAFT])
+    )
+    if is_med_rep:
+        pending_res_query = pending_res_query.where(Reservation.created_by_id == current_user.id)
+    elif is_manager:
+        pending_res_query = pending_res_query.where(Reservation.created_by_id.in_(descendant_ids))
+        
+    if final_region_ids:
+        pending_res_query = pending_res_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+    
+    pending_res_res = await db.execute(pending_res_query)
+    pending_reservations = pending_res_res.scalar() or 0
+
     # 5. Recent Activities (Filter by month)
     recent_activities = []
     
@@ -170,6 +253,7 @@ async def get_dashboard_stats(
         res_query = res_query.where(Reservation.created_by_id.in_(descendant_ids))
         
     if final_region_ids:
+        # Check if already joined via subquery or manual join
         res_query = res_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
         
     res_result = await db.execute(res_query)
@@ -189,14 +273,13 @@ async def get_dashboard_stats(
     ]
 
     # 6. Revenue Forecast (Centering around filter month)
-    # Since forecast is mocked, let's make it look dynamic
     months = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
     forecast = []
     for i in range(-2, 4):
         m_idx = (target_month - 1 + i) % 12
         forecast.append(RevenueForecastPoint(month=months[m_idx], value=20.0 + (i * 5) + (target_month % 5)))
 
-    # 7. Visit Stats (Already have month_start/month_end)
+    # 7. Visit Stats
     planned_visits_query = select(func.count(VisitPlan.id)).where(
         (VisitPlan.planned_date >= month_start.date()) &
         (VisitPlan.planned_date <= month_end.date())

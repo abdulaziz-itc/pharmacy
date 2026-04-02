@@ -4,6 +4,7 @@ export interface Stock {
   id: number;
   product_id: number;
   quantity: number;
+  product_name?: string;
   product?: {
     id: number;
     name: string;
