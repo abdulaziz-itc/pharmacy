@@ -139,11 +139,11 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
       // ignore detail errors
     }
   }
-
+  
   // creation flow methods
   Future<void> loadWarehouses() async {
     try {
-      final response = await _apiClient.get('/warehouse/warehouses/');
+      final response = await _apiClient.get(ApiEndpoints.warehouses);
       if (response.data is List) {
         final list = (response.data as List)
             .map((e) => WarehouseModel.fromJson(e as Map<String, dynamic>))
@@ -164,7 +164,13 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
       return;
     }
     try {
-      final response = await _apiClient.get('/products/', queryParameters: {'name': query});
+      final response = await _apiClient.get(
+        ApiEndpoints.searchProducts, 
+        queryParameters: {
+          'name': query,
+          'warehouse_id': state.selectedWarehouse?.id ?? 1,
+        }
+      );
       if (response.data is List) {
         final list = (response.data as List)
             .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))

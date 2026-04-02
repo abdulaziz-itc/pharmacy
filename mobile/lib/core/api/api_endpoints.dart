@@ -9,6 +9,7 @@ class ApiEndpoints {
 
   // Products
   static const String products = '/products';
+  static const String searchProducts = '/products/';
 
   // Doctors
   static const String doctors = '/crm/doctors';
@@ -21,15 +22,15 @@ class ApiEndpoints {
   static const String doctorCategories = '/crm/doctor-categories/';
 
   // Medical Organizations
-  static const String medOrgs = '/crm/med-orgs';
+  static const String medOrgs = '/crm/med-orgs/';
 
   // Reservations
-  static const String reservations = '/sales/reservations';
-  static String reservationDetail(int id) => '/sales/reservations/$id';
+  static const String reservations = '/sales/reservations/';
+  static String reservationDetail(int id) => '/sales/reservations/$id/';
 
   // Visit Plans
-  static const String visitPlans = '/visit-plans';
-  static String visitPlanDetail(int id) => '/visit-plans/$id';
+  static const String visitPlans = '/visit-plans/';
+  static String visitPlanDetail(int id) => '/visit-plans/$id/';
 
   // Sales Plans
   static const String salesPlans = '/sales/plans';
@@ -44,6 +45,9 @@ class ApiEndpoints {
   // Invoices & Debt
   static const String invoices = '/sales/invoices/';
   static String invoiceDetail(int id) => '/sales/invoices/$id';
+
+  // Warehouse
+  static const String warehouses = '/domain/warehouse/warehouses/';
 
   // User Visits
   static String userVisits(int userId) => '/users/$userId/visits';
