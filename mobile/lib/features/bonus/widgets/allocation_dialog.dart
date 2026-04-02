@@ -55,7 +55,10 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
     if (isMedRep) {
       // For MedRep, inputValue is QUANTITY (units)
       final productsAsync = ref.read(productsProvider);
-      final product = productsAsync.value?.find((p) => p.id == _selectedProductId);
+      final product = productsAsync.value?.firstWhere(
+        (p) => p.id == _selectedProductId,
+        orElse: () => throw Exception('Product not found'),
+      );
       final marketingExpense = product?.marketingExpense ?? 0.0;
       amountToSubmit = inputValue * marketingExpense;
     } else {
@@ -166,7 +169,10 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                 Builder(
                   builder: (context) {
                     final products = productsAsync.value;
-                    final selectedProduct = products?.find((p) => p.id == _selectedProductId);
+                    final selectedProduct = products?.firstWhere(
+                      (p) => p.id == _selectedProductId,
+                      orElse: () => products.first, // Fallback if needed, though validator should prevent this
+                    );
                     final marketingExpense = selectedProduct?.marketingExpense ?? 0.0;
                     
                     String availableHint;
@@ -288,11 +294,3 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
   }
 }
 
-extension IterableExtension<T> on Iterable<T> {
-  T? find(bool Function(T) test) {
-    for (var element in this) {
-      if (test(element)) return element;
-    }
-    return null;
-  }
-}

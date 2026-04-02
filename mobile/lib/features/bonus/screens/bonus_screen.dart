@@ -6,6 +6,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/bonus_model.dart';
 import '../../../shared/widgets/error_view.dart';
 import '../../../shared/widgets/loading_shimmer.dart';
+import '../../../core/l10n/l10n.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../doctors/providers/doctors_provider.dart';
 import '../providers/bonus_provider.dart';
 import '../widgets/allocation_dialog.dart';
