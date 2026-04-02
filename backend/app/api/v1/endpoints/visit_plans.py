@@ -16,8 +16,12 @@ async def _get_plan_with_relations(db: AsyncSession, plan_id: int) -> VisitPlan:
     result = await db.execute(
         select(VisitPlan)
         .options(
-            selectinload(VisitPlan.doctor),
-            selectinload(VisitPlan.med_org)
+            selectinload(VisitPlan.doctor).selectinload(Doctor.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(VisitPlan.doctor).selectinload(Doctor.specialty),
+            selectinload(VisitPlan.doctor).selectinload(Doctor.category),
+            selectinload(VisitPlan.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(VisitPlan.med_org).selectinload(MedicalOrganization.region),
+            selectinload(VisitPlan.doctor).selectinload(Doctor.region)
         )
         .where(VisitPlan.id == plan_id)
     )
@@ -33,8 +37,12 @@ async def get_visit_plans(
     """Retrieve visit plans."""
     try:
         query = select(VisitPlan).options(
-            selectinload(VisitPlan.doctor),
-            selectinload(VisitPlan.med_org)
+            selectinload(VisitPlan.doctor).selectinload(Doctor.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(VisitPlan.doctor).selectinload(Doctor.specialty),
+            selectinload(VisitPlan.doctor).selectinload(Doctor.category),
+            selectinload(VisitPlan.med_org).selectinload(MedicalOrganization.assigned_reps),
+            selectinload(VisitPlan.med_org).selectinload(MedicalOrganization.region),
+            selectinload(VisitPlan.doctor).selectinload(Doctor.region),
         )
         if med_rep_id:
             query = query.where(VisitPlan.med_rep_id == med_rep_id)
