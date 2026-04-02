@@ -31,21 +31,25 @@ async def get_visit_plans(
     med_rep_id: Optional[int] = None,
 ) -> Any:
     """Retrieve visit plans."""
-    query = select(VisitPlan).options(
-        selectinload(VisitPlan.doctor),
-        selectinload(VisitPlan.med_org)
-    )
-    if med_rep_id:
-        query = query.where(VisitPlan.med_rep_id == med_rep_id)
-    elif current_user.role == "med_rep":
-        query = query.where(VisitPlan.med_rep_id == current_user.id)
+    try:
+        query = select(VisitPlan).options(
+            selectinload(VisitPlan.doctor),
+            selectinload(VisitPlan.med_org)
+        )
+        if med_rep_id:
+            query = query.where(VisitPlan.med_rep_id == med_rep_id)
+        elif current_user.role == "med_rep":
+            query = query.where(VisitPlan.med_rep_id == current_user.id)
 
-    result = await db.execute(query)
-    plans = result.scalars().all()
-    print(f"DEBUG: Found {len(plans)} visit plans for med_rep_id={med_rep_id or current_user.id}")
-    if plans:
-        print(f"DEBUG: First plan structure: {plans[0].id} | {plans[0].planned_date} | {plans[0].doctor_id}")
-    return plans
+        result = await db.execute(query)
+        plans = result.scalars().all()
+        print(f"DEBUG: Found {len(plans)} visit plans for med_rep_id={med_rep_id or current_user.id}")
+        return plans
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"SERVER ERROR: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}\n{error_trace}")
 
 
 @router.post("/", response_model=VisitPlanSchema)
