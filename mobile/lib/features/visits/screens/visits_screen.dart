@@ -10,7 +10,7 @@ import '../../../shared/widgets/error_view.dart';
 import '../../../shared/widgets/loading_shimmer.dart';
 import '../providers/visits_provider.dart';
 
-import '../widgets/visit_plan_details_sheet.dart';
+import '../../dashboard/widgets/visit_plan_details_sheet.dart';
 
 class VisitsScreen extends ConsumerStatefulWidget {
   const VisitsScreen({super.key});
