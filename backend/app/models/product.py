@@ -40,6 +40,7 @@ class Product(Base):
     marketing_expense = Column(Float, default=0.0)
     salary_expense = Column(Float, default=0.0)
     other_expenses = Column(Float, default=0.0)  # Прочие расходы
+    units_per_pack = Column(Integer, default=1, nullable=False) # Multiplier for plan progress (e.g. 5 for Adezuma №5)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
