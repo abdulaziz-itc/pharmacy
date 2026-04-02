@@ -10,6 +10,8 @@ import '../../../shared/widgets/error_view.dart';
 import '../../../shared/widgets/loading_shimmer.dart';
 import '../providers/visits_provider.dart';
 
+import '../widgets/visit_plan_details_sheet.dart';
+
 class VisitsScreen extends ConsumerStatefulWidget {
   const VisitsScreen({super.key});
 
@@ -177,7 +179,24 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
   }
 
   Widget _buildVisitCard(VisitPlanModel visit, S l10n, {required bool isPending}) {
-    final statusColor = visit.isCompleted ? AppColors.statusApproved : AppColors.primary;
+    final isDoc = visit.doctor != null;
+    final DateTime parsedDate = DateTime.tryParse(visit.plannedDate) ?? DateTime.now();
+    final DateTime today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final DateTime visitDate = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+    final bool isOverdue = !visit.isCompleted && visitDate.isBefore(today);
+
+    Color statusColor;
+    String statusText;
+    if (visit.isCompleted) {
+      statusColor = AppColors.success;
+      statusText = l10n.completedStatus;
+    } else if (isOverdue) {
+      statusColor = AppColors.error;
+      statusText = l10n.overdueStatus;
+    } else {
+      statusColor = AppColors.statusPending;
+      statusText = l10n.plannedStatus;
+    }
     
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -196,65 +215,76 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {}, // Detail view if exists
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        visit.doctor != null ? Icons.person_rounded : Icons.business_rounded,
-                        color: statusColor,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            visit.doctor?.fullName ?? visit.subject ?? l10n.unnamedVisit,
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.05),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              visit.displayVisitType,
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => VisitPlanDetailsSheet(visitId: visit.id),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                visit.doctor != null ? Icons.person_rounded : Icons.business_rounded,
+                                color: statusColor,
+                                size: 24,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (isPending) _buildVisitActions(visit, l10n),
-                  ],
-                ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isDoc ? visit.doctor!.fullName : (visit.medOrg?.name ?? visit.subject ?? l10n.organizations),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: statusColor.withValues(alpha: 0.05),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          '${_getVisitTypeLabel(visit.visitType, l10n)} • $statusText',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            color: statusColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isPending) _buildVisitActions(visit, l10n),
+                          ],
+                        ),
                 if (visit.notes != null && visit.notes!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -331,6 +361,15 @@ class _VisitsScreenState extends ConsumerState<VisitsScreen>
       offset: const Offset(0, 40),
       child: Icon(Icons.more_horiz_rounded, color: AppColors.textHint, size: 24),
     );
+  }
+
+  String _getVisitTypeLabel(String? type, S l10n) {
+    switch (type?.toLowerCase()) {
+      case 'field': return l10n.fieldVisit;
+      case 'office': return l10n.officeVisit;
+      case 'online': return l10n.onlineVisit;
+      default: return type ?? l10n.visitsLabel;
+    }
   }
 
   Widget _buildChip(IconData icon, String text) {

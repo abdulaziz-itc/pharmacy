@@ -95,19 +95,9 @@ class VisitPlanModel {
       'is_completed': isCompleted,
       if (visitType != null) 'visit_type': visitType,
       if (notes != null) 'notes': notes,
+      if (completedAt != null) 'completed_at': completedAt,
     };
   }
 
-  String get displayVisitType {
-    switch (visitType?.toLowerCase()) {
-      case 'field':
-        return 'Полевой визит';
-      case 'office':
-        return 'Офисный визит';
-      case 'online':
-        return 'Онлайн';
-      default:
-        return visitType ?? 'Визит';
-    }
-  }
+  String get displayVisitType => visitType ?? 'Визит';
 }

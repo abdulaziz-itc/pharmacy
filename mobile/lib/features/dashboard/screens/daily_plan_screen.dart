@@ -170,6 +170,15 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
           statusText = l10n.plannedStatus;
         }
 
+        String getVisitTypeLabel(String? type, S l10n) {
+          switch (type?.toLowerCase()) {
+            case 'field': return l10n.fieldVisit;
+            case 'office': return l10n.officeVisit;
+            case 'online': return l10n.onlineVisit;
+            default: return type ?? l10n.visitsLabel;
+          }
+        }
+
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
@@ -187,7 +196,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
               child: Icon(isDoc ? Icons.person_rounded : Icons.business_rounded, color: statusColor, size: 22),
             ),
             title: Text(isDoc ? visit.doctor!.fullName : (visit.medOrg?.name ?? visit.subject ?? l10n.organizations), style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
-            subtitle: Text('${visit.displayVisitType} • $statusText', style: GoogleFonts.inter(fontSize: 12, color: statusColor, fontWeight: FontWeight.w500)),
+            subtitle: Text('${getVisitTypeLabel(visit.visitType, l10n)} • $statusText', style: GoogleFonts.inter(fontSize: 12, color: statusColor, fontWeight: FontWeight.w500)),
             trailing: visit.isCompleted ? const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20) : const Icon(Icons.chevron_right_rounded, size: 20),
           ),
         );

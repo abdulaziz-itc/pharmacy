@@ -87,7 +87,7 @@ class VisitPlanDetailsSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        visit.displayVisitType,
+                        _getVisitTypeLabel(visit.visitType, l10n),
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           color: AppColors.textSecondary,
@@ -198,5 +198,13 @@ class VisitPlanDetailsSheet extends ConsumerWidget {
         ],
       ),
     );
+  }
+  String _getVisitTypeLabel(String? type, S l10n) {
+    switch (type?.toLowerCase()) {
+      case 'field': return l10n.fieldVisit;
+      case 'office': return l10n.officeVisit;
+      case 'online': return l10n.onlineVisit;
+      default: return type ?? l10n.visitsLabel;
+    }
   }
 }
