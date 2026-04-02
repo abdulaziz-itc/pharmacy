@@ -178,7 +178,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
                 context: context,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
-                builder: (context) => VisitPlanDetailsSheet(visit: visit),
+                builder: (context) => VisitPlanDetailsSheet(visitId: visit.id),
               );
             },
             leading: Container(
