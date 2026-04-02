@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../core/l10n/l10n.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../doctors/providers/doctors_provider.dart';
 import '../../products/providers/products_provider.dart';
 import '../providers/bonus_provider.dart';
@@ -34,7 +35,10 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
   }
 
   Future<void> _submit() async {
-    final l10n = context.l10n;
+    final l10n = S(Localizations.localeOf(context));
+    final authState = ref.read(authProvider);
+    final isMedRep = authState.user?.role == 'med_rep';
+    
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDoctorId == null || _selectedProductId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -45,10 +49,24 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
 
     setState(() => _isSubmitting = true);
     
+    double amountToSubmit;
+    final inputValue = double.tryParse(_amountController.text) ?? 0.0;
+
+    if (isMedRep) {
+      // For MedRep, inputValue is QUANTITY (units)
+      final productsAsync = ref.read(productsProvider);
+      final product = productsAsync.value?.find((p) => p.id == _selectedProductId);
+      final marketingExpense = product?.marketingExpense ?? 0.0;
+      amountToSubmit = inputValue * marketingExpense;
+    } else {
+      // For Manager/Admin, inputValue is SUM (UZS)
+      amountToSubmit = inputValue;
+    }
+    
     final success = await ref.read(bonusProvider.notifier).allocateBonus(
       doctorId: _selectedDoctorId!,
       productId: _selectedProductId!,
-      amount: double.parse(_amountController.text),
+      amount: amountToSubmit,
       month: _selectedDate.month,
       year: _selectedDate.year,
       notes: _notesController.text,
@@ -73,7 +91,10 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
   Widget build(BuildContext context) {
     final doctorsState = ref.watch(doctorsProvider);
     final productsAsync = ref.watch(productsProvider);
-    final l10n = context.l10n;
+    final authState = ref.watch(authProvider);
+    final l10n = S(Localizations.localeOf(context));
+    
+    final isMedRep = authState.user?.role == 'med_rep';
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -90,7 +111,7 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      l10n.attachToDoctorTitle,
+                      isMedRep ? l10n.attachFactTitle : l10n.attachToDoctorTitle,
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -141,22 +162,52 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                // Amount
-                Text('${l10n.enterAmount} (${l10n.availableBalance}: ${NumberFormat('#,##0').format(widget.availableBalance)} UZS)', 
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _amountController,
-                  keyboardType: TextInputType.number,
-                  decoration: _inputDecoration(l10n.enterAmount),
-                  validator: (val) {
-                    if (val == null || val.isEmpty) return l10n.enterAmount;
-                    final amount = double.tryParse(val);
-                    if (amount == null) return l10n.error;
-                    if (amount > widget.availableBalance) return l10n.debtRemainder; // Reuse debtRemainder for insufficient funds
-                    if (amount <= 0) return l10n.error;
-                    return null;
-                  },
+                // Amount or Quantity
+                Builder(
+                  builder: (context) {
+                    final products = productsAsync.value;
+                    final selectedProduct = products?.find((p) => p.id == _selectedProductId);
+                    final marketingExpense = selectedProduct?.marketingExpense ?? 0.0;
+                    
+                    String availableHint;
+                    if (isMedRep) {
+                      final maxUnits = marketingExpense > 0 
+                          ? (widget.availableBalance / marketingExpense).floor() 
+                          : 0;
+                      availableHint = '${l10n.availableUnitsLabel}: $maxUnits ${l10n.pcs}';
+                    } else {
+                      availableHint = '${l10n.availableBalance}: ${NumberFormat('#,##0').format(widget.availableBalance)} UZS';
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${isMedRep ? l10n.enterQuantityLabel : l10n.enterAmount} ($availableHint)', 
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _amountController,
+                          keyboardType: TextInputType.number,
+                          decoration: _inputDecoration(isMedRep ? l10n.enterQuantityLabel : l10n.enterAmount),
+                          validator: (val) {
+                            if (val == null || val.isEmpty) return l10n.error;
+                            final value = double.tryParse(val);
+                            if (value == null || value <= 0) return l10n.error;
+                            
+                            if (isMedRep) {
+                              final totalAmount = value * marketingExpense;
+                              if (totalAmount > widget.availableBalance) return l10n.debtRemainder;
+                            } else {
+                              if (value > widget.availableBalance) return l10n.debtRemainder;
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
+                    );
+                  }
                 ),
                 const SizedBox(height: 16),
 
@@ -183,7 +234,7 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                       children: [
                         const Icon(Icons.calendar_today, size: 16, color: Colors.blue),
                         const SizedBox(width: 8),
-                        Text(DateFormat('MMMM yyyy', l10n.locale.languageCode).format(_selectedDate)),
+                        Text(DateFormat('MMMM yyyy', authState.user?.role == 'med_rep' ? 'ru' : 'ru').format(_selectedDate)),
                       ],
                     ),
                   ),
@@ -210,7 +261,7 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                   ),
                   child: _isSubmitting 
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Text(l10n.submitAllocation),
+                    : Text(isMedRep ? l10n.submitFact : l10n.submitAllocation),
                 ),
               ],
             ),
@@ -234,5 +285,14 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
         borderSide: BorderSide(color: Colors.grey.shade300),
       ),
     );
+  }
+}
+
+extension IterableExtension<T> on Iterable<T> {
+  T? find(bool Function(T) test) {
+    for (var element in this) {
+      if (test(element)) return element;
+    }
+    return null;
   }
 }

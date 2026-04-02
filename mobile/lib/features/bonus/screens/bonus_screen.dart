@@ -76,6 +76,9 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
 
     final bonus = state.bonusBalance!;
     final remainderToPay = bonus.totalAccrued - bonus.totalPaid;
+    final l10n = S(Localizations.localeOf(context));
+    final authState = ref.watch(authProvider);
+    final isMedRep = authState.user?.role == 'med_rep';
 
     return Column(
       children: [
@@ -132,22 +135,22 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                     ),
                   ),
                   _buildStatCard(
-                    'РАСПРЕДЕЛЕННЫЕ БОНУСЫ',
+                    isMedRep ? l10n.attachedFactsLabel : 'РАСПРЕДЕЛЕННЫЕ БОНУСЫ',
                     '${_formatAmount(bonus.totalAllocated)} UZS',
-                    'Прикреплено к врачам',
+                    isMedRep ? 'Прикрепленные факты' : 'Прикреплено к врачам',
                     const Color(0xFFFFF3E0),
                     const Color(0xFFE65100),
                     Icons.people_outline,
                     onTap: () => _showFilteredHistorySheet(
                       context,
-                      'Распределено',
+                      isMedRep ? 'Прикреплено' : 'Распределено',
                       bonus.history.where((h) => h.isAllocation).toList(),
                     ),
                   ),
                   _buildStatCard(
                     'ОСТАТОК НА БАЛАНСЕ',
                     '${_formatAmount(bonus.balance)} UZS',
-                    'Доступно для распределения',
+                    'Доступno для распределения',
                     const Color(0xFFF3E5F5),
                     const Color(0xFF6200EA),
                     Icons.balance_outlined,
@@ -263,7 +266,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Прикрепить', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(isMedRep ? l10n.attachFactTitle : 'Прикрепить', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),

@@ -278,6 +278,11 @@ class S {
       'created_by': 'Автор/Создатель',
       'comments': 'Комментарии',
       'overdue_status': 'Просрочено',
+      'attach_fact_title': 'Прикрепить факт',
+      'enter_quantity': 'Введите количество (шт)',
+      'available_units_label': 'Доступно',
+      'submit_fact': 'Подтвердить факт',
+      'attached_facts_label': 'ПРИКРЕПЛЕННЫЕ ФАКТЫ',
     },
       'uz': {
       'products': 'Mahsulotlar',
@@ -546,6 +551,11 @@ class S {
       'created_by': 'Yaratuvchi',
       'comments': 'Izohlar',
       'overdue_status': 'Muddati o\'tgan',
+      'attach_fact_title': 'Faktni biriktirish',
+      'enter_quantity': 'Miqdorini kiriting (ta)',
+      'available_units_label': 'Mavjud',
+      'submit_fact': 'Faktni tasdiqlash',
+      'attached_facts_label': 'BIRIKTIRILGAN FAKTLAR',
     },
   };
 
@@ -700,6 +710,11 @@ class S {
   String get doctorFullNameLabel => translate('doctor_full_name_label');
   String get enterFullNameHint => translate('enter_full_name_hint');
   String get contactPhoneLabel => translate('contact_phone_label');
+  String get attachFactTitle => translate('attach_fact_title');
+  String get enterQuantityLabel => translate('enter_quantity');
+  String get availableUnitsLabel => translate('available_units_label');
+  String get submitFact => translate('submit_fact');
+  String get attachedFactsLabel => translate('attached_facts_label');
   String get categorizationSection => translate('categorization_section');
   String get specialtiesLoadError => translate('specialties_load_error');
   String get categoriesLoadError => translate('categories_load_error');
