@@ -30,5 +30,5 @@ class VisitPlan(Base):
     
     # Relationships
     med_rep = relationship("User", foreign_keys=[med_rep_id])
-    doctor = relationship("Doctor", backref="visit_plans")
-    med_org = relationship("MedicalOrganization", backref="visit_plans")
+    doctor = relationship("Doctor", backref="doctor_visit_plans")
+    med_org = relationship("MedicalOrganization", backref="org_visit_plans")
