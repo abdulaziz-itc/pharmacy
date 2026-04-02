@@ -28,6 +28,7 @@ import DeletionApprovalPage from './features/warehouse/DeletionApprovalPage';
 import HRDUserManagementPage from './features/hrd/HRDUserManagementPage';
 import DirectorHRDPage from './features/hrd/DirectorHRDPage';
 import LoginHistoryPage from './features/hrd/LoginHistoryPage';
+import RolePermissionsPage from './features/permissions/RolePermissionsPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import { useAuthStore } from './store/authStore';
 import { Toaster } from 'sonner';
@@ -82,6 +83,7 @@ function App() {
             <Route path="/hrd/users" element={<HRDUserManagementPage />} />
             <Route path="/director/hrd" element={<DirectorHRDPage />} />
             <Route path="/hrd/login-history" element={<LoginHistoryPage />} />
+            <Route path="/role-permissions" element={<RolePermissionsPage />} />
           </Route>
 
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

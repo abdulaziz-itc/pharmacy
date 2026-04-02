@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -19,59 +19,85 @@ import {
     ImagePlus,
     Activity,
     Warehouse,
+    Shield,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuthStore } from '../store/authStore';
+import { permissionsApi } from '../api/permissions';
 
-const getSidebarItems = (role?: string, userId?: number) => {
-    const allItems = [
-        { icon: LayoutDashboard, label: 'Дашборд', href: '/dashboard', roles: ['admin', 'investor', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'med_rep', 'head_of_orders', 'hrd'] },
-        { icon: Users, label: 'Управление пользователями', href: '/hrd/users', roles: ['admin', 'investor', 'hrd'] },
-        { icon: UserCheck, label: 'Директор отдела кадров (HRD)', href: '/director/hrd', roles: ['director', 'investor'] },
-        { icon: Activity, label: 'История входов', href: '/hrd/login-history', roles: ['investor', 'director', 'hrd'] },
-        { icon: Wallet, label: 'Бонусы МП', href: '/bonuses', roles: ['admin', 'investor', 'director', 'deputy_director'] },
-        { icon: PieChart, label: 'Расширенные отчеты', href: '/reports', roles: ['admin', 'investor', 'director'] },
-        { icon: UserCheck, label: 'Зам. Директора', href: '/deputy-directors', roles: ['admin', 'investor', 'director'] },
-        { icon: UserCheck, label: 'Менеджеры по закупкам', href: '/head-of-orders-management', roles: ['admin', 'investor', 'director'] },
-        { icon: UserCheck, label: 'Зав. складом', href: '/warehouse-users', roles: ['admin', 'investor', 'director'] },
-        { icon: UserCheck, label: 'Моя команда', href: `/product-managers/${userId}`, roles: ['product_manager'] },
-        { icon: UserCheck, label: 'Менеджеры продукта', href: '/product-managers', roles: ['admin', 'investor', 'director', 'deputy_director'] },
-        { icon: Users, label: 'Мед представители', href: '/med-reps', roles: ['admin', 'investor', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'hrd'] },
-        { icon: Package, label: 'Продукты', href: '/products', roles: ['admin', 'investor', 'director', 'deputy_director', 'product_manager', 'med_rep', 'hrd'] },
-        { icon: Map, label: 'Регионы', href: '/regions', roles: ['admin', 'investor', 'director', 'deputy_director', 'product_manager', 'hrd'] },
-        { icon: Building2, label: 'Организации', href: '/med-orgs', roles: ['admin', 'investor', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'hrd'] },
-        { icon: Factory, label: 'Производители', href: '/manufacturers', roles: ['admin', 'investor', 'director', 'deputy_director'] },
-        { icon: Stethoscope, label: 'Врачи', href: '/doctors', roles: ['admin', 'investor', 'director', 'deputy_director', 'product_manager', 'field_force_manager', 'regional_manager', 'med_rep'] },
-        { icon: CalendarRange, label: 'Брони', href: '/reservations', roles: ['admin', 'investor', 'director', 'deputy_director', 'med_rep', 'product_manager', 'field_force_manager', 'regional_manager'] },
-        { icon: FileText, label: 'Фактура', href: '/invoices', roles: ['admin', 'investor', 'director', 'deputy_director', 'med_rep', 'product_manager', 'field_force_manager', 'regional_manager'] },
-        { icon: CreditCard, label: 'Дебиторка', href: '/debtors', roles: ['admin', 'investor', 'director', 'deputy_director', 'med_rep', 'product_manager', 'field_force_manager', 'regional_manager'] },
-        { icon: Wallet, label: 'Платежи', href: '/payments', roles: ['admin', 'investor', 'director', 'deputy_director'] },
-        { icon: PieChart, label: 'Статистика', href: '/stats', roles: ['admin', 'investor', 'director', 'deputy_director'] },
-        { icon: Activity, label: 'Журнал аудита', href: '/audit', roles: ['admin', 'investor', 'director', 'deputy_director'] },
-        // Head of Orders
-        { icon: Factory, label: 'Произв. компании', href: '/head-of-orders?tab=manufacturers', roles: ['head_of_orders'] },
-        { icon: CalendarRange, label: 'Брони', href: '/head-of-orders?tab=reservations', roles: ['head_of_orders'] },
-        { icon: FileText, label: 'Фактура', href: '/head-of-orders?tab=invoices', roles: ['head_of_orders'] },
-        { icon: CreditCard, label: 'Дебиторка', href: '/head-of-orders?tab=debitorka', roles: ['head_of_orders'] },
-        { icon: Building2, label: 'Оптовые компании', href: '/head-of-orders?tab=wholesale', roles: ['head_of_orders'] },
-        { icon: PieChart, label: 'Отчеты', href: '/head-of-orders?tab=reports', roles: ['head_of_orders'] },
-        // Warehouse Management
-        { icon: Warehouse, label: 'Склады', href: '/warehouse', roles: ['admin', 'investor', 'director', 'deputy_director', 'head_of_warehouse'] },
-        { icon: Activity, label: 'Удаление (План)', href: '/deletion-approval', roles: ['admin', 'investor', 'director', 'head_of_warehouse'] },
-    ];
+const ALL_SIDEBAR_ITEMS = [
+    { icon: LayoutDashboard, label: 'Дашборд', href: '/dashboard', sectionKey: 'dashboard' },
+    { icon: Users, label: 'Управление пользователями', href: '/hrd/users', sectionKey: 'hrd' },
+    { icon: UserCheck, label: 'Директор отдела кадров (HRD)', href: '/director/hrd', sectionKey: 'hrd' },
+    { icon: Activity, label: 'История входов', href: '/hrd/login-history', sectionKey: 'login_history' },
+    { icon: Wallet, label: 'Бонусы МП', href: '/bonuses', sectionKey: 'bonuses' },
+    { icon: PieChart, label: 'Расширенные отчеты', href: '/reports', sectionKey: 'reports' },
+    { icon: UserCheck, label: 'Зам. Директора', href: '/deputy-directors', sectionKey: 'deputy_directors' },
+    { icon: UserCheck, label: 'Менеджеры по закупкам', href: '/head-of-orders-management', sectionKey: 'head_of_orders_mgmt' },
+    { icon: UserCheck, label: 'Зав. складом', href: '/warehouse-users', sectionKey: 'warehouse_users' },
+    { icon: UserCheck, label: 'Моя команда', href: '/product-managers/__USER_ID__', sectionKey: 'product_managers_team' },
+    { icon: UserCheck, label: 'Менеджеры продукта', href: '/product-managers', sectionKey: 'product_managers' },
+    { icon: Users, label: 'Мед представители', href: '/med-reps', sectionKey: 'med_reps' },
+    { icon: Package, label: 'Продукты', href: '/products', sectionKey: 'products' },
+    { icon: Map, label: 'Регионы', href: '/regions', sectionKey: 'regions' },
+    { icon: Building2, label: 'Организации', href: '/med-orgs', sectionKey: 'med_orgs' },
+    { icon: Factory, label: 'Производители', href: '/manufacturers', sectionKey: 'manufacturers' },
+    { icon: Stethoscope, label: 'Врачи', href: '/doctors', sectionKey: 'doctors' },
+    { icon: CalendarRange, label: 'Брони', href: '/reservations', sectionKey: 'reservations' },
+    { icon: FileText, label: 'Фактура', href: '/invoices', sectionKey: 'invoices' },
+    { icon: CreditCard, label: 'Дебиторка', href: '/debtors', sectionKey: 'debtors' },
+    { icon: Wallet, label: 'Платежи', href: '/payments', sectionKey: 'payments' },
+    { icon: PieChart, label: 'Статистика', href: '/stats', sectionKey: 'stats' },
+    { icon: Activity, label: 'Журнал аудита', href: '/audit', sectionKey: 'audit' },
+    // Head of Orders sections
+    { icon: Factory, label: 'Произв. компании', href: '/head-of-orders?tab=manufacturers', sectionKey: 'head_of_orders_manufacturers' },
+    { icon: CalendarRange, label: 'Брони', href: '/head-of-orders?tab=reservations', sectionKey: 'head_of_orders_reservations' },
+    { icon: FileText, label: 'Фактура', href: '/head-of-orders?tab=invoices', sectionKey: 'head_of_orders_invoices' },
+    { icon: CreditCard, label: 'Дебиторка', href: '/head-of-orders?tab=debitorka', sectionKey: 'head_of_orders_debitorka' },
+    { icon: Building2, label: 'Оптовые компании', href: '/head-of-orders?tab=wholesale', sectionKey: 'head_of_orders_wholesale' },
+    { icon: PieChart, label: 'Отчеты', href: '/head-of-orders?tab=reports', sectionKey: 'head_of_orders_reports' },
+    // Warehouse
+    { icon: Warehouse, label: 'Склады', href: '/warehouse', sectionKey: 'warehouse' },
+    { icon: Activity, label: 'Удаление (План)', href: '/deletion-approval', sectionKey: 'deletion_approval' },
+];
 
-    if (!role) return [];
-    return allItems.filter(item => item.roles.includes(role));
-};
+// Investor-only items (always visible for investor, never shown in permission matrix)
+const INVESTOR_ONLY_ITEMS = [
+    { icon: Shield, label: 'Управление доступом', href: '/role-permissions', sectionKey: '__investor_only__' },
+];
+
 
 export function Sidebar() {
     const location = useLocation();
     const user = useAuthStore((state) => state.user);
     const [collapsed, setCollapsed] = useState(false);
+    const [enabledSections, setEnabledSections] = useState<string[]>([]);
+    const [permissionsLoaded, setPermissionsLoaded] = useState(false);
     const [logoUrl, setLogoUrl] = useState<string | null>(() => {
         return localStorage.getItem('sidebar-logo');
     });
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!user) return;
+        // Try cache first for instant render
+        const cached = localStorage.getItem(`permissions_${user.role}`);
+        if (cached) {
+            try {
+                setEnabledSections(JSON.parse(cached));
+                setPermissionsLoaded(true);
+            } catch { /* ignore */ }
+        }
+        // Then fetch fresh from API
+        permissionsApi.getMy().then(res => {
+            setEnabledSections(res.sections);
+            setPermissionsLoaded(true);
+            localStorage.setItem(`permissions_${user.role}`, JSON.stringify(res.sections));
+        }).catch(() => {
+            // If API fails and no cache, show nothing
+            if (!cached) setPermissionsLoaded(true);
+        });
+    }, [user?.id, user?.role]);
 
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -90,7 +116,21 @@ export function Sidebar() {
         fileInputRef.current?.click();
     };
 
-    const currentSidebarItems = getSidebarItems(user?.role, user?.id);
+    const isInvestor = user?.role === 'investor';
+
+    // Filter sidebar items based on enabled sections from backend
+    const currentSidebarItems = permissionsLoaded
+        ? [
+            ...ALL_SIDEBAR_ITEMS
+                .filter(item => enabledSections.includes(item.sectionKey))
+                .map(item => ({
+                    ...item,
+                    href: item.href.replace('__USER_ID__', String(user?.id || '')),
+                })),
+            ...(isInvestor ? INVESTOR_ONLY_ITEMS : []),
+          ]
+        : [];
+
 
     return (
         <div
