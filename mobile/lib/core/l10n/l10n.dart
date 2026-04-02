@@ -274,9 +274,10 @@ class S {
       'confirmed_status': 'Подтверждено',
       'reservations_not_found': 'Бронирования не найдены',
       'items_count': 'продуктов',
-      'mark_completed': 'Отметить выполненным',
+      'mark_completed': 'Выполнено',
       'created_by': 'Автор/Создатель',
       'comments': 'Комментарии',
+      'overdue_status': 'Просрочено',
     },
       'uz': {
       'products': 'Mahsulotlar',
@@ -541,13 +542,17 @@ class S {
       'reservations_not_found': 'Bronlar topilmadi',
       'items_count': 'ta mahsulot',
       'status': 'Status',
-      'mark_completed': 'Bajarildi qilish',
+      'mark_completed': 'Bajarildi',
       'created_by': 'Yaratuvchi',
       'comments': 'Izohlar',
+      'overdue_status': 'Muddati o\'tgan',
     },
   };
 
   String translate(String key) => _values[locale.languageCode]?[key] ?? key;
+
+  String get overdueStatus => translate('overdue_status');
+  String get markCompleted => translate('mark_completed');
 
   String get products => translate('products');
   String get doctors => translate('doctors');

@@ -164,7 +164,7 @@ class _DailyPlanScreenState extends ConsumerState<DailyPlanScreen> with SingleTi
           statusText = l10n.completedStatus;
         } else if (isOverdue) {
           statusColor = AppColors.error; // Qizil
-          statusText = l10n.plannedStatus;
+          statusText = l10n.overdueStatus;
         } else {
           statusColor = AppColors.statusPending; // Sariq
           statusText = l10n.plannedStatus;

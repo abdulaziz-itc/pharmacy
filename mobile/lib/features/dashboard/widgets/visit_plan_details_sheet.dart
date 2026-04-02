@@ -8,13 +8,21 @@ import '../../../shared/models/visit_plan_model.dart';
 import '../../visits/providers/visits_provider.dart';
 
 class VisitPlanDetailsSheet extends ConsumerWidget {
-  final VisitPlanModel visit;
+  final int visitId;
   
-  const VisitPlanDetailsSheet({super.key, required this.visit});
+  const VisitPlanDetailsSheet({super.key, required this.visitId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final visitsState = ref.watch(visitsProvider);
     final l10n = context.l10n;
+    
+    final visitIndex = visitsState.visits.indexWhere((v) => v.id == visitId);
+    if (visitIndex == -1) {
+      return const SizedBox.shrink(); // Hide if deleted
+    }
+    final visit = visitsState.visits[visitIndex];
+
     final isDoc = visit.doctor != null;
     final name = isDoc ? visit.doctor!.fullName : (visit.medOrg?.name ?? visit.subject ?? l10n.organizations);
     final creatorName = visit.medRep?.fullName ?? 'N/A';
@@ -137,12 +145,20 @@ class VisitPlanDetailsSheet extends ConsumerWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   onPressed: () async {
-                    Navigator.pop(context); // Close sheet
+                    // Do NOT pop here immediately, let it update its state!
                     final success = await ref.read(visitsProvider.notifier).completeVisit(visit.id);
-                    // The success message could be shown here via global key or calling context if mounted
+                    if (success && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(l10n.visitCompletedMsg),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
                   },
                   child: Text(
-                    l10n.translate('mark_completed') ?? 'Bajarildi qilish',
+                    l10n.markCompleted,
                     style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
