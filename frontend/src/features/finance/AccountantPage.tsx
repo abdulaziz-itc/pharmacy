@@ -1,18 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { PageContainer } from '../../components/PageContainer';
 import { 
-    Wallet, 
     TrendingUp, 
     TrendingDown, 
     Plus, 
-    Search, 
-    Calendar,
-    MessageCircle,
     DollarSign,
-    PieChart,
-    ArrowDownRight,
-    ArrowUpRight,
-    FilterX
+    PieChart
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
@@ -54,7 +47,7 @@ export default function AccountantPage() {
     const [newCategoryName, setNewCategoryName] = useState('');
 
     // Fetch Stats
-    const { data: stats, isLoading: statsLoading } = useQuery({
+    const { data: stats } = useQuery({
         queryKey: ['finance-stats'],
         queryFn: async () => {
             const res = await api.get('/domain/analytics/stats/comprehensive', {
@@ -184,31 +177,31 @@ export default function AccountantPage() {
                             <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
                                 <Plus className="w-6 h-6 text-violet-600" /> Регистрация расхода
                             </h3>
-                            <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label htmlFor="exp_amount" className="text-[10px] font-black text-slate-400 uppercase ml-2">Сумма (UZS)</label>
-                                    <input id="exp_amount" required type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                            <form onSubmit={handleAddExpense} className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label htmlFor="exp_amount" className="text-[10px] font-black text-slate-400 uppercase ml-2">Сумма (UZS)</label>
+                                        <input id="exp_amount" required type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label htmlFor="exp_category" className="text-[10px] font-black text-slate-400 uppercase ml-2">Категория</label>
+                                        <select id="exp_category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all">
+                                            <option value="">Выберите...</option>
+                                            {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label htmlFor="exp_comment" className="text-[10px] font-black text-slate-400 uppercase ml-2">Комментарий</label>
+                                        <input id="exp_comment" type="text" placeholder="Tafsilotlarni kiriting..." value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label htmlFor="exp_date" className="text-[10px] font-black text-slate-400 uppercase ml-2">Sana</label>
+                                        <input id="exp_date" type="date" value={expenseDate} onClick={(e) => (e.target as any).showPicker?.()} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="exp_category" className="text-[10px] font-black text-slate-400 uppercase ml-2">Категория</label>
-                                    <select id="exp_category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all">
-                                        <option value="">Выберите...</option>
-                                        {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
-                                </div>
-                                <div className="space-y-2 md:col-span-2">
-                                    <label htmlFor="exp_comment" className="text-[10px] font-black text-slate-400 uppercase ml-2">Комментарий (Shu yerga yozing)</label>
-                                    <input id="exp_comment" type="text" placeholder="Tafsilotlarni kiriting..." value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Sana (Kalendar uchun bosing)</label>
-                                    <input id="exp_date" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
-                                </div>
-                                <div className="flex items-end">
-                                    <button id="exp_submit" disabled={addExpenseMutation.isPending} className="w-full h-14 bg-violet-600 text-white rounded-2xl font-black shadow-lg shadow-violet-100 hover:bg-violet-700 transition-all">
-                                        {addExpenseMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
-                                    </button>
-                                </div>
+                                <button id="exp_submit" disabled={addExpenseMutation.isPending} className="w-full h-14 bg-violet-600 text-white rounded-2xl font-black shadow-lg shadow-violet-100 hover:bg-violet-700 transition-all">
+                                    {addExpenseMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
+                                </button>
                             </form>
                         </div>
                     )}
@@ -219,8 +212,8 @@ export default function AccountantPage() {
                             </h3>
                             <form onSubmit={handleAddCategory} className="space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Название категории</label>
-                                    <input required type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
+                                    <label htmlFor="cat_name" className="text-[10px] font-black text-slate-400 uppercase ml-2">Название категории</label>
+                                    <input id="cat_name" required type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
                                 </div>
                                 <button disabled={addCategoryMutation.isPending} className="w-full h-14 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
                                     {addCategoryMutation.isPending ? 'Создание...' : 'Создать категорию'}
@@ -238,14 +231,14 @@ export default function AccountantPage() {
                     value={stats?.sales_fact_received_amount} 
                     icon={TrendingUp} 
                     color="emerald" 
-                    subtitle="Всего денег поступило на счет"
+                    subtitle="Всего денег поступиlo"
                 />
                 <KpiCard 
                     label="Валовая Прибыль" 
                     value={stats?.gross_profit} 
                     icon={DollarSign} 
                     color="blue" 
-                    subtitle="Доход минус себестоимость и МП-бонусы"
+                    subtitle="Доxod minus xarajatlar"
                     badge="Gross Profit"
                 />
                 <KpiCard 
@@ -253,45 +246,16 @@ export default function AccountantPage() {
                     value={stats?.total_expenses} 
                     icon={TrendingDown} 
                     color="rose" 
-                    subtitle="Аренда, налоги и офф. расходы"
+                    subtitle="Arenda, nalog va b."
                 />
                 <KpiCard 
                     label="Чистая Прибыль" 
                     value={stats?.net_profit} 
                     icon={PieChart} 
                     color="violet" 
-                    subtitle="Итоговый финансовый результат"
+                    subtitle="Yakuniy natija"
                     badge="NET PROFIT"
                 />
-            </div>
-
-            {/* Summary Statistics */}
-            <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-slate-200/50 border border-slate-100 mb-8 overflow-hidden relative group">
-                <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
-                    <TrendingUp className="w-64 h-64 text-indigo-600" />
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
-                    <div className="p-4 space-y-4">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Денежные обязательства</h4>
-                        <div className="flex items-center justify-between">
-                            <span className="text-slate-500 text-sm font-bold">Дебиторская задолженность</span>
-                            <span className="text-lg font-black text-slate-900">{formatCurrency(stats?.receivables)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-slate-500 text-sm font-bold">Бонусный остаток (МП)</span>
-                            <span className="text-lg font-black text-amber-600">{formatCurrency(stats?.bonus_balance)}</span>
-                        </div>
-                    </div>
-                    <div className="p-4 space-y-4">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Анализ рентабельности</h4>
-                        <div className="flex items-center justify-between">
-                            <span className="text-slate-500 text-sm font-bold">Рентабельность по валовой приб.</span>
-                            <span className="text-lg font-black text-emerald-600">
-                                {stats?.sales_fact_received_amount > 0 ? (stats.gross_profit / stats.sales_fact_received_amount * 100).toFixed(1) : 0}%
-                            </span>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             {/* Expenses Table */}
@@ -299,14 +263,14 @@ export default function AccountantPage() {
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-black text-slate-900 px-2">История расходов</h2>
                     <Badge variant="outline" className="px-4 py-1.5 rounded-xl border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
-                        Last 100 entries
+                        Oxirgi o'zgarishlar
                     </Badge>
                 </div>
                 <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
                     {expensesLoading ? (
                         <div className="py-20 flex flex-col items-center gap-4">
                             <div className="w-12 h-12 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
-                            <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Загрузка данных...</p>
+                            <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Yuklanmoqda...</p>
                         </div>
                     ) : (
                         <DataTable columns={columns} data={expenses || []} />
