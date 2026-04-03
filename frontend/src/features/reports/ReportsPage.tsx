@@ -29,6 +29,16 @@ import { useMedRepStore } from '../../store/medRepStore';
 import { useDoctorStore } from '../../store/doctorStore';
 import { getComprehensiveStats } from '../../api/sales';
 
+import { 
+    AreaChart, 
+    Area, 
+    XAxis, 
+    YAxis, 
+    CartesianGrid, 
+    Tooltip, 
+    ResponsiveContainer
+} from 'recharts';
+
 type ReportItem = {
     doctor_id: number;
     doctor_name: string;
@@ -90,7 +100,7 @@ export default function ReportsPage() {
         return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
     }, [doctors]);
 
-    // 4. Fetch Comprehensive Stats (Top Banner & Cards)
+    // 4. Fetch Comprehensive Stats (Top Banner & Cards & Trends)
     const { data: stats, isLoading: statsLoading } = useQuery({
         queryKey: ['comp-stats', selectedPeriod, currentMonth, currentYear, currentQuarter, selectedRegionId, selectedPMId, selectedMedRepId, selectedProductId],
         queryFn: () => getComprehensiveStats({
@@ -150,7 +160,7 @@ export default function ReportsPage() {
         bonus_paid: 0,
         bonus_balance: 0,
         preinvest: 0,
-        debt_amount: 0
+        receivables: 0
     }, [stats]);
 
     const clearFilters = () => {
@@ -245,7 +255,7 @@ export default function ReportsPage() {
                     <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Мониторинг эффективности и финансовая диагностика</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button onClick={exportToExcel} className="flex items-center gap-2 px-6 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold transition-all active:scale-95 shadow-xl shadow-emerald-100">
+                    <button onClick={exportToExcel} className="flex items-center gap-2 px-6 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold transition-all active:scale-95 shadow-lg shadow-emerald-100">
                         <Download className="w-5 h-5" /> Экспорт Excel
                     </button>
                 </div>
@@ -350,12 +360,92 @@ export default function ReportsPage() {
                 <KpiCard label="Факт поступлений" value={kpis.sales_fact_received_amount} icon={TrendingUp} color="emerald" 
                          badge={Number(kpis.sales_plan_amount) > 0 ? `${((Number(kpis.sales_fact_received_amount) / Number(kpis.sales_plan_amount)) * 100).toFixed(0)}% выполнено` : undefined} />
                 <KpiCard label="Чистая прибыль" value={kpis.net_profit} icon={DollarSign} color="indigo" />
-                <KpiCard label="Задолженность" value={kpis.debt_amount} icon={Wallet} color="rose" />
+                <KpiCard label="Задолженность" value={kpis.receivables} icon={Wallet} color="rose" />
                 <KpiCard label="Начислено бонуса" value={kpis.bonus_accrued} icon={PieChart} color="amber" />
                 <KpiCard label="Принято бонуса" value={kpis.bonus_paid} icon={UserCheck} color="teal" />
-                <KpiCard label="Остаток бонуса" value={kpis.bonus_balance} icon={Wallet} color="cyan" />
+                <KpiCard label="Остаток бонуса" value={Number(kpis.bonus_accrued) - Number(kpis.bonus_paid)} icon={Wallet} color="cyan" />
                 <KpiCard label="Прединвест" value={kpis.preinvest} icon={Users} color="pink" />
             </div>
+
+            {/* Sales Dynamics Chart */}
+            {!statsLoading && stats?.trends && stats.trends.length > 0 && (
+                <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-slate-200/50 border border-slate-100 mb-8 scale-in-center">
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+                                <TrendingUp className="w-5 h-5 text-indigo-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-slate-900 font-black text-lg">Динамика продаж и планов</h3>
+                                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Визуализация прогресса по времени</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm shadow-blue-200" />
+                                <span className="text-slate-600 text-xs font-bold font-mono uppercase tracking-wider">План</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-200" />
+                                <span className="text-slate-600 text-xs font-bold font-mono uppercase tracking-wider">Факт</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="h-[350px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={stats.trends} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorPlan" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorFact" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis 
+                                    dataKey="label" 
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+                                    dy={10}
+                                />
+                                <YAxis 
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+                                    tickFormatter={(val) => `${(val / 1000000).toFixed(0)}M`}
+                                />
+                                <Tooltip 
+                                    content={<CustomTooltip />}
+                                    cursor={{ stroke: '#e2e8f0', strokeWidth: 2 }}
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="plan" 
+                                    stroke="#3b82f6" 
+                                    strokeWidth={4}
+                                    fillOpacity={1} 
+                                    fill="url(#colorPlan)" 
+                                    animationDuration={2000}
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="fact" 
+                                    stroke="#10b981" 
+                                    strokeWidth={4}
+                                    fillOpacity={1} 
+                                    fill="url(#colorFact)" 
+                                    animationDuration={2000}
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            )}
 
             {/* Search & Table */}
             <div className="space-y-6">
@@ -406,6 +496,30 @@ export default function ReportsPage() {
             `}</style>
         </PageContainer>
     );
+}
+
+function CustomTooltip({ active, payload, label }: any) {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-slate-100 min-w-[200px]">
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">{label}</p>
+                <div className="space-y-2">
+                    {payload.map((entry: any, index: number) => (
+                        <div key={index} className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                                <span className="text-slate-600 text-[10px] font-bold uppercase tracking-wider">{entry.name === 'plan' ? 'План' : 'Факт'}</span>
+                            </div>
+                            <span className="text-slate-900 text-xs font-black">
+                                {(Number(entry.value) || 0).toLocaleString()} <span className="text-[10px]">UZS</span>
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+    return null;
 }
 
 function FilterSelect({ label, icon: Icon, value, onChange, options }: any) {

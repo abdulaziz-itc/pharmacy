@@ -133,6 +133,6 @@ export const getComprehensiveStats = async (params: {
     product_manager_id?: number,
     period?: string
 }) => {
-    const response = await axiosInstance.get('/analytics/stats/comprehensive', { params });
+    const response = await axiosInstance.get('/domain/analytics/stats/comprehensive', { params });
     return response.data;
 };

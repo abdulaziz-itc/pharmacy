@@ -1,11 +1,11 @@
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from datetime import datetime, timedelta
+from sqlalchemy import Date, cast, select, func, and_, or_
 from app.api import deps
 from app.models.user import User, UserRole
 from app.models.ledger import DoctorMonthlyStat
-from datetime import datetime
 
 router = APIRouter()
 
@@ -433,6 +433,70 @@ async def get_comprehensive_stats(
             "fact_uzs": row.fact_uzs, "fact_qty": row.fact_qty
         })
 
+    # 7. TRENDS (Time-series for Charts)
+    trends = []
+    if start_date and end_date:
+        # Determine grouping: Daily if month, Monthly if year
+        is_monthly_view = (end_date - start_date).days <= 31
+        
+        # Fact Trend
+        fact_trend_q = select(
+            func.cast(Payment.date, Date).label("d"),
+            func.sum(Payment.amount).label("fact")
+        ).join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)\
+         .where(and_(Payment.date >= start_date, Payment.date < end_date))\
+         .group_by(func.cast(Payment.date, Date)).order_by(func.cast(Payment.date, Date))
+        
+        if rep_ids: fact_trend_q = fact_trend_q.where(Reservation.created_by_id.in_(rep_ids))
+        if region_id: fact_trend_q = fact_trend_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        if product_id:
+            fact_trend_q = fact_trend_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
+            
+        fact_trend_res = (await db.execute(fact_trend_q)).all()
+        fact_map = {r.d: float(r.fact or 0) for r in fact_trend_res}
+
+        # Plan Trend
+        plan_trend_q = select(
+            Plan.month,
+            func.sum(Plan.target_amount).label("plan")
+        ).where(Plan.year == start_date.year).group_by(Plan.month)
+        
+        if rep_ids: plan_trend_q = plan_trend_q.where(Plan.med_rep_id.in_(rep_ids))
+        if region_id: plan_trend_q = plan_trend_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        if product_id: plan_trend_q = plan_trend_q.where(Plan.product_id == product_id)
+        
+        plan_trend_res = (await db.execute(plan_trend_q)).all()
+        plan_month_map = {r.month: float(r.plan or 0) for r in plan_trend_res}
+
+        if is_monthly_view:
+            # Daily trends for the month
+            iter_date = start_date.date()
+            while iter_date < end_date.date():
+                # Spread plan across days of the month (approximate for the chart)
+                days_in_month = (end_date - start_date).days
+                daily_plan = plan_month_map.get(iter_date.month, 0) / days_in_month
+                
+                trends.append({
+                    "label": iter_date.strftime("%d.%m"),
+                    "fact": fact_map.get(iter_date, 0),
+                    "plan": round(daily_plan, 2)
+                })
+                iter_date += timedelta(days=1)
+        else:
+            # Monthly trends for the year
+            for m in range(1, 13):
+                m_start = datetime(start_date.year, m, 1).date()
+                m_end = (datetime(start_date.year, m + 1, 1) if m < 12 else datetime(start_date.year + 1, 1, 1)).date()
+                
+                # Sum facts for this month
+                m_fact = sum(v for d, v in fact_map.items() if d.month == m)
+                
+                trends.append({
+                    "label": datetime(2000, m, 1).strftime("%b"),
+                    "fact": m_fact,
+                    "plan": plan_month_map.get(m, 0)
+                })
+
     return {
         "kpis": {
             "sales_plan_amount": plan_sum,
@@ -446,6 +510,7 @@ async def get_comprehensive_stats(
             "net_profit": net_profit
         },
         "product_stats": product_stats,
+        "trends": trends,
         "period": {"month": month, "year": year, "quarter": quarter}
     }
 
