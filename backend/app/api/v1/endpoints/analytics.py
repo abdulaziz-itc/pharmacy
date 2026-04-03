@@ -34,7 +34,8 @@ async def get_global_realtime_dashboard(
         UserRole.FIELD_FORCE_MANAGER, 
         UserRole.REGIONAL_MANAGER,
         UserRole.HEAD_OF_WAREHOUSE,
-        UserRole.ADMIN
+        UserRole.ADMIN,
+        UserRole.ACCOUNTANT
     ]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
@@ -268,7 +269,7 @@ async def get_comprehensive_stats(
     from app.models.product import Product
     from app.crud.crud_user import get_descendant_ids
 
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN, UserRole.ACCOUNTANT]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     # 1. TEAM HIERARCHY

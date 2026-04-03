@@ -37,7 +37,7 @@ async def get_dashboard_stats(
         month_end = datetime(year, month, last_day, 23, 59, 59)
 
     # 0.1 Role Definition
-    is_global = current_user.role in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN, UserRole.HRD]
+    is_global = current_user.role in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN, UserRole.HRD, UserRole.ACCOUNTANT]
     is_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HEAD_OF_ORDERS]
     is_med_rep = current_user.role == UserRole.MED_REP
     
