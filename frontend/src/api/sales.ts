@@ -122,3 +122,14 @@ export const deleteDoctorFact = async (id: number, id_type: string = 'fact') => 
     });
     return response.data;
 };
+
+export const getComprehensiveStats = async (params: { 
+    month?: number, 
+    year?: number, 
+    quarter?: number, 
+    region_id?: number, 
+    med_rep_id?: number 
+}) => {
+    const response = await axiosInstance.get('/analytics/stats/comprehensive', { params });
+    return response.data;
+};

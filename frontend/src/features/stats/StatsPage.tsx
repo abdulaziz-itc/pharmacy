@@ -1,184 +1,81 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { PageContainer } from '../../components/PageContainer';
 import { PageHeader } from '../../components/PageHeader';
 import {
     BarChart3, TrendingUp, Users, Package, Wallet,
-    ArrowUpRight, Target
+    ArrowUpRight, Target, LayoutDashboard, Coins, 
+    HandCoins, Receipt, Banknote, ChevronRight
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-    Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area
+    Legend, ResponsiveContainer
 } from 'recharts';
-import { getDoctorFacts, getPlans } from '../../api/sales';
+import { getComprehensiveStats } from '../../api/sales';
 import { useProductStore } from '../../store/productStore';
 import { useMedRepStore } from '../../store/medRepStore';
 import { useDoctorStore } from '../../store/doctorStore';
-
-const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU').format(Math.round(value)) + ' UZS';
 };
 
-const formatShortCurrency = (value: number) => {
-    if (value >= 1000000000) return (value / 1000000000).toFixed(1) + ' млрд';
-    if (value >= 1000000) return (value / 1000000).toFixed(1) + ' млн';
-    return new Intl.NumberFormat('ru-RU').format(Math.round(value));
-};
-
 export default function StatsPage() {
-    const { products, fetchProducts } = useProductStore();
-    const { medReps, fetchMedReps } = useMedRepStore();
-    const { doctors, fetchDoctors } = useDoctorStore();
+    const { fetchProducts } = useProductStore();
+    const { fetchMedReps } = useMedRepStore();
+    const { fetchDoctors } = useDoctorStore();
 
     const [isLoading, setIsLoading] = useState(true);
-    const [salesFacts, setSalesFacts] = useState<any[]>([]);
-    const [salesPlans, setSalesPlans] = useState<any[]>([]);
+    const [stats, setStats] = useState<any>(null);
+    const [selectedPeriod, setSelectedPeriod] = useState<'month' | 'quarter' | 'year'>('month');
+    const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+    const [currentQuarter, setCurrentQuarter] = useState(Math.floor(new Date().getMonth() / 3) + 1);
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalContent, setModalContent] = useState<{ title: string; type: string; data: any[] }>({ title: '', type: '', data: [] });
+
+    const openDetails = (title: string, type: string) => {
+        let data: any[] = [];
+        if (type === 'bonus') {
+            data = stats?.bonus_details || [];
+        } else if (type === 'sales') {
+            data = stats?.sales_details || [];
+        } else if (type === 'debt') {
+            data = stats?.debt_details || [];
+        }
+        setModalContent({ title, type, data });
+        setIsModalOpen(true);
+    };
 
     useEffect(() => {
-        const loadData = async () => {
+        const loadInit = async () => {
+            await Promise.all([fetchProducts(), fetchMedReps(), fetchDoctors()]);
+        };
+        loadInit();
+    }, [fetchProducts, fetchMedReps, fetchDoctors]);
+
+    useEffect(() => {
+        const loadStats = async () => {
             setIsLoading(true);
             try {
-                await Promise.all([
-                    fetchProducts(),
-                    fetchMedReps(),
-                    fetchDoctors()
-                ]);
-                const currentMonth = new Date().getMonth() + 1;
-                const currentYear = new Date().getFullYear();
-
-                const [factsRes, plansRes] = await Promise.all([
-                    getDoctorFacts(),
-                    getPlans(currentMonth, currentYear)
-                ]);
-                setSalesFacts(factsRes);
-                setSalesPlans(plansRes);
+                const params: any = { year: currentYear };
+                if (selectedPeriod === 'month') params.month = currentMonth;
+                if (selectedPeriod === 'quarter') params.quarter = currentQuarter;
+                
+                const data = await getComprehensiveStats(params);
+                setStats(data);
             } catch (error) {
                 console.error("Error loading analytics data:", error);
             } finally {
                 setIsLoading(false);
             }
         };
-        loadData();
-    }, [fetchProducts, fetchMedReps, fetchDoctors]);
+        loadStats();
+    }, [selectedPeriod, currentMonth, currentYear, currentQuarter]);
 
-    // Data Aggregation
-    const analytics = useMemo(() => {
-        // Global KPIs
-        let totalPlanSum = 0;
-        let totalFactSum = 0;
-        let totalProfitSum = 0;
-
-        const productMargins: Record<number, number> = {};
-        const productPrices: Record<number, number> = {};
-        const productNames: Record<number, string> = {};
-
-        products.forEach(p => {
-            productNames[p.id] = p.name;
-            productPrices[p.id] = p.price || 0;
-            productMargins[p.id] = (p.price || 0) - (p.production_price || 0) - (p.marketing_expense || 0) - (p.salary_expense || 0) - (p.other_expenses || 0);
-        });
-
-        // Unique Latest Plans per rep-doctor-product to avoid duplicate plan additions
-        // Use latest plan id
-        const sortedPlans = [...salesPlans].sort((a, b) => b.id - a.id);
-        const uniquePlans: Record<string, any> = {};
-        sortedPlans.forEach(p => {
-            const key = `${p.med_rep_id}-${p.doctor_id || 0}-${p.product_id}`;
-            if (!uniquePlans[key]) {
-                uniquePlans[key] = p;
-                const quantity = p.target_quantity || 0;
-                totalPlanSum += quantity * (productPrices[p.product_id] || 0);
-            }
-        });
-
-        const currentMonth = new Date().getMonth() + 1;
-        const currentYear = new Date().getFullYear();
-
-        const filteredFacts = salesFacts.filter(f => {
-            if (!f.date) return false;
-            const d = new Date(f.date);
-            return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
-        });
-
-        // Per Product Aggregation
-        const productDataMap: Record<number, { name: string; planQty: number; factQty: number; planUzs: number; factUzs: number }> = {};
-
-        // Per Rep Aggregation
-        const repDataMap: Record<number, { name: string; planUzs: number; factUzs: number }> = {};
-
-        // Region Distribution
-        const regionMap: Record<string, number> = {};
-
-        products.forEach(p => {
-            productDataMap[p.id] = { name: p.name, planQty: 0, factQty: 0, planUzs: 0, factUzs: 0 };
-        });
-
-        medReps.forEach(r => {
-            repDataMap[r.id] = { name: r.full_name || r.username, planUzs: 0, factUzs: 0 };
-        });
-
-        doctors.forEach(d => {
-            if (d.region) {
-                regionMap[d.region] = (regionMap[d.region] || 0) + 1;
-            }
-        });
-
-        Object.values(uniquePlans).forEach(p => {
-            const productVal = (p.target_quantity || 0) * (productPrices[p.product_id] || 0);
-            if (productDataMap[p.product_id]) {
-                productDataMap[p.product_id].planQty += (p.target_quantity || 0);
-                productDataMap[p.product_id].planUzs += productVal;
-            }
-            if (repDataMap[p.med_rep_id]) {
-                repDataMap[p.med_rep_id].planUzs += productVal;
-            }
-        });
-
-        filteredFacts.forEach(f => {
-            const qty = f.quantity || 0;
-            const pid = f.product_id;
-            const rid = f.med_rep_id;
-            const price = productPrices[pid] || 0;
-            const margin = productMargins[pid] || 0;
-
-            const saleUzs = qty * price;
-            const profitVal = qty * margin;
-
-            totalFactSum += saleUzs;
-            totalProfitSum += profitVal;
-
-            if (productDataMap[pid]) {
-                productDataMap[pid].factQty += qty;
-                productDataMap[pid].factUzs += saleUzs;
-            }
-            if (rid && repDataMap[rid]) {
-                repDataMap[rid].factUzs += saleUzs;
-            }
-        });
-
-        const fulfillment = totalPlanSum > 0 ? (totalFactSum / totalPlanSum) * 100 : 0;
-
-        const productChartData = Object.values(productDataMap).filter(d => d.planQty > 0 || d.factQty > 0);
-        const repChartData = Object.values(repDataMap).filter(d => d.planUzs > 0 || d.factUzs > 0);
-        const regionChartData = Object.keys(regionMap).map(k => ({ name: k, value: regionMap[k] }));
-
-        return {
-            totalPlanSum,
-            totalFactSum,
-            totalProfitSum,
-            fulfillment: fulfillment.toFixed(1),
-            productChartData,
-            repChartData,
-            regionChartData
-        };
-
-    }, [salesFacts, salesPlans, products, medReps, doctors]);
-
-    if (isLoading) {
+    if (isLoading && !stats) {
         return (
             <PageContainer>
-                <PageHeader title="Аналитика рынка" description="Загрузка данных..." />
                 <div className="flex justify-center items-center h-64">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                 </div>
@@ -186,179 +83,244 @@ export default function StatsPage() {
         );
     }
 
+    const kpis = stats?.kpis || {};
+
     return (
         <PageContainer>
             <PageHeader
-                title="Аналитика рынка"
-                description={`Показатели продаж и статистика за текущий месяц (${new Date().toLocaleString('ru-RU', { month: 'long', year: 'numeric' })})`}
-                buttonLabel="Экспорт данных"
+                title="Kengaytirilgan tahlillar"
+                description="Moliyaviy ko'rsatkichlar va savdo dinamikasi"
             />
 
-            {/* KPI Cards */}
+            {/* Filter Section */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-8 flex flex-wrap items-center gap-4">
+                <div className="flex p-1 bg-slate-100 rounded-xl">
+                    <button 
+                        onClick={() => setSelectedPeriod('month')}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedPeriod === 'month' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                    >
+                        Oy
+                    </button>
+                    <button 
+                        onClick={() => setSelectedPeriod('quarter')}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedPeriod === 'quarter' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                    >
+                        Kvartal
+                    </button>
+                    <button 
+                        onClick={() => setSelectedPeriod('year')}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedPeriod === 'year' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                    >
+                        Yil
+                    </button>
+                </div>
+
+                {selectedPeriod === 'month' && (
+                    <select 
+                        value={currentMonth}
+                        onChange={(e) => setCurrentMonth(parseInt(e.target.value))}
+                        className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                            <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('uz-UZ', { month: 'long' })}</option>
+                        ))}
+                    </select>
+                )}
+
+                {selectedPeriod === 'quarter' && (
+                    <select 
+                        value={currentQuarter}
+                        onChange={(e) => setCurrentQuarter(parseInt(e.target.value))}
+                        className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value={1}>1-kvartal</option>
+                        <option value={2}>2-kvartal</option>
+                        <option value={3}>3-kvartal</option>
+                        <option value={4}>4-kvartal</option>
+                    </select>
+                )}
+
+                <select 
+                    value={currentYear}
+                    onChange={(e) => setCurrentYear(parseInt(e.target.value))}
+                    className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    {[2024, 2025, 2026].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                    ))}
+                </select>
+            </div>
+
+            {/* Main KPI Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <KpiCard
-                    title="Фактические продажи"
-                    value={formatCurrency(analytics.totalFactSum)}
-                    icon={<Wallet className="w-6 h-6 text-blue-600" />}
-                    colorClass="bg-blue-50"
-                    trend={`${analytics.fulfillment}% выполнения`}
-                    trendUp={parseFloat(analytics.fulfillment) >= 100}
-                />
-                <KpiCard
-                    title="План продаж"
-                    value={formatCurrency(analytics.totalPlanSum)}
+                    title="Sotuv rejasi (Summa)"
+                    value={formatCurrency(kpis.sales_plan_amount)}
                     icon={<Target className="w-6 h-6 text-indigo-600" />}
                     colorClass="bg-indigo-50"
+                    onClick={() => openDetails("Sotuv rejasi", "plan")}
                 />
                 <KpiCard
-                    title="Чистая прибыль"
-                    value={formatCurrency(analytics.totalProfitSum)}
-                    icon={<TrendingUp className="w-6 h-6 text-emerald-600" />}
+                    title="Haqiqiy tushum (Fakt)"
+                    value={formatCurrency(kpis.sales_fact_received_amount)}
+                    icon={<HandCoins className="w-6 h-6 text-emerald-600" />}
                     colorClass="bg-emerald-50"
+                    trend={`${kpis.sales_plan_amount > 0 ? ((kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100).toFixed(1) : 0}% bajarildi`}
+                    trendUp={kpis.sales_fact_received_amount >= kpis.sales_plan_amount}
+                    onClick={() => openDetails("Haqiqiy tushum", "sales")}
                 />
                 <KpiCard
-                    title="Активная база врачей"
-                    value={doctors.length.toString()}
-                    icon={<Users className="w-6 h-6 text-purple-600" />}
+                    title="Sof foyda"
+                    value={formatCurrency(kpis.net_profit)}
+                    icon={<TrendingUp className="w-6 h-6 text-blue-600" />}
+                    colorClass="bg-blue-50"
+                    onClick={() => openDetails("Sof foyda", "profit")}
+                />
+                <KpiCard
+                    title="Kreditorka (Debitorlik)"
+                    value={formatCurrency(kpis.receivables)}
+                    icon={<Receipt className="w-6 h-6 text-orange-600" />}
+                    colorClass="bg-orange-50"
+                    onClick={() => openDetails("Kreditorka", "debt")}
+                />
+
+                <KpiCard
+                    title="Hisoblangan bonus"
+                    value={formatCurrency(kpis.bonus_accrued)}
+                    icon={<Coins className="w-6 h-6 text-purple-600" />}
                     colorClass="bg-purple-50"
+                    onClick={() => openDetails("Hisoblangan bonus", "bonus")}
+                />
+                <KpiCard
+                    title="Vrachlarga bo'lingan"
+                    value={formatCurrency(kpis.bonus_allocated)}
+                    icon={<Users className="w-6 h-6 text-sky-600" />}
+                    colorClass="bg-sky-50"
+                    onClick={() => openDetails("Bo'lingan bonus", "allocated")}
+                />
+                <KpiCard
+                    title="Bonus qoldig'i (To'lanishi k.)"
+                    value={formatCurrency(kpis.bonus_balance)}
+                    icon={<Wallet className="w-6 h-6 text-amber-600" />}
+                    colorClass="bg-amber-50"
+                    onClick={() => openDetails("Bonus qoldig'i", "balance")}
+                />
+                <KpiCard
+                    title="Predinvest"
+                    value={formatCurrency(kpis.total_predinvest)}
+                    icon={<Banknote className="w-6 h-6 text-rose-600" />}
+                    colorClass="bg-rose-50"
+                    onClick={() => openDetails("Predinvest", "predinvest")}
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                {/* Product Sales Chart */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 lg:col-span-2">
+            {/* Detail Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-slate-800">{modalContent.title}</h3>
+                            <button 
+                                onClick={() => setIsModalOpen(false)}
+                                className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                            >
+                                <ChevronRight className="w-6 h-6 rotate-180" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto">
+                            <div className="bg-slate-50 rounded-2xl p-8 text-center text-slate-500">
+                                <LayoutDashboard className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                <p className="font-medium">Detallashtirilgan ro'yxat tez orada qo'shiladi...</p>
+                                <p className="text-xs mt-1">Ushbu ko'rsatkich bo'yicha barcha tranzaksiyalar va tahlillar shu yerda aks etadi.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-8">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                             <Package className="w-5 h-5 text-blue-500" />
-                            Выполнение плана по продуктам (UZS)
+                            Mahsulotlar kesimida: Reja vs Fakt
                         </h3>
                     </div>
-                    <div className="h-80">
+                    <div className="h-[500px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analytics.productChartData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
-                                <YAxis
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#64748b', fontSize: 12 }}
-                                    tickFormatter={formatShortCurrency}
+                            <BarChart 
+                                data={stats?.product_stats || []} 
+                                layout="vertical"
+                                margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                                <XAxis type="number" hide />
+                                <YAxis 
+                                    dataKey="name" 
+                                    type="category" 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#334155', fontSize: 13, fontWeight: 'medium' }}
+                                    width={140}
                                 />
-                                <RechartsTooltip
+                                <RechartsTooltip 
                                     cursor={{ fill: '#f8fafc' }}
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                    formatter={(value: number | undefined) => [formatCurrency(value || 0), ""]}
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                    formatter={(value: any) => [formatCurrency(value || 0), ""]}
                                 />
                                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                <Bar dataKey="planUzs" name="План (UZS)" fill="#cbd5e1" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                                <Bar dataKey="factUzs" name="Факт (UZS)" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                <Bar dataKey="plan_uzs" name="Reja (UZS)" fill="#e2e8f0" radius={[0, 4, 4, 0]} maxBarSize={30} />
+                                <Bar dataKey="fact_uzs" name="Fakt (UZS)" fill="#3b82f6" radius={[0, 4, 4, 0]} maxBarSize={30} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                </div>
-
-                {/* Region Distribution Pie Chart */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-slate-800">
-                            Врачи по регионам
-                        </h3>
-                    </div>
-                    <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={analytics.regionChartData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={80}
-                                    outerRadius={110}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                    stroke="none"
-                                >
-                                    {analytics.regionChartData.map((_entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <RechartsTooltip
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                />
-                                <Legend layout="vertical" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', marginTop: '10px' }} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            </div>
-
-            {/* Rep Performance Chart */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <BarChart3 className="w-5 h-5 text-indigo-500" />
-                        Эффективность представителей (План vs Факт)
-                    </h3>
-                </div>
-                <div className="h-96">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={analytics.repChartData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
-                            <defs>
-                                <linearGradient id="colorFact" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
-                            <YAxis
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fill: '#64748b', fontSize: 12 }}
-                                tickFormatter={formatShortCurrency}
-                            />
-                            <RechartsTooltip
-                                formatter={(value: number | undefined) => [formatCurrency(value || 0), ""]}
-                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                            />
-                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                            <Area type="monotone" dataKey="planUzs" name="План" stroke="#94a3b8" fill="transparent" strokeDasharray="5 5" strokeWidth={2} />
-                            <Area type="monotone" dataKey="factUzs" name="Факт" stroke="#10b981" fillOpacity={1} fill="url(#colorFact)" strokeWidth={3} />
-                        </AreaChart>
-                    </ResponsiveContainer>
                 </div>
             </div>
         </PageContainer>
     );
 }
 
-function KpiCard({ title, value, icon, colorClass, trend, trendUp }: {
+function KpiCard({ title, value, icon, colorClass, trend, trendUp, onClick }: {
     title: string;
     value: string;
     icon: React.ReactNode;
     colorClass: string;
     trend?: string;
     trendUp?: boolean;
+    onClick?: () => void;
 }) {
     return (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+        <div 
+            onClick={onClick}
+            className={`bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-all cursor-pointer ${onClick ? 'hover:border-blue-200 active:scale-95' : ''}`}
+        >
             <div className="flex justify-between items-start z-10 relative">
-                <div>
-                    <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-                    <h4 className="text-2xl font-bold text-slate-800">{value}</h4>
+                <div className="flex-1">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{title}</p>
+                    <h4 className="text-xl font-extrabold text-slate-800 mb-2 truncate" title={value}>{value}</h4>
                     {trend && (
-                        <p className={`text-xs font-medium mt-2 flex items-center gap-1 ${trendUp ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {trendUp ? <ArrowUpRight className="w-3 h-3" /> : null}
+                        <div className={`mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                            {trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                             {trend}
-                        </p>
+                        </div>
                     )}
                 </div>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${colorClass}`}>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${colorClass}`}>
                     {icon}
                 </div>
             </div>
-            {/* Background design element */}
-            <div className="absolute right-0 bottom-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 transform translate-x-1/4 translate-y-1/4">
+            
+            {/* Hover Decor */}
+            <div className="absolute right-[-10px] bottom-[-10px] opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500 transform rotate-[-15deg]">
                 {icon}
+            </div>
+            
+            {/* Click affordance indicator */}
+            <div className="absolute left-6 bottom-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                <span className="text-[9px] text-blue-500 font-bold flex items-center gap-0.5">
+                    BATAFSIL <ChevronRight className="w-2.5 h-2.5" />
+                </span>
             </div>
         </div>
     );

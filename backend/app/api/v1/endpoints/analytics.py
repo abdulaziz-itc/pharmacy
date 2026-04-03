@@ -245,6 +245,202 @@ async def get_global_realtime_dashboard(
         "recent_activities": activities
     }
 
+@router.get("/stats/comprehensive")
+async def get_comprehensive_stats(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    month: int = None,
+    year: int = None,
+    quarter: int = None,
+    region_id: int = None,
+    med_rep_id: int = None
+) -> Any:
+    """
+    Kengaytirilgan tahliliy ma'lumotlar: hamma ko'rsatkichlar bitta joyda.
+    """
+    from sqlalchemy import and_, or_
+    from app.models.sales import Invoice, Payment, Reservation, ReservationItem, Plan, InvoiceStatus
+    from app.models.ledger import BonusLedger, LedgerType
+    from app.models.crm import MedicalOrganization
+    from app.models.product import Product
+    
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    # 1. Date Filtering
+    now = datetime.utcnow()
+    m = month or now.month
+    y = year or now.year
+    
+    start_date = None
+    end_date = None
+    
+    if quarter:
+        # Q1: 1, 2, 3 | Q2: 4, 5, 6 | Q3: 7, 8, 9 | Q4: 10, 11, 12
+        start_month = (quarter - 1) * 3 + 1
+        start_date = datetime(y, start_month, 1)
+        if quarter == 4:
+            end_date = datetime(y + 1, 1, 1)
+        else:
+            end_date = datetime(y, start_month + 3, 1)
+    elif month:
+        start_date = datetime(y, m, 1)
+        if m == 12:
+            end_date = datetime(y + 1, 1, 1)
+        else:
+            end_date = datetime(y, m + 1, 1)
+    else:
+        # Whole year if nothing specified
+        start_date = datetime(y, 1, 1)
+        end_date = datetime(y + 1, 1, 1)
+
+    # 2. Filters (Region/MedRep)
+    # Get all descendant IDs if needed
+    rep_ids = None
+    if med_rep_id:
+        rep_ids = [med_rep_id]
+        
+    # Helper to apply filters to a query
+    def apply_filters(query, model_with_user_id=None, model_with_med_org_id=None):
+        if rep_ids and model_with_user_id:
+            query = query.where(model_with_user_id.in_(rep_ids))
+        if region_id and model_with_med_org_id:
+            query = query.join(MedicalOrganization, model_with_med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        return query
+
+    # 3. Aggregations (KPIs)
+    
+    # 3.1 SALES (Fact = Payments, Plan = target_amount)
+    fact_q = select(func.sum(Payment.amount)).where(and_(Payment.date >= start_date, Payment.date < end_date))
+    if region_id or rep_ids:
+        fact_q = fact_q.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
+        if rep_ids: fact_q = fact_q.where(Reservation.created_by_id.in_(rep_ids))
+        if region_id: fact_q = fact_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+    
+    plan_q = select(func.sum(Plan.target_amount))
+    if quarter:
+        months_in_q = list(range((quarter-1)*3+1, (quarter-1)*3+4))
+        plan_q = plan_q.where(and_(Plan.year == y, Plan.month.in_(months_in_q)))
+    else:
+        plan_q = plan_q.where(and_(Plan.year == y, Plan.month == m))
+    if rep_ids: plan_q = plan_q.where(Plan.med_rep_id.in_(rep_ids))
+    if region_id: plan_q = plan_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+
+    # 3.2 BONUSES (Accrued, Allocated, Paid)
+    base_bonus_q = select(func.sum(BonusLedger.amount)).where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+    if rep_ids: base_bonus_q = base_bonus_q.where(BonusLedger.user_id.in_(rep_ids))
+    
+    accrued_q = base_bonus_q.where(BonusLedger.ledger_type == LedgerType.ACCRUAL)
+    allocated_q = accrued_q.where(BonusLedger.doctor_id.is_not(None))
+    paid_q = base_bonus_q.where(or_(BonusLedger.ledger_type == LedgerType.PAYOUT, BonusLedger.ledger_type == LedgerType.OFFSET))
+
+    # 3.3 ASSETS & LIABILITIES (Kreditorka / Debt)
+    debt_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount)).where(and_(Invoice.status != InvoiceStatus.CANCELLED, Invoice.date < end_date))
+    if region_id or rep_ids:
+        debt_q = debt_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+        if rep_ids: debt_q = debt_q.where(Reservation.created_by_id.in_(rep_ids))
+        if region_id: debt_q = debt_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+
+    # 3.4 PREDINVEST (Payout > Accrual per rep)
+    # This needs per-medrep aggregation of ALL TIME or up to end_date
+    prep_q = select(
+        BonusLedger.user_id,
+        func.sum(func.case((or_(BonusLedger.ledger_type == LedgerType.PAYOUT, BonusLedger.ledger_type == LedgerType.OFFSET), BonusLedger.amount), else_=0)).label("total_payout"),
+        func.sum(func.case((BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.amount), else_=0)).label("total_accrual")
+    ).group_by(BonusLedger.user_id).where(BonusLedger.created_at < end_date)
+    if rep_ids: prep_q = prep_q.where(BonusLedger.user_id.in_(rep_ids))
+
+    # 4. EXECUTION
+    fact_sum = (await db.execute(fact_q)).scalar() or 0.0
+    plan_sum = (await db.execute(plan_q)).scalar() or 0.0
+    accrued_sum = (await db.execute(accrued_q)).scalar() or 0.0
+    allocated_sum = (await db.execute(allocated_q)).scalar() or 0.0
+    paid_sum = (await db.execute(paid_q)).scalar() or 0.0
+    debt_sum = (await db.execute(debt_q)).scalar() or 0.0
+    
+    # Calculate Predinvest from raw medrep totals
+    medrep_balances = (await db.execute(prep_q)).all()
+    predinvest_sum = sum(max(0, b.total_payout - b.total_accrual) for b in medrep_balances)
+
+    # 5. NET PROFIT (simplified)
+    # Margin = (f.quantity * (p.price - p.production_price - p.marketing_expense - p.salary_expense - p.other_expenses))
+    # We'll use the already sold items from Facts
+    from app.models.sales import DoctorFactAssignment
+    margin_q = select(
+        func.sum(DoctorFactAssignment.quantity * (Product.price - Product.production_price - Product.marketing_expense - Product.salary_expense - Product.other_expenses))
+    ).join(Product, DoctorFactAssignment.product_id == Product.id)
+    if quarter:
+        months_in_q = list(range((quarter-1)*3+1, (quarter-1)*3+4))
+        margin_q = margin_q.where(and_(DoctorFactAssignment.year == y, DoctorFactAssignment.month.in_(months_in_q)))
+    else:
+        margin_q = margin_q.where(and_(DoctorFactAssignment.year == y, DoctorFactAssignment.month == m))
+    
+    if rep_ids: margin_q = margin_q.where(DoctorFactAssignment.med_rep_id.in_(rep_ids))
+    if region_id: margin_q = margin_q.join(MedicalOrganization, DoctorFactAssignment.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+    
+    net_profit = (await db.execute(margin_q)).scalar() or 0.0
+
+    # 6. PRODUCT ANALYTICS
+    # Plan vs Fact per product
+    product_stats_q = select(
+        Product.id,
+        Product.name,
+        func.sum(Plan.target_amount).label("plan_uzs"),
+        func.sum(Plan.target_quantity).label("plan_qty"),
+        func.coalesce(
+            select(func.sum(DoctorFactAssignment.quantity * Product.price))
+            .where(and_(DoctorFactAssignment.product_id == Product.id, 
+                        DoctorFactAssignment.year == Plan.year,
+                        DoctorFactAssignment.month == Plan.month))
+            .as_scalar(), 0
+        ).label("fact_uzs"),
+        func.coalesce(
+            select(func.sum(DoctorFactAssignment.quantity))
+            .where(and_(DoctorFactAssignment.product_id == Product.id, 
+                        DoctorFactAssignment.year == Plan.year,
+                        DoctorFactAssignment.month == Plan.month))
+            .as_scalar(), 0
+        ).label("fact_qty")
+    ).join(Plan, Product.id == Plan.product_id).group_by(Product.id, Product.name)
+    
+    if quarter:
+        months_in_q = list(range((quarter-1)*3+1, (quarter-1)*3+4))
+        product_stats_q = product_stats_q.where(and_(Plan.year == y, Plan.month.in_(months_in_q)))
+    else:
+        product_stats_q = product_stats_q.where(and_(Plan.year == y, Plan.month == m))
+    
+    product_stats_res = (await db.execute(product_stats_q)).all()
+    product_stats = []
+    for row in product_stats_res:
+        product_stats.append({
+            "id": row.id,
+            "name": row.name,
+            "plan_uzs": row.plan_uzs,
+            "plan_qty": row.plan_qty,
+            "fact_uzs": row.fact_uzs,
+            "fact_qty": row.fact_qty
+        })
+
+    return {
+        "kpis": {
+            "sales_plan_amount": plan_sum,
+            "sales_fact_received_amount": fact_sum,
+            "bonus_accrued": accrued_sum,
+            "bonus_allocated": allocated_sum,
+            "bonus_paid": paid_sum,
+            "bonus_balance": max(0, accrued_sum - paid_sum),
+            "total_predinvest": predinvest_sum,
+            "receivables": debt_sum,
+            "net_profit": net_profit
+        },
+        "product_stats": product_stats,
+        "period": {
+            "month": m,
+            "year": y,
+            "quarter": quarter
+        }
+    }
+
 @router.get("/dashboard/director-report-excel")
 async def get_director_report_excel(
     db: AsyncSession = Depends(deps.get_db),
