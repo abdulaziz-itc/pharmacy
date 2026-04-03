@@ -186,26 +186,26 @@ export default function AccountantPage() {
                             </h3>
                             <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Сумма (UZS)</label>
-                                    <input required type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                                    <label htmlFor="exp_amount" className="text-[10px] font-black text-slate-400 uppercase ml-2">Сумма (UZS)</label>
+                                    <input id="exp_amount" required type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Категория</label>
-                                    <select required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all">
+                                    <label htmlFor="exp_category" className="text-[10px] font-black text-slate-400 uppercase ml-2">Категория</label>
+                                    <select id="exp_category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all">
                                         <option value="">Выберите...</option>
                                         {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Комментарий</label>
-                                    <input type="text" placeholder="Укажите детали..." value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                                    <label htmlFor="exp_comment" className="text-[10px] font-black text-slate-400 uppercase ml-2">Комментарий</label>
+                                    <input id="exp_comment" type="text" placeholder="Уozish uchun bosing..." value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Дата расхода</label>
-                                    <input type="date" value={expenseDate} onClick={(e) => (e.target as any).showPicker?.()} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer" />
+                                    <label htmlFor="exp_date" className="text-[10px] font-black text-slate-400 uppercase ml-2">Дата расхода</label>
+                                    <input id="exp_date" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
                                 </div>
                                 <div className="flex items-end">
-                                    <button disabled={addExpenseMutation.isPending} className="w-full h-14 bg-violet-600 text-white rounded-2xl font-black shadow-lg shadow-violet-100 hover:bg-violet-700 transition-all">
+                                    <button id="exp_submit" disabled={addExpenseMutation.isPending} className="w-full h-14 bg-violet-600 text-white rounded-2xl font-black shadow-lg shadow-violet-100 hover:bg-violet-700 transition-all">
                                         {addExpenseMutation.isPending ? 'Сохранение...' : 'Сохранить расход'}
                                     </button>
                                 </div>
