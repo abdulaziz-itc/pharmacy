@@ -562,15 +562,19 @@ function KpiCard({ label, value, icon: Icon, color, badge }: any) {
         amber: 'from-amber-600 to-amber-700 text-amber-600 bg-amber-50',
         teal: 'from-teal-600 to-teal-700 text-teal-600 bg-teal-50',
         cyan: 'from-cyan-600 to-cyan-700 text-cyan-600 bg-cyan-50',
-        pink: 'from-pink-600 to-pink-700 text-pink-600 bg-pink-50'
+        pink: 'from-pink-600 to-pink-700 text-pink-600 bg-pink-50',
+        violet: 'from-violet-600 to-violet-700 text-violet-600 bg-violet-50'
     };
+
+    const colorClasses = colors[color] || colors.blue;
+    const classParts = colorClasses.split(' ');
 
     return (
         <div className="bg-white p-7 rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 relative overflow-hidden group hover:shadow-2xl transition-all duration-500 scale-in-center">
-            <div className={`absolute top-0 right-0 w-32 h-32 ${colors[color].split(' ')[2]} rounded-full -mr-16 -mt-16 blur-3xl opacity-40 group-hover:scale-150 transition-transform duration-700`} />
+            <div className={`absolute top-0 right-0 w-32 h-32 ${classParts[2]} rounded-full -mr-16 -mt-16 blur-3xl opacity-40 group-hover:scale-150 transition-transform duration-700`} />
             <div className="relative z-10 space-y-5">
-                <div className={`w-14 h-14 rounded-2xl ${colors[color].split(' ')[2]} flex items-center justify-center border border-white/50 shadow-sm`}>
-                    <Icon className={`w-7 h-7 ${colors[color].split(' ')[1]}`} />
+                <div className={`w-14 h-14 rounded-2xl ${classParts[2]} flex items-center justify-center border border-white/50 shadow-sm`}>
+                    <Icon className={`w-7 h-7 ${classParts[1]}`} />
                 </div>
                 <div>
                     <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">{label}</h3>
