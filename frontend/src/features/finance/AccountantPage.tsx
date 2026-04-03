@@ -275,22 +275,7 @@ export default function AccountantPage() {
                     </select>
                 </div>
 
-                <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Месяц</p>
-                    <select 
-                        value={selectedMonth || ""} 
-                        onChange={(e) => {
-                            setSelectedMonth(e.target.value ? parseInt(e.target.value) : undefined);
-                            if (e.target.value) setSelectedQuarter(undefined);
-                        }}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
-                    >
-                        <option value="">Все месяцы</option>
-                        {['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'].map((m, i) => (
-                            <option key={i+1} value={i+1}>{m}</option>
-                        ))}
-                    </select>
-                </div>
+
 
                 <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Год</p>
@@ -317,13 +302,13 @@ export default function AccountantPage() {
                 </div>
 
                 <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Мед. Реп</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Мед. Представитель</p>
                     <select 
                         value={selectedMedRep} 
                         onChange={(e) => setSelectedMedRep(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
                     >
-                        <option value="all">Все Мед. Репы</option>
+                        <option value="all">Все представители</option>
                         {medReps.map((u: any) => (<option key={u.id} value={u.id.toString()}>{u.full_name || u.username}</option>))}
                     </select>
                 </div>

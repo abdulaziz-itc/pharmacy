@@ -27,7 +27,7 @@ async def read_users(
     """
     Retrieve users. Only for specific roles (e.g., DEPUTY_DIRECTOR).
     """
-    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD, UserRole.ACCOUNTANT]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
     users = await crud_user.get_multi(
