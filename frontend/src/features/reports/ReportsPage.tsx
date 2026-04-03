@@ -1,48 +1,33 @@
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PageContainer } from '../../components/PageContainer';
-import { Button } from '../../components/ui/button';
-import {
-    Download,
-    Calendar,
+import { 
+    Download, 
+    Search, 
+    FilterX, 
+    MapPin, 
+    UserCheck, 
+    Briefcase, 
+    Package, 
+    Target,
     BarChart3,
     TrendingUp,
-    Users,
     Wallet,
+    DollarSign,
+    Users,
     ArrowUpRight,
-    Search
+    PieChart
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
-import {
-    format,
-    startOfDay,
-    endOfDay,
-    startOfWeek,
-    endOfWeek,
-    startOfMonth,
-    endOfMonth,
-    startOfQuarter,
-    endOfQuarter,
-    startOfYear,
-    endOfYear
-} from 'date-fns';
+import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import { DataTable } from '../../components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '../../components/ui/badge';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '../../components/ui/select';
-import {
-    getDaysInMonth,
-    setMonth,
-    setYear
-} from 'date-fns';
+import { useMedRepStore } from '../../store/medRepStore';
+import { useDoctorStore } from '../../store/doctorStore';
+import { getComprehensiveStats } from '../../api/sales';
 
 type ReportItem = {
     doctor_id: number;
@@ -64,63 +49,135 @@ type ReportsResponse = {
 };
 
 export default function ReportsPage() {
-    const [period, setPeriod] = React.useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
-    const [searchQuery, setSearchQuery] = React.useState('');
-    const [selectedMonth, setSelectedMonth] = React.useState<number>(new Date().getMonth());
-    const [selectedYear, setSelectedYear] = React.useState<number>(new Date().getFullYear());
+    // 1. State for Filters
+    const [selectedPeriod, setSelectedPeriod] = useState<'month' | 'quarter' | 'year' | 'all'>('month');
+    const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+    const [currentQuarter, setCurrentQuarter] = useState(Math.floor((new Date().getMonth() + 3) / 3));
 
-    const months = [
-        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-    ];
+    const [selectedRegionId, setSelectedRegionId] = useState<number | string>('');
+    const [selectedPMId, setSelectedPMId] = useState<number | string>('');
+    const [selectedMedRepId, setSelectedMedRepId] = useState<number | string>('');
+    const [selectedProductId, setSelectedProductId] = useState<number | string>('');
+    
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+    // 2. Fetch Data from Stores
+    const { medReps, fetchMedReps } = useMedRepStore();
+    const { doctors, fetchDoctors } = useDoctorStore();
+    const [products, setProducts] = useState<any[]>([]);
 
-    const dateRange = React.useMemo(() => {
-        const baseDate = new Date(selectedYear, selectedMonth, 1);
-        switch (period) {
-            case 'daily': return { start: startOfDay(baseDate), end: endOfDay(baseDate) };
-            case 'weekly': return { start: startOfWeek(baseDate, { weekStartsOn: 1 }), end: endOfWeek(baseDate, { weekStartsOn: 1 }) };
-            case 'monthly': return { start: startOfMonth(baseDate), end: endOfMonth(baseDate) };
-            case 'quarterly': return { start: startOfQuarter(baseDate), end: endOfQuarter(baseDate) };
-            case 'yearly': return { start: startOfYear(baseDate), end: endOfYear(baseDate) };
-            default: return { start: startOfMonth(baseDate), end: endOfMonth(baseDate) };
-        }
-    }, [period, selectedMonth, selectedYear]);
+    useEffect(() => {
+        fetchMedReps();
+        fetchDoctors();
+        api.get('/products/')
+            .then(res => setProducts(res.data || []))
+            .catch(() => {});
+    }, [fetchMedReps, fetchDoctors]);
 
-    const { data, isLoading } = useQuery<ReportsResponse>({
-        queryKey: ['reports', period, dateRange],
+    // 3. Computed Filter Options
+    const productManagers = useMemo(() => medReps.filter(u => u.role === 'product_manager'), [medReps]);
+    const filteredMedReps = useMemo(() => {
+        if (!selectedPMId) return medReps.filter(u => u.role === 'med_rep');
+        return medReps.filter(u => u.role === 'med_rep' && Number(u.manager_id) === Number(selectedPMId));
+    }, [medReps, selectedPMId]);
+
+    const regions = useMemo(() => {
+        const unique = new Map<number, string>();
+        doctors.forEach(d => {
+            if (d.region && d.region_id) unique.set(d.region_id, d.region);
+        });
+        return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
+    }, [doctors]);
+
+    // 4. Fetch Comprehensive Stats (Top Banner & Cards)
+    const { data: stats, isLoading: statsLoading } = useQuery({
+        queryKey: ['comp-stats', selectedPeriod, currentMonth, currentYear, currentQuarter, selectedRegionId, selectedPMId, selectedMedRepId, selectedProductId],
+        queryFn: () => getComprehensiveStats({
+            period: selectedPeriod,
+            month: selectedPeriod === 'month' ? currentMonth : undefined,
+            year: selectedPeriod === 'all' ? undefined : currentYear,
+            quarter: selectedPeriod === 'quarter' ? currentQuarter : undefined,
+            region_id: selectedRegionId ? Number(selectedRegionId) : undefined,
+            product_id: selectedProductId ? Number(selectedProductId) : undefined,
+            med_rep_id: selectedMedRepId ? Number(selectedMedRepId) : undefined,
+            product_manager_id: selectedPMId ? Number(selectedPMId) : undefined
+        })
+    });
+
+    // 5. Fetch Detailed Table Data
+    const { data: reportData, isLoading: reportLoading } = useQuery<ReportsResponse>({
+        queryKey: ['comprehensive-reports', selectedPeriod, currentMonth, currentYear, currentQuarter, selectedRegionId, selectedPMId, selectedMedRepId, selectedProductId],
         queryFn: async () => {
-            const response = await api.get('/domain/analytics/reports', {
+            let start = '', end = '';
+            if (selectedPeriod === 'month') {
+                start = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+                end = format(new Date(currentYear, currentMonth, 0), 'yyyy-MM-dd');
+            } else if (selectedPeriod === 'quarter') {
+                const startMonth = (currentQuarter - 1) * 3;
+                start = format(new Date(currentYear, startMonth, 1), 'yyyy-MM-dd');
+                end = format(new Date(currentYear, startMonth + 3, 0), 'yyyy-MM-dd');
+            } else if (selectedPeriod === 'year') {
+                start = `${currentYear}-01-01`;
+                end = `${currentYear}-12-31`;
+            }
+
+            const res = await api.get('/domain/analytics/reports', {
                 params: {
-                    start_date: format(dateRange.start, 'yyyy-MM-dd'),
-                    end_date: format(dateRange.end, 'yyyy-MM-dd'),
-                    period: period
+                    start_date: start || undefined,
+                    end_date: end || undefined,
+                    product_id: selectedProductId ? Number(selectedProductId) : undefined,
+                    region_id: selectedRegionId ? Number(selectedRegionId) : undefined,
+                    med_rep_id: selectedMedRepId ? Number(selectedMedRepId) : undefined,
+                    product_manager_id: selectedPMId ? Number(selectedPMId) : undefined
                 }
             });
-            return response.data;
+            return res.data;
         }
     });
 
-    const exportToExcel = () => {
-        if (!data?.data) return;
+    // 6. Data Sanitization & Formatting
+    const formatCurrency = (val: any) => {
+        const num = Number(val) || 0;
+        return new Intl.NumberFormat('ru-RU').format(num) + ' UZS';
+    };
 
-        const worksheet = XLSX.utils.json_to_sheet(data.data.map(item => ({
+    const kpis = useMemo(() => stats?.kpis || {
+        sales_plan_amount: 0,
+        sales_fact_received_amount: 0,
+        net_profit: 0,
+        bonus_accrued: 0,
+        bonus_paid: 0,
+        bonus_balance: 0,
+        preinvest: 0,
+        debt_amount: 0
+    }, [stats]);
+
+    const clearFilters = () => {
+        setSelectedPeriod('month');
+        setCurrentMonth(new Date().getMonth() + 1);
+        setCurrentYear(new Date().getFullYear());
+        setSelectedRegionId('');
+        setSelectedPMId('');
+        setSelectedMedRepId('');
+        setSelectedProductId('');
+        setSearchQuery('');
+    };
+
+    const exportToExcel = () => {
+        if (!reportData?.data) return;
+        const worksheet = XLSX.utils.json_to_sheet(reportData.data.map(item => ({
             'Врач': item.doctor_name,
-            'План (кол-во)': item.plan_quantity,
-            'План (сумма)': item.plan_amount,
-            'Факт (кол-во)': item.fact_quantity,
-            'Факт (сумма)': item.fact_amount,
-            'Выполнение (%)': item.plan_amount > 0 ? ((item.fact_amount / item.plan_amount) * 100).toFixed(1) + '%' : '0%',
+            'План (сум)': item.plan_amount,
+            'Факт (сум)': item.fact_amount,
+            'Выполнение (%)': Number(item.plan_amount) > 0 ? ((Number(item.fact_amount) / Number(item.plan_amount)) * 100).toFixed(1) + '%' : '0%',
             'Бонусы': item.earned_bonus,
             'Прединвест (выдано)': item.predinvest_given,
-            'Преdinvest (погашено)': item.predinvest_paid_off
+            'Прединвест (погашено)': item.predinvest_paid_off
         })));
-
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Отчет");
-        XLSX.writeFile(workbook, `Report_${period}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+        XLSX.writeFile(workbook, `Report_Full_${format(new Date(), 'yyyyMMdd')}.xlsx`);
     };
 
     const columns: ColumnDef<ReportItem>[] = [
@@ -131,22 +188,20 @@ export default function ReportsPage() {
         },
         {
             accessorKey: 'plan_amount',
-            header: 'План/Факт (сум)',
+            header: 'План / Факт (сум)',
             cell: ({ row }) => {
-                const plan = row.original.plan_amount ?? 0;
-                const fact = row.original.fact_amount ?? 0;
+                const plan = Number(row.original.plan_amount) || 0;
+                const fact = Number(row.original.fact_amount) || 0;
                 const percent = plan > 0 ? (fact / plan) * 100 : 0;
                 return (
-                    <div className="space-y-1">
-                        <div className="flex justify-between text-xs font-medium">
+                    <div className="space-y-1 w-48">
+                        <div className="flex justify-between text-[10px] font-bold">
                             <span className="text-slate-400">П: {plan.toLocaleString()}</span>
                             <span className="text-blue-600">Ф: {fact.toLocaleString()}</span>
                         </div>
-                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <div
-                                className={`h-full rounded-full ${percent >= 100 ? 'bg-green-500' : 'bg-blue-500'}`}
-                                style={{ width: `${Math.min(percent, 100)}%` }}
-                            />
+                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-500 ${percent >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                                 style={{ width: `${Math.min(percent, 100)}%` }} />
                         </div>
                     </div>
                 );
@@ -155,168 +210,262 @@ export default function ReportsPage() {
         {
             accessorKey: 'earned_bonus',
             header: 'Бонусы',
-            cell: ({ row }) => (
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                    {(row.original.earned_bonus ?? 0).toLocaleString()}
-                </Badge>
-            )
+            cell: ({ row }) => <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">{(Number(row.original.earned_bonus) || 0).toLocaleString()}</Badge>
         },
         {
             accessorKey: 'predinvest_given',
             header: 'Прединвест',
             cell: ({ row }) => (
-                <div className="text-xs">
-                    <div className="text-red-500 font-bold">-{(row.original.predinvest_given ?? 0).toLocaleString()}</div>
-                    <div className="text-green-600 font-bold">+{(row.original.predinvest_paid_off ?? 0).toLocaleString()}</div>
+                <div className="text-[10px] font-black">
+                    <div className="text-rose-500">-{(Number(row.original.predinvest_given) || 0).toLocaleString()}</div>
+                    <div className="text-emerald-500">+{(Number(row.original.predinvest_paid_off) || 0).toLocaleString()}</div>
                 </div>
             )
         }
     ];
 
-    const stats = React.useMemo(() => {
-        if (!data?.data) return { totalPlan: 0, totalFact: 0, totalBonus: 0, totalPredinvest: 0 };
-        return data.data.reduce((acc, curr) => ({
-            totalPlan: acc.totalPlan + curr.plan_amount,
-            totalFact: acc.totalFact + curr.fact_amount,
-            totalBonus: acc.totalBonus + curr.earned_bonus,
-            totalPredinvest: acc.totalPredinvest + curr.predinvest_given
-        }), { totalPlan: 0, totalFact: 0, totalBonus: 0, totalPredinvest: 0 });
-    }, [data]);
-
-    const filteredData = React.useMemo(() => {
-        if (!data?.data) return [];
-        return data.data.filter(item =>
+    const filteredTableData = useMemo(() => {
+        if (!reportData?.data) return [];
+        return reportData.data.filter(item => 
             item.doctor_name.toLowerCase().includes(searchQuery.toLowerCase())
         );
-    }, [data, searchQuery]);
+    }, [reportData, searchQuery]);
+
+    const isLoading = statsLoading || reportLoading;
 
     return (
         <PageContainer>
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
-                <div>
+            {/* Header Section */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+                <div className="space-y-1">
                     <h1 className="text-4xl font-black tracking-tight text-slate-900 flex items-center gap-3">
                         Расширенные отчеты
-                        <Badge className="bg-blue-600 text-white border-none py-1 px-3">Director Mode</Badge>
+                        <div className="px-3 py-1 bg-blue-600 text-[10px] font-black text-white rounded-full tracking-widest uppercase">Director Mode</div>
                     </h1>
-                    <p className="text-slate-500 mt-2 font-medium">
-                        Анализ эффективности за {format(dateRange.start, 'd MMMM', { locale: ru })} - {format(dateRange.end, 'd MMMM yyyy', { locale: ru })}
-                    </p>
+                    <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Мониторинг эффективности и финансовая диагностика</p>
                 </div>
-
                 <div className="flex items-center gap-3">
-                    <Button
-                        variant="outline"
-                        onClick={exportToExcel}
-                        className="bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-sm h-12 rounded-2xl px-6 font-bold flex items-center gap-2 transition-all active:scale-95"
-                    >
-                        <Download className="w-5 h-5 text-green-600" />
-                        Экспорт Excel
-                    </Button>
+                    <button onClick={exportToExcel} className="flex items-center gap-2 px-6 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold transition-all active:scale-95 shadow-xl shadow-emerald-100">
+                        <Download className="w-5 h-5" /> Экспорт Excel
+                    </button>
                 </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 mb-8">
-                {/* Timeframe Selector */}
-                <div className="bg-slate-100 p-1.5 rounded-[2rem] flex items-center gap-1 w-fit shadow-inner">
-                    {[
-                        { id: 'daily', label: 'День' },
-                        { id: 'weekly', label: 'Неделя' },
-                        { id: 'monthly', label: 'Месяц' },
-                        { id: 'quarterly', label: 'Квартал' },
-                        { id: 'yearly', label: 'Год' }
-                    ].map((t) => (
-                        <button
-                            key={t.id}
-                            onClick={() => setPeriod(t.id as any)}
-                            className={`px-6 py-3 rounded-3xl font-bold text-sm transition-all ${period === t.id
-                                ? 'bg-white text-blue-600 shadow-md'
-                                : 'text-slate-500 hover:text-slate-700'
-                                }`}
-                        >
-                            {t.label}
-                        </button>
-                    ))}
+            {/* Filter Section */}
+            <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-slate-200/50 border border-slate-100 mb-8 space-y-8">
+                <div className="flex flex-wrap items-center gap-4 border-b border-slate-50 pb-6">
+                    <div className="flex p-1 bg-slate-100 rounded-xl">
+                        {['month', 'quarter', 'year', 'all'].map((p) => (
+                            <button 
+                                key={p}
+                                onClick={() => setSelectedPeriod(p as any)}
+                                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${selectedPeriod === p ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                {p === 'month' ? 'Месяц' : p === 'quarter' ? 'Квартал' : p === 'year' ? 'Год' : 'Все'}
+                            </button>
+                        ))}
+                    </div>
+
+                    {selectedPeriod !== 'all' && (
+                        <div className="flex gap-2">
+                            {selectedPeriod === 'month' && (
+                                <select value={currentMonth} onChange={(e) => setCurrentMonth(parseInt(e.target.value))} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500">
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                        <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('ru-RU', { month: 'long' })}</option>
+                                    ))}
+                                </select>
+                            )}
+                            {selectedPeriod === 'quarter' && (
+                                <select value={currentQuarter} onChange={(e) => setCurrentQuarter(parseInt(e.target.value))} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500">
+                                    {[1,2,3,4].map(q => <option key={q} value={q}>{q}-й квартал</option>)}
+                                </select>
+                            )}
+                            <select value={currentYear} onChange={(e) => setCurrentYear(parseInt(e.target.value))} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500">
+                                {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y} год</option>)}
+                            </select>
+                        </div>
+                    )}
+                    <button onClick={clearFilters} className="ml-auto flex items-center gap-2 px-4 py-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-all text-xs font-bold uppercase tracking-wider">
+                        <FilterX className="w-4 h-4" /> Очистить
+                    </button>
                 </div>
 
-                <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-[2rem] shadow-inner">
-                    <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
-                        <SelectTrigger className="w-[140px] h-11 bg-white border-none rounded-3xl font-bold text-blue-600 shadow-sm focus:ring-0">
-                            <SelectValue placeholder="Месяц" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {months.map((m, i) => (
-                                <SelectItem key={i} value={i.toString()}>{m}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-                        <SelectTrigger className="w-[100px] h-11 bg-white border-none rounded-3xl font-bold text-blue-600 shadow-sm focus:ring-0">
-                            <SelectValue placeholder="Год" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {years.map((y) => (
-                                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <FilterSelect label="Регион" icon={MapPin} value={selectedRegionId} onChange={setSelectedRegionId} options={regions} />
+                    <FilterSelect label="Продакт-менеджер" icon={Briefcase} value={selectedPMId} onChange={(v: string) => { setSelectedPMId(v); setSelectedMedRepId(''); }} options={productManagers.map(u => ({ id: u.id, name: u.full_name }))} />
+                    <FilterSelect label="Медпредставитель" icon={UserCheck} value={selectedMedRepId} onChange={setSelectedMedRepId} options={filteredMedReps.map(u => ({ id: u.id, name: u.full_name }))} />
+                    <FilterSelect label="Препарат" icon={Package} value={selectedProductId} onChange={setSelectedProductId} options={products} />
                 </div>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {[
-                    { label: 'Общий План', value: stats.totalPlan, color: 'blue', icon: BarChart3 },
-                    { label: 'Общий Факт', value: stats.totalFact, color: 'green', icon: TrendingUp },
-                    { label: 'Всего Бонусов', value: stats.totalBonus, color: 'amber', icon: Wallet },
-                    { label: 'Прединвесты', value: stats.totalPredinvest, color: 'red', icon: Users }
-                ].map((card, i) => (
-                    <div key={i} className="bg-white p-6 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
-                        <div className={`absolute top-0 right-0 w-32 h-32 bg-${card.color}-100/30 rounded-full -mr-16 -mt-16 blur-3xl group-hover:scale-150 transition-transform duration-700`} />
-                        <div className="relative z-10">
-                            <div className={`w-12 h-12 rounded-2xl bg-${card.color}-100 flex items-center justify-center mb-4`}>
-                                <card.icon className={`w-6 h-6 text-${card.color}-600`} />
-                            </div>
-                            <h3 className="text-slate-500 text-xs font-black uppercase tracking-widest pl-0.5">{card.label}</h3>
-                            <div className="flex items-baseline gap-2 mt-2">
-                                <span className="text-2xl font-black text-slate-900">{(card.value ?? 0).toLocaleString()}</span>
-                                <span className="text-xs font-bold text-slate-400">UZS</span>
+            {/* Performance Banner */}
+            {!statsLoading && (
+                <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-[32px] p-8 mb-8 shadow-xl shadow-blue-200 relative overflow-hidden group scale-in-center">
+                    <div className="absolute top-0 right-0 p-12 opacity-10 transform translate-x-1/4 -translate-y-1/4 group-hover:scale-110 transition-transform duration-1000">
+                        <Target className="w-64 h-64 text-white" />
+                    </div>
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8 text-white">
+                        <div className="space-y-2">
+                            <h2 className="text-white/70 text-xs font-black uppercase tracking-[0.2em]">Общий показатель эффективности</h2>
+                            <div className="flex items-baseline gap-3">
+                                <span className="text-4xl md:text-5xl font-black tracking-tighter">
+                                    {(Number(kpis.sales_plan_amount) > 0 ? ((Number(kpis.sales_fact_received_amount) / Number(kpis.sales_plan_amount)) * 100).toFixed(1) : '0.0')}%
+                                </span>
+                                <span className="text-white/80 text-lg font-bold">выполнено</span>
                             </div>
                         </div>
+                        <div className="flex-1 max-w-2xl">
+                            <div className="flex justify-between items-end mb-3">
+                                <div className="space-y-1">
+                                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider">Факт поступлений vs План</p>
+                                    <p className="font-bold text-sm">
+                                        {formatCurrency(kpis.sales_fact_received_amount)} / <span className="text-white/50">{formatCurrency(kpis.sales_plan_amount)}</span>
+                                    </p>
+                                </div>
+                                <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full backdrop-blur-sm border border-white/10">
+                                    <div className={`w-2 h-2 rounded-full animate-pulse ${Number(kpis.sales_fact_received_amount) >= Number(kpis.sales_plan_amount) ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                                    <span className="text-white/90 text-[10px] font-black uppercase tracking-widest">Real-time</span>
+                                </div>
+                            </div>
+                            <div className="h-6 bg-white/10 rounded-2xl p-1 backdrop-blur-sm border border-white/5 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-xl relative overflow-hidden transition-all duration-1000"
+                                     style={{ width: `${Math.min(100, (Number(kpis.sales_plan_amount) > 0 ? (Number(kpis.sales_fact_received_amount) / Number(kpis.sales_plan_amount)) * 100 : 0))}%` }}>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent w-full animate-progress-shimmer" />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="hidden lg:block pl-8 border-l border-white/10 min-w-[150px]">
+                            <p className="text-white/50 text-[9px] font-black uppercase mb-1">Остаток плана</p>
+                            <p className="text-white text-sm font-bold truncate">
+                                {formatCurrency(Math.max(0, (Number(kpis.sales_plan_amount) - Number(kpis.sales_fact_received_amount))))}
+                            </p>
+                        </div>
                     </div>
-                ))}
+                </div>
+            )}
+
+            {/* KPI Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <KpiCard label="План продаж" value={kpis.sales_plan_amount} icon={BarChart3} color="blue" />
+                <KpiCard label="Факт поступлений" value={kpis.sales_fact_received_amount} icon={TrendingUp} color="emerald" 
+                         badge={Number(kpis.sales_plan_amount) > 0 ? `${((Number(kpis.sales_fact_received_amount) / Number(kpis.sales_plan_amount)) * 100).toFixed(0)}% выполнено` : undefined} />
+                <KpiCard label="Чистая прибыль" value={kpis.net_profit} icon={DollarSign} color="indigo" />
+                <KpiCard label="Задолженность" value={kpis.debt_amount} icon={Wallet} color="rose" />
+                <KpiCard label="Начислено бонуса" value={kpis.bonus_accrued} icon={PieChart} color="amber" />
+                <KpiCard label="Принято бонуса" value={kpis.bonus_paid} icon={UserCheck} color="teal" />
+                <KpiCard label="Остаток бонуса" value={kpis.bonus_balance} icon={Wallet} color="cyan" />
+                <KpiCard label="Прединвест" value={kpis.preinvest} icon={Users} color="pink" />
             </div>
 
-            <div className="flex items-center gap-4 mb-6">
-                <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Поиск по врачу..."
-                        className="w-full h-12 bg-white border border-slate-200 rounded-2xl pl-11 pr-4 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
+            {/* Search & Table */}
+            <div className="space-y-6">
+                <div className="relative">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input 
+                        type="text" 
+                        placeholder="Поиск по врачу..." 
+                        className="w-full h-16 bg-white border border-slate-200 rounded-[1.25rem] pl-16 pr-8 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-bold text-slate-700 shadow-xl shadow-slate-100"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
+
+                <div className="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
+                    {isLoading ? (
+                        <div className="py-20 flex flex-col items-center gap-4">
+                            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                            <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Загрузка отчета...</p>
+                        </div>
+                    ) : (
+                        <DataTable columns={columns} data={filteredTableData} />
+                    )}
+                    {!isLoading && filteredTableData.length === 0 && (
+                        <div className="py-20 text-center">
+                            <ArrowUpRight className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Данные отсутствуют</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <div className="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
-                <DataTable
-                    columns={columns}
-                    data={filteredData}
-                />
-                {!isLoading && filteredData.length === 0 && (
-                    <div className="py-20 text-center">
-                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-dashed border-slate-200">
-                            <ArrowUpRight className="w-8 h-8 text-slate-300" />
-                        </div>
-                        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Данные не найдены</p>
-                    </div>
-                )}
-            </div>
+            <style>{`
+                @keyframes progress-shimmer {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(100%); }
+                }
+                .animate-progress-shimmer {
+                    animation: progress-shimmer 2s infinite linear;
+                }
+                .scale-in-center {
+                    animation: scale-in-center 0.4s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+                }
+                @keyframes scale-in-center {
+                    0% { transform: scale(0.95); opacity: 0; }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+            `}</style>
         </PageContainer>
     );
 }
 
-// Inline custom implementation for the cards if tailwind safe lists are not complete
-// But assuming standard tailwind colors are available.
+function FilterSelect({ label, icon: Icon, value, onChange, options }: any) {
+    return (
+        <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 flex items-center gap-2">
+                <Icon className="w-3.5 h-3.5 text-slate-300" /> {label}
+            </label>
+            <div className="relative">
+                <select 
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black text-slate-700 outline-none hover:bg-slate-100 transition-all cursor-pointer appearance-none"
+                >
+                    <option value="">Все</option>
+                    {options.map((opt: any) => (
+                        <option key={opt.id} value={opt.id}>{opt.name}</option>
+                    ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20">
+                    <ArrowUpRight className="w-4 h-4 rotate-45" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function KpiCard({ label, value, icon: Icon, color, badge }: any) {
+    const safeValue = Number(value) || 0;
+    const colors: any = {
+        blue: 'from-blue-600 to-blue-700 text-blue-600 bg-blue-50',
+        emerald: 'from-emerald-600 to-emerald-700 text-emerald-600 bg-emerald-50',
+        indigo: 'from-indigo-600 to-indigo-700 text-indigo-600 bg-indigo-50',
+        rose: 'from-rose-600 to-rose-700 text-rose-600 bg-rose-50',
+        amber: 'from-amber-600 to-amber-700 text-amber-600 bg-amber-50',
+        teal: 'from-teal-600 to-teal-700 text-teal-600 bg-teal-50',
+        cyan: 'from-cyan-600 to-cyan-700 text-cyan-600 bg-cyan-50',
+        pink: 'from-pink-600 to-pink-700 text-pink-600 bg-pink-50'
+    };
+
+    return (
+        <div className="bg-white p-7 rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 relative overflow-hidden group hover:shadow-2xl transition-all duration-500 scale-in-center">
+            <div className={`absolute top-0 right-0 w-32 h-32 ${colors[color].split(' ')[2]} rounded-full -mr-16 -mt-16 blur-3xl opacity-40 group-hover:scale-150 transition-transform duration-700`} />
+            <div className="relative z-10 space-y-5">
+                <div className={`w-14 h-14 rounded-2xl ${colors[color].split(' ')[2]} flex items-center justify-center border border-white/50 shadow-sm`}>
+                    <Icon className={`w-7 h-7 ${colors[color].split(' ')[1]}`} />
+                </div>
+                <div>
+                    <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">{label}</h3>
+                    <div className="flex items-baseline gap-2 mt-2">
+                        <span className="text-3xl font-black text-slate-800 tracking-tighter">{safeValue.toLocaleString()}</span>
+                        <span className="text-[10px] font-bold text-slate-400">UZS</span>
+                    </div>
+                    {badge && (
+                        <div className="mt-4 inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-100">
+                            {badge}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
