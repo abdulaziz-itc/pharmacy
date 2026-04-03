@@ -362,6 +362,7 @@ export default function MedRepDetailPage() {
                                                 paid_date: data.paid_date,
                                                 doctor_id: data.doctor_id,
                                                 product_id: data.product_id,
+                                                ledger_type: 'payout',
                                                 notes: data.notes
                                             });
                                             const updated = await getBonusPayments(repId);

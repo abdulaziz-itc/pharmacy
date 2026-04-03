@@ -8,6 +8,7 @@ import '../../doctors/providers/doctors_provider.dart';
 import '../../products/providers/products_provider.dart';
 import '../providers/bonus_provider.dart';
 
+class AllocationDialog extends ConsumerStatefulWidget {
   final double availableBalance;
   final int? initialDoctorId;
   final int? initialProductId;
