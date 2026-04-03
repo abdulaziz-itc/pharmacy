@@ -198,11 +198,11 @@ export default function AccountantPage() {
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
                                     <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Комментарий</label>
-                                    <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                                    <input type="text" placeholder="Укажите детали..." value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Дата</label>
-                                    <input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Дата расхода</label>
+                                    <input type="date" value={expenseDate} onClick={(e) => (e.target as any).showPicker?.()} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer" />
                                 </div>
                                 <div className="flex items-end">
                                     <button disabled={addExpenseMutation.isPending} className="w-full h-14 bg-violet-600 text-white rounded-2xl font-black shadow-lg shadow-violet-100 hover:bg-violet-700 transition-all">
