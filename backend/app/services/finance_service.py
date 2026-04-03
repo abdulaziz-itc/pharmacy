@@ -460,13 +460,13 @@ class FinancialService:
                     fact = await db.get(DoctorFactAssignment, ledger.fact_id)
                 else:
                     # Fallback for OLD records: find fact by matching metadata
+                    from sqlalchemy import or_
                     stmt_match = select(DoctorFactAssignment).where(
-                        DoctorFactAssignment.med_rep_id == ledger.med_rep_id or (ledger.user_id),
+                        or_(DoctorFactAssignment.med_rep_id == ledger.user_id, DoctorFactAssignment.med_rep_id == ledger.med_rep_id) if hasattr(ledger, 'med_rep_id') else (DoctorFactAssignment.med_rep_id == ledger.user_id),
                         DoctorFactAssignment.doctor_id == ledger.doctor_id,
                         DoctorFactAssignment.product_id == ledger.product_id,
                         DoctorFactAssignment.month == ledger.target_month,
-                        DoctorFactAssignment.year == ledger.target_year,
-                        # Match amount to quantity * marketing_expense? Too complex. Let's just find the closest one.
+                        DoctorFactAssignment.year == ledger.target_year
                     ).limit(1)
                     res_match = await db.execute(stmt_match)
                     fact = res_match.scalar_one_or_none()
