@@ -459,10 +459,9 @@ class FinancialService:
                 if ledger.fact_id:
                     fact = await db.get(DoctorFactAssignment, ledger.fact_id)
                 else:
-                    # Fallback for OLD records: find fact by matching metadata
-                    from sqlalchemy import or_
+                    # Fallback for OLD records: find fact by matching metadata (id_type=ledger)
                     stmt_match = select(DoctorFactAssignment).where(
-                        or_(DoctorFactAssignment.med_rep_id == ledger.user_id, DoctorFactAssignment.med_rep_id == ledger.med_rep_id) if hasattr(ledger, 'med_rep_id') else (DoctorFactAssignment.med_rep_id == ledger.user_id),
+                        DoctorFactAssignment.med_rep_id == ledger.user_id,
                         DoctorFactAssignment.doctor_id == ledger.doctor_id,
                         DoctorFactAssignment.product_id == ledger.product_id,
                         DoctorFactAssignment.month == ledger.target_month,
