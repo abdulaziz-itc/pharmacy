@@ -392,7 +392,110 @@ async def get_comprehensive_stats(
     
     net_profit = (await db.execute(margin_q)).scalar() or 0.0
 
-    # 6. PRODUCT ANALYTICS
+    # 0. Handle Team Hierarchy
+    rep_ids = None
+    if med_rep_id:
+        rep_ids = [med_rep_id]
+    elif product_manager_id:
+        from app.crud.crud_user import get_descendant_ids
+        rep_ids = await get_descendant_ids(db, product_manager_id)
+
+    # 1. DATE FILTERING (RE-USE LOGIC FROM GLOBAL DASHBOARD)
+    start_date = None
+    end_date = None
+    if quarter and year:
+        start_month = (quarter - 1) * 3 + 1
+        start_date = datetime(year, start_month, 1)
+        end_date = (datetime(year, start_month + 3, 1) if quarter < 4 else datetime(year + 1, 1, 1))
+    elif month and year:
+        start_date = datetime(year, month, 1)
+        end_date = (datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1))
+    elif year:
+        start_date = datetime(year, 1, 1)
+        end_date = datetime(year + 1, 1, 1)
+
+    # 2. SALES REVENUE (FACTURA)
+    sales_q = select(func.sum(Invoice.total_amount)).where(Invoice.status != InvoiceStatus.CANCELLED)
+    if start_date and end_date:
+        sales_q = sales_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    
+    # Filtering joins
+    if rep_ids or region_id or product_id:
+        sales_q = sales_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+        if rep_ids: sales_q = sales_q.where(Reservation.created_by_id.in_(rep_ids))
+        if region_id: sales_q = sales_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        if product_id:
+            sales_q = sales_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
+            
+    sales_sum = (await db.execute(sales_q)).scalar() or 0
+
+    # 3. SALES FACT (PAYMENTS)
+    fact_q = select(func.sum(Payment.amount)).join(Invoice, Payment.invoice_id == Invoice.id)
+    if start_date and end_date:
+        fact_q = fact_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+    
+    if rep_ids or region_id or product_id:
+        if Invoice not in [j.entity for j in fact_q.get_final_froms()]: # ensure join
+            fact_q = fact_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+        else:
+            fact_q = fact_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+            
+        if rep_ids: fact_q = fact_q.where(Reservation.created_by_id.in_(rep_ids))
+        if region_id: fact_q = fact_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        if product_id:
+            fact_q = fact_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
+            
+    fact_sum = (await db.execute(fact_q)).scalar() or 0
+
+    # 4. SALES PLAN
+    plan_q = select(func.sum(Plan.target_amount))
+    if quarter and year:
+        plan_q = plan_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
+    elif month and year:
+        plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
+    elif year:
+        plan_q = plan_q.where(Plan.year == year)
+        
+    if rep_ids: plan_q = plan_q.where(Plan.med_rep_id.in_(rep_ids))
+    if region_id: plan_q = plan_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+    if product_id: plan_q = plan_q.where(Plan.product_id == product_id)
+    
+    plan_sum = (await db.execute(plan_q)).scalar() or 0
+
+    # 5. BONUSES (ACCRUED, PAID, PREDINVEST)
+    from app.models.ledger import LedgerType
+    bonus_q = select(BonusLedger.type, func.sum(BonusLedger.amount)).group_by(BonusLedger.type)
+    if start_date and end_date:
+        bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+    
+    if rep_ids: bonus_q = bonus_q.where(BonusLedger.med_rep_id.in_(rep_ids))
+    if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
+    if product_id: bonus_q = bonus_q.where(BonusLedger.product_id == product_id)
+    
+    bonus_res = (await db.execute(bonus_q)).all()
+    bonus_map = {r.type: float(r.sum_1 or 0) for r in bonus_res}
+    
+    accrued_sum = bonus_map.get(LedgerType.ACCRUAL, 0)
+    paid_sum = bonus_map.get(LedgerType.PAYOUT, 0)
+    predinvest_sum = bonus_map.get(LedgerType.ADVANCE, 0)
+    allocated_sum = bonus_map.get(LedgerType.OFFSET, 0)
+
+    # 6. DEBT (RECEIVABLES)
+    debt_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount)).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
+    if start_date and end_date:
+        debt_q = debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    
+    if rep_ids or region_id or product_id:
+        debt_q = debt_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+        if rep_ids: debt_q = debt_q.where(Reservation.created_by_id.in_(rep_ids))
+        if region_id: debt_q = debt_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        if product_id:
+            debt_q = debt_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
+            
+    debt_sum = (await db.execute(debt_q)).scalar() or 0
+    net_profit = fact_sum - paid_sum
+
+    # 7. PRODUCT ANALYTICS
     product_stats_q = select(
         Product.id,
         Product.name,
@@ -433,11 +536,12 @@ async def get_comprehensive_stats(
             "fact_uzs": row.fact_uzs, "fact_qty": row.fact_qty
         })
 
-    # 7. TRENDS (Time-series for Charts)
+    # 8. TRENDS (Time-series for Charts)
     trends = []
     if start_date and end_date:
         # Determine grouping: Daily if month, Monthly if year
-        is_monthly_view = (end_date - start_date).days <= 31
+        diff_days = (end_date - start_date).days
+        is_monthly_view = diff_days <= 31
         
         # Fact Trend
         fact_trend_q = select(
@@ -473,8 +577,7 @@ async def get_comprehensive_stats(
             iter_date = start_date.date()
             while iter_date < end_date.date():
                 # Spread plan across days of the month (approximate for the chart)
-                days_in_month = (end_date - start_date).days
-                daily_plan = plan_month_map.get(iter_date.month, 0) / days_in_month
+                daily_plan = plan_month_map.get(iter_date.month, 0) / (max(1, diff_days))
                 
                 trends.append({
                     "label": iter_date.strftime("%d.%m"),
@@ -485,9 +588,6 @@ async def get_comprehensive_stats(
         else:
             # Monthly trends for the year
             for m in range(1, 13):
-                m_start = datetime(start_date.year, m, 1).date()
-                m_end = (datetime(start_date.year, m + 1, 1) if m < 12 else datetime(start_date.year + 1, 1, 1)).date()
-                
                 # Sum facts for this month
                 m_fact = sum(v for d, v in fact_map.items() if d.month == m)
                 
