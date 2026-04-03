@@ -360,10 +360,10 @@ async def get_comprehensive_stats(
     
     # Sales Realized Gross Profit (Actually Paid portion of profit)
     gross_profit_sum_q = select(
-        func.sum(
-            (ReservationItem.price - Product.production_price - ReservationItem.salary_amount - ReservationItem.marketing_amount) * 
-            ReservationItem.quantity * (Invoice.paid_amount / Invoice.total_amount)
-        )
+        func.coalesce(func.sum(
+            (ReservationItem.price - func.coalesce(Product.production_price, 0) - func.coalesce(ReservationItem.salary_amount, 0) - func.coalesce(ReservationItem.marketing_amount, 0)) * 
+            ReservationItem.quantity * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
+        ), 0.0)
     ).select_from(ReservationItem)\
      .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
      .join(Invoice, Invoice.reservation_id == Reservation.id)\
@@ -381,10 +381,10 @@ async def get_comprehensive_stats(
 
     # Sales Potential Gross Profit (Expected based on Invoices total)
     potential_profit_sum_q = select(
-        func.sum(
-            (ReservationItem.price - Product.production_price - ReservationItem.salary_amount - ReservationItem.marketing_amount) * 
+        func.coalesce(func.sum(
+            (ReservationItem.price - func.coalesce(Product.production_price, 0) - func.coalesce(ReservationItem.salary_amount, 0) - func.coalesce(ReservationItem.marketing_amount, 0)) * 
             ReservationItem.quantity
-        )
+        ), 0.0)
     ).select_from(ReservationItem)\
      .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
      .join(Invoice, Invoice.reservation_id == Reservation.id)\
