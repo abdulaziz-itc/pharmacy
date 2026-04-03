@@ -38,6 +38,7 @@ const ROLES = [
     { value: 'field_force_manager', label: 'Field Force Manager' },
     { value: 'regional_manager', label: 'Региональный менеджер' },
     { value: 'med_rep', label: 'Мед представитель' },
+    { value: 'accountant', label: 'Бухгалтер' },
 ];
 
 export function UserModal({ isOpen, onClose, user, defaultRole, lockRole, onSuccess }: UserModalProps) {
