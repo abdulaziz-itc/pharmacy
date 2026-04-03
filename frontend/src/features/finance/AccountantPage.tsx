@@ -202,7 +202,16 @@ export default function AccountantPage() {
                                         <div className="space-y-2">
                                             <label htmlFor="exp_date" className="text-[10px] font-black text-slate-400 uppercase ml-2">Sana</label>
                                             <div className="relative group">
-                                                <input id="exp_date" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer" />
+                                                <input 
+                                                    id="exp_date" 
+                                                    type="text" 
+                                                    placeholder="YYYY-MM-DD"
+                                                    onFocus={(e) => { e.target.type = 'date'; e.target.showPicker?.(); }}
+                                                    onBlur={(e) => { e.target.type = 'text'; }}
+                                                    value={expenseDate} 
+                                                    onChange={(e) => setExpenseDate(e.target.value)} 
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer" 
+                                                />
                                             </div>
                                         </div>
                                         <button id="exp_submit" disabled={addExpenseMutation.isPending} className="w-full h-[52px] bg-violet-600 text-white rounded-2xl font-black shadow-lg shadow-violet-100 hover:bg-violet-700 transition-all active:scale-[0.98]">
