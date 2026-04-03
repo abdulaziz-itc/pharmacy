@@ -154,6 +154,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
             if (p) {
                 next[i].price = p.price;
                 next[i].marketing_amount = p.marketing_expense || 0;
+                next[i].salary_amount = p.salary_expense || 0;
             }
         }
         setItems(next);
@@ -173,7 +174,14 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
             return parseFloat(it.marketing_amount) !== (p.marketing_expense || 0);
         });
 
-        if (isBonusModified && !forceConfirm && !showBonusConfirm) {
+        const isSalaryModified = items.some(it => {
+            if (!it.product_id || !isSalaryEnabled) return false;
+            const p = products.find((pr: any) => pr.id.toString() === it.product_id);
+            if (!p) return false;
+            return parseFloat(it.salary_amount) !== (p.salary_expense || 0);
+        });
+
+        if ((isBonusModified || isSalaryModified) && !forceConfirm && !showBonusConfirm) {
             setShowBonusConfirm(true);
             return;
         }
