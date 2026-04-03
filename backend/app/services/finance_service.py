@@ -447,73 +447,79 @@ class FinancialService:
         """
         from app.models.sales import DoctorFactAssignment
         from app.models.ledger import BonusLedger
+        import traceback
 
-        fact = None
-        
-        # 1. Resolve the fact
-        if id_type == "fact":
-            fact = await db.get(DoctorFactAssignment, id)
-        elif id_type == "ledger":
-            ledger = await db.get(BonusLedger, id)
-            if ledger:
-                if ledger.fact_id:
-                    fact = await db.get(DoctorFactAssignment, ledger.fact_id)
-                else:
-                    # Fallback for OLD records: find fact by matching metadata (id_type=ledger)
-                    stmt_match = select(DoctorFactAssignment).where(
-                        DoctorFactAssignment.med_rep_id == ledger.user_id,
-                        DoctorFactAssignment.doctor_id == ledger.doctor_id,
-                        DoctorFactAssignment.product_id == ledger.product_id,
-                        DoctorFactAssignment.month == ledger.target_month,
-                        DoctorFactAssignment.year == ledger.target_year
-                    ).limit(1)
-                    res_match = await db.execute(stmt_match)
-                    fact = res_match.scalar_one_or_none()
-        
-        if not fact:
-            raise HTTPException(status_code=404, detail="Фakt topilmadi (O'chirish imkonsiz)")
+        try:
+            fact = None
+            
+            # 1. Resolve the fact
+            if id_type == "fact":
+                fact = await db.get(DoctorFactAssignment, id)
+            elif id_type == "ledger":
+                ledger = await db.get(BonusLedger, id)
+                if ledger:
+                    if ledger.fact_id:
+                        fact = await db.get(DoctorFactAssignment, ledger.fact_id)
+                    else:
+                        # Fallback for OLD records: find fact by matching metadata (id_type=ledger)
+                        stmt_match = select(DoctorFactAssignment).where(
+                            DoctorFactAssignment.med_rep_id == ledger.user_id,
+                            DoctorFactAssignment.doctor_id == ledger.doctor_id,
+                            DoctorFactAssignment.product_id == ledger.product_id,
+                            DoctorFactAssignment.month == ledger.target_month,
+                            DoctorFactAssignment.year == ledger.target_year
+                        ).limit(1)
+                        res_match = await db.execute(stmt_match)
+                        fact = res_match.scalar_one_or_none()
+            
+            if not fact:
+                raise HTTPException(status_code=404, detail="Фakt topilmadi (O'chirish imkonsiz)")
 
-        fact_id = fact.id
+            fact_id = fact.id
 
-        # 2. Delete related BonusLedger entries
-        # Look by specific fact_id
-        stmt_ledger = select(BonusLedger).where(BonusLedger.fact_id == fact_id)
-        ledger_res = await db.execute(stmt_ledger)
-        ledger_entries = ledger_res.scalars().all()
-        for entry in ledger_entries:
-            await db.delete(entry)
+            # 2. Delete related BonusLedger entries
+            stmt_ledger = select(BonusLedger).where(BonusLedger.fact_id == fact_id)
+            ledger_res = await db.execute(stmt_ledger)
+            ledger_entries = ledger_res.scalars().all()
+            for entry in ledger_entries:
+                await db.delete(entry)
 
-        # 3. If no fact_id linked, match by metadata (for old records)
-        if not ledger_entries:
-            # Match all entries for this rep/doctor/product/month/year
-            stmt_fallback = select(BonusLedger).where(
-                BonusLedger.doctor_id == fact.doctor_id,
-                BonusLedger.product_id == fact.product_id,
-                BonusLedger.target_month == fact.month,
-                BonusLedger.target_year == fact.year
-            ).limit(10)
-            fallback_res = await db.execute(stmt_fallback)
-            for entry in fallback_res.scalars().all():
-                # Safety check: only delete IF it belongs to this rep
-                if entry.user_id == fact.med_rep_id or entry.med_rep_id == fact.med_rep_id:
-                    await db.delete(entry)
+            # 3. If no fact_id linked, match by metadata (for old records)
+            if not ledger_entries:
+                stmt_fallback = select(BonusLedger).where(
+                    BonusLedger.doctor_id == fact.doctor_id,
+                    BonusLedger.product_id == fact.product_id,
+                    BonusLedger.target_month == fact.month,
+                    BonusLedger.target_year == fact.year
+                ).limit(10)
+                fallback_res = await db.execute(stmt_fallback)
+                for entry in fallback_res.scalars().all():
+                    if entry.user_id == fact.med_rep_id:
+                        await db.delete(entry)
 
-        # 4. Delete related BonusPayment entries
-        from app.models.sales import BonusPayment
-        stmt_payment = select(BonusPayment).where(
-            BonusPayment.med_rep_id == fact.med_rep_id,
-            BonusPayment.doctor_id == fact.doctor_id,
-            BonusPayment.product_id == fact.product_id,
-            BonusPayment.for_month == fact.month,
-            BonusPayment.for_year == fact.year
-        )
-        payment_res = await db.execute(stmt_payment)
-        for pmt in payment_res.scalars().all():
-            await db.delete(pmt)
+            # 4. Delete related BonusPayment entries
+            from app.models.sales import BonusPayment
+            stmt_payment = select(BonusPayment).where(
+                BonusPayment.med_rep_id == fact.med_rep_id,
+                BonusPayment.doctor_id == fact.doctor_id,
+                BonusPayment.product_id == fact.product_id,
+                BonusPayment.for_month == fact.month,
+                BonusPayment.for_year == fact.year
+            )
+            payment_res = await db.execute(stmt_payment)
+            for pmt in payment_res.scalars().all():
+                await db.delete(pmt)
 
-        # 5. Delete the fact itself
-        await db.delete(fact)
+            # 5. Delete the fact itself
+            await db.delete(fact)
 
-        await db.commit()
-        return {"status": "success", "message": "Фakt va barcha bog'liq bonuslar o'chirildi"}
+            await db.commit()
+            return {"status": "success", "message": "Фakt o'chirildi"}
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            await db.rollback()
+            err_msg = f"Xatolik: {str(e)}\n{traceback.format_exc()}"
+            raise HTTPException(status_code=500, detail=err_msg)
 
