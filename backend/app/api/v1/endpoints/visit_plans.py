@@ -65,8 +65,11 @@ async def get_visit_plans(
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
-        print(f"SERVER ERROR: {error_trace}")
-        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}\n{error_trace}")
+        print(f"SERVER ERROR in get_visit_plans: {error_trace}")
+        # Log to file for easier retrieval if server is running locally/monitored
+        with open("error_log.txt", "a") as f:
+            f.write(f"\n--- VISIT PLANS ERROR ---\n{error_trace}\n")
+        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
 
 
 @router.post("/", response_model=VisitPlanSchema)

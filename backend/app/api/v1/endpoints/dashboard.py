@@ -1,7 +1,8 @@
 from typing import Any, List
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, literal
+from sqlalchemy import select, func, desc, literal, case, inspect
+from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 
 from app.api import deps
@@ -156,8 +157,10 @@ async def get_dashboard_stats(
         sales_query = sales_query.join(Reservation).where(Reservation.created_by_id.in_(descendant_ids))
     
     if final_region_ids:
-        if "Reservation" not in str(sales_query): # Join only if not already joined
-            sales_query = sales_query.join(Reservation)
+        # Robustly join Reservation and MedicalOrganization if not already joined
+        # Checking if Reservation is already in the query's select or join entities
+        if Reservation not in sales_query._setup_joins: 
+             sales_query = sales_query.join(Reservation)
         sales_query = sales_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
     
     sales_res = await db.execute(sales_query)

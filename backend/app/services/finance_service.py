@@ -503,9 +503,8 @@ class FinancialService:
             if offset_entry:
                 await db.delete(offset_entry)
 
-            # Find one ACCRUAL
+            # Find one ACCRUAL (the doctor's credit)
             stmt_accrual = select(BonusLedger).where(
-                BonusLedger.user_id == fact.med_rep_id,
                 BonusLedger.doctor_id == fact.doctor_id,
                 BonusLedger.product_id == fact.product_id,
                 BonusLedger.target_month == fact.month,
