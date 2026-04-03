@@ -123,7 +123,14 @@ export function Sidebar() {
     const currentSidebarItems = permissionsLoaded
         ? [
             ...ALL_SIDEBAR_ITEMS
-                .filter(item => enabledSections.includes(item.sectionKey))
+                .filter(item => {
+                    // For accountant, force-enable common financial sections
+                    if (user?.role === 'accountant') {
+                        const accountantSections = ['dashboard', 'accountant', 'reports', 'stats', 'invoices', 'payments', 'debtors'];
+                        if (accountantSections.includes(item.sectionKey)) return true;
+                    }
+                    return enabledSections.includes(item.sectionKey);
+                })
                 .map(item => ({
                     ...item,
                     href: item.href.replace('__USER_ID__', String(user?.id || '')),
