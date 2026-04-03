@@ -383,7 +383,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                 match = (d.getMonth() + 1) === currentMonth && d.getFullYear() === currentYear;
             }
 
-            if (match && !f.doctor_id) {
+            if (match) {
                 const product = products.find(p => p.id === f.product_id);
                 if (product) {
                     sum += f.quantity * (product.salary_expense || 0);
