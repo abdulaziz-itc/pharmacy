@@ -208,4 +208,11 @@ async def get_my_permissions(
     perms = result.scalars().all()
     enabled_keys = [p.section_key for p in perms]
 
+    # Temporary hardcoded fallback for accountant to ensure it works on production immediately
+    if user_role in [UserRole.ACCOUNTANT, "accountant"]:
+        essential = ["accountant", "finance", "dashboard", "reports", "stats", "invoices", "payments", "debtors"]
+        for key in essential:
+            if key not in enabled_keys:
+                enabled_keys.append(key)
+
     return {"sections": enabled_keys}
