@@ -52,6 +52,8 @@ export default function AccountantPage() {
     const [selectedQuarter, setSelectedQuarter] = useState<number | undefined>(undefined);
     const [selectedRegion, setSelectedRegion] = useState<string>("all");
     const [selectedProduct, setSelectedProduct] = useState<string>("all");
+    const [selectedMedRep, setSelectedMedRep] = useState<string>("all");
+    const [selectedPM, setSelectedPM] = useState<string>("all");
 
     // Fetch Reference Data for Filters
     const { data: regions = [] } = useQuery({
@@ -70,9 +72,20 @@ export default function AccountantPage() {
         }
     });
 
+    const { data: usersData = [] } = useQuery({
+        queryKey: ['users-filter'],
+        queryFn: async () => {
+            const res = await api.get('/users/', { params: { limit: 1000 } });
+            return Array.isArray(res.data) ? res.data : (res.data?.items || []);
+        }
+    });
+
+    const medReps = usersData.filter((u: any) => u.role === 'med_rep');
+    const productManagers = usersData.filter((u: any) => u.role === 'product_manager');
+
     // Fetch Stats
     const { data: stats } = useQuery({
-        queryKey: ['finance-stats', selectedMonth, selectedYear, selectedQuarter, selectedRegion, selectedProduct],
+        queryKey: ['finance-stats', selectedMonth, selectedYear, selectedQuarter, selectedRegion, selectedProduct, selectedMedRep, selectedPM],
         queryFn: async () => {
             const params: any = {};
             if (selectedMonth) params.month = selectedMonth;
@@ -80,6 +93,8 @@ export default function AccountantPage() {
             if (selectedQuarter) params.quarter = selectedQuarter;
             if (selectedRegion && selectedRegion !== 'all') params.region_id = parseInt(selectedRegion);
             if (selectedProduct && selectedProduct !== 'all') params.product_id = parseInt(selectedProduct);
+            if (selectedMedRep && selectedMedRep !== 'all') params.med_rep_id = parseInt(selectedMedRep);
+            if (selectedPM && selectedPM !== 'all') params.product_manager_id = parseInt(selectedPM);
 
             const res = await api.get('/domain/analytics/stats/comprehensive', { params });
             return res.data.kpis;
@@ -261,6 +276,23 @@ export default function AccountantPage() {
                 </div>
 
                 <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Месяц</p>
+                    <select 
+                        value={selectedMonth || ""} 
+                        onChange={(e) => {
+                            setSelectedMonth(e.target.value ? parseInt(e.target.value) : undefined);
+                            if (e.target.value) setSelectedQuarter(undefined);
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
+                    >
+                        <option value="">Все месяцы</option>
+                        {['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'].map((m, i) => (
+                            <option key={i+1} value={i+1}>{m}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Год</p>
                     <select 
                         value={selectedYear || ""} 
@@ -269,6 +301,30 @@ export default function AccountantPage() {
                     >
                         <option value="">Все годы</option>
                         {[2024, 2025, 2026, 2027].map(y => (<option key={y} value={y}>{y}</option>))}
+                    </select>
+                </div>
+
+                <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">PM (Менеджер)</p>
+                    <select 
+                        value={selectedPM} 
+                        onChange={(e) => setSelectedPM(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
+                    >
+                        <option value="all">Все PM</option>
+                        {productManagers.map((u: any) => (<option key={u.id} value={u.id.toString()}>{u.full_name || u.username}</option>))}
+                    </select>
+                </div>
+
+                <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Мед. Реп</p>
+                    <select 
+                        value={selectedMedRep} 
+                        onChange={(e) => setSelectedMedRep(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
+                    >
+                        <option value="all">Все Мед. Репы</option>
+                        {medReps.map((u: any) => (<option key={u.id} value={u.id.toString()}>{u.full_name || u.username}</option>))}
                     </select>
                 </div>
                 
@@ -281,6 +337,8 @@ export default function AccountantPage() {
                             setSelectedQuarter(undefined);
                             setSelectedRegion("all");
                             setSelectedProduct("all");
+                            setSelectedMedRep("all");
+                            setSelectedPM("all");
                         }}
                         className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black rounded-xl transition-all"
                      >
