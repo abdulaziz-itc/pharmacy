@@ -258,6 +258,65 @@ export default function StatsPage() {
                 </div>
             </div>
 
+            {/* Overall Progress Banner */}
+            {!isLoading && stats && (
+                <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-[32px] p-8 mb-8 shadow-xl shadow-blue-200 relative overflow-hidden group">
+                    {/* Decorative Elements */}
+                    <div className="absolute top-0 right-0 p-12 opacity-10 transform translate-x-1/4 -translate-y-1/4 group-hover:scale-110 transition-transform duration-1000">
+                        <Target className="w-64 h-64 text-white" />
+                    </div>
+                    
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                        <div className="space-y-2">
+                            <h2 className="text-white/70 text-xs font-black uppercase tracking-[0.2em]">Umumiy oylik ko'rsatkich</h2>
+                            <div className="flex items-baseline gap-3">
+                                <span className="text-4xl md:text-5xl font-black text-white tracking-tighter">
+                                    {(kpis.sales_plan_amount > 0 ? ((kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100).toFixed(1) : 0)}%
+                                </span>
+                                <span className="text-white/80 text-lg font-bold">bajarildi</span>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 max-w-2xl">
+                            <div className="flex justify-between items-end mb-3">
+                                <div className="space-y-1">
+                                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider">Haqiqiy tushum vs Reja</p>
+                                    <p className="text-white font-bold text-sm">
+                                        {formatCurrency(kpis.sales_fact_received_amount)} / <span className="text-white/50">{formatCurrency(kpis.sales_plan_amount)}</span>
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full backdrop-blur-sm">
+                                        <div className={`w-2 h-2 rounded-full animate-pulse ${kpis.sales_fact_received_amount >= kpis.sales_plan_amount ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                                        <span className="text-white/90 text-[10px] font-black uppercase">Real vaqt rejimida</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Progress Bar Container */}
+                            <div className="h-6 bg-white/10 rounded-2xl p-1 backdrop-blur-sm border border-white/5">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-xl relative group"
+                                    style={{ width: `${Math.min(100, (kpis.sales_plan_amount > 0 ? (kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100 : 0))}%` }}
+                                >
+                                    {/* Shimmer effect */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent w-full animate-progress-shimmer" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="hidden lg:flex items-center gap-4 pl-8 border-l border-white/10">
+                            <div className="text-center bg-white/5 p-4 rounded-3xl backdrop-blur-sm border border-white/5 min-w-[120px]">
+                                <p className="text-white/50 text-[9px] font-black uppercase mb-1">Qolgan summa</p>
+                                <p className="text-white text-sm font-bold truncate">
+                                    {formatCurrency(Math.max(0, kpis.sales_plan_amount - kpis.sales_fact_received_amount))}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isLoading && !stats ? (
                 <div className="flex justify-center items-center h-64">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -402,6 +461,13 @@ export default function StatsPage() {
                 @keyframes scale-in-center {
                     0% { transform: scale(0.9); opacity: 0; }
                     100% { transform: scale(1); opacity: 1; }
+                }
+                @keyframes progress-shimmer {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(100%); }
+                }
+                .animate-progress-shimmer {
+                    animation: progress-shimmer 2s infinite linear;
                 }
             `}</style>
         </PageContainer>
