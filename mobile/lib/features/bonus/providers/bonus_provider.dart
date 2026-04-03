@@ -58,7 +58,8 @@ class BonusNotifier extends StateNotifier<BonusState> {
   Future<bool> allocateBonus({
     required int doctorId,
     required int productId,
-    required double amount,
+    required int quantity,
+    required double amountPerUnit,
     required int month,
     required int year,
     String? notes,
@@ -69,8 +70,8 @@ class BonusNotifier extends StateNotifier<BonusState> {
         data: {
           'doctor_id': doctorId,
           'product_id': productId,
-          'quantity': 1, // Assuming 1 for logic where amount is direct
-          'amount_per_unit': amount,
+          'quantity': quantity,
+          'amount_per_unit': amountPerUnit,
           'target_month': month,
           'target_year': year,
           'notes': notes,

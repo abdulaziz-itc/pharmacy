@@ -49,27 +49,30 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
 
     setState(() => _isSubmitting = true);
     
-    double amountToSubmit;
+    int quantityToSubmit;
+    double amountPerUnitToSubmit;
     final inputValue = double.tryParse(_amountController.text) ?? 0.0;
 
     if (isMedRep) {
       // For MedRep, inputValue is QUANTITY (units)
+      quantityToSubmit = inputValue.toInt();
       final productsAsync = ref.read(productsProvider);
       final product = productsAsync.value?.firstWhere(
         (p) => p.id == _selectedProductId,
         orElse: () => throw Exception('Product not found'),
       );
-      final marketingExpense = product?.marketingExpense ?? 0.0;
-      amountToSubmit = inputValue * marketingExpense;
+      amountPerUnitToSubmit = product?.marketingExpense ?? 0.0;
     } else {
       // For Manager/Admin, inputValue is SUM (UZS)
-      amountToSubmit = inputValue;
+      quantityToSubmit = 1;
+      amountPerUnitToSubmit = inputValue;
     }
     
     final success = await ref.read(bonusProvider.notifier).allocateBonus(
       doctorId: _selectedDoctorId!,
       productId: _selectedProductId!,
-      amount: amountToSubmit,
+      quantity: quantityToSubmit,
+      amountPerUnit: amountPerUnitToSubmit,
       month: _selectedDate.month,
       year: _selectedDate.year,
       notes: _notesController.text,

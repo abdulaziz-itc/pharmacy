@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 
 from app.api import deps
-from app.models.sales import Reservation, ReservationStatus, Invoice, InvoiceStatus, Plan
+from app.models.sales import Reservation, ReservationStatus, Invoice, InvoiceStatus, Plan, DoctorFactAssignment
 from app.models.crm import MedicalOrganization, Doctor, Notification, Region, user_regions
 from app.models.visit import Visit, VisitPlan
 from app.models.ledger import BonusLedger
@@ -185,13 +185,13 @@ async def get_dashboard_stats(
     total_debt = debt_res.scalar() or 0.0
 
     # 3. Active Doctors
-    active_docs_res_stmt = select(func.distinct(Reservation.med_org_id))
-    active_docs_visit_stmt = select(func.distinct(VisitPlan.med_org_id))
+    active_docs_res_stmt = select(func.distinct(DoctorFactAssignment.doctor_id))
+    active_docs_visit_stmt = select(func.distinct(VisitPlan.doctor_id))
     
     if not is_global_mode:
         active_docs_res_stmt = active_docs_res_stmt.where(
-            (Reservation.date >= month_start.date()) &
-            (Reservation.date <= month_end.date())
+            (DoctorFactAssignment.month == month) &
+            (DoctorFactAssignment.year == year)
         )
         active_docs_visit_stmt = active_docs_visit_stmt.where(
             (VisitPlan.planned_date >= month_start.date()) &
@@ -199,22 +199,22 @@ async def get_dashboard_stats(
         )
     
     if is_med_rep:
-        active_docs_res_stmt = active_docs_res_stmt.where(Reservation.created_by_id == current_user.id)
+        active_docs_res_stmt = active_docs_res_stmt.where(DoctorFactAssignment.med_rep_id == current_user.id)
         active_docs_visit_stmt = active_docs_visit_stmt.where(VisitPlan.med_rep_id == current_user.id)
     elif is_manager:
-        active_docs_res_stmt = active_docs_res_stmt.where(Reservation.created_by_id.in_(descendant_ids))
+        active_docs_res_stmt = active_docs_res_stmt.where(DoctorFactAssignment.med_rep_id.in_(descendant_ids))
         active_docs_visit_stmt = active_docs_visit_stmt.where(VisitPlan.med_rep_id.in_(descendant_ids))
         
     if final_region_ids:
-        active_docs_res_stmt = active_docs_res_stmt.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
-        active_docs_visit_stmt = active_docs_visit_stmt.join(MedicalOrganization, VisitPlan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+        active_docs_res_stmt = active_docs_res_stmt.join(Doctor, DoctorFactAssignment.doctor_id == Doctor.id).where(Doctor.region_id.in_(final_region_ids))
+        active_docs_visit_stmt = active_docs_visit_stmt.join(Doctor, VisitPlan.doctor_id == Doctor.id).where(Doctor.region_id.in_(final_region_ids))
 
     res_docs = await db.execute(active_docs_res_stmt)
     visit_docs = await db.execute(active_docs_visit_stmt)
     
-    # Actually counting ORGs as proxies for "activity points" or combining IDs
-    unique_org_ids = set(res_docs.scalars().all()) | set(visit_docs.scalars().all())
-    active_doctors = len(unique_org_ids)
+    # Actually counting DOCTORS as unique individuals
+    unique_doctor_ids = set(res_docs.scalars().all()) | set(visit_docs.scalars().all())
+    active_doctors = len(unique_doctor_ids)
 
     # 4. Pending Reservations
     pending_res_query = select(func.count(Reservation.id)).where(
