@@ -1,15 +1,15 @@
 import { useDoctorStore } from '@/store/doctorStore';
 
 export default function DoctorStats() {
-    const { getFilteredDoctors } = useDoctorStore();
+    const { getFilteredDoctors, globalAccrued, globalPaid } = useDoctorStore();
     const doctors = getFilteredDoctors();
 
     const count = doctors.length;
     const totalPlan = doctors.reduce((acc, doc) => acc + doc.totalPlan, 0);
     const totalFact = doctors.reduce((acc, doc) => acc + doc.fact, 0);
-    const totalBonus = doctors.reduce((acc, doc) => acc + doc.bonus, 0);
-    const totalPaid = doctors.reduce((acc, doc) => acc + doc.bonusPaid, 0);
-    const totalBalance = doctors.reduce((acc, doc) => acc + doc.bonusBalance, 0);
+    const totalBonus = globalAccrued;
+    const totalPaid = globalPaid;
+    const totalBalance = globalAccrued - globalPaid;
     const totalPreInvest = doctors.reduce((acc, doc) => acc + doc.preInvest, 0);
     const totalNetProfit = doctors.reduce((acc, doc) => acc + doc.netProfit, 0);
 

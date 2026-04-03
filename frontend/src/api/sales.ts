@@ -40,6 +40,7 @@ export interface BonusPayment {
     doctor_id?: number;
     product_id?: number;
     amount: number;
+    ledger_type: string;
     for_month: number;
     for_year: number;
     paid_date: string;

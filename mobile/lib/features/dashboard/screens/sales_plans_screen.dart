@@ -8,6 +8,8 @@ import '../../../shared/widgets/loading_shimmer.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../doctors/providers/doctors_provider.dart';
 import '../providers/sales_plans_provider.dart';
+import '../../bonus/providers/bonus_provider.dart';
+import '../../bonus/widgets/allocation_dialog.dart';
 
 class SalesPlansScreen extends ConsumerStatefulWidget {
   const SalesPlansScreen({super.key});
@@ -302,6 +304,7 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
           totalTarget > 0 ? totalTarget : assignedTarget, // Fallback if no general plan
           totalFact, 
           detailedPlans,
+          state, // Pass state here
           vacantTarget: totalTarget > 0 ? vacantTarget : 0,
           productId: productPlans.first.productId,
           medRepId: productPlans.first.medRepId,
@@ -310,7 +313,7 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
     );
   }
 
-  Widget _buildProductPlanCard(String name, int target, int fact, List<DoctorPlan> detailedPlans, {int vacantTarget = 0, required int productId, required int medRepId}) {
+  Widget _buildProductPlanCard(String name, int target, int fact, List<DoctorPlan> detailedPlans, SalesPlansState state, {int vacantTarget = 0, required int productId, required int medRepId}) {
     final percentage = target > 0 ? (fact / target) * 100 : 0.0;
     final color = percentage >= 100 ? Colors.green : (percentage > 50 ? AppColors.primary : Colors.orange);
 
@@ -379,7 +382,7 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
           ),
           children: [
             const Divider(height: 1),
-            ...detailedPlans.map((p) => _buildDoctorRow(p)).toList(),
+            ...detailedPlans.map((p) => _buildDoctorRow(p, state)).toList(),
             if (vacantTarget > 0)
               _buildVacantRow(vacantTarget, productId, medRepId, name),
             const SizedBox(height: 12),
@@ -548,71 +551,92 @@ class _SalesPlansScreenState extends ConsumerState<SalesPlansScreen> {
     );
   }
 
-  Widget _buildDoctorRow(DoctorPlan p) {
+  Widget _buildDoctorRow(DoctorPlan p, SalesPlansState state) {
     final percentage = p.targetQuantity > 0 ? (p.factQuantity / p.targetQuantity) * 100 : 0.0;
     final doctorName = p.doctor?.fullName ?? (p.medOrg?.name ?? 'Общий план');
+    final isDoctor = p.doctor != null;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  doctorName,
+    return InkWell(
+      onTap: isDoctor ? () async {
+        // Ensure bonus balance is loaded for validation
+        await ref.read(bonusProvider.notifier).loadBonusBalance();
+        final bonusState = ref.read(bonusProvider);
+        
+        if (mounted) {
+           showDialog(
+            context: context,
+            builder: (context) => AllocationDialog(
+              availableBalance: bonusState.bonusBalance?.balance ?? 0.0,
+              initialDoctorId: p.doctor?.id,
+              initialProductId: p.productId,
+            ),
+          );
+        }
+      } : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    doctorName,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDoctor ? AppColors.primary : null,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isDoctor)
+                  const Icon(Icons.add_circle_outline_rounded, size: 14, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  '${p.factQuantity} / ${p.targetQuantity}',
                   style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: null,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${p.factQuantity} / ${p.targetQuantity}',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: (percentage / 100).clamp(0, 1),
-                    backgroundColor: AppColors.background,
-                    color: percentage >= 100 ? Colors.green.withValues(alpha: 0.5) : AppColors.primary.withValues(alpha: 0.5),
-                    minHeight: 4,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textSecondary,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 35,
-                child: Text(
-                  '${percentage.toStringAsFixed(0)}%',
-                  textAlign: TextAlign.right,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textHint,
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: (percentage / 100).clamp(0, 1),
+                      backgroundColor: AppColors.background,
+                      color: percentage >= 100 ? Colors.green.withValues(alpha: 0.6) : AppColors.primary.withValues(alpha: 0.6),
+                      minHeight: 4,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 35,
+                  child: Text(
+                    '${percentage.toStringAsFixed(0)}%',
+                    textAlign: TextAlign.right,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

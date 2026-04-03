@@ -57,6 +57,10 @@ interface DoctorStore {
 
     fetchDoctors: (month?: number, year?: number) => Promise<void>;
     getFilteredDoctors: () => Doctor[];
+    
+    // Global stats
+    globalAccrued: number;
+    globalPaid: number;
 }
 
 export const useDoctorStore = create<DoctorStore>((set, get) => ({
@@ -70,6 +74,8 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
     selectedDoctorId: null,
     selectedRegion: null,
     selectedRep: null,
+    globalAccrued: 0,
+    globalPaid: 0,
 
     setMonth: (m) => set({ selectedMonth: m }),
     setYear: (y) => set({ selectedYear: y }),
@@ -129,11 +135,25 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
                 profitByDoctor[did] = (profitByDoctor[did] ?? 0) + (f.quantity ?? 0) * margin;
             }
 
-            // Aggregate bonusPaid per doctor_id (filtered by month/year)
-            const bonusByDoctor: Record<number, number> = {};
+            // Aggregate accrued and paid bonuses per doctor_id (filtered by month/year)
+            const accruedByDoctor: Record<number, number> = {};
+            const paidByDoctor: Record<number, number> = {};
+            let globalAccrued = 0;
+            let globalPaid = 0;
+
             for (const bp of allBonusPayments) {
-                if (bp.doctor_id != null && bp.for_month === m && bp.for_year === y) {
-                    bonusByDoctor[bp.doctor_id] = (bonusByDoctor[bp.doctor_id] ?? 0) + (bp.amount ?? 0);
+                if (bp.for_month === m && bp.for_year === y) {
+                    if (bp.ledger_type === 'accrual') {
+                        globalAccrued += (bp.amount ?? 0);
+                        if (bp.doctor_id != null) {
+                            accruedByDoctor[bp.doctor_id] = (accruedByDoctor[bp.doctor_id] ?? 0) + (bp.amount ?? 0);
+                        }
+                    } else if (bp.ledger_type === 'payout' || bp.ledger_type === 'offset') {
+                        globalPaid += (bp.amount ?? 0);
+                        if (bp.doctor_id != null) {
+                            paidByDoctor[bp.doctor_id] = (paidByDoctor[bp.doctor_id] ?? 0) + (bp.amount ?? 0);
+                        }
+                    }
                 }
             }
 
@@ -200,8 +220,8 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
             }
 
             const mapped: Doctor[] = rawDoctors.map((d: any) => {
-                const paid = bonusByDoctor[d.id] ?? 0;
-                const earned = earnedBonusByDoctor[d.id] ?? 0;
+                const paid = paidByDoctor[d.id] ?? 0;
+                const earned = accruedByDoctor[d.id] ?? 0;
                 const fact = factByDoctor[d.id] ?? 0;
                 const revenue = revenueByDoctor[d.id] ?? 0;
 
@@ -242,7 +262,7 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
                 };
             });
 
-            set({ doctors: mapped });
+            set({ doctors: mapped, globalAccrued, globalPaid });
         } catch (e) {
             console.error('Failed to fetch doctors', e);
         } finally {

@@ -8,10 +8,16 @@ import '../../doctors/providers/doctors_provider.dart';
 import '../../products/providers/products_provider.dart';
 import '../providers/bonus_provider.dart';
 
-class AllocationDialog extends ConsumerStatefulWidget {
   final double availableBalance;
+  final int? initialDoctorId;
+  final int? initialProductId;
   
-  const AllocationDialog({super.key, required this.availableBalance});
+  const AllocationDialog({
+    super.key, 
+    required this.availableBalance,
+    this.initialDoctorId,
+    this.initialProductId,
+  });
 
   @override
   ConsumerState<AllocationDialog> createState() => _AllocationDialogState();
@@ -26,6 +32,13 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
   int? _selectedProductId;
   DateTime _selectedDate = DateTime.now();
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDoctorId = widget.initialDoctorId;
+    _selectedProductId = widget.initialProductId;
+  }
 
   @override
   void dispose() {
@@ -132,41 +145,45 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                 const Divider(),
                 const SizedBox(height: 16),
                 
-                // Doctor Selection
-                Text(l10n.selectDoctor, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  decoration: _inputDecoration(l10n.searchDoctorHint),
-                  items: doctorsState.doctors.map((d) {
-                    return DropdownMenuItem(
-                      value: d.id,
-                      child: Text(d.fullName, style: const TextStyle(fontSize: 13)),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setState(() => _selectedDoctorId = val),
-                  validator: (val) => val == null ? l10n.selectDoctor : null,
-                ),
-                const SizedBox(height: 16),
-
-                // Product Selection
-                Text(l10n.selectProduct, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 8),
-                productsAsync.when(
-                  data: (products) => DropdownButtonFormField<int>(
-                    decoration: _inputDecoration(l10n.searchProduct),
-                    items: products.map((p) {
+                // Doctor Selection (Hidden if pre-filled)
+                if (widget.initialDoctorId == null) ...[
+                  Text(l10n.selectDoctor, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int>(
+                    decoration: _inputDecoration(l10n.searchDoctorHint),
+                    items: doctorsState.doctors.map((d) {
                       return DropdownMenuItem(
-                        value: p.id,
-                        child: Text(p.name, style: const TextStyle(fontSize: 13)),
+                        value: d.id,
+                        child: Text(d.fullName, style: const TextStyle(fontSize: 13)),
                       );
                     }).toList(),
-                    onChanged: (val) => setState(() => _selectedProductId = val),
-                    validator: (val) => val == null ? l10n.selectProduct : null,
+                    onChanged: (val) => setState(() => _selectedDoctorId = val),
+                    validator: (val) => val == null ? l10n.selectDoctor : null,
                   ),
-                  loading: () => const LinearProgressIndicator(),
-                  error: (e, _) => Text('${l10n.errorLoading} $e'),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
+
+                // Product Selection (Hidden if pre-filled)
+                if (widget.initialProductId == null) ...[
+                  Text(l10n.selectProduct, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  productsAsync.when(
+                    data: (products) => DropdownButtonFormField<int>(
+                      decoration: _inputDecoration(l10n.searchProduct),
+                      items: products.map((p) {
+                        return DropdownMenuItem(
+                          value: p.id,
+                          child: Text(p.name, style: const TextStyle(fontSize: 13)),
+                        );
+                      }).toList(),
+                      onChanged: (val) => setState(() => _selectedProductId = val),
+                      validator: (val) => val == null ? l10n.selectProduct : null,
+                    ),
+                    loading: () => const LinearProgressIndicator(),
+                    error: (e, _) => Text('${l10n.errorLoading} $e'),
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // Amount or Quantity
                 Builder(
