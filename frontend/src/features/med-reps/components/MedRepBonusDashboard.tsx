@@ -165,7 +165,8 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
         if (!window.confirm("Haqiqatan ham ushbu faktni o'chirmoqchimisiz? Bu amal bonus hisob-kitobini ham bekor qiladi.")) return;
 
         try {
-            await deleteDoctorFact(id);
+            // We pass id_type=ledger because we are deleting from the history table (BonusLedger)
+            await deleteDoctorFact(id, 'ledger');
             toast.success("Fakt muvaffaqiyatli o'chirildi");
             loadData(filterMonth, filterYear);
         } catch (error: any) {

@@ -115,7 +115,9 @@ export const getInvoices = async (params: any = {}) => {
     return response.data;
 };
 
-export const deleteDoctorFact = async (id: number) => {
-    const response = await axiosInstance.delete(`/sales/doctor-facts/${id}`);
+export const deleteDoctorFact = async (id: number, id_type: string = 'fact') => {
+    const response = await axiosInstance.delete(`/sales/doctor-facts/${id}`, {
+        params: { id_type }
+    });
     return response.data;
 };

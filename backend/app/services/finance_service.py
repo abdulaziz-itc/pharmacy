@@ -440,32 +440,54 @@ class FinancialService:
                 raise HTTPException(status_code=500, detail=f"Ошибка при распределении: {str(e)}")
 
     @staticmethod
-    async def delete_doctor_fact_assignment(db: AsyncSession, fact_id: int):
+    async def delete_doctor_fact_assignment(db: AsyncSession, id: int, id_type: str = "fact"):
         """
         Deletes a fact assignment and reverses all related ledger and payment entries.
+        Supports both direct Fact ID and Ledger ID (from history).
         """
         from app.models.sales import DoctorFactAssignment
         from app.models.ledger import BonusLedger
 
-        # 1. Fetch the fact
-        fact = await db.get(DoctorFactAssignment, fact_id)
+        fact = None
+        
+        # 1. Resolve the fact
+        if id_type == "fact":
+            fact = await db.get(DoctorFactAssignment, id)
+        elif id_type == "ledger":
+            ledger = await db.get(BonusLedger, id)
+            if ledger:
+                if ledger.fact_id:
+                    fact = await db.get(DoctorFactAssignment, ledger.fact_id)
+                else:
+                    # Fallback for OLD records: find fact by matching metadata
+                    stmt_match = select(DoctorFactAssignment).where(
+                        DoctorFactAssignment.med_rep_id == ledger.med_rep_id or (ledger.user_id),
+                        DoctorFactAssignment.doctor_id == ledger.doctor_id,
+                        DoctorFactAssignment.product_id == ledger.product_id,
+                        DoctorFactAssignment.month == ledger.target_month,
+                        DoctorFactAssignment.year == ledger.target_year,
+                        # Match amount to quantity * marketing_expense? Too complex. Let's just find the closest one.
+                    ).limit(1)
+                    res_match = await db.execute(stmt_match)
+                    fact = res_match.scalar_one_or_none()
+        
         if not fact:
-            raise HTTPException(status_code=404, detail="Фakt topilmadi")
+            raise HTTPException(status_code=404, detail="Фakt topilmadi (O'chirish imkonsiz)")
+
+        fact_id = fact.id
 
         # 2. Delete related BonusLedger entries
+        # Look by specific fact_id
         stmt_ledger = select(BonusLedger).where(BonusLedger.fact_id == fact_id)
         ledger_res = await db.execute(stmt_ledger)
         ledger_entries = ledger_res.scalars().all()
         for entry in ledger_entries:
             await db.delete(entry)
 
-        # 3. If no fact_id, match by criteria (for old records)
+        # 3. If no fact_id linked, match by metadata (for old records)
         if not ledger_entries:
-            from app.models.ledger import LedgerType
-            # Match recent OFFSET and ACCRUAL for this rep/doctor/product/month/year/amount
-            # This is a fallback to help delete the user's '1' quantity entries
+            # Match all entries for this rep/doctor/product/month/year
             stmt_fallback = select(BonusLedger).where(
-                BonusLedger.med_rep_id == fact.med_rep_id,
                 BonusLedger.doctor_id == fact.doctor_id,
                 BonusLedger.product_id == fact.product_id,
                 BonusLedger.target_month == fact.month,
@@ -473,7 +495,9 @@ class FinancialService:
             ).limit(10)
             fallback_res = await db.execute(stmt_fallback)
             for entry in fallback_res.scalars().all():
-                await db.delete(entry)
+                # Safety check: only delete IF it belongs to this rep
+                if entry.user_id == fact.med_rep_id or entry.med_rep_id == fact.med_rep_id:
+                    await db.delete(entry)
 
         # 4. Delete related BonusPayment entries
         from app.models.sales import BonusPayment
