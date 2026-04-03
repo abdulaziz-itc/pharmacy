@@ -65,7 +65,7 @@ export default function AccountantPage() {
     const { data: products = [] } = useQuery({
         queryKey: ['products'],
         queryFn: async () => {
-            const res = await api.get('/sales/products/', { params: { limit: 1000 } });
+            const res = await api.get('/products/', { params: { limit: 1000 } });
             return Array.isArray(res.data) ? res.data : (res.data?.items || []);
         }
     });
