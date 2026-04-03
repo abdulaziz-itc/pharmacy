@@ -358,19 +358,18 @@ async def get_comprehensive_stats(
     # To be more precise, we join all items.
     from app.models.product import Product
     
-    gross_profit_sq = select(
-        ((ReservationItem.price - Product.production_price - ReservationItem.salary_amount - ReservationItem.marketing_amount) * ReservationItem.quantity * (Invoice.paid_amount / Invoice.total_amount)).label("item_realized_profit")
+    gross_profit_sum = (await db.execute(select(func.sum(gross_profit_sq.subquery().c.item_realized_profit)))).scalar() or 0
+
+    # If realized profit is 0 (no payments), let's also calculate "Potential Gross Profit" for visibility
+    potential_profit_sq = select(
+        ((ReservationItem.price - Product.production_price - ReservationItem.salary_amount - ReservationItem.marketing_amount) * ReservationItem.quantity).label("item_potential_profit")
     ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
      .join(Invoice, Invoice.reservation_id == Reservation.id)\
      .join(Product, ReservationItem.product_id == Product.id)\
      .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
-
-    if start_date and end_date: gross_profit_sq = gross_profit_sq.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-    if rep_ids: gross_profit_sq = gross_profit_sq.where(Reservation.created_by_id.in_(rep_ids))
-    if region_id: gross_profit_sq = gross_profit_sq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
-    if product_id: gross_profit_sq = gross_profit_sq.where(ReservationItem.product_id == product_id)
-    
-    gross_profit_sum = (await db.execute(select(func.sum(gross_profit_sq.subquery().c.item_realized_profit)))).scalar() or 0
+    if start_date and end_date: potential_profit_sq = potential_profit_sq.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    if rep_ids: potential_profit_sq = potential_profit_sq.where(Reservation.created_by_id.in_(rep_ids))
+    potential_profit_sum = (await db.execute(select(func.sum(potential_profit_sq.subquery().c.item_potential_profit)))).scalar() or 0
 
     # Total Expenses (Prochie Rasxodi)
     from app.services.expense_service import ExpenseService
@@ -472,21 +471,21 @@ async def get_comprehensive_stats(
 
     return {
         "kpis": {
-            "sales_plan_amount": plan_sum,
-            "sales_fact_received_amount": fact_sum,
-            "bonus_accrued": accrued_sum,
-            "bonus_allocated": allocated_sum,
-            "bonus_paid": paid_sum,
-            "bonus_balance": max(0, accrued_sum - paid_sum),
-            "total_predinvest": predinvest_sum,
-            "receivables": debt_sum,
-            "gross_profit": gross_profit_sum,
-            "total_expenses": total_expenses,
-            "net_profit": net_profit
+            "sales_plan_amount": float(plan_sum),
+            "sales_fact_received_amount": float(fact_sum),
+            "bonus_accrued": float(accrued_sum),
+            "bonus_allocated": float(allocated_sum),
+            "bonus_paid": float(paid_sum),
+            "bonus_balance": float(max(0, accrued_sum - paid_sum)),
+            "total_predinvest": float(predinvest_sum),
+            "receivables": float(debt_sum),
+            "gross_profit": float(gross_profit_sum if gross_profit_sum > 0 else potential_profit_sum),
+            "total_expenses": float(total_expenses),
+            "net_profit": float((gross_profit_sum if gross_profit_sum > 0 else potential_profit_sum) - total_expenses),
         },
         "product_stats": product_stats,
         "trends": trends,
-        "period": {"month": month, "year": year, "quarter": quarter}
+        "view_mode": "accountant" if current_user.role == UserRole.ACCOUNTANT else "standard"
     }
 
 @router.get("/dashboard/director-report-excel")
