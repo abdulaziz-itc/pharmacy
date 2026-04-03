@@ -178,30 +178,38 @@ export default function AccountantPage() {
                                 <Plus className="w-6 h-6 text-violet-600" /> Регистрация расхода
                             </h3>
                             <form onSubmit={handleAddExpense} className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="exp_amount" className="text-[10px] font-black text-slate-400 uppercase ml-2">Сумма (UZS)</label>
-                                        <input id="exp_amount" required type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label htmlFor="exp_amount" className="text-[10px] font-black text-slate-400 uppercase ml-2">Сумма (UZS)</label>
+                                            <input id="exp_amount" required type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label htmlFor="exp_category" className="text-[10px] font-black text-slate-400 uppercase ml-2">Категория</label>
+                                            <select id="exp_category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all">
+                                                <option value="">Выберите...</option>
+                                                {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                            </select>
+                                        </div>
                                     </div>
+                                    
                                     <div className="space-y-2">
-                                        <label htmlFor="exp_category" className="text-[10px] font-black text-slate-400 uppercase ml-2">Категория</label>
-                                        <select id="exp_category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all">
-                                            <option value="">Выберите...</option>
-                                            {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2 md:col-span-2">
                                         <label htmlFor="exp_comment" className="text-[10px] font-black text-slate-400 uppercase ml-2">Комментарий</label>
                                         <input id="exp_comment" type="text" placeholder="Tafsilotlarni kiriting..." value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <label htmlFor="exp_date" className="text-[10px] font-black text-slate-400 uppercase ml-2">Sana</label>
-                                        <input id="exp_date" type="date" value={expenseDate} onClick={(e) => (e.target as any).showPicker?.()} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end pt-2">
+                                        <div className="space-y-2">
+                                            <label htmlFor="exp_date" className="text-[10px] font-black text-slate-400 uppercase ml-2">Sana</label>
+                                            <div className="relative group">
+                                                <input id="exp_date" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer" />
+                                            </div>
+                                        </div>
+                                        <button id="exp_submit" disabled={addExpenseMutation.isPending} className="w-full h-[52px] bg-violet-600 text-white rounded-2xl font-black shadow-lg shadow-violet-100 hover:bg-violet-700 transition-all active:scale-[0.98]">
+                                            {addExpenseMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
+                                        </button>
                                     </div>
                                 </div>
-                                <button id="exp_submit" disabled={addExpenseMutation.isPending} className="w-full h-14 bg-violet-600 text-white rounded-2xl font-black shadow-lg shadow-violet-100 hover:bg-violet-700 transition-all">
-                                    {addExpenseMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
-                                </button>
                             </form>
                         </div>
                     )}
