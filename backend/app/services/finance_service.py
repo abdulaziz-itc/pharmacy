@@ -84,28 +84,49 @@ class FinancialService:
                                 target_medrep_id = rep.id
                                 break
                     
-                    # Calculate bonus for this specific payment
+                    # Calculate bonus and salary for this specific payment
                     payment_bonus_amount = 0.0
+                    payment_salary_total = 0.0
+                    
                     for item in reservation.items:
+                        # 1. Marketing bonus
                         if item.marketing_amount:
                             payment_bonus_amount += (item.quantity * item.marketing_amount) * payment_ratio
+                        # 2. Salary (Zarplata)
+                        if reservation.is_salary_enabled and item.salary_amount:
+                            payment_salary_total += (item.quantity * item.salary_amount) * payment_ratio
                     
                     # Round to nearest integer to avoid fractions ("kopeyki")
                     payment_bonus_amount = float(round(payment_bonus_amount))
+                    payment_salary_total = float(round(payment_salary_total))
                     
-                    if payment_bonus_amount > 0 and target_medrep_id:
+                    if target_medrep_id:
                         now = datetime.utcnow()
-                        # Accrue bonus to the assigned MedRep
-                        accrual = BonusLedger(
-                            user_id=target_medrep_id,
-                            amount=payment_bonus_amount,
-                            ledger_type=LedgerType.ACCRUAL,
-                            payment_id=payment.id,
-                            target_month=now.month,
-                            target_year=now.year,
-                            notes=f"Бонус начислен по счет-фактуре #{invoice.id} (Аптека: {reservation.med_org.name if reservation.med_org else 'N/A'})"
-                        )
-                        db.add(accrual)
+                        # Accrue bonus
+                        if payment_bonus_amount > 0:
+                            accrual_bonus = BonusLedger(
+                                user_id=target_medrep_id,
+                                amount=payment_bonus_amount,
+                                ledger_type=LedgerType.ACCRUAL,
+                                payment_id=payment.id,
+                                target_month=now.month,
+                                target_year=now.year,
+                                notes=f"Бонус начислен по счет-фактуре #{invoice.id} (Аптека: {reservation.med_org.name if reservation.med_org else 'N/A'})"
+                            )
+                            db.add(accrual_bonus)
+                        
+                        # Accrue salary
+                        if payment_salary_total > 0:
+                            accrual_salary = BonusLedger(
+                                user_id=target_medrep_id,
+                                amount=payment_salary_total,
+                                ledger_type=LedgerType.ACCRUAL,
+                                payment_id=payment.id,
+                                target_month=now.month,
+                                target_year=now.year,
+                                notes=f"Зарплата начислена по счет-фактуре #{invoice.id} (Аптека: {reservation.med_org.name if reservation.med_org else 'N/A'})"
+                            )
+                            db.add(accrual_salary)
 
                 unassigned_query = select(UnassignedSale).where(UnassignedSale.invoice_id == invoice.id)
                 unassigned_result = await db.execute(unassigned_query)

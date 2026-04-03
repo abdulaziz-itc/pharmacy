@@ -45,6 +45,7 @@ class ReservationItemBase(BaseModel):
     price: float
     discount_percent: float = 0.0
     marketing_amount: Optional[float] = 0.0
+    salary_amount: Optional[float] = 0.0
     return_requested_quantity: int = 0
 
 class ReservationReturnItem(BaseModel):
@@ -74,6 +75,7 @@ class ReservationBase(BaseModel):
     description: Optional[str] = None
     validity_date: Optional[datetime] = None
     is_bonus_eligible: bool = True
+    is_salary_enabled: bool = True
     nds_percent: float = 12.0
     is_tovar_skidka: bool = False
     source_invoice_id: Optional[int] = None
@@ -99,6 +101,7 @@ class Reservation(ReservationBase):
     status: ReservationStatus
     total_amount: float
     is_bonus_eligible: bool
+    is_salary_enabled: bool
     nds_percent: Optional[float] = 12.0
     is_tovar_skidka: bool = False
     source_invoice_id: Optional[int] = None
@@ -121,6 +124,7 @@ class ReservationInInvoice(ReservationBase):
     status: ReservationStatus
     total_amount: float
     is_bonus_eligible: bool
+    is_salary_enabled: bool
     nds_percent: Optional[float] = 12.0
     is_tovar_skidka: bool = False
     source_invoice_id: Optional[int] = None
@@ -176,6 +180,7 @@ class ReservationLite(ReservationBase):
     status: ReservationStatus
     total_amount: float
     is_bonus_eligible: bool
+    is_salary_enabled: bool
     nds_percent: Optional[float] = 12.0
     med_org: Optional[MedicalOrganizationLite] = None
     warehouse_id: int

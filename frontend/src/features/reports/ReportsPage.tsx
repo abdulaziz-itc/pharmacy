@@ -11,6 +11,7 @@ import {
     Target,
     BarChart3,
     TrendingUp,
+    TrendingDown,
     Wallet,
     DollarSign,
     Users,
@@ -155,6 +156,8 @@ export default function ReportsPage() {
     const kpis = useMemo(() => stats?.kpis || {
         sales_plan_amount: 0,
         sales_fact_received_amount: 0,
+        gross_profit: 0,
+        total_expenses: 0,
         net_profit: 0,
         bonus_accrued: 0,
         bonus_paid: 0,
@@ -359,7 +362,9 @@ export default function ReportsPage() {
                 <KpiCard label="План продаж" value={kpis.sales_plan_amount} icon={BarChart3} color="blue" />
                 <KpiCard label="Факт поступлений" value={kpis.sales_fact_received_amount} icon={TrendingUp} color="emerald" 
                          badge={Number(kpis.sales_plan_amount) > 0 ? `${((Number(kpis.sales_fact_received_amount) / Number(kpis.sales_plan_amount)) * 100).toFixed(0)}% выполнено` : undefined} />
-                <KpiCard label="Чистая прибыль" value={kpis.net_profit} icon={DollarSign} color="indigo" />
+                <KpiCard label="Валовая прибыль" value={kpis.gross_profit} icon={DollarSign} color="indigo" />
+                <KpiCard label="Прочие расходы" value={kpis.total_expenses} icon={TrendingDown} color="rose" />
+                <KpiCard label="Чистая прибыль" value={kpis.net_profit} icon={PieChart} color="violet" />
                 <KpiCard label="Задолженность" value={kpis.receivables} icon={Wallet} color="rose" />
                 <KpiCard label="Начислено бонуса" value={kpis.bonus_accrued} icon={PieChart} color="amber" />
                 <KpiCard label="Принято бонуса" value={kpis.bonus_paid} icon={UserCheck} color="teal" />

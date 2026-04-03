@@ -59,6 +59,7 @@ const ALL_SIDEBAR_ITEMS = [
     // Warehouse
     { icon: Warehouse, label: 'Склады', href: '/warehouse', sectionKey: 'warehouse' },
     { icon: Activity, label: 'Удаление (План)', href: '/deletion-approval', sectionKey: 'deletion_approval' },
+    { icon: Wallet, label: 'Бухгалтерия', href: '/accountant', sectionKey: 'accountant' },
 ];
 
 // Investor-only items (always visible for investor, never shown in permission matrix)

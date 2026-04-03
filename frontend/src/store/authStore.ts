@@ -13,7 +13,8 @@ export const UserRole = {
     PRODUCT_MANAGER: 'product_manager',
     FIELD_FORCE_MANAGER: 'field_force_manager',
     REGIONAL_MANAGER: 'regional_manager',
-    MED_REP: 'med_rep'
+    MED_REP: 'med_rep',
+    ACCOUNTANT: 'accountant'
 } as const;
 
 export interface User {

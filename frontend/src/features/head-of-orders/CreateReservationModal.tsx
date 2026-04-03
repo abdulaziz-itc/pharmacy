@@ -49,11 +49,12 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     const [selectedOrg, setSelectedOrg] = useState<string>(initialOrgId?.toString() || '');
     const [selectedWh, setSelectedWh] = useState<string>('');
     const [isBonusEligible, setIsBonusEligible] = useState(true);
+    const [isSalaryEnabled, setIsSalaryEnabled] = useState(true);
     const [isTovarSkidka, setIsTovarSkidka] = useState(false);
     const [eligibleInvoices, setEligibleInvoices] = useState<any[]>([]);
     const [selectedSourceInvoice, setSelectedSourceInvoice] = useState<string>('');
     const [ndsPercent, setNdsPercent] = useState<number>(12);
-    const [items, setItems] = useState<any[]>([{ product_id: '', quantity: 1, price: 0, marketing_amount: 0 }]);
+    const [items, setItems] = useState<any[]>([{ product_id: '', quantity: 1, price: 0, marketing_amount: 0, salary_amount: 0 }]);
     const [showBonusConfirm, setShowBonusConfirm] = useState(false);
 
     useEffect(() => {
@@ -68,7 +69,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
             setIsTovarSkidka(false);
             setEligibleInvoices([]);
             setSelectedSourceInvoice('');
-            setItems([{ product_id: '', quantity: 1, price: 0, marketing_amount: 0 }]);
+            setItems([{ product_id: '', quantity: 1, price: 0, marketing_amount: 0, salary_amount: 0 }]);
             setShowBonusConfirm(false);
             fetchInitialData().then(() => {
                 if (initialMedRepId && initialOrgType) {
@@ -143,7 +144,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
         setStep(s => s + 1);
     };
 
-    const addItem = () => setItems([...items, { product_id: '', quantity: 1, price: 0, marketing_amount: 0 }]);
+    const addItem = () => setItems([...items, { product_id: '', quantity: 1, price: 0, marketing_amount: 0, salary_amount: 0 }]);
     const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i));
     const updateItem = (i: number, field: string, value: any) => {
         const next = [...items];
@@ -185,6 +186,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                 med_org_id: parseInt(selectedOrg),
                 warehouse_id: parseInt(selectedWh),
                 is_bonus_eligible: isBonusEligible,
+                is_salary_enabled: isSalaryEnabled,
                 is_tovar_skidka: isTovarSkidka,
                 source_invoice_id: isTovarSkidka ? parseInt(selectedSourceInvoice) : null,
                 nds_percent: ndsPercent,
@@ -193,6 +195,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                     quantity: parseInt(it.quantity),
                     price: parseFloat(it.price),
                     marketing_amount: parseFloat(it.marketing_amount || 0),
+                    salary_amount: parseFloat(it.salary_amount || 0),
                 })),
             });
             toast.success('Бронь успешно создана!');
@@ -443,6 +446,15 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                 </div>
                                 <Switch checked={isBonusEligible} onCheckedChange={setIsBonusEligible} />
                             </div>
+
+                            {/* Зарплата */}
+                            <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                                <div>
+                                    <p className="text-sm font-semibold text-emerald-900">Начислять зарплату?</p>
+                                    <p className="text-xs text-emerald-600">Будет ли медпредставителю начислена зарплата</p>
+                                </div>
+                                <Switch checked={isSalaryEnabled} onCheckedChange={setIsSalaryEnabled} />
+                            </div>
                         </div>
                     )}
 
@@ -553,25 +565,29 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                                     />
                                                 </div>
                                             )}
-                                            {isBonusEligible && it.product_id && (
+                                            {isSalaryEnabled && it.product_id && (
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Зарплата:</span>
+                                                    <Input
+                                                        type="number" min={0}
+                                                        className={`h-8 w-24 text-xs border-slate-200 ${it.product_id && (parseFloat(it.salary_amount) > parseFloat(it.price) * 0.3) ? 'border-red-500 text-red-600 bg-red-50' : ''}`}
+                                                        value={it.salary_amount}
+                                                        onChange={e => updateItem(idx, 'salary_amount', e.target.value)}
+                                                        placeholder="Зарплата"
+                                                    />
+                                                </div>
+                                            )}
+                                            {(isBonusEligible || isSalaryEnabled) && it.product_id && (
                                                 <div className="flex flex-col items-end gap-0.5 mt-0.5">
                                                     {(parseFloat(it.price) > (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 1.3 || parseFloat(it.price) < (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 0.7) && (
                                                         <span className="text-[9px] text-red-500 font-bold leading-none">Недопустимая цена! (max ±30%)</span>
                                                     )}
-                                                    {(parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3) && (
-                                                        <span className="text-[9px] text-red-500 font-bold leading-none">Max Промо: {(parseFloat(it.price) * 0.3).toLocaleString()} (30% от цены)</span>
+                                                    {isBonusEligible && (parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3) && (
+                                                        <span className="text-[9px] text-red-500 font-bold leading-none">Max Промо: {(parseFloat(it.price) * 0.3).toLocaleString()} (30%)</span>
                                                     )}
-                                                    {(() => {
-                                                        const price = parseFloat(it.price);
-                                                        const mkt = parseFloat(it.marketing_amount);
-                                                        if (!price || isNaN(mkt)) return null;
-                                                        const pct = (mkt / price) * 100;
-                                                        return (
-                                                            <span className={`text-[9px] font-medium leading-none ${pct > 0 ? 'text-emerald-500' : 'text-orange-500'}`}>
-                                                                От продукта: {pct.toFixed(1)}%
-                                                            </span>
-                                                        );
-                                                    })()}
+                                                    {isSalaryEnabled && (parseFloat(it.salary_amount) > parseFloat(it.price) * 0.3) && (
+                                                        <span className="text-[9px] text-red-500 font-bold leading-none">Max Зарплата: {(parseFloat(it.price) * 0.3).toLocaleString()} (30%)</span>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -642,8 +658,9 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                     const p = products.find(pr => pr.id.toString() === it.product_id);
                                     if (!p) return false;
                                     const priceDev = Math.abs(parseFloat(it.price) - p.price) / p.price;
-                                    const mktExceeds = parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3;
-                                    return priceDev > 0.3 || mktExceeds;
+                                    const mktExceeds = isBonusEligible && parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3;
+                                    const salaryExceeds = isSalaryEnabled && parseFloat(it.salary_amount) > parseFloat(it.price) * 0.3;
+                                    return priceDev > 0.3 || mktExceeds || salaryExceeds;
                                 }) ||
                                 (isTovarSkidka && totalAmount > (eligibleInvoices.find(inv => inv.id.toString() === selectedSourceInvoice)?.promo_balance || 0))
                             }

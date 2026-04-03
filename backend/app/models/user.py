@@ -17,6 +17,7 @@ class UserRole(str, enum.Enum):
     FIELD_FORCE_MANAGER = "field_force_manager"
     REGIONAL_MANAGER = "regional_manager"
     MED_REP = "med_rep"
+    ACCOUNTANT = "accountant"
 
 class User(Base):
     id = Column(Integer, primary_key=True, index=True)
