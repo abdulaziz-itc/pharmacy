@@ -406,43 +406,68 @@ async def get_comprehensive_stats(
 
     net_profit = gross_profit_sum - total_expenses
 
-    # 4. PRODUCT STATS
-    product_stats_q = select(
-        Product.id,
-        Product.name,
+    # 4. PRODUCT STATS (Safe Split Logic)
+    product_stats_map = {}
+    
+    # 4a. Plan Products
+    plan_q = select(
+        Plan.product_id,
         func.sum(Plan.target_amount).label("plan_uzs"),
-        func.sum(Plan.target_quantity).label("plan_qty"),
-        func.coalesce(
-            select(func.sum(DoctorFactAssignment.quantity * Product.price))
-            .where(and_(DoctorFactAssignment.product_id == Product.id, 
-                        DoctorFactAssignment.year == Plan.year,
-                        DoctorFactAssignment.month == Plan.month))
-            .as_scalar(), 0
-        ).label("fact_uzs"),
-        func.coalesce(
-            select(func.sum(DoctorFactAssignment.quantity))
-            .where(and_(DoctorFactAssignment.product_id == Product.id, 
-                        DoctorFactAssignment.year == Plan.year,
-                        DoctorFactAssignment.month == Plan.month))
-            .as_scalar(), 0
-        ).label("fact_qty")
-    ).join(Plan, Product.id == Plan.product_id).group_by(Product.id, Product.name)
+        func.sum(Plan.target_quantity).label("plan_qty")
+    ).group_by(Plan.product_id)
     
-    if quarter and year: product_stats_q = product_stats_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
-    elif month and year: product_stats_q = product_stats_q.where(and_(Plan.year == year, Plan.month == month))
-    elif year: product_stats_q = product_stats_q.where(Plan.year == year)
+    if quarter and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
+    elif month and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
+    elif year: plan_q = plan_q.where(Plan.year == year)
+    if rep_ids: plan_q = plan_q.where(Plan.med_rep_id.in_(rep_ids))
+    if region_id: plan_q = plan_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+    if product_id: plan_q = plan_q.where(Plan.product_id == product_id)
     
-    if rep_ids: product_stats_q = product_stats_q.where(Plan.med_rep_id.in_(rep_ids))
-    if region_id: product_stats_q = product_stats_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
-    if product_id: product_stats_q = product_stats_q.where(Product.id == product_id)
+    plan_res = (await db.execute(plan_q)).all()
+    for row in plan_res:
+        product_stats_map[row.product_id] = {
+            "plan_uzs": row.plan_uzs, "plan_qty": row.plan_qty,
+            "fact_uzs": 0, "fact_qty": 0
+        }
+
+    # 4b. Fact Products
+    from app.models.product import Product
+    fact_q = select(
+        DoctorFactAssignment.product_id,
+        func.sum(DoctorFactAssignment.quantity).label("fact_qty"),
+        func.sum(DoctorFactAssignment.quantity * Product.price).label("fact_uzs")
+    ).join(Product, DoctorFactAssignment.product_id == Product.id).group_by(DoctorFactAssignment.product_id)
     
-    product_stats_res = (await db.execute(product_stats_q)).all()
+    if quarter and year: fact_q = fact_q.where(and_(DoctorFactAssignment.year == year, DoctorFactAssignment.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
+    elif month and year: fact_q = fact_q.where(and_(DoctorFactAssignment.year == year, DoctorFactAssignment.month == month))
+    elif year: fact_q = fact_q.where(DoctorFactAssignment.year == year)
+    if rep_ids: fact_q = fact_q.where(DoctorFactAssignment.med_rep_id.in_(rep_ids))
+    if region_id: fact_q = fact_q.join(Doctor, DoctorFactAssignment.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
+    if product_id: fact_q = fact_q.where(DoctorFactAssignment.product_id == product_id)
+    
+    fact_res = (await db.execute(fact_q)).all()
+    for row in fact_res:
+        if row.product_id not in product_stats_map:
+            product_stats_map[row.product_id] = {"plan_uzs": 0, "plan_qty": 0, "fact_uzs": 0, "fact_qty": 0}
+        product_stats_map[row.product_id]["fact_uzs"] += (row.fact_uzs or 0)
+        product_stats_map[row.product_id]["fact_qty"] += (row.fact_qty or 0)
+
+    # 4c. Fetch Product Names and Build Array
     product_stats = []
-    for row in product_stats_res:
-        product_stats.append({
-            "id": row.id, "name": row.name, "plan_uzs": row.plan_uzs, "plan_qty": row.plan_qty,
-            "fact_uzs": row.fact_uzs, "fact_qty": row.fact_qty
-        })
+    if product_stats_map:
+        prod_ids = list(product_stats_map.keys())
+        prods = (await db.execute(select(Product.id, Product.name).where(Product.id.in_(prod_ids)))).all()
+        prod_name_map = {p.id: p.name for p in prods}
+        
+        for pid, stats in product_stats_map.items():
+            product_stats.append({
+                "id": pid,
+                "name": prod_name_map.get(pid, f"Product {pid}"),
+                "plan_uzs": stats["plan_uzs"],
+                "plan_qty": stats["plan_qty"],
+                "fact_uzs": stats["fact_uzs"],
+                "fact_qty": stats["fact_qty"]
+            })
 
     # 5. TRENDS (Charts)
     trends = []
