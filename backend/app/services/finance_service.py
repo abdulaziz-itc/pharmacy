@@ -241,7 +241,11 @@ class FinancialService:
                 prod_result = await db.execute(prod_query)
                 product = prod_result.scalar_one()
 
-                item_query = select(ReservationItem).join(Reservation).join(Invoice).where(
+                item_query = select(ReservationItem).join(
+                    Reservation, ReservationItem.reservation_id == Reservation.id
+                ).join(
+                    Invoice, Invoice.reservation_id == Reservation.id
+                ).where(
                     Invoice.id == rec.invoice_id,
                     ReservationItem.product_id == rec.product_id
                 )

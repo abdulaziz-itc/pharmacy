@@ -152,15 +152,15 @@ async def get_dashboard_stats(
             (Invoice.date <= month_end)
         )
     if is_med_rep:
-        sales_query = sales_query.join(Reservation).where(Reservation.created_by_id == current_user.id)
+        sales_query = sales_query.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id == current_user.id)
     elif is_manager:
-        sales_query = sales_query.join(Reservation).where(Reservation.created_by_id.in_(descendant_ids))
+        sales_query = sales_query.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(descendant_ids))
     
     if final_region_ids:
         # Robustly join Reservation and MedicalOrganization if not already joined
         # Checking if Reservation is already in the query's select or join entities
         if Reservation not in sales_query._setup_joins: 
-             sales_query = sales_query.join(Reservation)
+             sales_query = sales_query.join(Reservation, Invoice.reservation_id == Reservation.id)
         sales_query = sales_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
     
     sales_res = await db.execute(sales_query)
@@ -172,13 +172,13 @@ async def get_dashboard_stats(
         (Invoice.paid_amount < Invoice.total_amount)
     )
     if is_med_rep:
-        debt_query = debt_query.join(Reservation).where(Reservation.created_by_id == current_user.id)
+        debt_query = debt_query.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id == current_user.id)
     elif is_manager:
-        debt_query = debt_query.join(Reservation).where(Reservation.created_by_id.in_(descendant_ids))
+        debt_query = debt_query.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(descendant_ids))
         
     if final_region_ids:
-        if "Reservation" not in str(debt_query):
-            debt_query = debt_query.join(Reservation)
+        if Reservation not in debt_query._setup_joins: 
+            debt_query = debt_query.join(Reservation, Invoice.reservation_id == Reservation.id)
         debt_query = debt_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
     
     debt_res = await db.execute(debt_query)
