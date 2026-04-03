@@ -546,6 +546,19 @@ async def create_doctor_fact(
     )
     return fact
 
+@router.delete("/doctor-facts/{id}")
+async def delete_doctor_fact(
+    id: int,
+    id_type: str = "fact",
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Удаление факта и отмена бонуса. id_type may be 'fact' or 'ledger'.
+    """
+    from app.services.finance_service import FinancialService
+    return await FinancialService.delete_doctor_fact_assignment(db, id, id_type)
+
 # Bonus Payments
 @router.get("/bonus-payments/", response_model=List[BonusPaymentSchema])
 async def read_bonus_payments(

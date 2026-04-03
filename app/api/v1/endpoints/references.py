@@ -129,12 +129,23 @@ async def read_warehouses(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
+    include_pharmacy: bool = False,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    result = await db.execute(
-        select(WarehouseModel)
-        .options(selectinload(WarehouseModel.stocks))
-        .offset(skip)
-        .limit(limit)
-    )
+    from sqlalchemy.orm import selectinload
+    from app.models.warehouse import WarehouseType
+    from app.models.crm import MedicalOrganization
+    from sqlalchemy import or_
+    
+    query = select(WarehouseModel).options(selectinload(WarehouseModel.stocks))
+    if not include_pharmacy:
+        query = query.outerjoin(MedicalOrganization, WarehouseModel.med_org_id == MedicalOrganization.id)
+        query = query.where(
+            or_(
+                WarehouseModel.med_org_id == None,
+                MedicalOrganization.org_type != "pharmacy"
+            )
+        )
+        
+    result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()

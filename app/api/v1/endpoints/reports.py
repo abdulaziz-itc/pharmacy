@@ -10,6 +10,7 @@ from app.models.ledger import BonusLedger, DoctorMonthlyStat
 from app.models.crm import Doctor
 from app.models.product import Product
 import calendar
+from app.services.audit_service import log_action
 
 router = APIRouter()
 
@@ -18,49 +19,62 @@ async def get_comprehensive_reports(
     request: Request,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    start_date: date = Query(...),
-    end_date: date = Query(...),
-    period: str = Query("monthly", regex="^(daily|weekly|monthly|quarterly|yearly)$")
+    start_date: date = Query(None),
+    end_date: date = Query(None),
+    period: str = Query("monthly", regex="^(daily|weekly|monthly|quarterly|yearly)$"),
+    product_id: Optional[int] = Query(None),
+    region_id: Optional[int] = Query(None),
+    med_rep_id: Optional[int] = Query(None),
+    product_manager_id: Optional[int] = Query(None)
 ) -> Any:
     """
-    Get comprehensive reports for the dashboard.
-    Aggregates data from Sales (Fact), Plans, and Bonuses.
-    
-    Parameters:
-    - start_date, end_date: Date range for the report.
-    - period: Grouping period (daily, weekly, monthly, quarterly, yearly).
-    
-    Returns a dictionary containing:
-    - summary: Total facts, plans, and earned bonuses.
-    - details: List of per-doctor/product breakdown with plan vs fact comparison.
-    - charts: Time-series data for historical trends.
+    Get comprehensive reports for the dashboard with advanced filtering.
     """
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    # 1. Fetch Plans (Plans are stored as month/year)
-    start_year = start_date.year
-    end_year = end_date.year
+    from app.models.crm import MedicalOrganization
+    from app.crud.crud_user import get_descendant_ids
+
+    # 0. Handle Team Hierarchy
+    target_rep_ids = None
+    if med_rep_id:
+        target_rep_ids = [med_rep_id]
+    elif product_manager_id:
+        target_rep_ids = await get_descendant_ids(db, product_manager_id)
     
+    # RM/PM/FFM can only see their descendants
+    if current_user.role in [UserRole.REGIONAL_MANAGER, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER]:
+        my_descendants = await get_descendant_ids(db, current_user.id)
+        if target_rep_ids:
+            target_rep_ids = [rid for rid in target_rep_ids if rid in my_descendants]
+        else:
+            target_rep_ids = my_descendants
+
+    # 1. Fetch Plans
     plans_query = select(
         Plan.doctor_id,
         Doctor.full_name.label("doctor_name"),
         func.sum(Plan.target_quantity).label("plan_quantity"),
         func.sum(Plan.target_amount).label("plan_amount")
-    ).join(Doctor, Doctor.id == Plan.doctor_id, isouter=True)\
-     .where(
-        Plan.year >= start_year,
-        Plan.year <= end_year,
-        # In a real app, we'd filter by month too, but keeping parity with existing logic for years
-    ).group_by(Plan.doctor_id, Doctor.full_name)
-    
+    ).join(Doctor, Doctor.id == Plan.doctor_id, isouter=True)
+
+    if start_date and end_date:
+        plans_query = plans_query.where(Plan.year >= start_date.year, Plan.year <= end_date.year)
+    if target_rep_ids:
+        plans_query = plans_query.where(Plan.med_rep_id.in_(target_rep_ids))
+    if product_id:
+        plans_query = plans_query.where(Plan.product_id == product_id)
+    if region_id:
+        plans_query = plans_query.join(MedicalOrganization, Doctor.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+
+    plans_query = plans_query.group_by(Plan.doctor_id, Doctor.full_name)
     plans_result = await db.execute(plans_query)
     
-    # Initialize mapping with Plans
     report_map = {}
     for row in plans_result.all():
         doc_id = row.doctor_id
-        if doc_id: # Only aggregate per doctor for now
+        if doc_id:
             report_map[doc_id] = {
                 "doctor_name": row.doctor_name or f"Doctor #{doc_id}",
                 "plan_quantity": row.plan_quantity or 0,
@@ -78,14 +92,18 @@ async def get_comprehensive_reports(
         Doctor.full_name.label("doctor_name"),
         func.sum(DoctorFactAssignment.quantity).label("fact_quantity"),
         func.sum(DoctorFactAssignment.amount).label("fact_amount"),
-    ).join(Doctor, Doctor.id == DoctorFactAssignment.doctor_id)\
-     .where(
-         cast(DoctorFactAssignment.created_at, Date) >= start_date,
-         cast(DoctorFactAssignment.created_at, Date) <= end_date,
-     ).group_by(
-         DoctorFactAssignment.doctor_id, Doctor.full_name
-     )
+    ).join(Doctor, Doctor.id == DoctorFactAssignment.doctor_id)
 
+    if start_date and end_date:
+        sales_query = sales_query.where(cast(DoctorFactAssignment.created_at, Date) >= start_date, cast(DoctorFactAssignment.created_at, Date) <= end_date)
+    if target_rep_ids:
+        sales_query = sales_query.where(DoctorFactAssignment.med_rep_id.in_(target_rep_ids))
+    if product_id:
+        sales_query = sales_query.where(DoctorFactAssignment.product_id == product_id)
+    if region_id:
+        sales_query = sales_query.join(MedicalOrganization, Doctor.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+
+    sales_query = sales_query.group_by(DoctorFactAssignment.doctor_id, Doctor.full_name)
     sales_result = await db.execute(sales_query)
     for row in sales_result.all():
         doc_id = row.doctor_id
@@ -109,12 +127,16 @@ async def get_comprehensive_reports(
         func.sum(case((BonusLedger.ledger_type == "accrual", BonusLedger.amount), else_=0)).label("earned_bonus"),
         func.sum(case((BonusLedger.ledger_type == "advance", -BonusLedger.amount), else_=0)).label("predinvest_given"),
         func.sum(case((BonusLedger.ledger_type == "offset", -BonusLedger.amount), else_=0)).label("predinvest_paid_off")
-    ).where(
-        cast(BonusLedger.created_at, Date) >= start_date,
-        cast(BonusLedger.created_at, Date) <= end_date,
-        BonusLedger.doctor_id.isnot(None)
-    ).group_by(BonusLedger.doctor_id)
+    ).join(Doctor, Doctor.id == BonusLedger.doctor_id)
 
+    if start_date and end_date:
+        bonuses_query = bonuses_query.where(cast(BonusLedger.created_at, Date) >= start_date, cast(BonusLedger.created_at, Date) <= end_date)
+    if target_rep_ids:
+        bonuses_query = bonuses_query.where(BonusLedger.user_id.in_(target_rep_ids))
+    if region_id:
+        bonuses_query = bonuses_query.join(MedicalOrganization, Doctor.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+
+    bonuses_query = bonuses_query.where(BonusLedger.doctor_id.isnot(None)).group_by(BonusLedger.doctor_id)
     bonuses_result = await db.execute(bonuses_query)
     for row in bonuses_result.all():
         doc_id = row.doctor_id
@@ -133,7 +155,6 @@ async def get_comprehensive_reports(
         report_map[doc_id]["predinvest_given"] = float(row.predinvest_given or 0)
         report_map[doc_id]["predinvest_paid_off"] = float(row.predinvest_paid_off or 0)
 
-    # Flatten map
     summary = []
     for doc_id, data in report_map.items():
         summary.append({
@@ -148,10 +169,9 @@ async def get_comprehensive_reports(
             "predinvest_paid_off": data["predinvest_paid_off"],
         })
 
-    from app.services.audit_service import log_action
     await log_action(
         db, current_user, "REPORT_DOWNLOAD", "Analytics", 0,
-        f"Загружен комплексный отчет: с {start_date} по {end_date}, период: {period}",
+        f"Загружен комплексный отчет с фильтрами: {start_date} - {end_date}",
         request
     )
 

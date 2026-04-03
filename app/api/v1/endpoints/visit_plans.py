@@ -18,13 +18,11 @@ async def _get_plan_with_relations(db: AsyncSession, plan_id: int) -> VisitPlan:
         select(VisitPlan)
         .options(
             selectinload(VisitPlan.med_rep),
-            selectinload(VisitPlan.doctor).selectinload(Doctor.med_org).selectinload(MedicalOrganization.assigned_reps).selectinload(User.assigned_regions),
             selectinload(VisitPlan.doctor).selectinload(Doctor.med_org).selectinload(MedicalOrganization.region),
             selectinload(VisitPlan.doctor).selectinload(Doctor.specialty),
             selectinload(VisitPlan.doctor).selectinload(Doctor.category),
             selectinload(VisitPlan.doctor).selectinload(Doctor.region),
-            selectinload(VisitPlan.doctor).selectinload(Doctor.assigned_rep).selectinload(User.assigned_regions),
-            selectinload(VisitPlan.med_org).selectinload(MedicalOrganization.assigned_reps).selectinload(User.assigned_regions),
+            selectinload(VisitPlan.doctor).selectinload(Doctor.assigned_rep),
             selectinload(VisitPlan.med_org).selectinload(MedicalOrganization.region)
         )
         .where(VisitPlan.id == plan_id)
@@ -42,13 +40,11 @@ async def get_visit_plans(
     try:
         query = select(VisitPlan).options(
             selectinload(VisitPlan.med_rep),
-            selectinload(VisitPlan.doctor).selectinload(Doctor.med_org).selectinload(MedicalOrganization.assigned_reps).selectinload(User.assigned_regions),
             selectinload(VisitPlan.doctor).selectinload(Doctor.med_org).selectinload(MedicalOrganization.region),
             selectinload(VisitPlan.doctor).selectinload(Doctor.specialty),
             selectinload(VisitPlan.doctor).selectinload(Doctor.category),
             selectinload(VisitPlan.doctor).selectinload(Doctor.region),
-            selectinload(VisitPlan.doctor).selectinload(Doctor.assigned_rep).selectinload(User.assigned_regions),
-            selectinload(VisitPlan.med_org).selectinload(MedicalOrganization.assigned_reps).selectinload(User.assigned_regions),
+            selectinload(VisitPlan.doctor).selectinload(Doctor.assigned_rep),
             selectinload(VisitPlan.med_org).selectinload(MedicalOrganization.region)
         )
         if med_rep_id:
@@ -69,8 +65,11 @@ async def get_visit_plans(
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
-        print(f"SERVER ERROR: {error_trace}")
-        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}\n{error_trace}")
+        print(f"SERVER ERROR in get_visit_plans: {error_trace}")
+        # Log to file for easier retrieval if server is running locally/monitored
+        with open("error_log.txt", "a") as f:
+            f.write(f"\n--- VISIT PLANS ERROR ---\n{error_trace}\n")
+        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
 
 
 @router.post("/", response_model=VisitPlanSchema)

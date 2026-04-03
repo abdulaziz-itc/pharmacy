@@ -1,11 +1,12 @@
 from typing import Any, List
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, literal
+from sqlalchemy import select, func, desc, literal, case, inspect
+from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 
 from app.api import deps
-from app.models.sales import Reservation, ReservationStatus, Invoice, InvoiceStatus, Plan
+from app.models.sales import Reservation, ReservationStatus, Invoice, InvoiceStatus, Plan, DoctorFactAssignment
 from app.models.crm import MedicalOrganization, Doctor, Notification, Region, user_regions
 from app.models.visit import Visit, VisitPlan
 from app.models.ledger import BonusLedger
@@ -24,18 +25,19 @@ async def get_dashboard_stats(
     month: int = None,
 ) -> Any:
     # 0. Time Range Definition
-    now = datetime.utcnow()
-    target_year = year or now.year
-    target_month = month or now.month
+    is_global_mode = not year or not month
     
-    # Calculate start and end of the period
-    import calendar
-    month_start = datetime(target_year, target_month, 1)
-    last_day = calendar.monthrange(target_year, target_month)[1]
-    month_end = datetime(target_year, target_month, last_day, 23, 59, 59)
+    month_start = None
+    month_end = None
+    
+    if not is_global_mode:
+        import calendar
+        month_start = datetime(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        month_end = datetime(year, month, last_day, 23, 59, 59)
 
     # 0.1 Role Definition
-    is_global = current_user.role in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN, UserRole.HRD]
+    is_global = current_user.role in [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN, UserRole.HRD, UserRole.ACCOUNTANT]
     is_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HEAD_OF_ORDERS]
     is_med_rep = current_user.role == UserRole.MED_REP
     
@@ -92,12 +94,13 @@ async def get_dashboard_stats(
         active_users_res = await db.execute(active_users_query)
         active_users_today = active_users_res.scalar() or 0
         
-        # 4. Completed Visits for selected period
-        comp_visits_query = select(func.count(VisitPlan.id)).where(
-            (VisitPlan.status == "completed") &
-            (VisitPlan.planned_date >= month_start.date()) &
-            (VisitPlan.planned_date <= month_end.date())
-        )
+        # 4. Completed Visits
+        comp_visits_query = select(func.count(VisitPlan.id)).where(VisitPlan.status == "completed")
+        if not is_global_mode:
+            comp_visits_query = comp_visits_query.where(
+                (VisitPlan.planned_date >= month_start.date()) &
+                (VisitPlan.planned_date <= month_end.date())
+            )
         if final_region_ids:
             from app.models.crm import MedicalOrganization
             comp_visits_query = comp_visits_query.join(MedicalOrganization, VisitPlan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
@@ -139,20 +142,25 @@ async def get_dashboard_stats(
 
     # --- 0.4 KPIs CALCULATION ---
     
-    # 1. Total Sales (Realized Invoices this month)
+    # 1. Total Sales (Realized Invoices)
     sales_query = select(func.sum(Invoice.total_amount)).where(
-        (Invoice.status != InvoiceStatus.CANCELLED) &
-        (Invoice.date >= month_start) &
-        (Invoice.date <= month_end)
+        Invoice.status != InvoiceStatus.CANCELLED
     )
+    if not is_global_mode:
+        sales_query = sales_query.where(
+            (Invoice.date >= month_start) &
+            (Invoice.date <= month_end)
+        )
     if is_med_rep:
-        sales_query = sales_query.join(Reservation).where(Reservation.created_by_id == current_user.id)
+        sales_query = sales_query.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id == current_user.id)
     elif is_manager:
-        sales_query = sales_query.join(Reservation).where(Reservation.created_by_id.in_(descendant_ids))
+        sales_query = sales_query.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(descendant_ids))
     
     if final_region_ids:
-        if "Reservation" not in str(sales_query): # Join only if not already joined
-            sales_query = sales_query.join(Reservation)
+        # Robustly join Reservation and MedicalOrganization if not already joined
+        # Checking if Reservation is already in the query's select or join entities
+        if Reservation not in sales_query._setup_joins: 
+             sales_query = sales_query.join(Reservation, Invoice.reservation_id == Reservation.id)
         sales_query = sales_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
     
     sales_res = await db.execute(sales_query)
@@ -164,46 +172,67 @@ async def get_dashboard_stats(
         (Invoice.paid_amount < Invoice.total_amount)
     )
     if is_med_rep:
-        debt_query = debt_query.join(Reservation).where(Reservation.created_by_id == current_user.id)
+        debt_query = debt_query.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id == current_user.id)
     elif is_manager:
-        debt_query = debt_query.join(Reservation).where(Reservation.created_by_id.in_(descendant_ids))
+        debt_query = debt_query.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(descendant_ids))
         
     if final_region_ids:
-        if "Reservation" not in str(debt_query):
-            debt_query = debt_query.join(Reservation)
+        if Reservation not in debt_query._setup_joins: 
+            debt_query = debt_query.join(Reservation, Invoice.reservation_id == Reservation.id)
         debt_query = debt_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
     
     debt_res = await db.execute(debt_query)
     total_debt = debt_res.scalar() or 0.0
 
-    # 3. Active Doctors (Doctors with activity in selected month)
-    # Using unique doctors from VisitPlans and Reservations
-    active_docs_res_stmt = select(func.distinct(Reservation.med_org_id)).where(
-        (Reservation.date >= month_start.date()) &
-        (Reservation.date <= month_end.date())
-    )
-    active_docs_visit_stmt = select(func.distinct(VisitPlan.med_org_id)).where(
-        (VisitPlan.planned_date >= month_start.date()) &
-        (VisitPlan.planned_date <= month_end.date())
+    # 3. Active Doctors
+    # a. Doctors from Fact Assignments (Sales)
+    active_docs_res_stmt = select(func.distinct(DoctorFactAssignment.doctor_id))
+    
+    # b. Doctors explicitly selected in Visit Plans
+    active_docs_visit_stmt = select(func.distinct(VisitPlan.doctor_id))
+    
+    # c. Doctors whose organizations were visited (Inclusive activity)
+    org_visit_docs_stmt = select(func.distinct(Doctor.id)).join(
+        VisitPlan, Doctor.med_org_id == VisitPlan.med_org_id
     )
     
+    if not is_global_mode:
+        active_docs_res_stmt = active_docs_res_stmt.where(
+            (DoctorFactAssignment.month == month) &
+            (DoctorFactAssignment.year == year)
+        )
+        active_docs_visit_stmt = active_docs_visit_stmt.where(
+            (VisitPlan.planned_date >= month_start.date()) &
+            (VisitPlan.planned_date <= month_end.date())
+        )
+        org_visit_docs_stmt = org_visit_docs_stmt.where(
+            (VisitPlan.planned_date >= month_start.date()) &
+            (VisitPlan.planned_date <= month_end.date())
+        )
+    
     if is_med_rep:
-        active_docs_res_stmt = active_docs_res_stmt.where(Reservation.created_by_id == current_user.id)
+        active_docs_res_stmt = active_docs_res_stmt.where(DoctorFactAssignment.med_rep_id == current_user.id)
         active_docs_visit_stmt = active_docs_visit_stmt.where(VisitPlan.med_rep_id == current_user.id)
+        org_visit_docs_stmt = org_visit_docs_stmt.where(VisitPlan.med_rep_id == current_user.id)
     elif is_manager:
-        active_docs_res_stmt = active_docs_res_stmt.where(Reservation.created_by_id.in_(descendant_ids))
+        active_docs_res_stmt = active_docs_res_stmt.where(DoctorFactAssignment.med_rep_id.in_(descendant_ids))
         active_docs_visit_stmt = active_docs_visit_stmt.where(VisitPlan.med_rep_id.in_(descendant_ids))
+        org_visit_docs_stmt = org_visit_docs_stmt.where(VisitPlan.med_rep_id.in_(descendant_ids))
         
     if final_region_ids:
-        active_docs_res_stmt = active_docs_res_stmt.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
-        active_docs_visit_stmt = active_docs_visit_stmt.join(MedicalOrganization, VisitPlan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+        active_docs_res_stmt = active_docs_res_stmt.join(Doctor, DoctorFactAssignment.doctor_id == Doctor.id).where(Doctor.region_id.in_(final_region_ids))
+        active_docs_visit_stmt = active_docs_visit_stmt.join(Doctor, VisitPlan.doctor_id == Doctor.id).where(Doctor.region_id.in_(final_region_ids))
+        org_visit_docs_stmt = org_visit_docs_stmt.where(Doctor.region_id.in_(final_region_ids))
 
     res_docs = await db.execute(active_docs_res_stmt)
     visit_docs = await db.execute(active_docs_visit_stmt)
+    org_visit_docs = await db.execute(org_visit_doctors_stmt) if 'org_visit_doctors_stmt' in locals() else await db.execute(org_visit_docs_stmt)
     
-    # Actually counting ORGs as proxies for "activity points" or combining IDs
-    unique_org_ids = set(res_docs.scalars().all()) | set(visit_docs.scalars().all())
-    active_doctors = len(unique_org_ids)
+    # Actually counting DOCTORS as unique individuals
+    unique_doctor_ids = set(res_docs.scalars().all()) | set(visit_docs.scalars().all()) | set(org_visit_docs.scalars().all())
+    # Filter out None/NULL values
+    unique_doctor_ids = {d for d in unique_doctor_ids if d is not None}
+    active_doctors = len(unique_doctor_ids)
 
     # 4. Pending Reservations
     pending_res_query = select(func.count(Reservation.id)).where(
@@ -223,12 +252,14 @@ async def get_dashboard_stats(
     # 5. Recent Activities (Filter by month)
     recent_activities = []
     
-    # Notifications (Filtered by created_at)
-    notif_query = select(Notification).where(
-        (Notification.recipient_id == current_user.id) &
-        (Notification.created_at >= month_start) &
-        (Notification.created_at <= month_end)
-    ).order_by(desc(Notification.created_at)).limit(5)
+    # Notifications
+    notif_query = select(Notification).where(Notification.recipient_id == current_user.id)
+    if not is_global_mode:
+        notif_query = notif_query.where(
+            (Notification.created_at >= month_start) &
+            (Notification.created_at <= month_end)
+        )
+    notif_query = notif_query.order_by(desc(Notification.created_at)).limit(5)
     notif_result = await db.execute(notif_query)
     notifications = notif_result.scalars().all()
     
@@ -242,10 +273,13 @@ async def get_dashboard_stats(
         ))
 
     # Reservations
-    res_query = select(Reservation).where(
-        (Reservation.date >= month_start.date()) &
-        (Reservation.date <= month_end.date())
-    ).order_by(desc(Reservation.date)).limit(10)
+    res_query = select(Reservation)
+    if not is_global_mode:
+        res_query = res_query.where(
+            (Reservation.date >= month_start.date()) &
+            (Reservation.date <= month_end.date())
+        )
+    res_query = res_query.order_by(desc(Reservation.date)).limit(10)
     
     if is_med_rep:
         res_query = res_query.where(Reservation.created_by_id == current_user.id)
@@ -272,23 +306,27 @@ async def get_dashboard_stats(
         ActivityItem(title="Нет событий", desc="За это время событий не зафиксировано", amount="", time="", color="blue")
     ]
 
-    # 6. Revenue Forecast (Centering around filter month)
-    months = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
+    # 6. Revenue Forecast
+    months_list = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
     forecast = []
+    current_m = month or datetime.utcnow().month
     for i in range(-2, 4):
-        m_idx = (target_month - 1 + i) % 12
-        forecast.append(RevenueForecastPoint(month=months[m_idx], value=20.0 + (i * 5) + (target_month % 5)))
+        m_idx = (current_m - 1 + i) % 12
+        forecast.append(RevenueForecastPoint(month=months_list[m_idx], value=20.0 + (i * 5) + (current_m % 5)))
 
     # 7. Visit Stats
-    planned_visits_query = select(func.count(VisitPlan.id)).where(
-        (VisitPlan.planned_date >= month_start.date()) &
-        (VisitPlan.planned_date <= month_end.date())
-    )
-    completed_visits_query = select(func.count(VisitPlan.id)).where(
-        (VisitPlan.status == "completed") &
-        (VisitPlan.planned_date >= month_start.date()) &
-        (VisitPlan.planned_date <= month_end.date())
-    )
+    planned_visits_query = select(func.count(VisitPlan.id))
+    completed_visits_query = select(func.count(VisitPlan.id)).where(VisitPlan.status == "completed")
+    
+    if not is_global_mode:
+        planned_visits_query = planned_visits_query.where(
+            (VisitPlan.planned_date >= month_start.date()) &
+            (VisitPlan.planned_date <= month_end.date())
+        )
+        completed_visits_query = completed_visits_query.where(
+            (VisitPlan.planned_date >= month_start.date()) &
+            (VisitPlan.planned_date <= month_end.date())
+        )
     
     if is_med_rep:
         planned_visits_query = planned_visits_query.where(VisitPlan.med_rep_id == current_user.id)
@@ -303,11 +341,13 @@ async def get_dashboard_stats(
     completed_visits_res = await db.execute(completed_visits_query)
     completed_visits = completed_visits_res.scalar() or 0
 
-    # 8. Bonus Balance (Filter by month)
-    bonus_balance_query = select(func.sum(BonusLedger.amount)).where(
-        (BonusLedger.created_at >= month_start) &
-        (BonusLedger.created_at <= month_end)
-    )
+    # 8. Bonus Balance
+    bonus_balance_query = select(func.sum(BonusLedger.amount))
+    if not is_global_mode:
+        bonus_balance_query = bonus_balance_query.where(
+            (BonusLedger.created_at >= month_start) &
+            (BonusLedger.created_at <= month_end)
+        )
     if is_med_rep:
         bonus_balance_query = bonus_balance_query.where(BonusLedger.user_id == current_user.id)
     elif is_manager:

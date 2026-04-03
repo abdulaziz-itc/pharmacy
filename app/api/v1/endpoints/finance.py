@@ -9,6 +9,8 @@ from app.models.sales import Invoice, InvoiceStatus, Plan, Reservation, Reservat
 from app.models.user import User, UserRole
 from app.models.crm import Doctor
 from app.models.ledger import DoctorMonthlyStat
+from app.schemas.finance import ExpenseCategory, ExpenseCategoryCreate, OtherExpense, OtherExpenseCreate
+from app.services.expense_service import ExpenseService
 
 router = APIRouter()
 
@@ -171,3 +173,43 @@ async def read_user_kpi(
         "total_fact": total_fact,
         "achievement_percent": (total_fact / total_plan * 100) if total_plan > 0 else 0
     }
+
+@router.get("/categories", response_model=List[ExpenseCategory])
+async def get_categories(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    return await ExpenseService.get_categories(db)
+
+@router.post("/categories", response_model=ExpenseCategory)
+async def create_category(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    obj_in: ExpenseCategoryCreate,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.INVESTOR]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    return await ExpenseService.create_category(db, obj_in)
+
+@router.get("/expenses", response_model=List[OtherExpense])
+async def get_expenses(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    skip: int = 0,
+    limit: int = 100
+) -> Any:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ACCOUNTANT]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    return await ExpenseService.get_expenses(db, skip, limit)
+
+@router.post("/expenses", response_model=OtherExpense)
+async def create_expense(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    obj_in: OtherExpenseCreate,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ACCOUNTANT]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    return await ExpenseService.create_expense(db, obj_in, current_user.id)

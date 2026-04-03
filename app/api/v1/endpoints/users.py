@@ -270,6 +270,7 @@ async def get_med_reps(
             "full_name": user.full_name,
             "role": user.role,
             "is_active": user.is_active,
+            "manager_id": user.manager_id,
             "manager_name": manager_lookup.get(user.manager_id, None) if user.manager_id else None,
             "region_ids": region_ids
         })
