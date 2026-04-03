@@ -46,16 +46,46 @@ export default function AccountantPage() {
     const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [newCategoryName, setNewCategoryName] = useState('');
 
+    // Filter States
+    const [selectedMonth, setSelectedMonth] = useState<number | undefined>(new Date().getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState<number | undefined>(new Date().getFullYear());
+    const [selectedQuarter, setSelectedQuarter] = useState<number | undefined>(undefined);
+    const [selectedRegion, setSelectedRegion] = useState<string>("all");
+    const [selectedProduct, setSelectedProduct] = useState<string>("all");
+
+    // Fetch Reference Data for Filters
+    const { data: regions = [] } = useQuery({
+        queryKey: ['regions'],
+        queryFn: async () => {
+            const res = await api.get('/crm/regions/');
+            return Array.isArray(res.data) ? res.data : (res.data?.items || []);
+        }
+    });
+
+    const { data: products = [] } = useQuery({
+        queryKey: ['products'],
+        queryFn: async () => {
+            const res = await api.get('/sales/products/', { params: { limit: 1000 } });
+            return Array.isArray(res.data) ? res.data : (res.data?.items || []);
+        }
+    });
+
     // Fetch Stats
     const { data: stats } = useQuery({
-        queryKey: ['finance-stats'],
+        queryKey: ['finance-stats', selectedMonth, selectedYear, selectedQuarter, selectedRegion, selectedProduct],
         queryFn: async () => {
-            const res = await api.get('/domain/analytics/stats/comprehensive', {
-                params: { period: 'month', month: new Date().getMonth() + 1, year: new Date().getFullYear() }
-            });
+            const params: any = {};
+            if (selectedMonth) params.month = selectedMonth;
+            if (selectedYear) params.year = selectedYear;
+            if (selectedQuarter) params.quarter = selectedQuarter;
+            if (selectedRegion && selectedRegion !== 'all') params.region_id = parseInt(selectedRegion);
+            if (selectedProduct && selectedProduct !== 'all') params.product_id = parseInt(selectedProduct);
+
+            const res = await api.get('/domain/analytics/stats/comprehensive', { params });
             return res.data.kpis;
         }
     });
+
 
     // Fetch Categories
     const { data: categories } = useQuery<ExpenseCategory[]>({
@@ -166,6 +196,96 @@ export default function AccountantPage() {
                     >
                         {isAddingExpense ? 'Отмена' : <><Plus className="w-5 h-5" /> Добавить расход</>}
                     </button>
+                </div>
+            </div>
+
+            {/* Comprehensive Filter Bar */}
+            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm mb-8 flex flex-wrap gap-4 items-center">
+                <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Регион</p>
+                    <select 
+                        value={selectedRegion} 
+                        onChange={(e) => setSelectedRegion(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
+                    >
+                        <option value="all">Все регионы</option>
+                        {regions.map((r: any) => (<option key={r.id} value={r.id.toString()}>{r.name}</option>))}
+                    </select>
+                </div>
+                
+                <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Продукт</p>
+                    <select 
+                        value={selectedProduct} 
+                        onChange={(e) => setSelectedProduct(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
+                    >
+                        <option value="all">Все продукты</option>
+                        {products.map((p: any) => (<option key={p.id} value={p.id.toString()}>{p.name}</option>))}
+                    </select>
+                </div>
+
+                <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Квартал</p>
+                    <select 
+                        value={selectedQuarter || ""}
+                        onChange={(e) => {
+                            setSelectedQuarter(e.target.value ? parseInt(e.target.value) : undefined);
+                            if (e.target.value) setSelectedMonth(undefined);
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
+                    >
+                        <option value="">Все кварталы</option>
+                        <option value="1">1 Квартал</option>
+                        <option value="2">2 Квартал</option>
+                        <option value="3">3 Квартал</option>
+                        <option value="4">4 Квартал</option>
+                    </select>
+                </div>
+
+                <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Месяц</p>
+                    <select 
+                        value={selectedMonth || ""} 
+                        onChange={(e) => {
+                            setSelectedMonth(e.target.value ? parseInt(e.target.value) : undefined);
+                            if (e.target.value) setSelectedQuarter(undefined);
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
+                    >
+                        <option value="">Все месяцы</option>
+                        {['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'].map((m, i) => (
+                            <option key={i+1} value={i+1}>{m}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Год</p>
+                    <select 
+                        value={selectedYear || ""} 
+                        onChange={(e) => setSelectedYear(e.target.value ? parseInt(e.target.value) : undefined)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
+                    >
+                        <option value="">Все годы</option>
+                        {[2024, 2025, 2026, 2027].map(y => (<option key={y} value={y}>{y}</option>))}
+                    </select>
+                </div>
+                
+                <div className="flex flex-col space-y-1">
+                     <p className="text-[10px] font-black text-slate-400 opacity-0 uppercase tracking-widest">Action</p>
+                     <button
+                        onClick={() => {
+                            setSelectedMonth(undefined);
+                            setSelectedYear(new Date().getFullYear());
+                            setSelectedQuarter(undefined);
+                            setSelectedRegion("all");
+                            setSelectedProduct("all");
+                        }}
+                        className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black rounded-xl transition-all"
+                     >
+                        Сбросить
+                     </button>
                 </div>
             </div>
 
