@@ -21,6 +21,7 @@ class ExpenseService:
 
     @staticmethod
     async def create_expense(db: AsyncSession, obj_in: OtherExpenseCreate, user_id: int) -> OtherExpense:
+        from sqlalchemy.orm import selectinload
         db_obj = OtherExpense(
             category_id=obj_in.category_id,
             amount=obj_in.amount,
@@ -30,13 +31,22 @@ class ExpenseService:
         )
         db.add(db_obj)
         await db.commit()
-        await db.refresh(db_obj)
-        return db_obj
+        
+        # Eagerly load relationships to prevent async serialization crashes
+        res = await db.execute(
+            select(OtherExpense)
+            .options(selectinload(OtherExpense.category), selectinload(OtherExpense.created_by))
+            .where(OtherExpense.id == db_obj.id)
+        )
+        return res.scalar_one()
 
     @staticmethod
     async def get_expenses(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[OtherExpense]:
+        from sqlalchemy.orm import selectinload
         result = await db.execute(
-            select(OtherExpense).offset(skip).limit(limit).order_by(OtherExpense.date.desc())
+            select(OtherExpense)
+            .options(selectinload(OtherExpense.category), selectinload(OtherExpense.created_by))
+            .offset(skip).limit(limit).order_by(OtherExpense.date.desc())
         )
         return result.scalars().all()
 
