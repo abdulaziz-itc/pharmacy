@@ -370,15 +370,26 @@ async def get_comprehensive_stats(
     if region_id: gross_profit_sq = gross_profit_sq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
     if product_id: gross_profit_sq = gross_profit_sq.where(ReservationItem.product_id == product_id)
 
+    gross_profit_sq = select(
+        ((ReservationItem.price - Product.production_price - ReservationItem.salary_amount - ReservationItem.marketing_amount) * ReservationItem.quantity * (Invoice.paid_amount / Invoice.total_amount)).label("item_realized_profit")
+    ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+     .join(Invoice, Invoice.reservation_id == Reservation.id)\
+     .join(Product, ReservationItem.product_id == Product.id)\
+     .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
+
+    if start_date and end_date: gross_profit_sq = gross_profit_sq.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    if rep_ids: gross_profit_sq = gross_profit_sq.where(Reservation.created_by_id.in_(rep_ids))
+    
     gross_profit_sum = (await db.execute(select(func.sum(gross_profit_sq.subquery().c.item_realized_profit)))).scalar() or 0
 
-    # If realized profit is 0 (no payments), let's also calculate "Potential Gross Profit" for visibility
+    # Potential Gross Profit (Always global or filtered by role)
     potential_profit_sq = select(
         ((ReservationItem.price - Product.production_price - ReservationItem.salary_amount - ReservationItem.marketing_amount) * ReservationItem.quantity).label("item_potential_profit")
     ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
      .join(Invoice, Invoice.reservation_id == Reservation.id)\
      .join(Product, ReservationItem.product_id == Product.id)\
      .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
+    
     if start_date and end_date: potential_profit_sq = potential_profit_sq.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
     if rep_ids: potential_profit_sq = potential_profit_sq.where(Reservation.created_by_id.in_(rep_ids))
     potential_profit_sum = (await db.execute(select(func.sum(potential_profit_sq.subquery().c.item_potential_profit)))).scalar() or 0

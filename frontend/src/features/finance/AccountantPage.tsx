@@ -197,16 +197,16 @@ export default function AccountantPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
-                                    <label htmlFor="exp_comment" className="text-[10px] font-black text-slate-400 uppercase ml-2">Комментарий</label>
-                                    <input id="exp_comment" type="text" placeholder="Уozish uchun bosing..." value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
+                                    <label htmlFor="exp_comment" className="text-[10px] font-black text-slate-400 uppercase ml-2">Комментарий (Shu yerga yozing)</label>
+                                    <input id="exp_comment" type="text" placeholder="Tafsilotlarni kiriting..." value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label htmlFor="exp_date" className="text-[10px] font-black text-slate-400 uppercase ml-2">Дата расхода</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Sana (Kalendar uchun bosing)</label>
                                     <input id="exp_date" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" />
                                 </div>
                                 <div className="flex items-end">
                                     <button id="exp_submit" disabled={addExpenseMutation.isPending} className="w-full h-14 bg-violet-600 text-white rounded-2xl font-black shadow-lg shadow-violet-100 hover:bg-violet-700 transition-all">
-                                        {addExpenseMutation.isPending ? 'Сохранение...' : 'Сохранить расход'}
+                                        {addExpenseMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
                                     </button>
                                 </div>
                             </form>
