@@ -54,9 +54,9 @@ export default function StatsPage() {
     }, [medReps, selectedPMId]);
 
     const regions = useMemo(() => {
-        const unique = new Map();
+        const unique = new Map<number, string>();
         doctors.forEach(d => {
-            if (d.region) unique.set(d.region.id, d.region.name);
+            if (d.region && d.region_id) unique.set(d.region_id, d.region);
         });
         return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
     }, [doctors]);

@@ -7,6 +7,7 @@ export interface MedRep {
     full_name: string;
     role: string;
     is_active: boolean;
+    manager_id: number | null;
     manager_name: string | null;
 }
 
