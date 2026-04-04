@@ -332,6 +332,6 @@ async def list_invoices(
     except Exception as e:
         import traceback
         trace = traceback.format_exc()
-        print("API ERROR:", trace)
-        raise HTTPException(status_code=400, detail=str(e) + "\n" + trace)
+        logger.error(f"Error in list_invoices: {trace}")
+        raise HTTPException(status_code=500, detail=trace)
 
