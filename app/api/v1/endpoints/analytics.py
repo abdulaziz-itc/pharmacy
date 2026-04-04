@@ -654,6 +654,15 @@ async def get_comprehensive_drilldown(
         rows = (await db.execute(plan_q.offset(skip).limit(limit))).scalars().all()
         return [{"id": r.id, "med_rep": r.med_rep.full_name if r.med_rep else "-", "product": r.product.name if r.product else "-", "month": r.month, "year": r.year, "amount": r.target_amount, "qty": r.target_quantity} for r in rows]
 
+    elif metric == "realization":
+        real_q = select(Invoice).options(selectinload(Invoice.reservation)).where(Invoice.status != InvoiceStatus.CANCELLED)
+        if start_date and end_date: real_q = real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        if rep_ids or region_id or product_id:
+            real_q = real_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+            real_q = apply_filters(real_q, Reservation)
+        rows = (await db.execute(real_q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
+        return [{"id": r.id, "date": r.date.isoformat(), "invoice_num": r.factura_number, "total_amount": r.total_amount, "customer": r.reservation.customer_name if r.reservation else "-"} for r in rows]
+
     elif metric == "cash_in":
         fact_q = select(Payment).options(selectinload(Payment.invoice).selectinload(Invoice.reservation)).join(Invoice, Payment.invoice_id == Invoice.id)
         if start_date and end_date: fact_q = fact_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
