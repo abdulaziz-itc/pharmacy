@@ -82,6 +82,7 @@ class Reservation(Base): # Bron
     nds_percent = Column(Float, default=12.0)
     description = Column(String, nullable=True)
     is_bonus_eligible = Column(Boolean, default=True)
+    is_salary_enabled = Column(Boolean, default=True)
     is_tovar_skidka = Column(Boolean, default=False)
     source_invoice_id = Column(Integer, ForeignKey("invoice.id"), nullable=True)
     
@@ -110,6 +111,7 @@ class ReservationItem(Base):
     price = Column(Float, nullable=False) 
     discount_percent = Column(Float, default=0.0)
     marketing_amount = Column(Float, default=0.0) # Overridden marketing sum per unit
+    salary_amount = Column(Float, default=0.0) # Overridden salary sum per unit
     total_price = Column(Float, default=0.0) 
 
     @property

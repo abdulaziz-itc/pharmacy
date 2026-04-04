@@ -33,3 +33,6 @@ api_router.include_router(head_of_orders.router, prefix="/domain/orders/manageme
 api_router.include_router(medrep_sales.router, prefix="/sales/medrep", tags=["medrep_sales"])
 api_router.include_router(pharmacy_stocks.router, prefix="/domain/crm/pharmacy-stocks", tags=["pharmacy_stocks"])
 api_router.include_router(warehouse.router, prefix="/domain/warehouse", tags=["warehouse"])
+
+from app.api.v1.endpoints import role_permissions
+api_router.include_router(role_permissions.router, prefix="/domain/settings", tags=["settings"])

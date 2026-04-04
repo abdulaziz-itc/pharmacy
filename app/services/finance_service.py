@@ -84,28 +84,49 @@ class FinancialService:
                                 target_medrep_id = rep.id
                                 break
                     
-                    # Calculate bonus for this specific payment
+                    # Calculate bonus and salary for this specific payment
                     payment_bonus_amount = 0.0
+                    payment_salary_total = 0.0
+                    
                     for item in reservation.items:
+                        # 1. Marketing bonus
                         if item.marketing_amount:
                             payment_bonus_amount += (item.quantity * item.marketing_amount) * payment_ratio
+                        # 2. Salary (Zarplata)
+                        if reservation.is_salary_enabled and item.salary_amount:
+                            payment_salary_total += (item.quantity * item.salary_amount) * payment_ratio
                     
                     # Round to nearest integer to avoid fractions ("kopeyki")
                     payment_bonus_amount = float(round(payment_bonus_amount))
+                    payment_salary_total = float(round(payment_salary_total))
                     
-                    if payment_bonus_amount > 0 and target_medrep_id:
+                    if target_medrep_id:
                         now = datetime.utcnow()
-                        # Accrue bonus to the assigned MedRep
-                        accrual = BonusLedger(
-                            user_id=target_medrep_id,
-                            amount=payment_bonus_amount,
-                            ledger_type=LedgerType.ACCRUAL,
-                            payment_id=payment.id,
-                            target_month=now.month,
-                            target_year=now.year,
-                            notes=f"Бонус начислен по счет-фактуре #{invoice.id} (Аптека: {reservation.med_org.name if reservation.med_org else 'N/A'})"
-                        )
-                        db.add(accrual)
+                        # Accrue bonus
+                        if payment_bonus_amount > 0:
+                            accrual_bonus = BonusLedger(
+                                user_id=target_medrep_id,
+                                amount=payment_bonus_amount,
+                                ledger_type=LedgerType.ACCRUAL,
+                                payment_id=payment.id,
+                                target_month=now.month,
+                                target_year=now.year,
+                                notes=f"Бонус начислен по счет-фактуре #{invoice.id} (Аптека: {reservation.med_org.name if reservation.med_org else 'N/A'})"
+                            )
+                            db.add(accrual_bonus)
+                        
+                        # Accrue salary
+                        if payment_salary_total > 0:
+                            accrual_salary = BonusLedger(
+                                user_id=target_medrep_id,
+                                amount=payment_salary_total,
+                                ledger_type=LedgerType.ACCRUAL,
+                                payment_id=payment.id,
+                                target_month=now.month,
+                                target_year=now.year,
+                                notes=f"Зарплата начислена по счет-фактуре #{invoice.id} (Аптека: {reservation.med_org.name if reservation.med_org else 'N/A'})"
+                            )
+                            db.add(accrual_salary)
 
                 unassigned_query = select(UnassignedSale).where(UnassignedSale.invoice_id == invoice.id)
                 unassigned_result = await db.execute(unassigned_query)
@@ -232,9 +253,8 @@ class FinancialService:
                 if not rec:
                     raise HTTPException(status_code=404, detail="Unassigned record not found or not owned by you")
 
-                available = rec.paid_quantity - rec.assigned_quantity
-                if quantity > available:
-                    raise HTTPException(status_code=400, detail=f"Only {available} units available for assignment")
+                # 2. Assign exactly what was requested (No clipping/Cheklov yo'q)
+                actual_assign_quantity = quantity
 
                 # 2. Fetch product for marketing_expense and exact discounted price from reservation item
                 from app.models.sales import Invoice, Reservation, ReservationItem
@@ -242,7 +262,11 @@ class FinancialService:
                 prod_result = await db.execute(prod_query)
                 product = prod_result.scalar_one()
 
-                item_query = select(ReservationItem).join(Reservation).join(Invoice).where(
+                item_query = select(ReservationItem).join(
+                    Reservation, ReservationItem.reservation_id == Reservation.id
+                ).join(
+                    Invoice, Invoice.reservation_id == Reservation.id
+                ).where(
                     Invoice.id == rec.invoice_id,
                     ReservationItem.product_id == rec.product_id
                 )
@@ -264,7 +288,7 @@ class FinancialService:
                     med_rep_id=med_rep_id,
                     doctor_id=doctor_id,
                     product_id=rec.product_id,
-                    quantity=quantity,
+                    quantity=actual_assign_quantity,
                     amount=fact_amount,
                     month=now.month,
                     year=now.year
@@ -274,18 +298,19 @@ class FinancialService:
 
                 # 4. Create Bonus Ledger (Pro-rata bonus realization)
                 # Round to nearest integer to avoid fractions ("kopeyki")
-                bonus_amount = float(round(quantity * (reservation_item.marketing_amount or 0)))
+                bonus_amount = float(round(actual_assign_quantity * (reservation_item.marketing_amount or 0)))
                 accrual = BonusLedger(
                     doctor_id=doctor_id,
                     amount=bonus_amount,
                     ledger_type=LedgerType.ACCRUAL,
+                    fact_id=fact.id,
                     payment_id=None, # This is an assignment, not a direct payment record
-                    notes=f"Бонус распределен из счет-фактуры #{rec.invoice_id} ({quantity} шт.)"
+                    notes=f"Бонус распределен из счет-фактуры #{rec.invoice_id} ({actual_assign_quantity} шт.)"
                 )
                 db.add(accrual)
 
                 # 5. Update Record
-                rec.assigned_quantity += quantity
+                rec.assigned_quantity += actual_assign_quantity
                 
                 await db.commit()
                 return fact
@@ -391,6 +416,7 @@ class FinancialService:
                     target_month=target_month,
                     target_year=target_year,
                     doctor_id=doctor_id,
+                    fact_id=fact.id,
                     notes=notes or f"Бонус выплачен врачу {doctor.full_name}{product_name} ({quantity} шт.)"
                 )
                 db.add(medrep_offset)
@@ -403,6 +429,7 @@ class FinancialService:
                     ledger_type=LedgerType.ACCRUAL,
                     target_month=target_month,
                     target_year=target_year,
+                    fact_id=fact.id,
                     notes=notes or f"Бонус от медпреда за {quantity} шт.{product_name}"
                 )
                 db.add(doctor_accrual)
@@ -436,4 +463,101 @@ class FinancialService:
             except Exception as e:
                 await transaction.rollback()
                 raise HTTPException(status_code=500, detail=f"Ошибка при распределении: {str(e)}")
+
+    @staticmethod
+    async def delete_doctor_fact_assignment(db: AsyncSession, id: int, id_type: str = "fact"):
+        """
+        Deletes a fact assignment and reverses all related ledger and payment entries.
+        Supports both direct Fact ID and Ledger ID (from history).
+        """
+        from app.models.sales import DoctorFactAssignment
+        from app.models.ledger import BonusLedger, LedgerType
+
+        fact = None
+        
+        # 1. Resolve the fact
+        if id_type == "fact":
+            fact = await db.get(DoctorFactAssignment, id)
+        elif id_type == "ledger":
+            ledger = await db.get(BonusLedger, id)
+            if ledger:
+                if ledger.fact_id:
+                    fact = await db.get(DoctorFactAssignment, ledger.fact_id)
+                else:
+                    # Fallback for OLD records: find fact by matching metadata (id_type=ledger)
+                    stmt_match = select(DoctorFactAssignment).where(
+                        DoctorFactAssignment.med_rep_id == ledger.user_id,
+                        DoctorFactAssignment.doctor_id == ledger.doctor_id,
+                        DoctorFactAssignment.product_id == ledger.product_id,
+                        DoctorFactAssignment.month == ledger.target_month,
+                        DoctorFactAssignment.year == ledger.target_year
+                    ).limit(1)
+                    res_match = await db.execute(stmt_match)
+                    fact = res_match.scalar_one_or_none()
+        
+        if not fact:
+            raise HTTPException(status_code=404, detail="Фakt topilmadi (O'chirish imkonsiz)")
+
+        fact_id = fact.id
+
+        # 2. Delete related BonusLedger entries
+        # Priority 1: Direct link via fact_id
+        stmt_ledger = select(BonusLedger).where(BonusLedger.fact_id == fact_id)
+        ledger_res = await db.execute(stmt_ledger)
+        ledger_entries = ledger_res.scalars().all()
+        for entry in ledger_entries:
+            await db.delete(entry)
+
+        # 3. Priority 2: Fallback by metadata (for old records)
+        # Avoid deleting EVERYTHING if multiple assignments exist (e.g. 1+1 scenario)
+        if not ledger_entries:
+            # We look for one ACCRUAL and one OFFSET for this specific assignment
+            # We match the specific medical rep to ensure we don't touch others' bonuses
+            
+            # Find one OFFSET
+            stmt_offset = select(BonusLedger).where(
+                BonusLedger.user_id == fact.med_rep_id,
+                BonusLedger.doctor_id == fact.doctor_id,
+                BonusLedger.product_id == fact.product_id,
+                BonusLedger.target_month == fact.month,
+                BonusLedger.target_year == fact.year,
+                BonusLedger.ledger_type == LedgerType.OFFSET
+            ).limit(1)
+            offset_res = await db.execute(stmt_offset)
+            offset_entry = offset_res.scalar_one_or_none()
+            if offset_entry:
+                await db.delete(offset_entry)
+
+            # Find one ACCRUAL (the doctor's credit)
+            stmt_accrual = select(BonusLedger).where(
+                BonusLedger.doctor_id == fact.doctor_id,
+                BonusLedger.product_id == fact.product_id,
+                BonusLedger.target_month == fact.month,
+                BonusLedger.target_year == fact.year,
+                BonusLedger.ledger_type == LedgerType.ACCRUAL
+            ).limit(1)
+            accrual_res = await db.execute(stmt_accrual)
+            accrual_entry = accrual_res.scalar_one_or_none()
+            if accrual_entry:
+                await db.delete(accrual_entry)
+
+        # 4. Delete related BonusPayment entries
+        from app.models.sales import BonusPayment
+        stmt_payment = select(BonusPayment).where(
+            BonusPayment.med_rep_id == fact.med_rep_id,
+            BonusPayment.doctor_id == fact.doctor_id,
+            BonusPayment.product_id == fact.product_id,
+            BonusPayment.for_month == fact.month,
+            BonusPayment.for_year == fact.year
+        ).limit(1) # Also limit to 1 per fact
+        payment_res = await db.execute(stmt_payment)
+        pmt = payment_res.scalar_one_or_none()
+        if pmt:
+            await db.delete(pmt)
+
+        # 5. Delete the fact itself
+        await db.delete(fact)
+
+        await db.commit()
+        return {"status": "success", "message": "Фakt o'chirildi"}
 

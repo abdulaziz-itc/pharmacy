@@ -9,6 +9,7 @@ class StockBase(BaseModel):
 class Stock(StockBase):
     id: int
     warehouse_id: int
+    product_name: Optional[str] = None
     class Config:
         orm_mode = True
         from_attributes = True

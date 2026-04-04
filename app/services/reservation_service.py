@@ -91,6 +91,17 @@ class ReservationService:
                                    f"не может превышать 30% от цены ({max_mkt:,.0f} UZS)"
                         )
 
+                    # 3. Salary amount check
+                    # User requirement: Max 30% of price
+                    if obj_in.is_salary_enabled:
+                        max_salary = item.price * 0.3
+                        if item.salary_amount > max_salary:
+                            raise HTTPException(
+                                status_code=400,
+                                detail=f"Сумма зарплаты товара '{product.name}' ({item.salary_amount:,.0f}) "
+                                       f"не может превышать 30% от цены ({max_salary:,.0f} UZS)"
+                            )
+                
                 # Item amount BEFORE NDS
                 item_total_plain = (item.price * item.quantity) * (1 - item.discount_percent / 100)
                 total_amount += item_total_plain * nds_multiplier
@@ -108,6 +119,7 @@ class ReservationService:
                 is_tovar_skidka=obj_in.is_tovar_skidka,
                 source_invoice_id=obj_in.source_invoice_id,
                 nds_percent=obj_in.nds_percent,
+                is_salary_enabled=obj_in.is_salary_enabled,
                 status=ReservationStatus.PENDING,
             )
             db.add(db_reservation)
@@ -126,6 +138,7 @@ class ReservationService:
                     price=item_in.price,
                     discount_percent=item_in.discount_percent,
                     marketing_amount=item_in.marketing_amount,
+                    salary_amount=item_in.salary_amount,
                     total_price=item_total_plain * nds_multiplier,
                 ))
                 db.add(StockMovement(

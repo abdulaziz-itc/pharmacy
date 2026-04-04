@@ -17,6 +17,7 @@ class UserRole(str, enum.Enum):
     FIELD_FORCE_MANAGER = "field_force_manager"
     REGIONAL_MANAGER = "regional_manager"
     MED_REP = "med_rep"
+    ACCOUNTANT = "accountant"
 
 class User(Base):
     id = Column(Integer, primary_key=True, index=True)
@@ -44,3 +45,19 @@ class UserLoginHistory(Base):
     user_agent = Column(String, nullable=True)
 
     user = relationship("User", backref="login_history")
+
+class RolePermission(Base):
+    """
+    Dynamic permission table: controls which sidebar sections each role can see.
+    Managed by investor/admin via the UI.
+    """
+    __tablename__ = "role_permission"
+    id = Column(Integer, primary_key=True, index=True)
+    role = Column(String, nullable=False, index=True)
+    section_key = Column(String, nullable=False)
+    is_enabled = Column(Boolean, default=True)
+
+    __table_args__ = (
+        # Ensure unique role+section_key combination
+        {'extend_existing': True},
+    )

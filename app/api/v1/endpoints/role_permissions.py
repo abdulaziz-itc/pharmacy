@@ -41,6 +41,8 @@ AVAILABLE_SECTIONS = [
     {"key": "head_of_orders_debitorka", "label": "Дебиторка (ЗЗ)"},
     {"key": "head_of_orders_wholesale", "label": "Оптовые компании (ЗЗ)"},
     {"key": "head_of_orders_reports", "label": "Отчеты (ЗЗ)"},
+    {"key": "accountant", "label": "Бухгалтерия"},
+    {"key": "finance", "label": "Финансы"},
 ]
 
 # Default permissions (based on current hardcoded sidebar)
@@ -75,6 +77,8 @@ DEFAULT_PERMISSIONS: Dict[str, List[str]] = {
     "head_of_orders_debitorka": ["head_of_orders"],
     "head_of_orders_wholesale": ["head_of_orders"],
     "head_of_orders_reports": ["head_of_orders"],
+    "accountant": ["admin", "investor", "director", "accountant"],
+    "finance": ["admin", "investor", "director", "accountant"],
 }
 
 # Roles that can be managed (investor excluded)
@@ -89,6 +93,7 @@ MANAGEABLE_ROLES = [
     {"key": "field_force_manager", "label": "Полевой менеджер"},
     {"key": "regional_manager", "label": "Региональный менеджер"},
     {"key": "med_rep", "label": "Мед. представитель"},
+    {"key": "accountant", "label": "Бухгалтер"},
 ]
 
 
@@ -202,5 +207,12 @@ async def get_my_permissions(
     )
     perms = result.scalars().all()
     enabled_keys = [p.section_key for p in perms]
+
+    # Temporary hardcoded fallback for accountant to ensure it works on production immediately
+    if user_role in [UserRole.ACCOUNTANT, "accountant"]:
+        essential = ["accountant", "finance", "dashboard", "reports", "stats", "invoices", "payments", "debtors"]
+        for key in essential:
+            if key not in enabled_keys:
+                enabled_keys.append(key)
 
     return {"sections": enabled_keys}

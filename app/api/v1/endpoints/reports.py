@@ -30,7 +30,7 @@ async def get_comprehensive_reports(
     """
     Get comprehensive reports for the dashboard with advanced filtering.
     """
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.ACCOUNTANT]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     from app.models.crm import MedicalOrganization

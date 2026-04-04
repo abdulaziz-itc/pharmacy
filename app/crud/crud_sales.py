@@ -526,7 +526,10 @@ async def get_facts(db: AsyncSession, med_rep_id: Optional[int] = None) -> List[
     ).where(Reservation.invoice.has())
     
     if med_rep_id:
-        query = query.where(Reservation.created_by_id == med_rep_id)
+        query = query.join(Reservation.med_org, isouter=True).where(
+            (Reservation.created_by_id == med_rep_id) |
+            (MedicalOrganization.assigned_reps.any(id=med_rep_id))
+        )
         
     result = await db.execute(query)
     reservations = result.scalars().all()
