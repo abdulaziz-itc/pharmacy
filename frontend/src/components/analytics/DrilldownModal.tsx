@@ -53,6 +53,8 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
 
     if (!isOpen) return null;
 
+    const isBonusMetric = ['bonus_accrued', 'bonus_paid', 'preinvest'].includes(metric);
+
     const renderTable = () => {
         if (isLoading) return (
             <div className="p-8 space-y-6">
@@ -78,7 +80,80 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
             </div>
         );
 
-        const columns = Object.keys(rows[0]).filter(k => k !== 'id');
+        // ── Bonus metrics: special layout showing payment source ──
+        if (isBonusMetric) {
+            return (
+                <div className="overflow-x-auto sleek-scrollbar">
+                    <table className="w-full text-left border-separate border-spacing-0">
+                        <thead>
+                            <tr>
+                                {['Дата', 'Сумма бонуса', 'Поступление (оплата)', 'Фактура', 'Контрагент', 'Мед. Представитель', 'Врач', 'Продукт', 'Описание'].map(h => (
+                                    <th key={h} className="sticky top-0 bg-slate-50/90 backdrop-blur-md p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 z-20 whitespace-nowrap">
+                                        {h}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {rows.map((row: any, idx: number) => (
+                                <motion.tr
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.015 }}
+                                    key={row.id || idx}
+                                    className="hover:bg-indigo-50/50 transition-colors group cursor-default"
+                                >
+                                    <td className="p-5 text-sm font-bold text-slate-500 whitespace-nowrap">
+                                        {format(new Date(row.date), 'dd.MM.yyyy HH:mm')}
+                                    </td>
+                                    <td className="p-5">
+                                        <span className="inline-flex items-center px-3 py-1 rounded-xl bg-emerald-50 text-emerald-700 font-black text-sm">
+                                            {formatCurrency(Number(row.amount))}
+                                        </span>
+                                    </td>
+                                    {/* Payment source — the key column */}
+                                    <td className="p-5">
+                                        {row.payment ? (
+                                            <div className="space-y-0.5">
+                                                <p className="text-sm font-black text-indigo-700">
+                                                    {formatCurrency(Number(row.payment.payment_amount))}
+                                                </p>
+                                                <p className="text-[10px] text-slate-400 font-bold">
+                                                    {row.payment.payment_date ? format(new Date(row.payment.payment_date), 'dd.MM.yyyy') : '—'}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <span className="text-slate-300 text-xs font-bold">—</span>
+                                        )}
+                                    </td>
+                                    <td className="p-5 text-sm font-bold text-slate-700 whitespace-nowrap">
+                                        {row.invoice?.factura_number || '—'}
+                                    </td>
+                                    <td className="p-5 text-sm font-bold text-slate-700">
+                                        {row.invoice?.customer || '—'}
+                                    </td>
+                                    <td className="p-5 text-sm text-slate-600 font-semibold">
+                                        {row.med_rep !== '-' ? row.med_rep : '—'}
+                                    </td>
+                                    <td className="p-5 text-sm text-slate-600 font-semibold">
+                                        {row.doctor !== '-' ? row.doctor : '—'}
+                                    </td>
+                                    <td className="p-5 text-sm text-slate-600 font-semibold">
+                                        {row.product !== '-' ? row.product : '—'}
+                                    </td>
+                                    <td className="p-5 text-xs text-slate-400 font-medium max-w-[200px] truncate" title={row.description}>
+                                        {row.description !== '-' ? row.description : '—'}
+                                    </td>
+                                </motion.tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        }
+
+        // ── Generic metrics: auto-render all columns ──
+        const columns = Object.keys(rows[0]).filter(k => k !== 'id' && typeof rows[0][k] !== 'object');
 
         const columnLabels: Record<string, string> = {
             date: 'Дата',
@@ -116,11 +191,11 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                         {rows.map((row: any, idx: number) => (
-                            <motion.tr 
+                            <motion.tr
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: idx * 0.015 }}
-                                key={row.id || idx} 
+                                key={row.id || idx}
                                 className="hover:bg-indigo-50/50 transition-colors group cursor-default"
                             >
                                 {columns.map(col => {

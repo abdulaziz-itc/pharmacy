@@ -671,14 +671,56 @@ async def get_comprehensive_drilldown(
         return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "category": r.category.name if r.category else "-", "description": r.comment or "-", "author": r.created_by.full_name if r.created_by else "-"} for r in rows]
 
     elif metric in ["bonus_accrued", "bonus_paid", "preinvest"]:
+        from app.models.sales import Payment, Invoice, Reservation
+        from sqlalchemy.orm import selectinload as sil
         bt_map = {"bonus_accrued": LedgerType.ACCRUAL, "bonus_paid": LedgerType.PAYOUT, "preinvest": LedgerType.ADVANCE}
-        bonus_q = select(BonusLedger).options(selectinload(BonusLedger.doctor), selectinload(BonusLedger.user)).where(BonusLedger.ledger_type == bt_map[metric])
+        bonus_q = select(BonusLedger).options(
+            sil(BonusLedger.doctor),
+            sil(BonusLedger.user),
+            sil(BonusLedger.product),
+            sil(BonusLedger.payment).sil(Payment.invoice).sil(Invoice.reservation)
+        ).where(BonusLedger.ledger_type == bt_map[metric])
         if start_date and end_date: bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
         if rep_ids: bonus_q = bonus_q.where(BonusLedger.user_id.in_(rep_ids))
         if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
         if product_id: bonus_q = bonus_q.where(BonusLedger.product_id == product_id)
         rows = (await db.execute(bonus_q.order_by(BonusLedger.created_at.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.created_at.isoformat(), "amount": r.amount, "doctor": r.doctor.full_name if r.doctor else "-", "med_rep": r.user.full_name if r.user else "-", "description": r.notes or "-"} for r in rows]
+
+        result = []
+        for r in rows:
+            # Try to get payment/invoice info if bonus was triggered by a payment
+            payment_info = None
+            invoice_info = None
+            if r.payment:
+                p = r.payment
+                payment_info = {
+                    "payment_id": p.id,
+                    "payment_amount": p.amount,
+                    "payment_date": p.date.isoformat() if p.date else None,
+                }
+                if p.invoice:
+                    inv = p.invoice
+                    reservation = inv.reservation if inv else None
+                    invoice_info = {
+                        "invoice_id": inv.id,
+                        "factura_number": inv.factura_number or f"#{inv.id}",
+                        "invoice_total": inv.total_amount,
+                        "invoice_paid": inv.paid_amount,
+                        "customer": reservation.customer_name if reservation else "-",
+                    }
+
+            result.append({
+                "id": r.id,
+                "date": r.created_at.isoformat(),
+                "amount": r.amount,
+                "doctor": r.doctor.full_name if r.doctor else "-",
+                "med_rep": r.user.full_name if r.user else "-",
+                "product": r.product.name if r.product else "-",
+                "description": r.notes or "-",
+                "payment": payment_info,
+                "invoice": invoice_info,
+            })
+        return result
 
     elif metric == "gross_profit":
         gross_q = select(ReservationItem).options(selectinload(ReservationItem.product), selectinload(ReservationItem.reservation).selectinload(Reservation.invoice)).join(Reservation, ReservationItem.reservation_id == Reservation.id).join(Invoice, Invoice.reservation_id == Reservation.id).join(Product, ReservationItem.product_id == Product.id).where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
