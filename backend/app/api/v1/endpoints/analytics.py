@@ -668,7 +668,7 @@ async def get_comprehensive_drilldown(
         if rep_ids: expense_q = expense_q.where(OtherExpense.created_by_id.in_(rep_ids))
         if region_id: expense_q = expense_q.where(OtherExpense.region_id == region_id)
         rows = (await db.execute(expense_q.order_by(OtherExpense.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "category": r.category.name if r.category else "-", "description": r.description or "-", "author": r.created_by.full_name if r.created_by else "-"} for r in rows]
+        return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "category": r.category.name if r.category else "-", "description": r.comment or "-", "author": r.created_by.full_name if r.created_by else "-"} for r in rows]
 
     elif metric in ["bonus_accrued", "bonus_paid", "preinvest"]:
         bt_map = {"bonus_accrued": LedgerType.ACCRUAL, "bonus_paid": LedgerType.PAYOUT, "preinvest": LedgerType.ADVANCE}
@@ -678,7 +678,7 @@ async def get_comprehensive_drilldown(
         if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
         if product_id: bonus_q = bonus_q.where(BonusLedger.product_id == product_id)
         rows = (await db.execute(bonus_q.order_by(BonusLedger.created_at.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.created_at.isoformat(), "amount": r.amount, "doctor": r.doctor.full_name if r.doctor else "-", "med_rep": r.user.full_name if r.user else "-", "description": r.description or "-"} for r in rows]
+        return [{"id": r.id, "date": r.created_at.isoformat(), "amount": r.amount, "doctor": r.doctor.full_name if r.doctor else "-", "med_rep": r.user.full_name if r.user else "-", "description": r.notes or "-"} for r in rows]
 
     elif metric == "gross_profit":
         gross_q = select(ReservationItem).options(selectinload(ReservationItem.product), selectinload(ReservationItem.reservation).selectinload(Reservation.invoice)).join(Reservation, ReservationItem.reservation_id == Reservation.id).join(Invoice, Invoice.reservation_id == Reservation.id).join(Product, ReservationItem.product_id == Product.id).where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
