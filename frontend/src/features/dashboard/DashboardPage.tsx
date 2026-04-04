@@ -225,7 +225,7 @@ export default function DashboardPage() {
                     onClick={() => navigate(user?.role === 'hrd' ? '/hrd/login-history' : '/bonuses')}
                 />
                 <MetricCard
-                    title={user?.role === 'hrd' ? "Выполнено визитов" : "Дебиторская задолженность"}
+                    title={user?.role === 'hrd' ? "Выполнено визитов" : "Дебиторка"}
                     value={user?.role === 'hrd' ? stats?.total_debt?.toLocaleString() : `${stats?.total_debt?.toLocaleString() ?? 0} сум`}
                     change={stats?.total_debt_change}
                     isUp={!stats?.total_debt_change?.startsWith('+')} 

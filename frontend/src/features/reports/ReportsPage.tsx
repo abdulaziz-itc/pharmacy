@@ -365,7 +365,7 @@ export default function ReportsPage() {
                 <KpiCard label="Валовая прибыль" value={kpis.gross_profit} icon={DollarSign} color="indigo" />
                 <KpiCard label="Прочие расходы" value={kpis.total_expenses} icon={TrendingDown} color="rose" />
                 <KpiCard label="Чистая прибыль" value={kpis.net_profit} icon={PieChart} color="violet" />
-                <KpiCard label="Задолженность" value={kpis.receivables} icon={Wallet} color="rose" />
+                <KpiCard label="Дебиторка" value={kpis.receivables} icon={Wallet} color="rose" />
                 <KpiCard label="Начислено бонуса" value={kpis.bonus_accrued} icon={PieChart} color="amber" />
                 <KpiCard label="Принято бонуса" value={kpis.bonus_paid} icon={UserCheck} color="teal" />
                 <KpiCard label="Остаток бонуса" value={Number(kpis.bonus_accrued) - Number(kpis.bonus_paid)} icon={Wallet} color="cyan" />
