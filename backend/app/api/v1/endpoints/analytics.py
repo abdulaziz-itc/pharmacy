@@ -297,8 +297,19 @@ async def get_comprehensive_stats(
     # 3. KPI AGGREGATIONS
     # Filter helper
     def apply_filters(q, model_ref=Reservation):
-        if rep_ids: q = q.where(model_ref.created_by_id.in_(rep_ids))
-        if region_id: q = q.join(MedicalOrganization, model_ref.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        if rep_ids or region_id:
+            q = q.outerjoin(MedicalOrganization, model_ref.med_org_id == MedicalOrganization.id)
+            
+        if rep_ids: 
+            q = q.where(
+                or_(
+                    model_ref.created_by_id.in_(rep_ids),
+                    MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
+                )
+            )
+        if region_id: 
+            q = q.where(MedicalOrganization.region_id == region_id)
+            
         if product_id:
             q = q.join(ReservationItem, model_ref.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
         return q
@@ -371,9 +382,17 @@ async def get_comprehensive_stats(
      .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
 
     if start_date and end_date: gross_profit_sum_q = gross_profit_sum_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-    if rep_ids: gross_profit_sum_q = gross_profit_sum_q.where(Reservation.created_by_id.in_(rep_ids))
+    if rep_ids or region_id: 
+        gross_profit_sum_q = gross_profit_sum_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+    if rep_ids: 
+        gross_profit_sum_q = gross_profit_sum_q.where(
+            or_(
+                Reservation.created_by_id.in_(rep_ids),
+                MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
+            )
+        )
     if region_id:
-        gross_profit_sum_q = gross_profit_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        gross_profit_sum_q = gross_profit_sum_q.where(MedicalOrganization.region_id == region_id)
     if product_id:
         gross_profit_sum_q = gross_profit_sum_q.where(ReservationItem.product_id == product_id)
     
@@ -392,9 +411,17 @@ async def get_comprehensive_stats(
      .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
     
     if start_date and end_date: potential_profit_sum_q = potential_profit_sum_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-    if rep_ids: potential_profit_sum_q = potential_profit_sum_q.where(Reservation.created_by_id.in_(rep_ids))
+    if rep_ids or region_id: 
+        potential_profit_sum_q = potential_profit_sum_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+    if rep_ids: 
+        potential_profit_sum_q = potential_profit_sum_q.where(
+            or_(
+                Reservation.created_by_id.in_(rep_ids),
+                MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
+            )
+        )
     if region_id:
-        potential_profit_sum_q = potential_profit_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        potential_profit_sum_q = potential_profit_sum_q.where(MedicalOrganization.region_id == region_id)
     if product_id:
         potential_profit_sum_q = potential_profit_sum_q.where(ReservationItem.product_id == product_id)
         
