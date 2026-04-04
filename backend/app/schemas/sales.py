@@ -1,6 +1,6 @@
 from typing import Optional, List
 from datetime import datetime, date
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from app.models.sales import ReservationStatus, InvoiceStatus, PaymentType
 from app.schemas.user import User
 from app.schemas.product import Product
@@ -82,6 +82,11 @@ class ReservationBase(BaseModel):
     is_deletion_pending: bool = False
     deletion_requested_by_id: Optional[int] = None
     is_return_pending: bool = False
+
+    @field_validator("is_salary_enabled", mode="before")
+    @classmethod
+    def set_true_if_none(cls, v):
+        return True if v is None else v
 
 class ReservationCreate(ReservationBase):
     warehouse_id: int

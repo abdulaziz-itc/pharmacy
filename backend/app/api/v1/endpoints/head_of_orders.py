@@ -293,7 +293,7 @@ async def create_payment(
 
 # --- Invoices (Fakturalar) ---
 
-@router.get("/invoices/")
+@router.get("/invoices/", response_model=List[InvoiceSchema])
 async def list_invoices(
     warehouse_id: Optional[int] = None,
     db: AsyncSession = Depends(deps.get_db),
@@ -330,100 +330,7 @@ async def list_invoices(
         result = await db.execute(query.order_by(InvoiceModel.id.desc()))
         invoices = result.scalars().all()
 
-        # Manual safe serialization — avoids FastAPI response_model validation errors
-        def serialize_invoice(inv: InvoiceModel) -> dict:
-            res = inv.reservation
-            return {
-                "id": inv.id,
-                "reservation_id": inv.reservation_id,
-                "factura_number": inv.factura_number,
-                "date": inv.date.isoformat() if inv.date else None,
-                "realization_date": inv.realization_date.isoformat() if inv.realization_date else None,
-                "total_amount": inv.total_amount or 0,
-                "paid_amount": inv.paid_amount or 0,
-                "status": inv.status,
-                "promo_balance": inv.promo_balance or 0,
-                "is_deletion_pending": inv.is_deletion_pending or False,
-                "deletion_requested_by_id": inv.deletion_requested_by_id,
-                "payments": [
-                    {
-                        "id": p.id,
-                        "invoice_id": p.invoice_id,
-                        "amount": p.amount,
-                        "payment_type": p.payment_type,
-                        "comment": p.comment,
-                        "date": p.date.isoformat() if p.date else None,
-                        "processed_by_id": p.processed_by_id,
-                        "processed_by": {"id": p.processed_by.id, "full_name": p.processed_by.full_name} if p.processed_by else None,
-                    }
-                    for p in (inv.payments or [])
-                ],
-                "reservation": {
-                    "id": res.id,
-                    "customer_name": res.customer_name or "",
-                    "date": res.date.isoformat() if res.date else None,
-                    "status": res.status,
-                    "total_amount": res.total_amount or 0,
-                    "nds_percent": res.nds_percent or 12.0,
-                    "is_bonus_eligible": res.is_bonus_eligible,
-                    "is_salary_enabled": getattr(res, "is_salary_enabled", True),
-                    "is_tovar_skidka": res.is_tovar_skidka or False,
-                    "is_deletion_pending": res.is_deletion_pending or False,
-                    "is_return_pending": res.is_return_pending or False,
-                    "deletion_requested_by_id": res.deletion_requested_by_id,
-                    "source_invoice_id": res.source_invoice_id,
-                    "warehouse_id": res.warehouse_id,
-                    "created_by_id": res.created_by_id,
-                    "med_org_id": res.med_org_id,
-                    "created_by": {"id": res.created_by.id, "full_name": res.created_by.full_name} if res.created_by else None,
-                    "med_org": {
-                        "id": res.med_org.id,
-                        "name": res.med_org.name,
-                        "org_type": res.med_org.org_type,
-                        "region_id": res.med_org.region_id,
-                        "region": {"id": res.med_org.region.id, "name": res.med_org.region.name} if res.med_org.region else None,
-                        "assigned_reps": [{"id": u.id, "full_name": u.full_name} for u in (res.med_org.assigned_reps or [])],
-                        "inn": res.med_org.inn,
-                        "address": res.med_org.address,
-                    } if res.med_org else None,
-                    "warehouse": {
-                        "id": res.warehouse.id,
-                        "name": res.warehouse.name,
-                        "stocks": [{"product_id": s.product_id, "quantity": s.quantity} for s in (res.warehouse.stocks or [])],
-                    } if res.warehouse else None,
-                    "items": [
-                        {
-                            "id": item.id,
-                            "product_id": item.product_id,
-                            "quantity": item.quantity,
-                            "returned_quantity": item.returned_quantity or 0,
-                            "return_requested_quantity": item.return_requested_quantity or 0,
-                            "price": item.price,
-                            "discount_percent": item.discount_percent or 0,
-                            "marketing_amount": item.marketing_amount or 0,
-                            "salary_amount": item.salary_amount or 0,
-                            "total_price": item.total_price or 0,
-                            "product": {
-                                "id": item.product.id,
-                                "name": item.product.name,
-                                "price": item.product.price,
-                                "production_price": item.product.production_price,
-                                "category_id": item.product.category_id,
-                                "is_active": item.product.is_active,
-                                "marketing_expense": item.product.marketing_expense or 0,
-                                "salary_expense": item.product.salary_expense or 0,
-                                "other_expenses": item.product.other_expenses or 0,
-                                "central_stock": item.product.central_stock or 0,
-                                "manufacturers": [{"id": m.id, "name": m.name} for m in (item.product.manufacturers or [])],
-                                "category": {"id": item.product.category.id, "name": item.product.category.name} if item.product.category else None,
-                            } if item.product else None,
-                        }
-                        for item in (res.items or [])
-                    ],
-                } if res else None,
-            }
-
-        return [serialize_invoice(inv) for inv in invoices]
+        return invoices
 
     except Exception as e:
         import traceback
