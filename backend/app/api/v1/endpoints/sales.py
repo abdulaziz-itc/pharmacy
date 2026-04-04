@@ -1050,54 +1050,61 @@ async def get_admin_bonus_summary(
     debitorka_map = {}
     
     if rep_ids:
-        # REALIZATION
-        real_q = select(
-            Reservation.created_by_id, 
-            func.sum(ReservationItem.quantity * ReservationItem.price).label("amount")
-        ).select_from(Invoice)\
-         .join(Reservation, Invoice.reservation_id == Reservation.id)\
-         .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
-         .where(Invoice.status != InvoiceStatus.CANCELLED, Reservation.created_by_id.in_(rep_ids))
-         
-        if start_date and end_date: real_q = real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-        if product_id: real_q = real_q.where(ReservationItem.product_id == product_id)
-        
-        real_res = await db.execute(real_q.group_by(Reservation.created_by_id))
-        for row in real_res: realization_map[row.created_by_id] = float(row.amount or 0)
-            
-        # POSTUPLENIYA
-        pay_q = select(
-            Reservation.created_by_id,
-            func.sum(Payment.amount * (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount)).label("amount")
-        ).select_from(Payment)\
-         .join(Invoice, Payment.invoice_id == Invoice.id)\
-         .join(Reservation, Invoice.reservation_id == Reservation.id)\
-         .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
-         .where(and_(Reservation.created_by_id.in_(rep_ids), Invoice.total_amount > 0))
-         
-        if start_date and end_date: pay_q = pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
-        if product_id: pay_q = pay_q.where(ReservationItem.product_id == product_id)
-        
-        pay_res = await db.execute(pay_q.group_by(Reservation.created_by_id))
-        for row in pay_res: postupleniya_map[row.created_by_id] = float(row.amount or 0)
-            
-        # DEBITORKA
-        debt_q = select(
-            Reservation.created_by_id,
-            func.sum(
-                (ReservationItem.quantity * ReservationItem.price) -
-                (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount * Invoice.paid_amount)
-            ).label("amount")
-        ).select_from(Invoice)\
-         .join(Reservation, Invoice.reservation_id == Reservation.id)\
-         .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
-         .where(and_(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]), Reservation.created_by_id.in_(rep_ids), Invoice.total_amount > 0))
-         
-        if start_date and end_date: debt_q = debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-        if product_id: debt_q = debt_q.where(ReservationItem.product_id == product_id)
-        
-        debt_res = await db.execute(debt_q.group_by(Reservation.created_by_id))
-        for row in debt_res: debitorka_map[row.created_by_id] = float(row.amount or 0)
+        for rep in medreps:
+            # REALIZATION
+            real_q = select(
+                func.coalesce(func.sum(ReservationItem.quantity * ReservationItem.price), 0.0)
+            ).select_from(Invoice)\
+             .join(Reservation, Invoice.reservation_id == Reservation.id)\
+             .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+             .outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)\
+             .where(Invoice.status != InvoiceStatus.CANCELLED)\
+             .where(or_(
+                 Reservation.created_by_id == rep.id, 
+                 MedicalOrganization.assigned_reps.any(User.id == rep.id)
+             ))
+             
+            if start_date and end_date: real_q = real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+            if product_id: real_q = real_q.where(ReservationItem.product_id == product_id)
+            realization_map[rep.id] = float((await db.execute(real_q)).scalar() or 0.0)
+                
+            # POSTUPLENIYA
+            pay_q = select(
+                func.coalesce(func.sum(Payment.amount * (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount)), 0.0)
+            ).select_from(Payment)\
+             .join(Invoice, Payment.invoice_id == Invoice.id)\
+             .join(Reservation, Invoice.reservation_id == Reservation.id)\
+             .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+             .outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)\
+             .where(Invoice.total_amount > 0)\
+             .where(or_(
+                 Reservation.created_by_id == rep.id, 
+                 MedicalOrganization.assigned_reps.any(User.id == rep.id)
+             ))
+             
+            if start_date and end_date: pay_q = pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+            if product_id: pay_q = pay_q.where(ReservationItem.product_id == product_id)
+            postupleniya_map[rep.id] = float((await db.execute(pay_q)).scalar() or 0.0)
+                
+            # DEBITORKA
+            debt_q = select(
+                func.coalesce(func.sum(
+                    (ReservationItem.quantity * ReservationItem.price) -
+                    (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount * Invoice.paid_amount)
+                ), 0.0)
+            ).select_from(Invoice)\
+             .join(Reservation, Invoice.reservation_id == Reservation.id)\
+             .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+             .outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)\
+             .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]), Invoice.total_amount > 0)\
+             .where(or_(
+                 Reservation.created_by_id == rep.id, 
+                 MedicalOrganization.assigned_reps.any(User.id == rep.id)
+             ))
+             
+            if start_date and end_date: debt_q = debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+            if product_id: debt_q = debt_q.where(ReservationItem.product_id == product_id)
+            debitorka_map[rep.id] = float((await db.execute(debt_q)).scalar() or 0.0)
     
     summaries = []
     for rep in medreps:
