@@ -167,7 +167,7 @@ export default function ReportsPage() {
         bonus_accrued: 0,
         bonus_paid: 0,
         bonus_balance: 0,
-        preinvest: 0,
+        total_predinvest: 0,
         receivables: 0
     }, [stats]);
 
@@ -429,7 +429,7 @@ export default function ReportsPage() {
                 <PremiumKpiCard label="Остаток бонуса" value={Number(kpis.bonus_accrued) - Number(kpis.bonus_paid)} icon={Wallet} color="blue" />
                 <PremiumKpiCard 
                     label="Прединвест" 
-                    value={kpis.preinvest} 
+                    value={kpis.total_predinvest} 
                     icon={Users} 
                     color="rose" 
                     onClick={() => setDrilldownMetric({ id: 'preinvest', label: 'Прединвест' })} 
