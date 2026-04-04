@@ -337,31 +337,31 @@ export default function AdminBonusApprovalPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-slate-600 whitespace-nowrap">
-                                                {rep.realization.toLocaleString('ru-RU')} UZS
+                                                {(rep.realization || 0).toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-emerald-600 whitespace-nowrap">
-                                                {rep.postupleniya.toLocaleString('ru-RU')} UZS
+                                                {(rep.postupleniya || 0).toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-rose-600 whitespace-nowrap">
-                                                {rep.debitorka.toLocaleString('ru-RU')} UZS
+                                                {(rep.debitorka || 0).toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-slate-600 bg-slate-50/30 whitespace-nowrap">
-                                                {rep.accrued.toLocaleString('ru-RU')} UZS
+                                                {(rep.accrued || 0).toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-amber-600 bg-slate-50/30 whitespace-nowrap">
-                                                {rep.predinvest.toLocaleString('ru-RU')} UZS
+                                                {(rep.predinvest || 0).toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-emerald-600 bg-slate-50/30 whitespace-nowrap">
-                                                {rep.paid.toLocaleString('ru-RU')} UZS
+                                                {(rep.paid || 0).toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${rep.remainder > 0 ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600'
                                                     }`}>
-                                                    {rep.remainder.toLocaleString('ru-RU')} UZS
+                                                    {(rep.remainder || 0).toLocaleString('ru-RU')} UZS
                                                 </span>
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-slate-500">
-                                                {rep.allocated.toLocaleString('ru-RU')} UZS
+                                                {(rep.allocated || 0).toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Button
