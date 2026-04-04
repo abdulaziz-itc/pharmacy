@@ -165,9 +165,13 @@ export default function AdminBonusApprovalPage() {
         s.med_rep_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const totalAccrued = summaries.reduce((sum, s) => sum + s.accrued, 0);
-    const totalPaid = summaries.reduce((sum, s) => sum + s.paid, 0);
-    const totalRemainder = summaries.reduce((sum, s) => sum + s.remainder, 0);
+    const totalAccrued = summaries.reduce((sum, s) => sum + (s.accrued || 0), 0);
+    const totalPaid = summaries.reduce((sum, s) => sum + (s.paid || 0), 0);
+    const totalRemainder = summaries.reduce((sum, s) => sum + (s.remainder || 0), 0);
+
+    const totalRealization = summaries.reduce((sum, s) => sum + (s.realization || 0), 0);
+    const totalPostupleniya = summaries.reduce((sum, s) => sum + (s.postupleniya || 0), 0);
+    const totalDebitorka = summaries.reduce((sum, s) => sum + (s.debitorka || 0), 0);
 
     return (
         <PageContainer>
@@ -181,6 +185,39 @@ export default function AdminBonusApprovalPage() {
                         Управление начисленными и выплаченными бонусами медпредставителей
                     </p>
                 </div>
+            </div>
+
+            {/* Quick Stats - Sales */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <Card className="border-slate-200/60 shadow-sm bg-white overflow-hidden relative">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold text-slate-500 uppercase tracking-wider">Всего реализация</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-black text-slate-900">{totalRealization.toLocaleString('ru-RU')} UZS</div>
+                        <p className="text-xs text-slate-500 mt-1 font-medium">Общая сумма продаж</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-slate-200/60 shadow-sm bg-blue-50 text-blue-900 overflow-hidden relative">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold text-blue-700 uppercase tracking-wider">Поступления</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-black">{totalPostupleniya.toLocaleString('ru-RU')} UZS</div>
+                        <p className="text-xs text-blue-700/80 mt-1 font-medium">Фактические оплаты от клиентов</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-slate-200/60 shadow-sm bg-rose-50 text-rose-900 overflow-hidden relative">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold text-rose-700 uppercase tracking-wider">Дебиторка</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-black">{totalDebitorka.toLocaleString('ru-RU')} UZS</div>
+                        <p className="text-xs text-rose-700/80 mt-1 font-medium">Общий долг клиентов</p>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Quick Stats */}
@@ -297,9 +334,6 @@ export default function AdminBonusApprovalPage() {
                         <TableHeader className="bg-slate-50/80 border-b border-slate-100">
                             <TableRow className="hover:bg-transparent">
                                 <TableHead className="font-semibold text-slate-700 h-11 whitespace-nowrap">Медпредставитель</TableHead>
-                                <TableHead className="font-semibold text-slate-700 text-right h-11 whitespace-nowrap">Реализация</TableHead>
-                                <TableHead className="font-semibold text-slate-700 text-right h-11 whitespace-nowrap">Поступления</TableHead>
-                                <TableHead className="font-semibold text-slate-700 text-right h-11 whitespace-nowrap">Дебиторка</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Начислено (Факт)</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Аванс</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Выплачено</TableHead>
@@ -311,13 +345,13 @@ export default function AdminBonusApprovalPage() {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={10} className="h-32 text-center text-slate-500">
+                                    <TableCell colSpan={7} className="h-32 text-center text-slate-500">
                                         Загрузка данных...
                                     </TableCell>
                                 </TableRow>
                             ) : filteredSummaries.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={10} className="h-32 text-center text-slate-500">
+                                    <TableCell colSpan={7} className="h-32 text-center text-slate-500">
                                         Нет данных для отображения
                                     </TableCell>
                                 </TableRow>
@@ -335,15 +369,6 @@ export default function AdminBonusApprovalPage() {
                                                     </span>
                                                     {rep.med_rep_name}
                                                 </div>
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium text-slate-600 whitespace-nowrap">
-                                                {(rep.realization || 0).toLocaleString('ru-RU')} UZS
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium text-emerald-600 whitespace-nowrap">
-                                                {(rep.postupleniya || 0).toLocaleString('ru-RU')} UZS
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium text-rose-600 whitespace-nowrap">
-                                                {(rep.debitorka || 0).toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-slate-600 bg-slate-50/30 whitespace-nowrap">
                                                 {(rep.accrued || 0).toLocaleString('ru-RU')} UZS
@@ -382,7 +407,7 @@ export default function AdminBonusApprovalPage() {
                                         </TableRow>
                                         {expandedRepId === rep.med_rep_id && (
                                             <TableRow className={rep.has_overdue_bonus ? 'bg-rose-50/30' : 'bg-slate-50'}>
-                                                <TableCell colSpan={10} className="p-0">
+                                                <TableCell colSpan={7} className="p-0">
                                                     <div className="p-4 border-b border-t border-slate-100">
                                                         <h4 className="font-bold text-slate-700 mb-3 ml-2 flex items-center gap-2">
                                                             <Banknote className="w-4 h-4 text-slate-400" />
