@@ -688,7 +688,7 @@ async def get_comprehensive_drilldown(
             sil(BonusLedger.doctor),
             sil(BonusLedger.user),
             sil(BonusLedger.product),
-            sil(BonusLedger.payment).sil(Payment.invoice).sil(Invoice.reservation)
+            sil(BonusLedger.payment).selectinload(Payment.invoice).selectinload(Invoice.reservation)
         ).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
         
         if metric == "bonus_accrued":
