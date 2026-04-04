@@ -341,7 +341,7 @@ async def get_comprehensive_stats(
     fact_sum = (await db.execute(fact_q)).scalar() or 0
 
     # Bonus Ledger (Earned, Paid, Advances)
-    bonus_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes)
+    bonus_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
     if start_date and end_date: bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
     if rep_ids: bonus_q = bonus_q.where(BonusLedger.user_id.in_(rep_ids))
     if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
@@ -689,7 +689,7 @@ async def get_comprehensive_drilldown(
             sil(BonusLedger.user),
             sil(BonusLedger.product),
             sil(BonusLedger.payment).sil(Payment.invoice).sil(Invoice.reservation)
-        )
+        ).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
         
         if metric == "bonus_accrued":
             bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, or_(BonusLedger.notes != "Аванс (Предынвест)", BonusLedger.notes.is_(None))))
