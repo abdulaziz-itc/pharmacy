@@ -420,39 +420,51 @@ async def read_invoices(
     med_org_id: Optional[int] = None,
     has_debt: bool = False,
 ) -> Any:
-    med_rep_ids = None
-    if current_user.role == UserRole.MED_REP:
-        med_rep_id = current_user.id
-    elif current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
-        from app.crud import crud_user
-        med_rep_ids = await crud_user.get_descendant_ids(db, current_user.id)
-        if not med_rep_ids:
-            med_rep_ids = [-1]
-        med_rep_id = None
+    try:
+        med_rep_ids = None
+        if current_user.role == UserRole.MED_REP:
+            med_rep_id = current_user.id
+        elif current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+            from app.crud import crud_user
+            med_rep_ids = await crud_user.get_descendant_ids(db, current_user.id)
+            if not med_rep_ids:
+                med_rep_ids = [-1]
+            med_rep_id = None
 
-    region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
-    
-    dt_from = datetime.fromisoformat(date_from) if date_from else None
-    dt_to = datetime.fromisoformat(date_to) if date_to else None
-    
-    return await crud_sales.get_invoices(
-        db, 
-        skip=skip, 
-        limit=limit, 
-        med_rep_id=med_rep_id,
-        date_from=dt_from,
-        date_to=dt_to,
-        med_rep_name=med_rep_name,
-        med_org_name=med_org_name,
-        med_org_type=med_org_type,
-        is_tovar_skidka=is_tovar_skidka,
-        inv_num=inv_num,
-        med_rep_ids=med_rep_ids,
-        status=status,
-        has_debt=has_debt,
-        med_org_id=med_org_id,
-        region_ids=region_ids
-    )
+        region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
+        
+        # Robust date parsing
+        dt_from = None
+        if date_from and date_from.strip():
+            try: dt_from = datetime.fromisoformat(date_from)
+            except: pass
+            
+        dt_to = None
+        if date_to and date_to.strip():
+            try: dt_to = datetime.fromisoformat(date_to)
+            except: pass
+        
+        return await crud_sales.get_invoices(
+            db, 
+            skip=skip, 
+            limit=limit, 
+            med_rep_id=med_rep_id,
+            date_from=dt_from,
+            date_to=dt_to,
+            med_rep_name=med_rep_name,
+            med_org_name=med_org_name,
+            med_org_type=med_org_type,
+            is_tovar_skidka=is_tovar_skidka,
+            inv_num=inv_num,
+            med_rep_ids=med_rep_ids,
+            status=status,
+            has_debt=has_debt,
+            med_org_id=med_org_id,
+            region_ids=region_ids
+        )
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
 
 @router.get("/invoices/eligible-for-tovar-skidka", response_model=List[InvoiceSchema])
 async def get_eligible_invoices_for_tovar_skidka(
