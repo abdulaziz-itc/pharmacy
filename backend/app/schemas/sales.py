@@ -106,7 +106,7 @@ class Reservation(ReservationBase):
     is_tovar_skidka: bool = False
     source_invoice_id: Optional[int] = None
     warehouse_id: Optional[int] = None
-    created_by_id: int
+    created_by_id: Optional[int] = None
     created_by: Optional[User] = None
     med_org: Optional[MedicalOrganization] = None
     warehouse: Optional[Warehouse] = None
@@ -129,7 +129,7 @@ class ReservationInInvoice(ReservationBase):
     is_tovar_skidka: bool = False
     source_invoice_id: Optional[int] = None
     warehouse_id: Optional[int] = None
-    created_by_id: int
+    created_by_id: Optional[int] = None
     created_by: Optional[User] = None
     med_org: Optional[MedicalOrganization] = None
     warehouse: Optional[Warehouse] = None
@@ -184,7 +184,7 @@ class ReservationLite(ReservationBase):
     nds_percent: Optional[float] = 12.0
     med_org: Optional[MedicalOrganizationLite] = None
     warehouse_id: int
-    created_by_id: int
+    created_by_id: Optional[int] = None
     items: List[ReservationItem] = []
     
     class Config:
