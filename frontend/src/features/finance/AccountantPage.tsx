@@ -14,6 +14,9 @@ import { ru } from 'date-fns/locale';
 import { Badge } from '../../components/ui/badge';
 import { DataTable } from '../../components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
+import { DrilldownModal } from '../../components/analytics/DrilldownModal';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PremiumKpiCard } from '../../components/analytics/PremiumKpiCard';
 
 type Expense = {
     id: number;
@@ -45,6 +48,7 @@ export default function AccountantPage() {
     const [comment, setComment] = useState('');
     const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [newCategoryName, setNewCategoryName] = useState('');
+    const [drilldownMetric, setDrilldownMetric] = useState<{ id: string, label: string } | null>(null);
 
     // Filter States
     const [selectedMonth, setSelectedMonth] = useState<number | undefined>(new Date().getMonth() + 1);
@@ -404,39 +408,71 @@ export default function AccountantPage() {
                 </div>
             )}
 
-            {/* KPI Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <KpiCard 
+            {/* KPI Section - Staggered Entrance */}
+            <motion.div 
+                initial="hidden"
+                animate="show"
+                variants={{
+                    hidden: { opacity: 0 },
+                    show: {
+                        opacity: 1,
+                        transition: { staggerChildren: 0.1 }
+                    }
+                }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+            >
+                <PremiumKpiCard 
                     label="Поступления (Cash In)" 
                     value={stats?.sales_fact_received_amount} 
                     icon={TrendingUp} 
                     color="emerald" 
-                    subtitle="Всего денег поступиlo"
+                    subtitle="Всего денег поступило"
+                    onClick={() => setDrilldownMetric({ id: 'cash_in', label: 'Поступления (Cash In)' })}
                 />
-                <KpiCard 
+                <PremiumKpiCard 
                     label="Валовая Прибыль" 
                     value={stats?.gross_profit} 
                     icon={DollarSign} 
                     color="blue" 
-                    subtitle="Доxod minus xarajatlar"
+                    subtitle="Доход минус расходы"
                     badge="Gross Profit"
+                    onClick={() => setDrilldownMetric({ id: 'gross_profit', label: 'Валовая Прибыль' })}
                 />
-                <KpiCard 
+                <PremiumKpiCard 
                     label="Прочие Расходы" 
                     value={stats?.total_expenses} 
                     icon={TrendingDown} 
                     color="rose" 
-                    subtitle="Arenda, nalog va b."
+                    subtitle="Аренда, налоги и пр."
+                    onClick={() => setDrilldownMetric({ id: 'expenses', label: 'Прочие Расходы' })}
                 />
-                <KpiCard 
+                <PremiumKpiCard 
                     label="Чистая Прибыль" 
                     value={stats?.net_profit} 
                     icon={PieChart} 
                     color="violet" 
-                    subtitle="Yakuniy natija"
+                    subtitle="Итоговый результат"
                     badge="NET PROFIT"
                 />
-            </div>
+            </motion.div>
+
+            {drilldownMetric && (
+                <DrilldownModal 
+                    isOpen={!!drilldownMetric}
+                    onClose={() => setDrilldownMetric(null)}
+                    metric={drilldownMetric.id}
+                    metricLabel={drilldownMetric.label}
+                    filters={{
+                        month: selectedMonth,
+                        year: selectedYear,
+                        quarter: selectedQuarter,
+                        region_id: selectedRegion !== 'all' ? parseInt(selectedRegion) : undefined,
+                        product_id: selectedProduct !== 'all' ? parseInt(selectedProduct) : undefined,
+                        med_rep_id: selectedMedRep !== 'all' ? parseInt(selectedMedRep) : undefined,
+                        product_manager_id: selectedPM !== 'all' ? parseInt(selectedPM) : undefined
+                    }}
+                />
+            )}
 
             {/* Expenses Table */}
             <div className="space-y-6">
@@ -461,35 +497,4 @@ export default function AccountantPage() {
     );
 }
 
-function KpiCard({ label, value, icon: Icon, color, subtitle, badge }: any) {
-    const colors: any = {
-        emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-        blue: 'bg-blue-50 text-blue-600 border-blue-100',
-        rose: 'bg-rose-50 text-rose-600 border-rose-100',
-        violet: 'bg-violet-50 text-violet-600 border-violet-100'
-    };
-
-    return (
-        <div className="bg-white p-7 rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
-            <div className={`absolute top-0 right-0 w-32 h-32 ${colors[color].split(' ')[0]} rounded-full -mr-16 -mt-16 blur-3xl opacity-40 group-hover:scale-150 transition-transform duration-700`} />
-            <div className="relative z-10 space-y-5">
-                <div className={`w-14 h-14 rounded-2xl ${colors[color].split(' ')[0]} flex items-center justify-center border border-white shadow-sm`}>
-                    <Icon className="w-7 h-7" />
-                </div>
-                <div>
-                    <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">{label}</h3>
-                    <div className="flex items-baseline gap-2 mt-2">
-                        <span className="text-2xl font-black text-slate-800 tracking-tighter">{(Number(value) || 0).toLocaleString()}</span>
-                        <span className="text-[10px] font-bold text-slate-400">UZS</span>
-                    </div>
-                    <p className="text-slate-400 text-[10px] mt-2 font-medium">{subtitle}</p>
-                    {badge && (
-                        <div className="mt-4 inline-flex items-center px-3 py-1 bg-slate-900 text-white rounded-full text-[8px] font-black uppercase tracking-widest">
-                            {badge}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
+// Old KpiCard removed

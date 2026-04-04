@@ -15,6 +15,9 @@ import { getComprehensiveStats } from '../../api/sales';
 import { useProductStore } from '../../store/productStore';
 import { useMedRepStore } from '../../store/medRepStore';
 import { useDoctorStore } from '../../store/doctorStore';
+import { DrilldownModal } from '../../components/analytics/DrilldownModal';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PremiumKpiCard } from '../../components/analytics/PremiumKpiCard';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU').format(Math.round(value)) + ' UZS';
@@ -40,8 +43,8 @@ export default function StatsPage() {
     const [selectedMedRepId, setSelectedMedRepId] = useState<number | string>('');
     const [selectedProductId, setSelectedProductId] = useState<number | string>('');
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalContent, setModalContent] = useState<{ title: string; type: string; data: any[] }>({ title: '', type: '', data: [] });
+    const [searchQuery, setSearchQuery] = useState('');
+    const [drilldownMetric, setDrilldownMetric] = useState<{ id: string, label: string } | null>(null);
 
     // Computed Data for Filters
     const productManagers = useMemo(() => {
@@ -71,12 +74,6 @@ export default function StatsPage() {
         setSelectedProductId('');
     };
 
-    const openDetails = (title: string, type: string) => {
-        let data: any[] = [];
-        // Placeholder for details
-        setModalContent({ title, type, data });
-        setIsModalOpen(true);
-    };
 
     useEffect(() => {
         const loadInit = async () => {
@@ -323,68 +320,77 @@ export default function StatsPage() {
                 </div>
             ) : (
                 <>
-                    {/* Main KPI Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <KpiCard
-                            title="Sotuv rejasi"
-                            value={formatCurrency(kpis.sales_plan_amount)}
-                            icon={<Target className="w-6 h-6 text-indigo-600" />}
-                            colorClass="bg-indigo-50"
-                            onClick={() => openDetails("Sotuv rejasi", "plan")}
+                    {/* Main KPI Grid - Staggered Entrance */}
+                    <motion.div 
+                        initial="hidden"
+                        animate="show"
+                        variants={{
+                            hidden: { opacity: 0 },
+                            show: {
+                                opacity: 1,
+                                transition: { staggerChildren: 0.05 }
+                            }
+                        }}
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+                    >
+                        <PremiumKpiCard
+                            label="Sotuv rejasi"
+                            value={kpis.sales_plan_amount}
+                            icon={Target}
+                            color="indigo"
+                            onClick={() => setDrilldownMetric({ id: 'sales_plan', label: 'Sotuv rejasi' })}
                         />
-                        <KpiCard
-                            title="Haqiqiy tushum"
-                            value={formatCurrency(kpis.sales_fact_received_amount)}
-                            icon={<HandCoins className="w-6 h-6 text-emerald-600" />}
-                            colorClass="bg-emerald-50"
-                            trend={`${kpis.sales_plan_amount > 0 ? ((kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100).toFixed(1) : 0}% bajarildi`}
-                            trendUp={kpis.sales_fact_received_amount >= kpis.sales_plan_amount}
-                            onClick={() => openDetails("Haqiqiy tushum", "sales")}
+                        <PremiumKpiCard
+                            label="Haqiqiy tushum"
+                            value={kpis.sales_fact_received_amount}
+                            icon={HandCoins}
+                            color="emerald"
+                            badge={kpis.sales_plan_amount > 0 ? `${((kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100).toFixed(1)}%` : undefined}
+                            onClick={() => setDrilldownMetric({ id: 'cash_in', label: 'Haqiqiy tushum' })}
                         />
-                        <KpiCard
-                            title="Sof foyda"
-                            value={formatCurrency(kpis.net_profit)}
-                            icon={<TrendingUp className="w-6 h-6 text-blue-600" />}
-                            colorClass="bg-blue-50"
-                            onClick={() => openDetails("Sof foyda", "profit")}
+                        <PremiumKpiCard
+                            label="Sof foyda"
+                            value={kpis.net_profit}
+                            icon={TrendingUp}
+                            color="blue"
+                            onClick={() => setDrilldownMetric({ id: 'gross_profit', label: 'Sof foyda (Valovaya)' })}
                         />
-                        <KpiCard
-                            title="Kreditorka"
-                            value={formatCurrency(kpis.receivables)}
-                            icon={<Receipt className="w-6 h-6 text-orange-600" />}
-                            colorClass="bg-orange-50"
-                            onClick={() => openDetails("Kreditorka", "debt")}
+                        <PremiumKpiCard
+                            label="Kreditorka"
+                            value={kpis.receivables}
+                            icon={Receipt}
+                            color="rose"
+                            onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Kreditorka' })}
                         />
 
-                        <KpiCard
-                            title="Hisoblangan bonus"
-                            value={formatCurrency(kpis.bonus_accrued)}
-                            icon={<Coins className="w-6 h-6 text-purple-600" />}
-                            colorClass="bg-purple-50"
-                            onClick={() => openDetails("Hisoblangan bonus", "bonus")}
+                        <PremiumKpiCard
+                            label="Hisoblangan bonus"
+                            value={kpis.bonus_accrued}
+                            icon={Coins}
+                            color="violet"
+                            onClick={() => setDrilldownMetric({ id: 'bonus_accrued', label: 'Hisoblangan bonus' })}
                         />
-                        <KpiCard
-                            title="Vrachlarga bo'lingan"
-                            value={formatCurrency(kpis.bonus_allocated)}
-                            icon={<Users className="w-6 h-6 text-sky-600" />}
-                            colorClass="bg-sky-50"
-                            onClick={() => openDetails("Bo'lingan bonus", "allocated")}
+                        <PremiumKpiCard
+                            label="Vrachlarga bo'lingan"
+                            value={kpis.bonus_allocated}
+                            icon={Users}
+                            color="indigo"
+                            onClick={() => setDrilldownMetric({ id: 'bonus_allocated', label: 'Vrachlarga bo\'lingan' })}
                         />
-                        <KpiCard
-                            title="Bonus qoldig'i"
-                            value={formatCurrency(kpis.bonus_balance)}
-                            icon={<Wallet className="w-6 h-6 text-amber-600" />}
-                            colorClass="bg-amber-50"
-                            onClick={() => openDetails("Bonus qoldig'i", "balance")}
+                        <PremiumKpiCard
+                            label="Bonus qoldig'i"
+                            value={kpis.bonus_balance}
+                            icon={Wallet}
+                            color="amber"
                         />
-                        <KpiCard
-                            title="Predinvest"
-                            value={formatCurrency(kpis.total_predinvest)}
-                            icon={<Banknote className="w-6 h-6 text-rose-600" />}
-                            colorClass="bg-rose-50"
-                            onClick={() => openDetails("Predinvest", "predinvest")}
+                        <PremiumKpiCard
+                            label="Predinvest"
+                            value={kpis.total_predinvest}
+                            icon={Banknote}
+                            color="rose"
+                            onClick={() => setDrilldownMetric({ id: 'preinvest', label: 'Predinvest' })}
                         />
-                    </div>
+                    </motion.div>
 
                     {/* Charts Section */}
                     <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-8">
@@ -430,28 +436,23 @@ export default function StatsPage() {
                 </>
             )}
 
-            {/* Detail Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-                    <div className="bg-white rounded-[40px] w-full max-w-4xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col scale-in-center">
-                        <div className="p-8 border-b border-slate-50 flex items-center justify-between">
-                            <h3 className="text-2xl font-black text-slate-800 tracking-tight">{modalContent.title}</h3>
-                            <button 
-                                onClick={() => setIsModalOpen(false)}
-                                className="p-3 hover:bg-slate-100 rounded-2xl transition-all group"
-                            >
-                                <ChevronRight className="w-8 h-8 rotate-180 text-slate-400 group-hover:text-slate-800" />
-                            </button>
-                        </div>
-                        <div className="p-10 overflow-y-auto">
-                            <div className="bg-slate-50/50 rounded-[32px] p-12 text-center text-slate-500 border-2 border-dashed border-slate-100">
-                                <LayoutDashboard className="w-16 h-16 mx-auto mb-6 text-slate-200" />
-                                <p className="text-lg font-bold text-slate-700">Detallashtirilgan tahlil</p>
-                                <p className="text-sm mt-2 leading-relaxed max-w-sm mx-auto">Filtrlangan ma'lumotlar asosida batafsil ro'yxat va sub-tahlillar tez orada shu yerga ulanadi.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            {drilldownMetric && (
+                <DrilldownModal
+                    isOpen={!!drilldownMetric}
+                    onClose={() => setDrilldownMetric(null)}
+                    metric={drilldownMetric.id}
+                    metricLabel={drilldownMetric.label}
+                    filters={{
+                        period: selectedPeriod,
+                        month: selectedPeriod === 'month' ? currentMonth : undefined,
+                        year: selectedPeriod === 'all' ? undefined : currentYear,
+                        quarter: selectedPeriod === 'quarter' ? currentQuarter : undefined,
+                        region_id: selectedRegionId ? Number(selectedRegionId) : undefined,
+                        product_id: selectedProductId ? Number(selectedProductId) : undefined,
+                        med_rep_id: selectedMedRepId ? Number(selectedMedRepId) : undefined,
+                        product_manager_id: selectedPMId ? Number(selectedPMId) : undefined
+                    }}
+                />
             )}
 
             <style>{`
@@ -474,45 +475,4 @@ export default function StatsPage() {
     );
 }
 
-function KpiCard({ title, value, icon, colorClass, trend, trendUp, onClick }: {
-    title: string;
-    value: string;
-    icon: React.ReactNode;
-    colorClass: string;
-    trend?: string;
-    trendUp?: boolean;
-    onClick?: () => void;
-}) {
-    return (
-        <div 
-            onClick={onClick}
-            className={`bg-white rounded-3xl p-7 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 cursor-pointer ${onClick ? 'hover:border-blue-200 active:scale-[0.98]' : ''}`}
-        >
-            <div className="flex justify-between items-start z-10 relative">
-                <div className="flex-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] mb-2">{title}</p>
-                    <h4 className="text-2xl font-black text-slate-800 mb-2 truncate" title={value}>{value}</h4>
-                    {trend && (
-                        <div className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-black ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                            {trendUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                            {trend}
-                        </div>
-                    )}
-                </div>
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-500 ${colorClass}`}>
-                    {icon}
-                </div>
-            </div>
-            
-            {/* Hover Decor */}
-            <div className="absolute right-[-10px] bottom-[-10px] opacity-[0.03] group-hover:opacity-[0.1] transition-all duration-700 transform rotate-[-15deg] group-hover:rotate-[0deg] group-hover:scale-150">
-                {icon}
-            </div>
-            
-            {/* Visual indicator for interactive state */}
-            <div className="absolute bottom-4 right-7 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                <ChevronRight className="w-4 h-4 text-blue-500" />
-            </div>
-        </div>
-    );
-}
+// Old KpiCard removed

@@ -569,6 +569,149 @@ async def get_comprehensive_stats(
         "view_mode": "accountant" if current_user.role == UserRole.ACCOUNTANT else "standard"
     }
 
+@router.get("/stats/comprehensive/drilldown")
+async def get_comprehensive_drilldown(
+    metric: str = Query(...),
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    month: int = None,
+    year: int = None,
+    quarter: int = None,
+    region_id: int = None,
+    med_rep_id: int = None,
+    product_id: int = None,
+    product_manager_id: int = None,
+    skip: int = 0,
+    limit: int = 100
+) -> Any:
+    from sqlalchemy import and_, or_
+    from sqlalchemy.orm import selectinload
+    from app.models.sales import Invoice, Payment, Reservation, ReservationItem, Plan, InvoiceStatus
+    from app.models.ledger import BonusLedger, LedgerType
+    from app.models.crm import MedicalOrganization, Doctor
+    from app.models.product import Product
+    from app.crud.crud_user import get_descendant_ids
+    from app.models.finance import OtherExpense
+
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN, UserRole.ACCOUNTANT]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    rep_ids = None
+    if med_rep_id:
+        rep_ids = [med_rep_id]
+    elif product_manager_id:
+        rep_ids = await get_descendant_ids(db, product_manager_id)
+        if not rep_ids: rep_ids = [-1]
+
+    start_date = None
+    end_date = None
+    if quarter and year:
+        start_month = (quarter - 1) * 3 + 1
+        start_date = datetime(year, start_month, 1)
+        end_date = (datetime(year, start_month + 3, 1) if quarter < 4 else datetime(year + 1, 1, 1))
+    elif month and year:
+        start_date = datetime(year, month, 1)
+        end_date = (datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1))
+    elif year:
+        start_date = datetime(year, 1, 1)
+        end_date = datetime(year + 1, 1, 1)
+
+    def apply_filters(q, model_ref=Reservation):
+        if rep_ids or region_id:
+            q = q.outerjoin(MedicalOrganization, model_ref.med_org_id == MedicalOrganization.id)
+        if rep_ids: 
+            q = q.where(
+                or_(
+                    model_ref.created_by_id.in_(rep_ids),
+                    MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
+                )
+            )
+        if region_id: 
+            q = q.where(MedicalOrganization.region_id == region_id)
+        if product_id:
+            q = q.join(ReservationItem, model_ref.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
+        return q
+
+    if metric == "sales_plan":
+        plan_q = select(Plan).options(selectinload(Plan.med_rep), selectinload(Plan.product))
+        if quarter and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
+        elif month and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
+        elif year: plan_q = plan_q.where(Plan.year == year)
+        if rep_ids: plan_q = plan_q.where(Plan.med_rep_id.in_(rep_ids))
+        if region_id: plan_q = plan_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        if product_id: plan_q = plan_q.where(Plan.product_id == product_id)
+        rows = (await db.execute(plan_q.offset(skip).limit(limit))).scalars().all()
+        return [{"id": r.id, "med_rep": r.med_rep.full_name if r.med_rep else "-", "product": r.product.name if r.product else "-", "month": r.month, "year": r.year, "amount": r.target_amount, "qty": r.target_quantity} for r in rows]
+
+    elif metric == "cash_in":
+        fact_q = select(Payment).options(selectinload(Payment.invoice).selectinload(Invoice.reservation)).join(Invoice, Payment.invoice_id == Invoice.id)
+        if start_date and end_date: fact_q = fact_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+        if rep_ids or region_id or product_id:
+            fact_q = fact_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+            fact_q = apply_filters(fact_q, Reservation)
+        rows = (await db.execute(fact_q.order_by(Payment.date.desc()).offset(skip).limit(limit))).scalars().all()
+        return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "type": r.payment_type, "invoice_num": r.invoice.factura_number if r.invoice else "-", "customer": r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-"} for r in rows]
+
+    elif metric == "receivables":
+        debt_q = select(Invoice).options(selectinload(Invoice.reservation)).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
+        if start_date and end_date: debt_q = debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        if rep_ids or region_id or product_id:
+            debt_q = debt_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+            debt_q = apply_filters(debt_q, Reservation)
+        debt_q = debt_q.where(Invoice.total_amount > Invoice.paid_amount)
+        rows = (await db.execute(debt_q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
+        return [{"id": r.id, "date": r.date.isoformat(), "invoice_num": r.factura_number, "total_amount": r.total_amount, "paid_amount": r.paid_amount, "debt_amount": r.total_amount - r.paid_amount, "customer": r.reservation.customer_name if r.reservation else "-"} for r in rows]
+
+    elif metric == "expenses":
+        expense_q = select(OtherExpense).options(selectinload(OtherExpense.category), selectinload(OtherExpense.created_by))
+        if start_date and end_date: expense_q = expense_q.where(and_(OtherExpense.date >= start_date, OtherExpense.date < end_date))
+        if rep_ids: expense_q = expense_q.where(OtherExpense.created_by_id.in_(rep_ids))
+        if region_id: expense_q = expense_q.where(OtherExpense.region_id == region_id)
+        rows = (await db.execute(expense_q.order_by(OtherExpense.date.desc()).offset(skip).limit(limit))).scalars().all()
+        return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "category": r.category.name if r.category else "-", "description": r.description or "-", "author": r.created_by.full_name if r.created_by else "-"} for r in rows]
+
+    elif metric in ["bonus_accrued", "bonus_paid", "preinvest"]:
+        bt_map = {"bonus_accrued": LedgerType.ACCRUAL, "bonus_paid": LedgerType.PAYOUT, "preinvest": LedgerType.ADVANCE}
+        bonus_q = select(BonusLedger).options(selectinload(BonusLedger.doctor), selectinload(BonusLedger.user)).where(BonusLedger.ledger_type == bt_map[metric])
+        if start_date and end_date: bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+        if rep_ids: bonus_q = bonus_q.where(BonusLedger.user_id.in_(rep_ids))
+        if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
+        if product_id: bonus_q = bonus_q.where(BonusLedger.product_id == product_id)
+        rows = (await db.execute(bonus_q.order_by(BonusLedger.created_at.desc()).offset(skip).limit(limit))).scalars().all()
+        return [{"id": r.id, "date": r.created_at.isoformat(), "amount": r.amount, "doctor": r.doctor.full_name if r.doctor else "-", "med_rep": r.user.full_name if r.user else "-", "description": r.description or "-"} for r in rows]
+
+    elif metric == "gross_profit":
+        gross_q = select(ReservationItem).options(selectinload(ReservationItem.product), selectinload(ReservationItem.reservation).selectinload(Reservation.invoice)).join(Reservation, ReservationItem.reservation_id == Reservation.id).join(Invoice, Invoice.reservation_id == Reservation.id).join(Product, ReservationItem.product_id == Product.id).where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
+        if start_date and end_date: gross_q = gross_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        if rep_ids or region_id: gross_q = gross_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+        if rep_ids: gross_q = gross_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
+        if region_id: gross_q = gross_q.where(MedicalOrganization.region_id == region_id)
+        if product_id: gross_q = gross_q.where(ReservationItem.product_id == product_id)
+        
+        rows = (await db.execute(gross_q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
+        res_payload = []
+        for r in rows:
+            paid_ratio = (r.reservation.invoice.paid_amount or 0) / r.reservation.invoice.total_amount if r.reservation and r.reservation.invoice and r.reservation.invoice.total_amount > 0 else 0
+            sale_price = r.price
+            prod_price = r.product.production_price or 0
+            salary = r.salary_amount or 0
+            marketing = r.marketing_amount or 0
+            unit_profit = sale_price - prod_price - salary - marketing
+            total_profit_realized = (unit_profit * r.quantity) * paid_ratio
+            if total_profit_realized > 0:
+                res_payload.append({
+                    "id": r.id,
+                    "invoice_num": r.reservation.invoice.factura_number if r.reservation and r.reservation.invoice else "-",
+                    "date": r.reservation.invoice.date.isoformat() if r.reservation and r.reservation.invoice else "-",
+                    "product": r.product.name if r.product else "-",
+                    "qty": r.quantity,
+                    "paid_ratio": round(paid_ratio * 100, 1),
+                    "profit": float(total_profit_realized)
+                })
+        return res_payload
+
+    return []
+
 @router.get("/dashboard/director-report-excel")
 async def get_director_report_excel(
     db: AsyncSession = Depends(deps.get_db),

@@ -29,6 +29,9 @@ import { Badge } from '../../components/ui/badge';
 import { useMedRepStore } from '../../store/medRepStore';
 import { useDoctorStore } from '../../store/doctorStore';
 import { getComprehensiveStats } from '../../api/sales';
+import { DrilldownModal } from '../../components/analytics/DrilldownModal';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PremiumKpiCard } from '../../components/analytics/PremiumKpiCard';
 
 import { 
     AreaChart, 
@@ -72,6 +75,8 @@ export default function ReportsPage() {
     const [selectedProductId, setSelectedProductId] = useState<number | string>('');
     
     const [searchQuery, setSearchQuery] = useState('');
+
+    const [drilldownMetric, setDrilldownMetric] = useState<{ id: string, label: string } | null>(null);
 
     // 2. Fetch Data from Stores
     const { medReps, fetchMedReps } = useMedRepStore();
@@ -357,20 +362,98 @@ export default function ReportsPage() {
                 </div>
             )}
 
-            {/* KPI Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <KpiCard label="План продаж" value={kpis.sales_plan_amount} icon={BarChart3} color="blue" />
-                <KpiCard label="Факт поступлений" value={kpis.sales_fact_received_amount} icon={TrendingUp} color="emerald" 
-                         badge={Number(kpis.sales_plan_amount) > 0 ? `${((Number(kpis.sales_fact_received_amount) / Number(kpis.sales_plan_amount)) * 100).toFixed(0)}% выполнено` : undefined} />
-                <KpiCard label="Валовая прибыль" value={kpis.gross_profit} icon={DollarSign} color="indigo" />
-                <KpiCard label="Прочие расходы" value={kpis.total_expenses} icon={TrendingDown} color="rose" />
-                <KpiCard label="Чистая прибыль" value={kpis.net_profit} icon={PieChart} color="violet" />
-                <KpiCard label="Дебиторка" value={kpis.receivables} icon={Wallet} color="rose" />
-                <KpiCard label="Начислено бонуса" value={kpis.bonus_accrued} icon={PieChart} color="amber" />
-                <KpiCard label="Принято бонуса" value={kpis.bonus_paid} icon={UserCheck} color="teal" />
-                <KpiCard label="Остаток бонуса" value={Number(kpis.bonus_accrued) - Number(kpis.bonus_paid)} icon={Wallet} color="cyan" />
-                <KpiCard label="Прединвест" value={kpis.preinvest} icon={Users} color="pink" />
-            </div>
+            {/* KPI Cards Grid - Staggered Entrance */}
+            <motion.div 
+                initial="hidden"
+                animate="show"
+                variants={{
+                    hidden: { opacity: 0 },
+                    show: {
+                        opacity: 1,
+                        transition: { staggerChildren: 0.05 }
+                    }
+                }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+            >
+                <PremiumKpiCard 
+                    label="План продаж" 
+                    value={kpis.sales_plan_amount} 
+                    icon={BarChart3} 
+                    color="blue" 
+                    onClick={() => setDrilldownMetric({ id: 'sales_plan', label: 'План продаж' })} 
+                />
+                <PremiumKpiCard 
+                    label="Факт поступлений" 
+                    value={kpis.sales_fact_received_amount} 
+                    icon={TrendingUp} 
+                    color="emerald" 
+                    badge={Number(kpis.sales_plan_amount) > 0 ? `${((Number(kpis.sales_fact_received_amount) / Number(kpis.sales_plan_amount)) * 100).toFixed(0)}% выполнено` : undefined}
+                    onClick={() => setDrilldownMetric({ id: 'cash_in', label: 'Факт поступлений' })} 
+                />
+                <PremiumKpiCard 
+                    label="Валовая прибыль" 
+                    value={kpis.gross_profit} 
+                    icon={DollarSign} 
+                    color="indigo" 
+                    onClick={() => setDrilldownMetric({ id: 'gross_profit', label: 'Валовая прибыль' })} 
+                />
+                <PremiumKpiCard 
+                    label="Прочие расходы" 
+                    value={kpis.total_expenses} 
+                    icon={TrendingDown} 
+                    color="rose" 
+                    onClick={() => setDrilldownMetric({ id: 'expenses', label: 'Прочие расходы' })} 
+                />
+                <PremiumKpiCard label="Чистая прибыль" value={kpis.net_profit} icon={PieChart} color="violet" />
+                <PremiumKpiCard 
+                    label="Дебиторка" 
+                    value={kpis.receivables} 
+                    icon={Wallet} 
+                    color="rose" 
+                    onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Дебиторка' })} 
+                />
+                <PremiumKpiCard 
+                    label="Начислено бонуса" 
+                    value={kpis.bonus_accrued} 
+                    icon={PieChart} 
+                    color="amber" 
+                    onClick={() => setDrilldownMetric({ id: 'bonus_accrued', label: 'Начислено бонуса' })} 
+                />
+                <PremiumKpiCard 
+                    label="Принято бонуса" 
+                    value={kpis.bonus_paid} 
+                    icon={UserCheck} 
+                    color="emerald" 
+                    onClick={() => setDrilldownMetric({ id: 'bonus_paid', label: 'Принято бонуса' })} 
+                />
+                <PremiumKpiCard label="Остаток бонуса" value={Number(kpis.bonus_accrued) - Number(kpis.bonus_paid)} icon={Wallet} color="blue" />
+                <PremiumKpiCard 
+                    label="Прединвест" 
+                    value={kpis.preinvest} 
+                    icon={Users} 
+                    color="rose" 
+                    onClick={() => setDrilldownMetric({ id: 'preinvest', label: 'Прединвест' })} 
+                />
+            </motion.div>
+
+            {drilldownMetric && (
+                <DrilldownModal 
+                    isOpen={!!drilldownMetric}
+                    onClose={() => setDrilldownMetric(null)}
+                    metric={drilldownMetric.id}
+                    metricLabel={drilldownMetric.label}
+                    filters={{
+                        period: selectedPeriod,
+                        month: selectedPeriod === 'month' ? currentMonth : undefined,
+                        year: selectedPeriod === 'all' ? undefined : currentYear,
+                        quarter: selectedPeriod === 'quarter' ? currentQuarter : undefined,
+                        region_id: selectedRegionId ? Number(selectedRegionId) : undefined,
+                        product_id: selectedProductId ? Number(selectedProductId) : undefined,
+                        med_rep_id: selectedMedRepId ? Number(selectedMedRepId) : undefined,
+                        product_manager_id: selectedPMId ? Number(selectedPMId) : undefined
+                    }}
+                />
+            )}
 
             {/* Sales Dynamics Chart */}
             {!statsLoading && stats?.trends && stats.trends.length > 0 && (
@@ -552,43 +635,3 @@ function FilterSelect({ label, icon: Icon, value, onChange, options }: any) {
     );
 }
 
-function KpiCard({ label, value, icon: Icon, color, badge }: any) {
-    const safeValue = Number(value) || 0;
-    const colors: any = {
-        blue: 'from-blue-600 to-blue-700 text-blue-600 bg-blue-50',
-        emerald: 'from-emerald-600 to-emerald-700 text-emerald-600 bg-emerald-50',
-        indigo: 'from-indigo-600 to-indigo-700 text-indigo-600 bg-indigo-50',
-        rose: 'from-rose-600 to-rose-700 text-rose-600 bg-rose-50',
-        amber: 'from-amber-600 to-amber-700 text-amber-600 bg-amber-50',
-        teal: 'from-teal-600 to-teal-700 text-teal-600 bg-teal-50',
-        cyan: 'from-cyan-600 to-cyan-700 text-cyan-600 bg-cyan-50',
-        pink: 'from-pink-600 to-pink-700 text-pink-600 bg-pink-50',
-        violet: 'from-violet-600 to-violet-700 text-violet-600 bg-violet-50'
-    };
-
-    const colorClasses = colors[color] || colors.blue;
-    const classParts = colorClasses.split(' ');
-
-    return (
-        <div className="bg-white p-7 rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 relative overflow-hidden group hover:shadow-2xl transition-all duration-500 scale-in-center">
-            <div className={`absolute top-0 right-0 w-32 h-32 ${classParts[2]} rounded-full -mr-16 -mt-16 blur-3xl opacity-40 group-hover:scale-150 transition-transform duration-700`} />
-            <div className="relative z-10 space-y-5">
-                <div className={`w-14 h-14 rounded-2xl ${classParts[2]} flex items-center justify-center border border-white/50 shadow-sm`}>
-                    <Icon className={`w-7 h-7 ${classParts[1]}`} />
-                </div>
-                <div>
-                    <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">{label}</h3>
-                    <div className="flex items-baseline gap-2 mt-2">
-                        <span className="text-3xl font-black text-slate-800 tracking-tighter">{safeValue.toLocaleString()}</span>
-                        <span className="text-[10px] font-bold text-slate-400">UZS</span>
-                    </div>
-                    {badge && (
-                        <div className="mt-4 inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-100">
-                            {badge}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
