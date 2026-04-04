@@ -341,19 +341,30 @@ async def get_comprehensive_stats(
     fact_sum = (await db.execute(fact_q)).scalar() or 0
 
     # Bonus Ledger (Earned, Paid, Advances)
-    bonus_q = select(BonusLedger.ledger_type, func.sum(BonusLedger.amount).label("total")).group_by(BonusLedger.ledger_type)
+    bonus_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes)
     if start_date and end_date: bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
     if rep_ids: bonus_q = bonus_q.where(BonusLedger.user_id.in_(rep_ids))
     if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
     if product_id: bonus_q = bonus_q.where(BonusLedger.product_id == product_id)
     
     bonus_res = (await db.execute(bonus_q)).all()
-    bonus_map = {r.ledger_type: float(r.total or 0) for r in bonus_res}
     
-    accrued_sum = bonus_map.get(LedgerType.ACCRUAL, 0)
-    paid_sum = bonus_map.get(LedgerType.PAYOUT, 0)
-    predinvest_sum = bonus_map.get(LedgerType.ADVANCE, 0)
-    allocated_sum = bonus_map.get(LedgerType.OFFSET, 0)
+    accrued_sum = 0.0
+    paid_sum = 0.0
+    predinvest_sum = 0.0
+    allocated_sum = 0.0
+
+    for r in bonus_res:
+        if r.ledger_type == LedgerType.ACCRUAL:
+            if r.notes == "Аванс (Предынвест)":
+                predinvest_sum += r.amount
+                paid_sum += r.amount
+            else:
+                accrued_sum += r.amount
+                if r.is_paid:
+                    paid_sum += r.amount
+        elif r.ledger_type == LedgerType.OFFSET:
+            allocated_sum += abs(r.amount)
 
     # Debt (Outstanding from Invoices)
     debt_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount).label("total")).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
@@ -673,13 +684,19 @@ async def get_comprehensive_drilldown(
     elif metric in ["bonus_accrued", "bonus_paid", "preinvest"]:
         from app.models.sales import Payment, Invoice, Reservation
         from sqlalchemy.orm import selectinload as sil
-        bt_map = {"bonus_accrued": LedgerType.ACCRUAL, "bonus_paid": LedgerType.PAYOUT, "preinvest": LedgerType.ADVANCE}
         bonus_q = select(BonusLedger).options(
             sil(BonusLedger.doctor),
             sil(BonusLedger.user),
             sil(BonusLedger.product),
             sil(BonusLedger.payment).sil(Payment.invoice).sil(Invoice.reservation)
-        ).where(BonusLedger.ledger_type == bt_map[metric])
+        )
+        
+        if metric == "bonus_accrued":
+            bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, or_(BonusLedger.notes != "Аванс (Предынвест)", BonusLedger.notes.is_(None))))
+        elif metric == "bonus_paid":
+            bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.is_paid == True))
+        elif metric == "preinvest":
+            bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.notes == "Аванс (Предынвест)"))
         if start_date and end_date: bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
         if rep_ids: bonus_q = bonus_q.where(BonusLedger.user_id.in_(rep_ids))
         if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
