@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Wallet, CheckCircle2, AlertCircle, Banknote, Search, ArrowRight } from "lucide-react";
 import axiosInstance from "@/api/axios";
+import { DrilldownModal } from "@/components/analytics/DrilldownModal";
 
 // TypeScript Interfaces
 interface BonusSummary {
@@ -70,6 +71,9 @@ export default function AdminBonusApprovalPage() {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedResDetails, setSelectedResDetails] = useState<any>(null);
     const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+    // Drilldown State
+    const [drilldownMetric, setDrilldownMetric] = useState<{ id: string, label: string } | null>(null);
 
     const handleInvoiceClick = async (reservationId: number) => {
         setIsDetailModalOpen(true);
@@ -189,32 +193,41 @@ export default function AdminBonusApprovalPage() {
 
             {/* Quick Stats - Sales */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <Card className="border-slate-200/60 shadow-sm bg-white overflow-hidden relative">
+                <Card 
+                    className="border-slate-200/60 shadow-sm bg-white overflow-hidden relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                    onClick={() => setDrilldownMetric({ id: 'realization', label: 'Всего реализация' })}
+                >
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-bold text-slate-500 uppercase tracking-wider">Всего реализация</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black text-slate-900">{totalRealization.toLocaleString('ru-RU')} UZS</div>
+                        <div className="text-2xl font-black text-slate-900">{(totalRealization || 0).toLocaleString('ru-RU')} UZS</div>
                         <p className="text-xs text-slate-500 mt-1 font-medium">Общая сумма продаж</p>
                     </CardContent>
                 </Card>
 
-                <Card className="border-slate-200/60 shadow-sm bg-blue-50 text-blue-900 overflow-hidden relative">
+                <Card 
+                    className="border-slate-200/60 shadow-sm bg-blue-50 text-blue-900 overflow-hidden relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                    onClick={() => setDrilldownMetric({ id: 'cash_in', label: 'Поступления' })}
+                >
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-bold text-blue-700 uppercase tracking-wider">Поступления</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black">{totalPostupleniya.toLocaleString('ru-RU')} UZS</div>
+                        <div className="text-2xl font-black">{(totalPostupleniya || 0).toLocaleString('ru-RU')} UZS</div>
                         <p className="text-xs text-blue-700/80 mt-1 font-medium">Фактические оплаты от клиентов</p>
                     </CardContent>
                 </Card>
 
-                <Card className="border-slate-200/60 shadow-sm bg-rose-50 text-rose-900 overflow-hidden relative">
+                <Card 
+                    className="border-slate-200/60 shadow-sm bg-rose-50 text-rose-900 overflow-hidden relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                    onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Дебиторка' })}
+                >
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-bold text-rose-700 uppercase tracking-wider">Дебиторка</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black">{totalDebitorka.toLocaleString('ru-RU')} UZS</div>
+                        <div className="text-2xl font-black">{(totalDebitorka || 0).toLocaleString('ru-RU')} UZS</div>
                         <p className="text-xs text-rose-700/80 mt-1 font-medium">Общий долг клиентов</p>
                     </CardContent>
                 </Card>
@@ -696,6 +709,20 @@ export default function AdminBonusApprovalPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {drilldownMetric && (
+                <DrilldownModal
+                    isOpen={!!drilldownMetric}
+                    onClose={() => setDrilldownMetric(null)}
+                    metric={drilldownMetric.id}
+                    metricLabel={drilldownMetric.label}
+                    filters={{
+                        month: month === "all" ? undefined : parseInt(month),
+                        year: year === "all" ? undefined : parseInt(year),
+                        product_id: productId === "all" ? undefined : parseInt(productId)
+                    }}
+                />
+            )}
         </PageContainer>
     );
 }
