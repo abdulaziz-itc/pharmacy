@@ -420,11 +420,11 @@ export default function ReportsPage() {
                     onClick={() => setDrilldownMetric({ id: 'bonus_accrued', label: 'Начислено бонуса' })} 
                 />
                 <PremiumKpiCard 
-                    label="Принято бонуса" 
+                    label="Всего выплачено (Бонус)" 
                     value={kpis.bonus_paid} 
                     icon={UserCheck} 
                     color="emerald" 
-                    onClick={() => setDrilldownMetric({ id: 'bonus_paid', label: 'Принято бонуса' })} 
+                    onClick={() => setDrilldownMetric({ id: 'bonus_paid', label: 'Всего выплачено (Бонус)' })} 
                 />
                 <PremiumKpiCard label="Остаток бонуса" value={Number(kpis.bonus_accrued) - Number(kpis.bonus_paid)} icon={Wallet} color="blue" />
                 <PremiumKpiCard 
