@@ -19,12 +19,26 @@ interface BonusSummary {
     remainder: number;
     allocated: number;
     predinvest: number;
+    realization: number;
+    postupleniya: number;
+    debitorka: number;
+    has_overdue_bonus: boolean;
 }
 
 export default function AdminBonusApprovalPage() {
     const [summaries, setSummaries] = useState<BonusSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+
+    // Filters
+    const [month, setMonth] = useState<string>("all");
+    const [year, setYear] = useState<string>("all");
+    const [productId, setProductId] = useState<string>("all");
+    const [products, setProducts] = useState<any[]>([]);
+
+    useEffect(() => {
+        axiosInstance.get('/products/').then(res => setProducts(res.data)).catch(console.error);
+    }, []);
 
     // Pay Modal State
     const [isPayModalOpen, setIsPayModalOpen] = useState(false);
@@ -95,7 +109,12 @@ export default function AdminBonusApprovalPage() {
     const fetchSummaries = async () => {
         setIsLoading(true);
         try {
-            const response = await axiosInstance.get('/sales/admin/bonuses/summary');
+            const params = new URLSearchParams();
+            if (month !== "all") params.append("month", month);
+            if (year !== "all") params.append("year", year);
+            if (productId !== "all") params.append("product_id", productId);
+            
+            const response = await axiosInstance.get(`/sales/admin/bonuses/summary?${params.toString()}`);
             setSummaries(response.data);
         } catch (error) {
             console.error("Failed to fetch bonus summaries:", error);
@@ -107,7 +126,7 @@ export default function AdminBonusApprovalPage() {
 
     useEffect(() => {
         fetchSummaries();
-    }, []);
+    }, [month, year, productId]);
 
     const handleOpenPayModal = (rep: BonusSummary) => {
         setSelectedRep(rep);
@@ -206,6 +225,59 @@ export default function AdminBonusApprovalPage() {
                 </Card>
             </div>
 
+            {/* Filters */}
+            <Card className="border-slate-200/60 shadow-sm mb-6 p-4 flex flex-wrap gap-4 items-end bg-white">
+                <div className="space-y-1.5 w-full sm:w-auto min-w-[150px]">
+                    <Label className="text-xs font-bold text-slate-500 uppercase">Год</Label>
+                    <select
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2.5 outline-none focus:border-blue-500 transition-colors font-semibold"
+                        value={year}
+                        onChange={e => setYear(e.target.value)}
+                    >
+                        <option value="all">За всё время</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                        <option value="2027">2027</option>
+                    </select>
+                </div>
+                <div className="space-y-1.5 w-full sm:w-auto min-w-[150px]">
+                    <Label className="text-xs font-bold text-slate-500 uppercase">Месяц</Label>
+                    <select
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2.5 outline-none focus:border-blue-500 transition-colors font-semibold"
+                        value={month}
+                        onChange={e => setMonth(e.target.value)}
+                    >
+                        <option value="all">Все месяцы</option>
+                        <option value="1">Январь</option>
+                        <option value="2">Февраль</option>
+                        <option value="3">Март</option>
+                        <option value="4">Апрель</option>
+                        <option value="5">Май</option>
+                        <option value="6">Июнь</option>
+                        <option value="7">Июль</option>
+                        <option value="8">Август</option>
+                        <option value="9">Сентябрь</option>
+                        <option value="10">Октябрь</option>
+                        <option value="11">Ноябрь</option>
+                        <option value="12">Декабрь</option>
+                    </select>
+                </div>
+                <div className="space-y-1.5 w-full sm:w-auto min-w-[200px] flex-1">
+                    <Label className="text-xs font-bold text-slate-500 uppercase">Продукт</Label>
+                    <select
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2.5 outline-none focus:border-blue-500 transition-colors font-semibold"
+                        value={productId}
+                        onChange={e => setProductId(e.target.value)}
+                    >
+                        <option value="all">Все продукты</option>
+                        {products.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                    </select>
+                </div>
+            </Card>
+
             {/* Main Table */}
             <Card className="border-slate-200/60 shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -224,25 +296,28 @@ export default function AdminBonusApprovalPage() {
                     <Table>
                         <TableHeader className="bg-slate-50/80 border-b border-slate-100">
                             <TableRow className="hover:bg-transparent">
-                                <TableHead className="font-semibold text-slate-700 h-11">Медпредставитель</TableHead>
-                                <TableHead className="font-semibold text-slate-700 text-right h-11">Начислено (Факт)</TableHead>
-                                <TableHead className="font-semibold text-slate-700 text-right h-11">Аванс</TableHead>
-                                <TableHead className="font-semibold text-slate-700 text-right h-11">Выплачено</TableHead>
-                                <TableHead className="font-semibold text-slate-700 text-right h-11">Остаток</TableHead>
-                                <TableHead className="font-semibold text-slate-700 text-right h-11">Распределено врачам</TableHead>
+                                <TableHead className="font-semibold text-slate-700 h-11 whitespace-nowrap">Медпредставитель</TableHead>
+                                <TableHead className="font-semibold text-slate-700 text-right h-11 whitespace-nowrap">Реализация</TableHead>
+                                <TableHead className="font-semibold text-slate-700 text-right h-11 whitespace-nowrap">Поступления</TableHead>
+                                <TableHead className="font-semibold text-slate-700 text-right h-11 whitespace-nowrap">Дебиторка</TableHead>
+                                <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Начислено (Факт)</TableHead>
+                                <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Аванс</TableHead>
+                                <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Выплачено</TableHead>
+                                <TableHead className="font-semibold text-slate-700 text-right h-11 whitespace-nowrap">Остаток</TableHead>
+                                <TableHead className="font-semibold text-slate-700 text-right h-11 whitespace-nowrap">Распределено врачам</TableHead>
                                 <TableHead className="w-[120px] text-center h-11"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                                    <TableCell colSpan={10} className="h-32 text-center text-slate-500">
                                         Загрузка данных...
                                     </TableCell>
                                 </TableRow>
                             ) : filteredSummaries.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                                    <TableCell colSpan={10} className="h-32 text-center text-slate-500">
                                         Нет данных для отображения
                                     </TableCell>
                                 </TableRow>
@@ -250,7 +325,7 @@ export default function AdminBonusApprovalPage() {
                                 filteredSummaries.map((rep) => (
                                     <React.Fragment key={rep.med_rep_id}>
                                         <TableRow
-                                            className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                                            className={`transition-colors group cursor-pointer ${rep.has_overdue_bonus ? 'bg-rose-50/80 hover:bg-rose-100/80' : 'hover:bg-slate-50/80'}`}
                                             onClick={() => handleRowClick(rep.med_rep_id)}
                                         >
                                             <TableCell className="font-bold text-slate-900">
@@ -261,13 +336,22 @@ export default function AdminBonusApprovalPage() {
                                                     {rep.med_rep_name}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-right font-medium text-slate-600">
+                                            <TableCell className="text-right font-medium text-slate-600 whitespace-nowrap">
+                                                {rep.realization.toLocaleString('ru-RU')} UZS
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium text-emerald-600 whitespace-nowrap">
+                                                {rep.postupleniya.toLocaleString('ru-RU')} UZS
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium text-rose-600 whitespace-nowrap">
+                                                {rep.debitorka.toLocaleString('ru-RU')} UZS
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium text-slate-600 bg-slate-50/30 whitespace-nowrap">
                                                 {rep.accrued.toLocaleString('ru-RU')} UZS
                                             </TableCell>
-                                            <TableCell className="text-right font-medium text-amber-600">
+                                            <TableCell className="text-right font-medium text-amber-600 bg-slate-50/30 whitespace-nowrap">
                                                 {rep.predinvest.toLocaleString('ru-RU')} UZS
                                             </TableCell>
-                                            <TableCell className="text-right font-medium text-emerald-600">
+                                            <TableCell className="text-right font-medium text-emerald-600 bg-slate-50/30 whitespace-nowrap">
                                                 {rep.paid.toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right">
@@ -297,8 +381,8 @@ export default function AdminBonusApprovalPage() {
                                             </TableCell>
                                         </TableRow>
                                         {expandedRepId === rep.med_rep_id && (
-                                            <TableRow className="bg-slate-50">
-                                                <TableCell colSpan={7} className="p-0">
+                                            <TableRow className={rep.has_overdue_bonus ? 'bg-rose-50/30' : 'bg-slate-50'}>
+                                                <TableCell colSpan={10} className="p-0">
                                                     <div className="p-4 border-b border-t border-slate-100">
                                                         <h4 className="font-bold text-slate-700 mb-3 ml-2 flex items-center gap-2">
                                                             <Banknote className="w-4 h-4 text-slate-400" />
