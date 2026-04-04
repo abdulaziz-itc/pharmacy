@@ -1000,6 +1000,10 @@ class BonusSummary(BaseModel):
     remainder: float # Остаток к выплате
     allocated: float # Распределено врачам
     predinvest: float # Аванс (Предынвест)
+    realization: float = 0.0
+    postupleniya: float = 0.0
+    debitorka: float = 0.0
+    has_overdue_bonus: bool = False
 
 class BonusPayRequest(BaseModel):
     med_rep_id: int
@@ -1007,6 +1011,9 @@ class BonusPayRequest(BaseModel):
 
 @router.get("/admin/bonuses/summary", response_model=List[BonusSummary])
 async def get_admin_bonus_summary(
+    month: int = None,
+    year: int = None,
+    product_id: int = None,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
@@ -1020,14 +1027,85 @@ async def get_admin_bonus_summary(
 
     from app.models.user import User
     from app.models.ledger import BonusLedger, LedgerType
+    from app.models.sales import Invoice, Payment, Reservation, ReservationItem, InvoiceStatus
+    from datetime import datetime, timedelta
+    from sqlalchemy import func, and_, or_
     
     # Get all medreps
     medreps_result = await db.execute(select(User).where(User.role == UserRole.MED_REP, User.is_active == True))
     medreps = medreps_result.scalars().all()
+    rep_ids = [r.id for r in medreps]
+    
+    start_date = None
+    end_date = None
+    if month and year:
+        start_date = datetime(year, month, 1)
+        end_date = (datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1))
+    elif year:
+        start_date = datetime(year, 1, 1)
+        end_date = datetime(year + 1, 1, 1)
+        
+    realization_map = {}
+    postupleniya_map = {}
+    debitorka_map = {}
+    
+    if rep_ids:
+        # REALIZATION
+        real_q = select(
+            Reservation.created_by_id, 
+            func.sum(ReservationItem.quantity * ReservationItem.price).label("amount")
+        ).select_from(Invoice)\
+         .join(Reservation, Invoice.reservation_id == Reservation.id)\
+         .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+         .where(Invoice.status != InvoiceStatus.CANCELLED, Reservation.created_by_id.in_(rep_ids))
+         
+        if start_date and end_date: real_q = real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        if product_id: real_q = real_q.where(ReservationItem.product_id == product_id)
+        
+        real_res = await db.execute(real_q.group_by(Reservation.created_by_id))
+        for row in real_res: realization_map[row.created_by_id] = float(row.amount or 0)
+            
+        # POSTUPLENIYA
+        pay_q = select(
+            Reservation.created_by_id,
+            func.sum(Payment.amount * (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount)).label("amount")
+        ).select_from(Payment)\
+         .join(Invoice, Payment.invoice_id == Invoice.id)\
+         .join(Reservation, Invoice.reservation_id == Reservation.id)\
+         .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+         .where(and_(Reservation.created_by_id.in_(rep_ids), Invoice.total_amount > 0))
+         
+        if start_date and end_date: pay_q = pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+        if product_id: pay_q = pay_q.where(ReservationItem.product_id == product_id)
+        
+        pay_res = await db.execute(pay_q.group_by(Reservation.created_by_id))
+        for row in pay_res: postupleniya_map[row.created_by_id] = float(row.amount or 0)
+            
+        # DEBITORKA
+        debt_q = select(
+            Reservation.created_by_id,
+            func.sum(
+                (ReservationItem.quantity * ReservationItem.price) -
+                (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount * Invoice.paid_amount)
+            ).label("amount")
+        ).select_from(Invoice)\
+         .join(Reservation, Invoice.reservation_id == Reservation.id)\
+         .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+         .where(and_(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]), Reservation.created_by_id.in_(rep_ids), Invoice.total_amount > 0))
+         
+        if start_date and end_date: debt_q = debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        if product_id: debt_q = debt_q.where(ReservationItem.product_id == product_id)
+        
+        debt_res = await db.execute(debt_q.group_by(Reservation.created_by_id))
+        for row in debt_res: debitorka_map[row.created_by_id] = float(row.amount or 0)
     
     summaries = []
     for rep in medreps:
-        ledger_res = await db.execute(select(BonusLedger).where(BonusLedger.user_id == rep.id))
+        q = select(BonusLedger).where(BonusLedger.user_id == rep.id)
+        if start_date and end_date: q = q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+        if product_id: q = q.where(BonusLedger.product_id == product_id)
+        
+        ledger_res = await db.execute(q)
         entries = ledger_res.scalars().all()
         
         accrued = 0.0
@@ -1048,7 +1126,18 @@ async def get_admin_bonus_summary(
                 allocated += abs(e.amount)
                 
         remainder = max(0.0, accrued - paid)
-        # Note: 'paid' here includes both predinvest payments and normal accrued payments.
+        
+        overdue_q = select(BonusLedger.id).where(
+            and_(
+                BonusLedger.user_id == rep.id,
+                BonusLedger.ledger_type == LedgerType.ACCRUAL,
+                BonusLedger.is_paid == False,
+                or_(BonusLedger.notes != "Аванс (Предынвест)", BonusLedger.notes.is_(None)),
+                BonusLedger.created_at < datetime.utcnow() - timedelta(days=15)
+            )
+        ).limit(1)
+        overdue_res = await db.execute(overdue_q)
+        has_overdue = overdue_res.scalar_one_or_none() is not None
         
         summaries.append(BonusSummary(
             med_rep_id=rep.id,
@@ -1057,7 +1146,11 @@ async def get_admin_bonus_summary(
             paid=paid,
             remainder=remainder,
             allocated=allocated,
-            predinvest=predinvest
+            predinvest=predinvest,
+            realization=realization_map.get(rep.id, 0.0),
+            postupleniya=postupleniya_map.get(rep.id, 0.0),
+            debitorka=debitorka_map.get(rep.id, 0.0),
+            has_overdue_bonus=has_overdue
         ))
         
     return summaries
