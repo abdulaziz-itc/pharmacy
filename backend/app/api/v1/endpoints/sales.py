@@ -1005,11 +1005,20 @@ class BonusSummary(BaseModel):
     debitorka: float = 0.0
     has_overdue_bonus: bool = False
 
+class GlobalStats(BaseModel):
+    realization: float = 0.0
+    postupleniya: float = 0.0
+    debitorka: float = 0.0
+
+class AdminBonusSummaryResponse(BaseModel):
+    summaries: List[BonusSummary]
+    global_stats: GlobalStats
+
 class BonusPayRequest(BaseModel):
     med_rep_id: int
     amount_to_pay: float # How much of the remainder to pay now
 
-@router.get("/admin/bonuses/summary", response_model=List[BonusSummary])
+@router.get("/admin/bonuses/summary", response_model=AdminBonusSummaryResponse)
 async def get_admin_bonus_summary(
     month: int = None,
     year: int = None,
@@ -1105,7 +1114,39 @@ async def get_admin_bonus_summary(
             if start_date and end_date: debt_q = debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
             if product_id: debt_q = debt_q.where(ReservationItem.product_id == product_id)
             debitorka_map[rep.id] = float((await db.execute(debt_q)).scalar() or 0.0)
-    
+
+    # GLOBAL AGGREGATES (Independent of MedReps)
+    # Realization
+    g_real_q = select(func.coalesce(func.sum(ReservationItem.quantity * ReservationItem.price), 0.0)).select_from(Invoice)\
+        .join(Reservation, Invoice.reservation_id == Reservation.id)\
+        .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+        .where(Invoice.status != InvoiceStatus.CANCELLED)
+    if start_date and end_date: g_real_q = g_real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    if product_id: g_real_q = g_real_q.where(ReservationItem.product_id == product_id)
+    global_realization = float((await db.execute(g_real_q)).scalar() or 0.0)
+
+    # Postupleniya
+    g_pay_q = select(func.coalesce(func.sum(Payment.amount * (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount)), 0.0)).select_from(Payment)\
+        .join(Invoice, Payment.invoice_id == Invoice.id)\
+        .join(Reservation, Invoice.reservation_id == Reservation.id)\
+        .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+        .where(Invoice.total_amount > 0)
+    if start_date and end_date: g_pay_q = g_pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+    if product_id: g_pay_q = g_pay_q.where(ReservationItem.product_id == product_id)
+    global_postupleniya = float((await db.execute(g_pay_q)).scalar() or 0.0)
+
+    # Debitorka
+    g_debt_q = select(func.coalesce(func.sum(
+        (ReservationItem.quantity * ReservationItem.price) -
+        (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount * Invoice.paid_amount)
+    ), 0.0)).select_from(Invoice)\
+        .join(Reservation, Invoice.reservation_id == Reservation.id)\
+        .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+        .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]), Invoice.total_amount > 0)
+    if start_date and end_date: g_debt_q = g_debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    if product_id: g_debt_q = g_debt_q.where(ReservationItem.product_id == product_id)
+    global_debitorka = float((await db.execute(g_debt_q)).scalar() or 0.0)
+
     summaries = []
     for rep in medreps:
         q = select(BonusLedger).where(BonusLedger.user_id == rep.id)
@@ -1160,7 +1201,14 @@ async def get_admin_bonus_summary(
             has_overdue_bonus=has_overdue
         ))
         
-    return summaries
+    return AdminBonusSummaryResponse(
+        summaries=summaries,
+        global_stats=GlobalStats(
+            realization=global_realization,
+            postupleniya=global_postupleniya,
+            debitorka=global_debitorka
+        )
+    )
 
 @router.post("/admin/bonuses/pay")
 async def pay_medrep_bonus(
