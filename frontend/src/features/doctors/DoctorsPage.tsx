@@ -51,7 +51,7 @@ export default function DoctorsPage() {
         try {
             setIsSubmitting(true);
             const api = (await import('../../api/axios')).default;
-            await api.put(`/doctors/${doctor.id}`, {
+            await api.put(`/crm/doctors/${doctor.id}`, {
                 is_active: doctor.is_active === false ? true : false
             });
             await fetchDoctors(selectedMonth, selectedYear);
