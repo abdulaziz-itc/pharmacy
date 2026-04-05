@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
@@ -1116,36 +1116,51 @@ async def get_admin_bonus_summary(
             debitorka_map[rep.id] = float((await db.execute(debt_q)).scalar() or 0.0)
 
     # GLOBAL AGGREGATES (Independent of MedReps)
-    # Realization
-    g_real_q = select(func.coalesce(func.sum(ReservationItem.quantity * ReservationItem.price), 0.0)).select_from(Invoice)\
-        .join(Reservation, Invoice.reservation_id == Reservation.id)\
-        .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
-        .where(Invoice.status != InvoiceStatus.CANCELLED)
-    if start_date and end_date: g_real_q = g_real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-    if product_id: g_real_q = g_real_q.where(ReservationItem.product_id == product_id)
-    global_realization = float((await db.execute(g_real_q)).scalar() or 0.0)
+    if not product_id:
+        # Realization
+        g_real_q = select(func.coalesce(func.sum(Invoice.total_amount), 0.0)).where(Invoice.status != InvoiceStatus.CANCELLED)
+        if start_date and end_date: g_real_q = g_real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        global_realization = float((await db.execute(g_real_q)).scalar() or 0.0)
 
-    # Postupleniya
-    g_pay_q = select(func.coalesce(func.sum(Payment.amount * (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount)), 0.0)).select_from(Payment)\
-        .join(Invoice, Payment.invoice_id == Invoice.id)\
-        .join(Reservation, Invoice.reservation_id == Reservation.id)\
-        .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
-        .where(Invoice.total_amount > 0)
-    if start_date and end_date: g_pay_q = g_pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
-    if product_id: g_pay_q = g_pay_q.where(ReservationItem.product_id == product_id)
-    global_postupleniya = float((await db.execute(g_pay_q)).scalar() or 0.0)
+        # Postupleniya
+        g_pay_q = select(func.coalesce(func.sum(Invoice.paid_amount), 0.0)).where(Invoice.status != InvoiceStatus.CANCELLED)
+        if start_date and end_date: g_pay_q = g_pay_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        global_postupleniya = float((await db.execute(g_pay_q)).scalar() or 0.0)
 
-    # Debitorka
-    g_debt_q = select(func.coalesce(func.sum(
-        (ReservationItem.quantity * ReservationItem.price) -
-        (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount * Invoice.paid_amount)
-    ), 0.0)).select_from(Invoice)\
-        .join(Reservation, Invoice.reservation_id == Reservation.id)\
-        .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
-        .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]), Invoice.total_amount > 0)
-    if start_date and end_date: g_debt_q = g_debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-    if product_id: g_debt_q = g_debt_q.where(ReservationItem.product_id == product_id)
-    global_debitorka = float((await db.execute(g_debt_q)).scalar() or 0.0)
+        # Debitorka
+        g_debt_q = select(func.coalesce(func.sum(Invoice.total_amount - Invoice.paid_amount), 0.0)).where(
+            Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED])
+        )
+        if start_date and end_date: g_debt_q = g_debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        global_debitorka = float((await db.execute(g_debt_q)).scalar() or 0.0)
+    else:
+        # Realization (Product Specific)
+        g_real_q = select(func.coalesce(func.sum(ReservationItem.quantity * ReservationItem.price), 0.0)).select_from(Invoice)\
+            .join(Reservation, Invoice.reservation_id == Reservation.id)\
+            .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+            .where(Invoice.status != InvoiceStatus.CANCELLED, ReservationItem.product_id == product_id)
+        if start_date and end_date: g_real_q = g_real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        global_realization = float((await db.execute(g_real_q)).scalar() or 0.0)
+
+        # Postupleniya (Product Specific)
+        g_pay_q = select(func.coalesce(func.sum(Payment.amount * (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount)), 0.0)).select_from(Payment)\
+            .join(Invoice, Payment.invoice_id == Invoice.id)\
+            .join(Reservation, Invoice.reservation_id == Reservation.id)\
+            .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+            .where(Invoice.total_amount > 0, ReservationItem.product_id == product_id)
+        if start_date and end_date: g_pay_q = g_pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+        global_postupleniya = float((await db.execute(g_pay_q)).scalar() or 0.0)
+
+        # Debitorka (Product Specific)
+        g_debt_q = select(func.coalesce(func.sum(
+            (ReservationItem.quantity * ReservationItem.price) -
+            (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount * Invoice.paid_amount)
+        ), 0.0)).select_from(Invoice)\
+            .join(Reservation, Invoice.reservation_id == Reservation.id)\
+            .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+            .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]), Invoice.total_amount > 0, ReservationItem.product_id == product_id)
+        if start_date and end_date: g_debt_q = g_debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        global_debitorka = float((await db.execute(g_debt_q)).scalar() or 0.0)
 
     summaries = []
     for rep in medreps:
