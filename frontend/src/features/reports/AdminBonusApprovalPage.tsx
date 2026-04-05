@@ -26,6 +26,12 @@ interface BonusSummary {
     has_overdue_bonus: boolean;
 }
 
+interface GlobalStats {
+    realization: number;
+    postupleniya: number;
+    debitorka: number;
+}
+
 export default function AdminBonusApprovalPage() {
     const [summaries, setSummaries] = useState<BonusSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -40,6 +46,12 @@ export default function AdminBonusApprovalPage() {
     useEffect(() => {
         axiosInstance.get('/products/').then(res => setProducts(res.data)).catch(console.error);
     }, []);
+
+    const [globalStats, setGlobalStats] = useState<GlobalStats>({
+        realization: 0,
+        postupleniya: 0,
+        debitorka: 0
+    });
 
     // Pay Modal State
     const [isPayModalOpen, setIsPayModalOpen] = useState(false);
@@ -119,7 +131,8 @@ export default function AdminBonusApprovalPage() {
             if (productId !== "all") params.append("product_id", productId);
             
             const response = await axiosInstance.get(`/sales/admin/bonuses/summary?${params.toString()}`);
-            setSummaries(response.data);
+            setSummaries(response.data.summaries || []);
+            setGlobalStats(response.data.global_stats || { realization: 0, postupleniya: 0, debitorka: 0 });
         } catch (error) {
             console.error("Failed to fetch bonus summaries:", error);
             toast.error("Не удалось загрузить данные по бонусам");
@@ -173,9 +186,9 @@ export default function AdminBonusApprovalPage() {
     const totalPaid = summaries.reduce((sum, s) => sum + (s.paid || 0), 0);
     const totalRemainder = summaries.reduce((sum, s) => sum + (s.remainder || 0), 0);
 
-    const totalRealization = summaries.reduce((sum, s) => sum + (s.realization || 0), 0);
-    const totalPostupleniya = summaries.reduce((sum, s) => sum + (s.postupleniya || 0), 0);
-    const totalDebitorka = summaries.reduce((sum, s) => sum + (s.debitorka || 0), 0);
+    const totalRealization = globalStats.realization;
+    const totalPostupleniya = globalStats.postupleniya;
+    const totalDebitorka = globalStats.debitorka;
 
     return (
         <PageContainer>
