@@ -380,10 +380,22 @@ async def get_comprehensive_stats(
     # To be more precise, we join all items.
     from app.models.product import Product
     
-    # Sales Realized Gross Profit (Actually Paid portion of profit)
+    # Sales Realized Gross Profit (Revenue - COGS)
     gross_profit_sum_q = select(
         func.coalesce(func.sum(
-            (ReservationItem.price - func.coalesce(Product.production_price, 0) - func.coalesce(ReservationItem.salary_amount, 0) - func.coalesce(ReservationItem.marketing_amount, 0)) * 
+            (ReservationItem.price - func.coalesce(Product.production_price, 0)) * 
+            ReservationItem.quantity * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
+        ), 0.0)
+    ).select_from(ReservationItem)\
+     .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+     .join(Invoice, Invoice.reservation_id == Reservation.id)\
+     .join(Product, ReservationItem.product_id == Product.id)\
+     .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
+
+    # Sales Realized Operational Costs (Bonuses + Marketing)
+    ops_costs_sum_q = select(
+        func.coalesce(func.sum(
+            (func.coalesce(ReservationItem.salary_amount, 0) + func.coalesce(ReservationItem.marketing_amount, 0)) * 
             ReservationItem.quantity * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
         ), 0.0)
     ).select_from(ReservationItem)\
@@ -404,10 +416,18 @@ async def get_comprehensive_stats(
         )
     if region_id:
         gross_profit_sum_q = gross_profit_sum_q.where(MedicalOrganization.region_id == region_id)
+        ops_costs_sum_q = ops_costs_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
     if product_id:
         gross_profit_sum_q = gross_profit_sum_q.where(ReservationItem.product_id == product_id)
+        ops_costs_sum_q = ops_costs_sum_q.where(ReservationItem.product_id == product_id)
     
+    # 2b. Add rep/team/region filters to ops_costs too
+    if rep_ids:
+        ops_costs_sum_q = ops_costs_sum_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids)))) if not region_id else ops_costs_sum_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
+    
+    # 2c. Execute profit and ops costs
     gross_profit_sum = (await db.execute(gross_profit_sum_q)).scalar() or 0.0
+    ops_costs_sum = (await db.execute(ops_costs_sum_q)).scalar() or 0.0
 
     # Sales Potential Gross Profit (Expected based on Invoices total)
     potential_profit_sum_q = select(
@@ -438,10 +458,12 @@ async def get_comprehensive_stats(
         
     potential_profit_sum = (await db.execute(potential_profit_sum_q)).scalar() or 0.0
 
-    # Total Expenses (Prochie Rasxodi)
+    # Total Expenses (Prochie Rasxodi + Bonuses + Marketing)
     from app.services.expense_service import ExpenseService
-    total_expenses = await ExpenseService.get_total_expenses(db, start_date, end_date)
+    other_expenses = await ExpenseService.get_total_expenses(db, start_date, end_date)
+    total_expenses = other_expenses + float(ops_costs_sum)
 
+    # net_profit = gross_profit_sum - other_expenses - bonuses - marketing
     net_profit = gross_profit_sum - total_expenses
 
     # 4. PRODUCT STATS (Safe Split Logic)
@@ -762,20 +784,21 @@ async def get_comprehensive_drilldown(
             paid_ratio = (r.reservation.invoice.paid_amount or 0) / r.reservation.invoice.total_amount if r.reservation and r.reservation.invoice and r.reservation.invoice.total_amount > 0 else 0
             sale_price = r.price
             prod_price = r.product.production_price or 0
-            salary = r.salary_amount or 0
-            marketing = r.marketing_amount or 0
-            unit_profit = sale_price - prod_price - salary - marketing
+            # Gross profit on drilldown now only subtract COGS (production price)
+            # operational expenses (bonuses/salary/marketing) are moved to the expenses category
+            unit_profit = sale_price - prod_price
             total_profit_realized = (unit_profit * r.quantity) * paid_ratio
-            if total_profit_realized > 0:
-                res_payload.append({
-                    "id": r.id,
-                    "invoice_num": r.reservation.invoice.factura_number if r.reservation and r.reservation.invoice else "-",
-                    "date": r.reservation.invoice.date.isoformat() if r.reservation and r.reservation.invoice else "-",
-                    "product": r.product.name if r.product else "-",
-                    "qty": r.quantity,
-                    "paid_ratio": round(paid_ratio * 100, 1),
-                    "profit": float(total_profit_realized)
-                })
+            
+            # Show all records, even if zero or negative, to prevent "No data" confusion
+            res_payload.append({
+                "id": r.id,
+                "invoice_num": r.reservation.invoice.factura_number if r.reservation and r.reservation.invoice else "-",
+                "date": r.reservation.invoice.date.isoformat() if r.reservation and r.reservation.invoice else "-",
+                "product": r.product.name if r.product else "-",
+                "qty": r.quantity,
+                "paid_ratio": round(paid_ratio * 100, 1),
+                "profit": float(total_profit_realized)
+            })
         return res_payload
 
     return []
