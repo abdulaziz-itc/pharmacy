@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { getWarehouses } from '@/api/orders-management';
 import { useProductStore } from '@/store/productStore';
 import axiosInstance from '@/api/axios';
+import { SearchableProductSelect } from '../../components/SearchableProductSelect';
 
 interface CreateReservationModalProps {
     isOpen: boolean;
@@ -513,27 +514,13 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                 {items.map((it, idx) => (
                                     <div key={idx} className="flex gap-2 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                                         <div className="flex-1">
-                                            <Select value={it.product_id} onValueChange={v => updateItem(idx, 'product_id', v)}>
-                                                <SelectTrigger className="h-8 text-xs border-slate-200 bg-white">
-                                                    <SelectValue placeholder="Выберите препарат..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {availableProducts.length === 0 ? (
-                                                        <div className="p-4 text-center text-slate-400 text-sm italic">
-                                                            Выберите склад для отображения товаров
-                                                        </div>
-                                                    ) : availableProducts.map((p: any) => (
-                                                        <SelectItem key={p.id} value={p.id.toString()}>
-                                                            <span className="flex items-center gap-2">
-                                                                {p.name}
-                                                                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${(stockMap[p.id] || 0) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-500'}`}>
-                                                                    {stockMap[p.id] || 0} шт
-                                                                </span>
-                                                            </span>
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <SearchableProductSelect
+                                                products={availableProducts}
+                                                selectedId={it.product_id}
+                                                onSelect={v => updateItem(idx, 'product_id', v)}
+                                                stockMap={stockMap}
+                                                className="h-8 text-xs border-slate-200 bg-white"
+                                            />
                                             {it.product_id && (
                                                 <p className={`text-xs mt-1 pl-1 font-medium ${(stockMap[parseInt(it.product_id)] || 0) > 0
                                                     ? 'text-emerald-600'

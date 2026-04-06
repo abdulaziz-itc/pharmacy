@@ -11,6 +11,7 @@ import { CalendarClock, Plus, Trash2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import api from "../../api/axios";
 import { useAuthStore } from "../../store/authStore";
+import { SearchableProductSelect } from "../../components/SearchableProductSelect";
 
 interface ReservationModalProps {
     isOpen: boolean;
@@ -273,18 +274,16 @@ export function ReservationModal({ isOpen, onClose, onSuccess }: ReservationModa
                         <div className="space-y-2">
                             {form.items.map((item, index) => (
                                 <div key={index} className="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                    <select
-                                        value={item.product_id}
-                                        onChange={(e) => updateItem(index, 'product_id', Number(e.target.value))}
+                                    <SearchableProductSelect
+                                        products={availableProducts}
+                                        selectedId={item.product_id.toString()}
+                                        onSelect={(v) => updateItem(index, 'product_id', Number(v))}
+                                        stockMap={availableProducts.reduce((acc: any, p: any) => {
+                                            acc[p.id] = p.central_stock || 0;
+                                            return acc;
+                                        }, {})}
                                         className="flex-1 h-10 px-3 rounded-lg border border-slate-200 bg-white font-medium text-sm outline-none"
-                                    >
-                                        <option value={0}>Выберите препарат...</option>
-                                        {availableProducts.map(p => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.name} — {(p.price || 0).toLocaleString()} UZS (Остаток: {p.central_stock || 0})
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
                                     <Input
                                         type="number"
                                         min={1}

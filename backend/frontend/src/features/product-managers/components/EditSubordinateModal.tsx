@@ -1,0 +1,179 @@
+import React, { useEffect } from 'react';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "../../../components/ui/dialog";
+import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
+import { updateUser } from '../../../api/user';
+import { type SubordinateUser } from '../subordinateColumns';
+import { useRegionStore } from '../../../store/regionStore';
+import { toast } from 'sonner';
+
+interface EditSubordinateModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSuccess: () => void;
+    user: SubordinateUser | null;
+}
+
+export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditSubordinateModalProps) {
+    const { regions, fetchRegions } = useRegionStore();
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [formData, setFormData] = React.useState({
+        full_name: '',
+        username: '',
+        password: '',
+        region_ids: [] as number[],
+    });
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchRegions();
+        }
+    }, [isOpen, fetchRegions]);
+
+    useEffect(() => {
+        if (user && isOpen) {
+            setFormData({
+                full_name: user.full_name || '',
+                username: user.username || '',
+                password: '', // default empty, only send if user types something
+                region_ids: user.region_ids || [],
+            });
+        }
+    }, [user, isOpen]);
+
+    const handleRegionToggle = (regionId: number) => {
+        setFormData(prev => ({
+            ...prev,
+            region_ids: prev.region_ids.includes(regionId)
+                ? prev.region_ids.filter(id => id !== regionId)
+                : [...prev.region_ids, regionId]
+        }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user) return;
+
+        setIsLoading(true);
+        try {
+            const updatePayload: any = {
+                full_name: formData.full_name,
+                username: formData.username,
+                region_ids: formData.region_ids,
+            };
+
+            if (formData.password) {
+                updatePayload.password = formData.password;
+            }
+
+            await updateUser(user.id, updatePayload);
+            toast.success('Данные успешно сохранены!');
+            onSuccess();
+            onClose();
+        } catch (error: any) {
+            console.error('Failed to update user:', error);
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error('Произошла ошибка при сохранении данных');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (!user) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
+                <DialogHeader className="bg-blue-600 p-8 text-white relative">
+                    <DialogTitle className="text-2xl font-bold text-center tracking-tight">
+                        Редактировать
+                    </DialogTitle>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="p-8 space-y-6 bg-white max-h-[80vh] overflow-y-auto">
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="full_name" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Полное имя
+                            </Label>
+                            <Input
+                                id="full_name"
+                                placeholder="Полное имя"
+                                className="h-12 rounded-xl border-slate-200 focus:border-blue-500 transition-all font-medium"
+                                value={formData.full_name}
+                                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                                required
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="username" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Имя пользователя
+                            </Label>
+                            <Input
+                                id="username"
+                                placeholder="Имя пользователя"
+                                className="h-12 rounded-xl border-slate-200 focus:border-blue-500 transition-all font-medium"
+                                value={formData.username}
+                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                required
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Новый пароль (оставьте пустым для сохранения старого)
+                            </Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                placeholder="Новый пароль"
+                                className="h-12 rounded-xl border-slate-200 focus:border-blue-500 transition-all font-medium"
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Регионы
+                            </Label>
+                            <div className="grid grid-cols-2 gap-2 p-3 border border-slate-200 rounded-xl bg-slate-50/50">
+                                {regions.map(r => (
+                                    <label key={r.id} className="flex items-center space-x-2 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                                            checked={formData.region_ids.includes(r.id)}
+                                            onChange={() => handleRegionToggle(r.id)}
+                                        />
+                                        <span className="text-sm font-medium text-slate-600 group-hover:text-blue-600 transition-colors">
+                                            {r.name}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <Button
+                        type="submit"
+                        className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
+                        disabled={isLoading}
+                    >
+                        {isLoading ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
