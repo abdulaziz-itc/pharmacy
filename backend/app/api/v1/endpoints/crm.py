@@ -120,6 +120,27 @@ async def update_region(
     )
     return updated_region
 
+@router.get("/regions/{id}/dependencies")
+async def get_region_dependencies(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    from sqlalchemy import func, select
+    from app.models.crm import Doctor, MedicalOrganization, user_regions
+    
+    doctors_count = await db.scalar(select(func.count()).where(Doctor.region_id == id))
+    med_org_count = await db.scalar(select(func.count()).where(MedicalOrganization.region_id == id))
+    users_count = await db.scalar(select(func.count()).select_from(user_regions).where(user_regions.c.region_id == id))
+    
+    return {
+        "doctors": doctors_count,
+        "med_orgs": med_org_count,
+        "users": users_count,
+        "total": doctors_count + med_org_count + users_count
+    }
+
 # Doctor Specialties
 @router.get("/doctor-specialties/", response_model=List[DoctorSpecialty])
 async def read_specialties(

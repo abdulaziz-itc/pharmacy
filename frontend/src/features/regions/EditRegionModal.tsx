@@ -34,6 +34,32 @@ export function EditRegionModal({ isOpen, onClose, region }: EditRegionModalProp
             return;
         }
 
+        // Check if name is being changed and for dependencies
+        if (name.trim() !== region.name) {
+            setIsSubmitting(true);
+            try {
+                const depResp = await axiosInstance.get(`/crm/regions/${region.id}/dependencies`);
+                const deps = depResp.data;
+                
+                if (deps.total > 0) {
+                    const message = `Внимание! Данный регион уже используется в системе:\n` +
+                        `- Врачей: ${deps.doctors}\n` +
+                        `- Организаций: ${deps.med_orgs}\n` +
+                        `- Менеджеров: ${deps.users}\n\n` +
+                        `Вы точно хотите изменить название региона? Это изменение коснется всех привязанных к нему объектов.`;
+                    
+                    if (!window.confirm(message)) {
+                        setIsSubmitting(false);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to check dependencies", error);
+            } finally {
+                setIsSubmitting(false);
+            }
+        }
+
         setIsSubmitting(true);
         try {
             await axiosInstance.put(`/crm/regions/${region.id}`, { name });
