@@ -726,7 +726,14 @@ const HeadOfOrdersPage: React.FC = () => {
                                     Склад: <span className="text-blue-700">{selectedWarehouse.name}</span>
                                 </h2>
                                 <Button
-                                    onClick={() => { setPrixodMfr(null); setPrixodProd(''); setPrixodQty(''); setShowPrixodModal(true); }}
+                                    onClick={() => {
+                                        const currentWhName = selectedWarehouse?.name.toLowerCase().trim();
+                                        const matchingMfr = manufacturers.find(m => m.name.toLowerCase().trim() === currentWhName);
+                                        setPrixodMfr(matchingMfr || null);
+                                        setPrixodProd('');
+                                        setPrixodQty('');
+                                        setShowPrixodModal(true);
+                                    }}
                                     className="bg-transparent border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold uppercase tracking-wide text-xs px-6"
                                     variant="outline"
                                 >
@@ -1974,8 +1981,8 @@ const HeadOfOrdersPage: React.FC = () => {
                             <Package className="w-5 h-5 opacity-80" />
                             <h2 className="text-lg font-bold">Приёмка товара на склад</h2>
                         </div>
-                        {warehouses[0] && (
-                            <p className="text-white/70 text-xs">Склад: <span className="text-white font-semibold">{warehouses[0].name}</span></p>
+                        {(selectedWarehouse || warehouses[0]) && (
+                            <p className="text-white/70 text-xs">Склад: <span className="text-white font-semibold">{(selectedWarehouse || warehouses[0]).name}</span></p>
                         )}
                     </div>
 
