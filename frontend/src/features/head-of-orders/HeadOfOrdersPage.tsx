@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import axiosInstance from '@/api/axios';
 import { ModernStatsBar } from '@/components/ui/ModernStatsBar';
+import { SearchableProductSelect } from '@/components/SearchableProductSelect';
 
 
 
@@ -1996,41 +1997,15 @@ const HeadOfOrdersPage: React.FC = () => {
                         {/* Product dropdown - only show after manufacturer selected */}
                         <div>
                             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Препарат</label>
-                            <Select
-                                onValueChange={setPrixodProd}
-                                value={prixodProd}
+                            <SearchableProductSelect
+                                products={prixodMfrProducts}
+                                selectedId={prixodProd}
+                                onSelect={setPrixodProd}
+                                stockMap={stockMap}
+                                placeholder={prixodMfr ? 'Выберите препарат...' : 'Сначала выберите производителя'}
+                                className="border-slate-200 rounded-xl h-10 text-sm"
                                 disabled={!prixodMfr}
-                            >
-                                <SelectTrigger className="border-slate-200 rounded-xl h-10">
-                                    <SelectValue placeholder={prixodMfr ? 'Выберите препарат...' : 'Сначала выберите производителя'} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {prixodMfrProducts.length === 0 ? (
-                                        <SelectItem value="_" disabled>Препараты не найдены</SelectItem>
-                                    ) : [...prixodMfrProducts].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map((p: any) => (
-                                        <SelectItem key={p.id} value={p.id.toString()}>
-                                            <div className="flex flex-col py-0.5">
-                                                <div className="flex items-center justify-between gap-4">
-                                                    <span className="font-medium">{p.name}</span>
-                                                    <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 border border-blue-100/50">
-                                                        Остаток: {stockMap[p.id] || 0} шт
-                                                    </span>
-                                                </div>
-                                                <span className="text-[10px] text-slate-500 flex items-center gap-2 mt-0.5">
-                                                    {p.category?.name && (
-                                                        <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
-                                                            {p.category.name}
-                                                        </span>
-                                                    )}
-                                                    <span className="font-semibold text-slate-400">
-                                                        {Number(p.price).toLocaleString()} UZS
-                                                    </span>
-                                                </span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            />
                         </div>
 
                         {/* Quantity */}

@@ -20,6 +20,7 @@ interface SearchableProductSelectProps {
     stockMap: Record<number, number>;
     placeholder?: string;
     className?: string;
+    disabled?: boolean;
 }
 
 export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = ({
@@ -28,7 +29,8 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
     onSelect,
     stockMap,
     placeholder = "Выберите препарат...",
-    className
+    className,
+    disabled
 }) => {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
@@ -49,6 +51,7 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <button
+                    disabled={disabled}
                     className={cn(
                         "flex h-8 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-xs ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
                         className
