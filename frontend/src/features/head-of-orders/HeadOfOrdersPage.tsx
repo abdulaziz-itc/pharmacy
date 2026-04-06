@@ -725,20 +725,22 @@ const HeadOfOrdersPage: React.FC = () => {
                                 <h2 className="text-xl font-bold text-slate-800">
                                     Склад: <span className="text-blue-700">{selectedWarehouse.name}</span>
                                 </h2>
-                                <Button
-                                    onClick={() => {
-                                        const currentWhName = selectedWarehouse?.name.toLowerCase().trim();
-                                        const matchingMfr = manufacturers.find(m => m.name.toLowerCase().trim() === currentWhName);
-                                        setPrixodMfr(matchingMfr || null);
-                                        setPrixodProd('');
-                                        setPrixodQty('');
-                                        setShowPrixodModal(true);
-                                    }}
-                                    className="bg-transparent border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold uppercase tracking-wide text-xs px-6"
-                                    variant="outline"
-                                >
-                                    ДОБАВИТЬ
-                                </Button>
+                                {!selectedWarehouse.is_wholesale && (
+                                    <Button
+                                        onClick={() => {
+                                            const currentWhName = selectedWarehouse?.name.toLowerCase().trim();
+                                            const matchingMfr = manufacturers.find(m => m.name.toLowerCase().trim() === currentWhName);
+                                            setPrixodMfr(matchingMfr || null);
+                                            setPrixodProd('');
+                                            setPrixodQty('');
+                                            setShowPrixodModal(true);
+                                        }}
+                                        className="bg-transparent border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold uppercase tracking-wide text-xs px-6"
+                                        variant="outline"
+                                    >
+                                        ДОБАВИТЬ
+                                    </Button>
+                                )}
                             </div>
 
                             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -790,7 +792,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             </span>
                                                         </td>
                                                         <td className="px-4 py-3">
-                                                            {prod && (
+                                                            {!selectedWarehouse.is_wholesale && prod && (
                                                                 <button
                                                                     onClick={() => handleOpenEdit(prod)}
                                                                     className="p-1.5 rounded hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors"
