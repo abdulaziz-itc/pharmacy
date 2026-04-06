@@ -81,7 +81,12 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
                         autoFocus
                     />
                 </div>
-                <div className="max-h-[280px] overflow-y-auto overflow-x-hidden p-1 bg-white custom-scrollbar">
+                <div 
+                    className="max-h-[280px] overflow-y-auto overflow-x-hidden p-1 bg-white sleek-scrollbar"
+                    onWheel={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
+                >
                     {filteredProducts.length === 0 ? (
                         <div className="py-6 text-center text-xs text-slate-400 italic">
                             Ничего не найдено
