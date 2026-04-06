@@ -10,6 +10,7 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { createUser } from '../../../api/user';
 import { useRegionStore } from '../../../store/regionStore';
+import { toast } from 'sonner';
 
 interface CreateRMModalProps {
     isOpen: boolean;
@@ -59,8 +60,13 @@ export function CreateRMModal({ isOpen, onClose, onSuccess, ffmList }: CreateRMM
             onSuccess();
             onClose();
             setFormData({ full_name: '', username: '', password: '', manager_id: '', region_ids: [] });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to create regional manager:', error);
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error("Ошибка при создании регионального менеджера");
+            }
         } finally {
             setIsLoading(false);
         }

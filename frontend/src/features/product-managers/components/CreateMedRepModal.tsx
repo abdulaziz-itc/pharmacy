@@ -11,6 +11,7 @@ import { Label } from "../../../components/ui/label";
 import { createUser } from '../../../api/user';
 import { useRegionStore } from '../../../store/regionStore';
 import { useAuthStore } from '../../../store/authStore';
+import { toast } from 'sonner';
 
 interface CreateMedRepModalProps {
     isOpen: boolean;
@@ -85,8 +86,13 @@ export function CreateMedRepModal({ isOpen, onClose, onSuccess, rmList }: Create
             onSuccess();
             onClose();
             setFormData({ full_name: '', username: '', password: '', manager_id: '', region_ids: [] });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to create med rep:', error);
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error("Ошибка при создании медицинского представителя");
+            }
         } finally {
             setIsLoading(false);
         }

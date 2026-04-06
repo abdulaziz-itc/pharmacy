@@ -54,16 +54,18 @@ async def create_user(
     if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
-    # If the creator is a Product Manager or Regional Manager, enforce themselves as the manager
+    # If the creator is a Product Manager or Regional Manager, enforce themselves as the manager ONLY IF NOT PROVIDED
     # AND for Regional Manager, enforce regional boundaries
     if current_user.role == UserRole.PRODUCT_MANAGER:
         if user_in.role not in [UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.MED_REP]:
             raise HTTPException(status_code=400, detail="Product Manager can only create subordinates")
-        user_in.manager_id = current_user.id
+        if not user_in.manager_id:
+            user_in.manager_id = current_user.id
     elif current_user.role == UserRole.REGIONAL_MANAGER:
         if user_in.role != UserRole.MED_REP:
             raise HTTPException(status_code=400, detail="Regional Manager can only create Medical Representatives")
-        user_in.manager_id = current_user.id
+        if not user_in.manager_id:
+            user_in.manager_id = current_user.id
         
         # Enforce regional boundaries
         if user_in.region_ids:
