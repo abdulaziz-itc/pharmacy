@@ -37,6 +37,14 @@ export const fulfillStock = async (warehouseId: number, productId: number, quant
     return response.data;
 };
 
+export const setStock = async (warehouseId: number, productId: number, quantity: number) => {
+    const response = await axiosInstance.post(`/domain/orders/management/warehouses/${warehouseId}/set-stock`, {
+        product_id: productId,
+        quantity: quantity
+    });
+    return response.data;
+};
+
 export const getReservations = async (status?: string, warehouseId?: number) => {
     const response = await axiosInstance.get('/domain/orders/management/reservations/', { 
         params: { status, warehouse_id: warehouseId } 

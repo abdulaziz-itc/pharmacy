@@ -13,7 +13,7 @@ import {
     CreditCard, TrendingUp, TrendingDown, Wallet, Warehouse, Search, ChevronLeft, ChevronRight, Package, Pencil,
     History, List, Download, User as UserIcon, MapPin, Eye, Edit3, AlertTriangle, RotateCcw
 } from 'lucide-react';
-import { getWarehouses, fulfillStock, activateReservation, deleteReservation, getReservations, getInvoices, createWarehouse } from '@/api/orders-management';
+import { getWarehouses, fulfillStock, setStock, activateReservation, deleteReservation, getReservations, getInvoices, createWarehouse } from '@/api/orders-management';
 import { useProductStore } from '@/store/productStore';
 import { AddPaymentModal } from './AddPaymentModal';
 import { CreateReservationModal } from './CreateReservationModal';
@@ -521,19 +521,20 @@ const HeadOfOrdersPage: React.FC = () => {
     };
 
     const handleOpenEdit = (p: any) => {
+        const currentQty = selectedWarehouse?.stocks?.find((s: any) => s.product_id === p.id)?.quantity || 0;
         setEditProduct(p);
-        setEditQty('');
+        setEditQty(currentQty.toString());
     };
 
     const handleSaveEdit = async () => {
-        if (!editProduct || !editQty) return;
+        if (!editProduct || editQty === '') return;
         const qty = parseInt(editQty);
-        if (isNaN(qty) || qty <= 0) { toast.error('Введите корректное количество'); return; }
+        if (isNaN(qty) || qty < 0) { toast.error('Введите корректное количество'); return; }
         const whId = selectedWarehouse?.id ?? (warehouses.length > 0 ? warehouses[0].id : null);
         if (!whId) { toast.error('Склад не найден'); return; }
         setEditLoading(true);
         try {
-            await fulfillStock(whId, editProduct.id, qty);
+            await setStock(whId, editProduct.id, qty);
             toast.success('Количество успешно обновлено');
             setEditProduct(null);
             setEditQty('');
@@ -1881,23 +1882,31 @@ const HeadOfOrdersPage: React.FC = () => {
 
                     <div className="px-6 py-5 space-y-4">
                         <div>
-                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Добавить количество (шт)</label>
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Количество (шт)</label>
                             <Input
                                 type="number"
-                                min={1}
+                                min={0}
                                 value={editQty}
                                 onChange={e => setEditQty(e.target.value)}
-                                placeholder="0"
+                                placeholder="Введите общее количество"
                                 className="border-slate-200 rounded-xl h-11 text-lg font-semibold"
                                 autoFocus
                             />
                         </div>
-                        {editProduct && editQty && parseInt(editQty) > 0 && (
-                            <p className="text-sm text-slate-500">
-                                После сохранения остаток на <span className="font-semibold">{selectedWarehouse?.name}</span> станет: <span className="font-bold text-slate-800">
-                                    {((selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0) + parseInt(editQty || '0')).toLocaleString()} шт
-                                </span>
-                            </p>
+                        {editProduct && editQty !== '' && (
+                            <div className="text-sm text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <p>
+                                    Текущий остаток: <span className="font-bold text-slate-700">{(selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0).toLocaleString()} шт</span>
+                                </p>
+                                <p className="mt-1">
+                                    Станет после сохранения: <span className={`font-bold ${parseInt(editQty) > (selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0) ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {parseInt(editQty || '0').toLocaleString()} шт
+                                    </span>
+                                </p>
+                                <p className="text-[10px] text-slate-400 mt-2 italic">
+                                    * Будет создана запись о {parseInt(editQty || '0') > (selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0) ? 'пополнении' : 'корректировке'} на {Math.abs(parseInt(editQty || '0') - (selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0))} шт.
+                                </p>
+                            </div>
                         )}
                     </div>
 
@@ -1906,7 +1915,7 @@ const HeadOfOrdersPage: React.FC = () => {
                         <Button
                             className="bg-slate-800 hover:bg-slate-900 text-white rounded-xl px-6"
                             onClick={handleSaveEdit}
-                            disabled={editLoading || !editQty || parseInt(editQty) <= 0}
+                            disabled={editLoading || editQty === '' || parseInt(editQty) < 0}
                         >
                             {editLoading ? 'Сохранение...' : 'Сохранить'}
                         </Button>
