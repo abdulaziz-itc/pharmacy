@@ -22,7 +22,7 @@ import type { UserCreate } from '../../api/user';
 const formSchema = z.object({
     full_name: z.string().min(2, { message: "Минимум 2 символа" }),
     username: z.string().min(3, { message: "Минимум 3 символа" }),
-    password: z.string().min(6, { message: "Минимум 6 символов" }),
+    password: z.string().min(3, { message: "Минимум 3 символа" }),
 });
 
 interface AddProductManagerModalProps {
@@ -80,7 +80,7 @@ export default function AddProductManagerModal({ open, onOpenChange }: AddProduc
                                                 {...field}
                                             />
                                         </FormControl>
-                                        <FormMessage className="pl-6 text-xs" />
+                                        <FormMessage className="pl-6 text-xs mt-1" />
                                     </FormItem>
                                 )}
                             />
@@ -96,7 +96,7 @@ export default function AddProductManagerModal({ open, onOpenChange }: AddProduc
                                                 {...field}
                                             />
                                         </FormControl>
-                                        <FormMessage className="pl-6 text-xs" />
+                                        <FormMessage className="pl-6 text-xs mt-1" />
                                     </FormItem>
                                 )}
                             />
