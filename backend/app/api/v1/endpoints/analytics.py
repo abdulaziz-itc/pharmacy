@@ -668,7 +668,11 @@ async def get_comprehensive_drilldown(
         return q
 
     if metric == "sales_plan":
-        plan_q = select(Plan).options(selectinload(Plan.med_rep), selectinload(Plan.product), selectinload(Plan.med_org).selectinload(MedicalOrganization.region))
+        plan_q = select(Plan).options(
+            selectinload(Plan.med_rep).selectinload(User.assigned_regions), 
+            selectinload(Plan.product), 
+            selectinload(Plan.med_org).selectinload(MedicalOrganization.region)
+        )
         if quarter and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
         elif month and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
         elif year: plan_q = plan_q.where(Plan.year == year)
@@ -676,7 +680,21 @@ async def get_comprehensive_drilldown(
         if region_id: plan_q = plan_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
         if product_id: plan_q = plan_q.where(Plan.product_id == product_id)
         rows = (await db.execute(plan_q.offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "med_rep": r.med_rep.full_name if r.med_rep else "-", "product": r.product.name if r.product else "-", "month": r.month, "year": r.year, "amount": r.target_amount, "qty": r.target_quantity, "region": r.med_org.region.name if r.med_org and r.med_org.region else "-"} for r in rows]
+        return [
+            {
+                "id": r.id, 
+                "med_rep": r.med_rep.full_name if r.med_rep else "-", 
+                "product": r.product.name if r.product else "-", 
+                "month": r.month, 
+                "year": r.year, 
+                "amount": r.target_amount, 
+                "qty": r.target_quantity, 
+                "region": (
+                    r.med_org.region.name if r.med_org and r.med_org.region 
+                    else (r.med_rep.assigned_regions[0].name if r.med_rep and r.med_rep.assigned_regions else "-")
+                )
+            } for r in rows
+        ]
 
     elif metric == "realization":
         real_q = select(Invoice).options(selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region)).where(Invoice.status != InvoiceStatus.CANCELLED)
