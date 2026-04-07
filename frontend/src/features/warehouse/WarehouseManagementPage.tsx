@@ -93,7 +93,16 @@ export default function WarehouseManagementPage() {
                       <WarehouseIcon className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg font-bold text-slate-900">{warehouse.name}</CardTitle>
+                      <CardTitle className="text-lg font-bold text-slate-900">
+                        {(() => {
+                          const n = warehouse.name;
+                          const up = n.toUpperCase().trim();
+                          const regular = ['HEARTLY', 'ZUMA', 'UZGERMED', 'SAMO', 'FAZO', 'HEARLT'];
+                          if (regular.includes(up)) return n;
+                          if (up.startsWith("ОПТ СКЛАД")) return n;
+                          return `ОПТ СКЛАД ${n}`;
+                        })()}
+                      </CardTitle>
                       <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                         {warehouse.warehouse_type === 'main' ? 'Основной' : 'Региональный'}
                       </span>

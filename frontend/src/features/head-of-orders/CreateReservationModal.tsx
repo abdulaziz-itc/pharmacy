@@ -400,9 +400,19 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                         <SelectValue placeholder="Выберите склад..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {warehouses.map(wh => (
-                                            <SelectItem key={wh.id} value={wh.id.toString()}>{wh.name}</SelectItem>
-                                        ))}
+                                        {(() => {
+                                            const formatWhName = (name: string) => {
+                                                if (!name) return "";
+                                                const n = name.toUpperCase().trim();
+                                                const regular = ['HEARTLY', 'ZUMA', 'UZGERMED', 'SAMO', 'FAZO', 'HEARLT'];
+                                                if (regular.includes(n)) return name;
+                                                if (name.toUpperCase().startsWith("ОПТ СКЛАД")) return name;
+                                                return `ОПТ СКЛАД ${name}`;
+                                            };
+                                            return warehouses.map(wh => (
+                                                <SelectItem key={wh.id} value={wh.id.toString()}>{formatWhName(wh.name)}</SelectItem>
+                                            ));
+                                        })()}
                                     </SelectContent>
                                 </Select>
                             </div>

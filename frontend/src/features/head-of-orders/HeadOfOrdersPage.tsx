@@ -662,6 +662,15 @@ const HeadOfOrdersPage: React.FC = () => {
         return regular.includes(name) ? 'СКЛАД' : 'ОПТ СКЛАД';
     };
 
+    const formatWhName = (name: string) => {
+        if (!name) return "";
+        const n = name.toUpperCase().trim();
+        const regular = ['HEARTLY', 'ZUMA', 'UZGERMED', 'SAMO', 'FAZO', 'HEARLT'];
+        if (regular.includes(n)) return name;
+        if (name.toUpperCase().startsWith("ОПТ СКЛАД")) return name;
+        return `ОПТ СКЛАД ${name}`;
+    };
+
     return (
         <div className="min-h-screen bg-white">
             {/* ---- TABS ---- */}
@@ -724,7 +733,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         }`}
                                 >
                                     <Warehouse className="w-3.5 h-3.5 opacity-70" />
-                                    {wh.name}
+                                    {formatWhName(wh.name)}
                                 </button>
                             ))}
                         </div>
@@ -735,7 +744,7 @@ const HeadOfOrdersPage: React.FC = () => {
                         <div>
                             <div className="flex items-center justify-between mb-3">
                                 <h2 className="text-xl font-bold text-slate-800">
-                                    {getWhLabel(selectedWarehouse.id.toString())}: <span className="text-blue-700">{selectedWarehouse.name}</span>
+                                    {getWhLabel(selectedWarehouse.id.toString())}: <span className="text-blue-700">{formatWhName(selectedWarehouse.name)}</span>
                                 </h2>
                                 {!selectedWarehouse.is_wholesale && (
                                     <Button
