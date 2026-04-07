@@ -187,7 +187,7 @@ export function MedRepDoctorsTable({ data, salesPlans, salesFacts, bonusPayments
                         : 'text-slate-400 border-transparent hover:text-slate-600'
                         }`}
                 >
-                    Faol
+                    Активные
                     <span className="ml-1.5 bg-blue-100 text-blue-700 text-[9px] font-black px-1.5 py-0.5 rounded-full">
                         {activeDoctors.length}
                     </span>
@@ -199,7 +199,7 @@ export function MedRepDoctorsTable({ data, salesPlans, salesFacts, bonusPayments
                         : 'text-slate-400 border-transparent hover:text-slate-600'
                         }`}
                 >
-                    Arxiv
+                    Архив
                     {archivedDoctors.length > 0 && (
                         <span className="ml-1.5 bg-slate-200 text-slate-600 text-[9px] font-black px-1.5 py-0.5 rounded-full">
                             {archivedDoctors.length}

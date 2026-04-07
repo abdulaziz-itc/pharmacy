@@ -273,12 +273,16 @@ async def delete_reservation(
         from app.models.sales import InvoiceStatus
         # If reservation has an invoice, mark the invoice for deletion instead
         # This makes it appear in "Invoices" section for Warehouse approval
+        # If reservation has an invoice, mark both for deletion to ensure visibility
         if reservation.invoice:
             if reservation.invoice.status == InvoiceStatus.PAID:
                 raise HTTPException(status_code=400, detail="Нельзя удалить оплаченную счет-фактуру. Сначала отмените платежи.")
                 
             reservation.invoice.is_deletion_pending = True
             reservation.invoice.deletion_requested_by_id = current_user.id
+            # Also mark reservation to ensure it shows up in filtered lists consistently
+            reservation.is_deletion_pending = True
+            reservation.deletion_requested_by_id = current_user.id
         else:
             reservation.is_deletion_pending = True
             reservation.deletion_requested_by_id = current_user.id

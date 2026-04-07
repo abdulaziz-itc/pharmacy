@@ -152,8 +152,22 @@ async def get_deletion_requests(
 ) -> Any:
     """List all reservations and invoices pending deletion."""
     
-    if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.INVESTOR]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+    # Expanded roles for warehouse visibility
+    allowed_roles = [
+        UserRole.HEAD_OF_WAREHOUSE, 
+        UserRole.DIRECTOR, 
+        UserRole.ADMIN, 
+        UserRole.INVESTOR, 
+        UserRole.WHOLESALE_MANAGER,
+        UserRole.PRODUCT_MANAGER,
+        UserRole.ACCOUNTANT
+    ]
+    
+    logging.info(f"FETCH_DELETION_REQUESTS: User {current_user.full_name} (Role: {current_user.role}) is requesting data.")
+    
+    if current_user.role not in allowed_roles:
+        logging.warning(f"FETCH_DELETION_REQUESTS: Access denied for role {current_user.role}")
+        raise HTTPException(status_code=403, detail=f"Permission denied for role: {current_user.role}")
     
     try:
         from app.models.sales import Reservation, Invoice, ReservationItem

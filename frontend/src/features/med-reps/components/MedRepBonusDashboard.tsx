@@ -326,7 +326,7 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                         {panelRows(statPanelType).length === 0 ? (
                             <div className="text-center py-16 text-slate-400">
                                 <p className="text-4xl mb-3">📭</p>
-                                <p className="font-semibold">Ma'lumot yo'q</p>
+                                <p className="font-semibold">Данных нет</p>
                             </div>
                         ) : panelRows(statPanelType).map((h, i) => (
                             <div
@@ -355,7 +355,7 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                                                 </span>
                                             ) : (
                                                 <span className="flex items-center text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
-                                                    <ArrowUpRight className="w-2.5 h-2.5 mr-1" /> Врачга
+                                                    <ArrowUpRight className="w-2.5 h-2.5 mr-1" /> К врачу
                                                 </span>
                                             )}
                                             {h.is_paid === false && h.ledger_type === 'accrual' && (
