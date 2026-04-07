@@ -321,7 +321,6 @@ export default function StatsPage() {
                 </div>
             ) : (
                 <>
-                    {/* Main KPI Grid - Staggered Entrance */}
                     <motion.div 
                         initial="hidden"
                         animate="show"
@@ -334,64 +333,108 @@ export default function StatsPage() {
                         }}
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
                     >
+                        {/* ROW 1: Sales & Shipments */}
                         <PremiumKpiCard
-                            label="Sotuv rejasi"
+                            variant="minimal"
+                            label="ПЛАН ПРОДАЖ"
                             value={kpis.sales_plan_amount}
                             icon={Target}
                             color="indigo"
-                            onClick={() => setDrilldownMetric({ id: 'sales_plan', label: 'Sotuv rejasi' })}
+                            onClick={() => setDrilldownMetric({ id: 'sales_plan', label: 'Plan prodaj' })}
                         />
                         <PremiumKpiCard
-                            label="Haqiqiy tushum"
+                            variant="minimal"
+                            label="ФАКТ ОТГРУЗКА"
+                            value={kpis.total_invoice_sum}
+                            icon={Receipt}
+                            color="blue"
+                            onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Fact otgruzka' })}
+                        />
+                        <PremiumKpiCard
+                            variant="minimal"
+                            label="ФАКТ ПОСТУПЛЕНИЙ"
                             value={kpis.sales_fact_received_amount}
                             icon={HandCoins}
                             color="emerald"
-                            badge={kpis.sales_plan_amount > 0 ? `${((kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100).toFixed(1)}%` : undefined}
-                            onClick={() => setDrilldownMetric({ id: 'cash_in', label: 'Haqiqiy tushum' })}
+                            badge={kpis.sales_plan_amount > 0 ? `${((kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100).toFixed(0)}% ВЫПОЛНЕНО` : undefined}
+                            onClick={() => setDrilldownMetric({ id: 'cash_in', label: 'Fact поступлений' })}
                         />
-                        <PremiumKpiCard
-                            label="Sof foyda"
-                            value={kpis.net_profit}
-                            icon={TrendingUp}
-                            color="blue"
-                            onClick={() => setDrilldownMetric({ id: 'gross_profit', label: 'Sof foyda (Valovaya)' })}
-                        />
-                        <PremiumKpiCard
-                            label="Kreditorka"
-                            value={kpis.receivables}
-                            icon={Receipt}
-                            color="rose"
-                            subValue={kpis.overdue_receivables}
-                            subLabel="Shundan muddati o'tgan"
-                            onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Kreditorka' })}
-                        />
+                        <div className="hidden lg:block" /> {/* Column Spacer */}
 
+                        {/* ROW 2: Bonuses & Preinvest */}
                         <PremiumKpiCard
-                            label="Hisoblangan bonus"
+                            variant="minimal"
+                            label="НАЧИСЛЕНО БОНУСА"
                             value={kpis.bonus_accrued}
                             icon={Coins}
                             color="violet"
-                            onClick={() => setDrilldownMetric({ id: 'bonus_accrued', label: 'Hisoblangan bonus' })}
+                            onClick={() => setDrilldownMetric({ id: 'bonus_accrued', label: 'Nachisleno bonusa' })}
                         />
                         <PremiumKpiCard
-                            label="Vrachlarga bo'lingan"
-                            value={kpis.bonus_allocated}
+                            variant="minimal"
+                            label="ВСЕГО ВЫПЛАЧЕНО (БОНУС)"
+                            value={kpis.bonus_paid}
                             icon={Users}
                             color="indigo"
-                            onClick={() => setDrilldownMetric({ id: 'bonus_allocated', label: 'Vrachlarga bo\'lingan' })}
+                            onClick={() => setDrilldownMetric({ id: 'bonus_paid', label: 'Vsego viplacheno' })}
                         />
                         <PremiumKpiCard
-                            label="Bonus qoldig'i"
+                            variant="minimal"
+                            label="ОСТАТОК БОНУСА"
                             value={kpis.bonus_balance}
                             icon={Wallet}
                             color="amber"
                         />
                         <PremiumKpiCard
-                            label="Predinvest"
+                            variant="minimal"
+                            label="ПРЕДИНВЕСТ"
                             value={kpis.total_predinvest}
                             icon={Banknote}
                             color="rose"
                             onClick={() => setDrilldownMetric({ id: 'preinvest', label: 'Predinvest' })}
+                        />
+
+                        {/* ROW 3: Receivables */}
+                        <PremiumKpiCard
+                            variant="minimal"
+                            label="ДЕБИТОРКА"
+                            value={kpis.receivables}
+                            icon={Receipt}
+                            color="blue"
+                            onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Debitiorka' })}
+                        />
+                        <PremiumKpiCard
+                            variant="minimal"
+                            label="ПРОСРОЧЕННАЯ ДЕБИТОРКА"
+                            value={kpis.overdue_receivables}
+                            icon={FilterX}
+                            color="rose"
+                            onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Prosrochennaya debitorka' })}
+                        />
+                        <div className="hidden lg:block" />
+                        <div className="hidden lg:block" />
+
+                        {/* ROW 4: MP Salaries */}
+                        <PremiumKpiCard
+                            variant="minimal"
+                            label="МП ЗАРПЛАТА"
+                            value={kpis.salary_accrued}
+                            icon={Coins}
+                            color="indigo"
+                        />
+                        <PremiumKpiCard
+                            variant="minimal"
+                            label="МП ЗАРПЛАТА ВЫПЛАЧЕНО"
+                            value={kpis.salary_paid}
+                            icon={Users}
+                            color="blue"
+                        />
+                        <PremiumKpiCard
+                            variant="minimal"
+                            label="МП ЗАРПЛАТА ОСТАТОК"
+                            value={kpis.salary_balance}
+                            icon={Wallet}
+                            color="amber"
                         />
                     </motion.div>
 

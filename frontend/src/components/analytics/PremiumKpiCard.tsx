@@ -14,6 +14,7 @@ interface PremiumKpiCardProps {
     suffix?: string;
     subValue?: number;
     subLabel?: string;
+    variant?: 'premium' | 'minimal';
 }
 
 const CountUp = ({ value, suffix = 'UZS' }: { value: number, suffix?: string }) => {
@@ -61,7 +62,8 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
     subtitle,
     suffix = 'UZS',
     subValue,
-    subLabel
+    subLabel,
+    variant = 'premium'
 }) => {
     const colorStyles: Record<string, any> = {
         blue: {
@@ -126,14 +128,17 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
                 relative p-8 rounded-[2.5rem] bg-white border border-slate-100
                 shadow-2xl shadow-slate-200/50 overflow-hidden group
                 ${style.glow} ${onClick ? 'cursor-pointer active:shadow-none' : ''}
-                transition-shadow duration-500
+                transition-all duration-500
+                ${variant === 'minimal' ? 'rounded-[3rem] shadow-xl shadow-slate-100' : ''}
             `}
         >
-            {/* Mesh Background Overlay */}
-            <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${style.mesh}`} />
+            {/* Mesh Background Overlay (Only for premium) */}
+            {variant === 'premium' && (
+                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${style.mesh}`} />
+            )}
             
             {/* Decorative Pulse Glow */}
-            <div className="absolute top-0 right-0 w-48 h-48 -mr-12 -mt-12 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl" />
+            <div className={`absolute top-0 right-0 w-48 h-48 -mr-12 -mt-12 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl`} />
             
             <div className="relative z-10 flex flex-col h-full">
                 {/* Icon & Badge Header */}
@@ -145,22 +150,33 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
                         <div className={`absolute inset-0 ${style.text} opacity-20 blur-xl group-hover:opacity-40 transition-opacity`} />
                         <Icon strokeWidth={2.5} className={`w-8 h-8 ${style.text} relative z-10`} />
                     </motion.div>
-
+    
                     {badge && (
-                        <div className={`px-4 py-2 rounded-full ${style.bg} ${style.text} text-[10px] font-black uppercase tracking-widest border ${style.border} shadow-sm backdrop-blur-sm`}>
+                        <div className={`
+                            px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm border
+                            ${variant === 'minimal' 
+                                ? 'bg-emerald-500 text-white border-emerald-400' 
+                                : `${style.bg} ${style.text} ${style.border}`}
+                        `}>
                             {badge}
                         </div>
                     )}
                 </div>
-
+    
                 {/* Text Content */}
                 <div className="mt-auto">
-                    <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-[0.25em] mb-3 group-hover:translate-x-1 transition-transform duration-300">
+                    <h3 className={`
+                        text-slate-400 text-[10px] font-black uppercase tracking-[0.25em] mb-3 group-hover:translate-x-1 transition-transform duration-300
+                        ${variant === 'minimal' ? 'text-slate-400/80 font-extrabold tracking-widest' : ''}
+                    `}>
                         {label}
                     </h3>
                     
                     <div className="space-y-1">
-                        <div className="text-3xl font-black text-slate-800 tracking-tighter leading-none">
+                        <div className={`
+                            text-3xl font-black tracking-tighter leading-none
+                            ${variant === 'minimal' ? 'text-slate-900 text-4xl' : 'text-slate-800'}
+                        `}>
                             <CountUp value={value} suffix={suffix} />
                         </div>
                         

@@ -448,20 +448,30 @@ async def get_comprehensive_stats(
                 MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
             )
         )
-    if region_id:
-        gross_profit_sum_q = gross_profit_sum_q.where(MedicalOrganization.region_id == region_id)
-        ops_costs_sum_q = ops_costs_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
     if product_id:
         gross_profit_sum_q = gross_profit_sum_q.where(ReservationItem.product_id == product_id)
-        ops_costs_sum_q = ops_costs_sum_q.where(ReservationItem.product_id == product_id)
-    
-    # 2b. Add rep/team/region filters to ops_costs too
-    if rep_ids:
-        ops_costs_sum_q = ops_costs_sum_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids)))) if not region_id else ops_costs_sum_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
-    
-    # Execute net profit
+        
+    # MP Salary Accrued (Based on Collections)
+    salary_accrued_q = select(
+        func.coalesce(func.sum(
+            func.coalesce(ReservationItem.salary_amount, Product.salary_expense, 0) * 
+            (ReservationItem.quantity - ReservationItem.returned_quantity) * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
+        ), 0.0)
+    ).select_from(ReservationItem)\
+     .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+     .join(Invoice, Invoice.reservation_id == Reservation.id)\
+     .join(Product, ReservationItem.product_id == Product.id)\
+     .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
+
+    if start_date and end_date: salary_accrued_q = salary_accrued_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    if rep_ids or region_id: salary_accrued_q = salary_accrued_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+    if rep_ids: salary_accrued_q = salary_accrued_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
+    if region_id: salary_accrued_q = salary_accrued_q.where(MedicalOrganization.region_id == region_id)
+    if product_id: salary_accrued_q = salary_accrued_q.where(ReservationItem.product_id == product_id)
+
+    # Execute profit and salary
     gross_profit_sum = (await db.execute(gross_profit_sum_q)).scalar() or 0.0
-    ops_costs_sum = 0.0 # Moved into the profit calculation
+    salary_accrued = (await db.execute(salary_accrued_q)).scalar() or 0.0
 
     # Sales Potential Net Profit (Expected based on Invoices total)
     # Priority: ReservationItem (Snapshot) > Product (Current Default)
@@ -500,7 +510,7 @@ async def get_comprehensive_stats(
     # Total Expenses (Prochie Rasxodi + Bonuses + Marketing)
     from app.services.expense_service import ExpenseService
     other_expenses = await ExpenseService.get_total_expenses(db, start_date, end_date)
-    total_expenses = other_expenses + float(ops_costs_sum)
+    total_expenses = other_expenses
 
     # net_profit = gross_profit_sum - other_expenses - bonuses - marketing
     net_profit = gross_profit_sum - total_expenses
@@ -630,7 +640,10 @@ async def get_comprehensive_stats(
             "bonus_allocated": float(allocated_sum),
             "bonus_paid": float(paid_sum),
             "salary_paid": float(payout_sum),
-            "bonus_balance": float(max(0, accrued_sum - paid_sum - payout_sum)),
+            "salary_balance": float(max(0, salary_accrued - payout_sum)),
+            "salary_accrued": float(salary_accrued),
+            "total_invoice_sum": float(sales_total),
+            "bonus_balance": float(max(0, accrued_sum - paid_sum)),
             "total_predinvest": float(predinvest_sum),
             "receivables": float(debt_sum),
             "overdue_receivables": float(overdue_sum),
