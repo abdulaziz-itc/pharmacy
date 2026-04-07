@@ -110,8 +110,10 @@ class ReservationItem(Base):
     return_requested_quantity = Column(Integer, default=0, server_default="0", nullable=False)
     price = Column(Float, nullable=False) 
     discount_percent = Column(Float, default=0.0)
-    marketing_amount = Column(Float, default=0.0) # Overridden marketing sum per unit
-    salary_amount = Column(Float, default=0.0) # Overridden salary sum per unit
+    marketing_amount = Column(Float, default=0.0) # Snapshotted marketing sum per unit
+    salary_amount = Column(Float, default=0.0) # Snapshotted salary sum per unit
+    production_price = Column(Float, default=0.0) # Snapshotted cost price per unit
+    other_expenses = Column(Float, default=0.0) # Snapshotted other expenses per unit
     total_price = Column(Float, default=0.0) 
 
     @property

@@ -141,11 +141,13 @@ async def delete_plan(db: AsyncSession, id: int) -> bool:
 
 # Reservations
 async def create_reservation(db: AsyncSession, obj_in: ReservationCreate, user_id: int) -> Reservation:
-    # Calculate total amount
-    total_amount = 0.0
-    items_db = []
-    
+    # 1. Fetch all products needed in one go to get snapshot costs
+    product_ids = [item.product_id for item in obj_in.items]
+    product_result = await db.execute(select(Product).where(Product.id.in_(product_ids)))
+    product_map = {p.id: p for p in product_result.scalars().all()}
+
     for item in obj_in.items:
+        prod = product_map.get(item.product_id)
         # Calculate item total: (price * qty) * (1 - discount/100)
         item_total = (item.price * item.quantity) * (1 - item.discount_percent / 100.0)
         total_amount += item_total
@@ -155,7 +157,12 @@ async def create_reservation(db: AsyncSession, obj_in: ReservationCreate, user_i
             quantity=item.quantity,
             price=item.price,
             discount_percent=item.discount_percent,
-            total_price=item_total
+            total_price=item_total,
+            # Snapshot all cost fields at the time of creation
+            production_price=prod.production_price if prod else 0.0,
+            marketing_amount=prod.marketing_expense if prod else 0.0,
+            salary_amount=prod.salary_expense if prod else 0.0,
+            other_expenses=prod.other_expenses if prod else 0.0
         )
         items_db.append(db_item)
 

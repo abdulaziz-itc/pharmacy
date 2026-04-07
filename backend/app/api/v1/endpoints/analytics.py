@@ -381,13 +381,14 @@ async def get_comprehensive_stats(
     from app.models.product import Product
     
     # Sales Realized Net Profit (Revenue - COGS - Bonuses - Salaries - Other)
+    # Priority: ReservationItem (Snapshot) > Product (Current Default)
     gross_profit_sum_q = select(
         func.coalesce(func.sum(
             (ReservationItem.price - 
-             func.coalesce(Product.production_price, 0) - 
-             func.coalesce(ReservationItem.marketing_amount, 0) - 
-             func.coalesce(ReservationItem.salary_amount, 0) -
-             func.coalesce(Product.other_expenses, 0)) * 
+             func.coalesce(ReservationItem.production_price, Product.production_price, 0) - 
+             func.coalesce(ReservationItem.marketing_amount, Product.marketing_expense, 0) - 
+             func.coalesce(ReservationItem.salary_amount, Product.salary_expense, 0) -
+             func.coalesce(ReservationItem.other_expenses, Product.other_expenses, 0)) * 
             (ReservationItem.quantity - ReservationItem.returned_quantity) * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
         ), 0.0)
     ).select_from(ReservationItem)\
@@ -422,13 +423,14 @@ async def get_comprehensive_stats(
     ops_costs_sum = 0.0 # Moved into the profit calculation
 
     # Sales Potential Net Profit (Expected based on Invoices total)
+    # Priority: ReservationItem (Snapshot) > Product (Current Default)
     potential_profit_sum_q = select(
         func.coalesce(func.sum(
             (ReservationItem.price - 
-             func.coalesce(Product.production_price, 0) - 
-             func.coalesce(ReservationItem.marketing_amount, 0) - 
-             func.coalesce(ReservationItem.salary_amount, 0) -
-             func.coalesce(Product.other_expenses, 0)) * 
+             func.coalesce(ReservationItem.production_price, Product.production_price, 0) - 
+             func.coalesce(ReservationItem.marketing_amount, Product.marketing_expense, 0) - 
+             func.coalesce(ReservationItem.salary_amount, Product.salary_expense, 0) -
+             func.coalesce(ReservationItem.other_expenses, Product.other_expenses, 0)) * 
             (ReservationItem.quantity - ReservationItem.returned_quantity)
         ), 0.0)
     ).select_from(ReservationItem)\
@@ -779,11 +781,12 @@ async def get_comprehensive_drilldown(
         for r in rows:
             paid_ratio = (r.reservation.invoice.paid_amount or 0) / r.reservation.invoice.total_amount if r.reservation and r.reservation.invoice and r.reservation.invoice.total_amount > 0 else 0
             sale_price = r.price
-            prod_price = r.product.production_price or 0
             # Net profit (Sof Foyda) = Sale - Cost - Bonus - Salary - Other
+            # Use snapshotted fields from ReservationItem, fallback to product for legacy
+            prod_price = r.production_price if r.production_price else (r.product.production_price or 0)
             marketing = r.marketing_amount or 0
             salary = r.salary_amount or 0
-            other = r.product.other_expenses or 0
+            other = r.other_expenses if r.other_expenses else (r.product.other_expenses or 0)
             
             unit_profit = sale_price - prod_price - marketing - salary - other
             effective_qty = r.quantity - r.returned_quantity
