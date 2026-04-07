@@ -90,4 +90,3 @@ final bonusProvider =
   final apiClient = ref.watch(apiClientProvider);
   return BonusNotifier(apiClient);
 });
-});

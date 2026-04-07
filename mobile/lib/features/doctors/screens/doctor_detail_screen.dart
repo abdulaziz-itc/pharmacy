@@ -689,7 +689,10 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Divider(height: 1, color: Theme.of(context).dividerColor),
-    );  Widget _buildDoctorPlanSummary(S l10n) {
+    );
+  }
+
+  Widget _buildDoctorPlanSummary(S l10n) {
     final plansAsync = ref.watch(doctorPlansProvider(DoctorPlansParams(
       id: widget.doctorId,
       month: _selectedMonth,
