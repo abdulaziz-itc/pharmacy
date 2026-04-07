@@ -233,7 +233,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="p-0 overflow-hidden max-w-lg border-0 shadow-2xl rounded-2xl">
+            <DialogContent className="p-0 overflow-hidden max-w-4xl border-0 shadow-2xl rounded-2xl">
 
                 {/* Header */}
                 <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 px-6 pt-6 pb-8 text-white relative overflow-hidden">
@@ -544,7 +544,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                                 <Input
                                                     type="text"
                                                     inputMode="numeric"
-                                                    className={`h-8 w-24 text-xs border-slate-200 ${isBonusEligible && it.product_id && (parseFloat(it.price) > (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 1.3 || parseFloat(it.price) < (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 0.7) ? 'border-red-500 text-red-600 bg-red-50' : ''}`}
+                                                    className={`h-8 w-24 text-xs border-slate-200`}
                                                     value={formatMoney(it.price)}
                                                     onChange={e => updateItem(idx, 'price', parseMoney(e.target.value))}
                                                     placeholder="Цена"
@@ -556,7 +556,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                                     <Input
                                                         type="text"
                                                         inputMode="numeric"
-                                                        className={`h-8 w-24 text-xs border-slate-200 ${it.product_id && (parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3) ? 'border-red-500 text-red-600 bg-red-50' : ''}`}
+                                                        className={`h-8 w-24 text-xs border-slate-200`}
                                                         value={formatMoney(it.marketing_amount)}
                                                         onChange={e => updateItem(idx, 'marketing_amount', parseMoney(e.target.value))}
                                                         placeholder="Промо"
@@ -569,26 +569,14 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                                     <Input
                                                         type="text"
                                                         inputMode="numeric"
-                                                        className={`h-8 w-24 text-xs border-slate-200 ${it.product_id && (parseFloat(it.salary_amount) > parseFloat(it.price) * 0.3) ? 'border-red-500 text-red-600 bg-red-50' : ''}`}
+                                                        className={`h-8 w-24 text-xs border-slate-200`}
                                                         value={formatMoney(it.salary_amount)}
                                                         onChange={e => updateItem(idx, 'salary_amount', parseMoney(e.target.value))}
                                                         placeholder="Зарплата"
                                                     />
                                                 </div>
                                             )}
-                                            {(isBonusEligible || isSalaryEnabled) && it.product_id && (
-                                                <div className="flex flex-col items-end gap-0.5 mt-0.5">
-                                                    {(parseFloat(it.price) > (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 1.3 || parseFloat(it.price) < (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 0.7) && (
-                                                        <span className="text-[9px] text-red-500 font-bold leading-none">Недопустимая цена! (max ±30%)</span>
-                                                    )}
-                                                    {isBonusEligible && (parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3) && (
-                                                        <span className="text-[9px] text-red-500 font-bold leading-none">Max Промо: {(parseFloat(it.price) * 0.3).toLocaleString()} (30%)</span>
-                                                    )}
-                                                    {isSalaryEnabled && (parseFloat(it.salary_amount) > parseFloat(it.price) * 0.3) && (
-                                                        <span className="text-[9px] text-red-500 font-bold leading-none">Max Зарплата: {(parseFloat(it.price) * 0.3).toLocaleString()} (30%)</span>
-                                                    )}
-                                                </div>
-                                            )}
+                                            {/* Restrictions removed */}
                                         </div>
                                         <button
                                             onClick={() => removeItem(idx)}
@@ -652,15 +640,6 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                             disabled={
                                 loading ||
                                 items.length === 0 ||
-                                items.some(it => {
-                                    if (!isBonusEligible || !it.product_id) return false;
-                                    const p = products.find(pr => pr.id.toString() === it.product_id);
-                                    if (!p) return false;
-                                    const priceDev = Math.abs(parseFloat(it.price) - p.price) / p.price;
-                                    const mktExceeds = isBonusEligible && parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3;
-                                    const salaryExceeds = isSalaryEnabled && parseFloat(it.salary_amount) > parseFloat(it.price) * 0.3;
-                                    return priceDev > 0.3 || mktExceeds || salaryExceeds;
-                                }) ||
                                 (isTovarSkidka && totalAmount > (eligibleInvoices.find(inv => inv.id.toString() === selectedSourceInvoice)?.promo_balance || 0))
                             }
                             className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-all shadow-md shadow-emerald-200"

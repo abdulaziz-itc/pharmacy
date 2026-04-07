@@ -653,6 +653,15 @@ const HeadOfOrdersPage: React.FC = () => {
         o.name?.toLowerCase().includes(orgSearch.toLowerCase())
     );
 
+    const getWhLabel = (whId: string) => {
+        if (!whId || whId === 'all') return 'СКЛАД';
+        const wh = warehouses.find(w => w.id.toString() === whId);
+        if (!wh) return 'СКЛАД';
+        const name = wh.name.toUpperCase().trim();
+        const regular = ['HEARTLY', 'ZUMA', 'UZGERMED', 'SAMO', 'FAZO', 'HEARLT'];
+        return regular.includes(name) ? 'СКЛАД' : 'ОПТ СКЛАД';
+    };
+
     return (
         <div className="min-h-screen bg-white">
             {/* ---- TABS ---- */}
@@ -690,7 +699,9 @@ const HeadOfOrdersPage: React.FC = () => {
                     {/* TOP: Warehouse selector chips */}
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Склады</span>
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                {selectedWarehouse ? getWhLabel(selectedWarehouse.id.toString()) : 'Склады'}
+                            </span>
                             <button
                                 onClick={() => setShowCreateWhModal(true)}
                                 className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors px-2 py-1 rounded hover:bg-blue-50"
@@ -724,7 +735,7 @@ const HeadOfOrdersPage: React.FC = () => {
                         <div>
                             <div className="flex items-center justify-between mb-3">
                                 <h2 className="text-xl font-bold text-slate-800">
-                                    Склад: <span className="text-blue-700">{selectedWarehouse.name}</span>
+                                    {getWhLabel(selectedWarehouse.id.toString())}: <span className="text-blue-700">{selectedWarehouse.name}</span>
                                 </h2>
                                 {!selectedWarehouse.is_wholesale && (
                                     <Button
@@ -914,7 +925,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                 </div>
                                 {/* Warehouse Filter */}
                                 <div className="flex flex-col">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">СКЛАД</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{getWhLabel(selectedWhFilter)}</p>
                                     <Select value={selectedWhFilter} onValueChange={setSelectedWhFilter}>
                                         <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
                                             <SelectValue placeholder="Все" />
@@ -1242,7 +1253,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                 </div>
                                 {/* Warehouse Filter */}
                                 <div className="flex flex-col">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">СКЛАД</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{getWhLabel(selectedWhFilter)}</p>
                                     <Select value={selectedWhFilter} onValueChange={setSelectedWhFilter}>
                                         <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
                                             <SelectValue placeholder="Все" />
@@ -1562,7 +1573,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                 </div>
                                 {/* Warehouse Filter */}
                                 <div className="flex flex-col">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">СКЛАД</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{getWhLabel(selectedWhFilter)}</p>
                                     <Select value={selectedWhFilter} onValueChange={setSelectedWhFilter}>
                                         <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
                                             <SelectValue placeholder="Все" />
