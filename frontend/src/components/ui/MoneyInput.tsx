@@ -12,9 +12,28 @@ interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElemen
  * e.g., 1000000 → "1.000.000"
  */
 export function formatMoney(value: string | number): string {
-    const str = String(value).replace(/[^\d]/g, '');
-    if (!str) return '';
-    return str.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    if (value === null || value === undefined || value === '') return '';
+    
+    let num: number;
+    if (typeof value === 'number') {
+        num = value;
+    } else {
+        // If it's a string, strip dots (thousand separators) and parse
+        const cleanStr = value.replace(/\./g, '').replace(/,/g, '.');
+        num = Number(cleanStr);
+    }
+    
+    if (isNaN(num)) return '';
+    
+    // Ensure exactly 1 decimal place
+    const fixed = num.toFixed(1);
+    const [intPart, decPart] = fixed.split('.');
+    
+    // Format integer part with dots as thousand separators
+    const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    // Append decimal part with a comma
+    return `${formattedInt},${decPart}`;
 }
 
 /**
