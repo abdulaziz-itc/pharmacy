@@ -14,6 +14,7 @@ interface PremiumKpiCardProps {
     suffix?: string;
     subValue?: number;
     subLabel?: string;
+    subSuffix?: string;
     variant?: 'premium' | 'minimal';
 }
 
@@ -63,6 +64,7 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
     suffix = 'UZS',
     subValue,
     subLabel,
+    subSuffix,
     variant = 'premium'
 }) => {
     const colorStyles: Record<string, any> = {
@@ -208,7 +210,7 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
                                     {subLabel}:
                                 </span>
                                 <span className="text-sm font-black text-slate-700 tracking-tight">
-                                    {formatMoney(subValue)} {suffix}
+                                    {formatMoney(subValue)} {subSuffix || suffix}
                                 </span>
                             </motion.div>
                         )}

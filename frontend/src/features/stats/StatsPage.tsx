@@ -347,6 +347,9 @@ export default function StatsPage() {
                             variant="minimal"
                             label="ФАКТ ОТГРУЗКА"
                             value={kpis.total_invoice_sum}
+                            subValue={kpis.total_items_sold}
+                            subLabel="Количество товаров"
+                            subSuffix="шт"
                             icon={Receipt}
                             color="blue"
                             onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Fact otgruzka' })}

@@ -377,9 +377,8 @@ async def get_comprehensive_stats(
 
     for r in bonus_res:
         if r.ledger_type == LedgerType.ACCRUAL:
-            if r.notes == "Аванс (Предынвест)":
+            if r.notes and r.notes.strip() == "Аванс (Предынвест)":
                 predinvest_sum += r.amount
-                paid_sum += r.amount
             else:
                 accrued_sum += r.amount
                 if r.is_paid:
@@ -643,7 +642,7 @@ async def get_comprehensive_stats(
             "salary_balance": float(max(0, salary_accrued - payout_sum)),
             "salary_accrued": float(salary_accrued),
             "total_invoice_sum": float(sales_total),
-            "bonus_balance": float(max(0, accrued_sum - paid_sum)),
+            "bonus_balance": float(max(0, accrued_sum - paid_sum - predinvest_sum)),
             "total_predinvest": float(predinvest_sum),
             "receivables": float(debt_sum),
             "overdue_receivables": float(overdue_sum),
