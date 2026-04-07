@@ -380,22 +380,14 @@ async def get_comprehensive_stats(
     # To be more precise, we join all items.
     from app.models.product import Product
     
-    # Sales Realized Gross Profit (Revenue - COGS)
+    # Sales Realized Net Profit (Revenue - COGS - Bonuses - Salaries - Other)
     gross_profit_sum_q = select(
         func.coalesce(func.sum(
-            (ReservationItem.price - func.coalesce(Product.production_price, 0)) * 
-            ReservationItem.quantity * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
-        ), 0.0)
-    ).select_from(ReservationItem)\
-     .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
-     .join(Invoice, Invoice.reservation_id == Reservation.id)\
-     .join(Product, ReservationItem.product_id == Product.id)\
-     .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
-
-    # Sales Realized Operational Costs (Bonuses + Marketing)
-    ops_costs_sum_q = select(
-        func.coalesce(func.sum(
-            (func.coalesce(ReservationItem.salary_amount, 0) + func.coalesce(ReservationItem.marketing_amount, 0)) * 
+            (ReservationItem.price - 
+             func.coalesce(Product.production_price, 0) - 
+             func.coalesce(ReservationItem.marketing_amount, 0) - 
+             func.coalesce(ReservationItem.salary_amount, 0) -
+             func.coalesce(Product.other_expenses, 0)) * 
             ReservationItem.quantity * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
         ), 0.0)
     ).select_from(ReservationItem)\
@@ -425,14 +417,18 @@ async def get_comprehensive_stats(
     if rep_ids:
         ops_costs_sum_q = ops_costs_sum_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids)))) if not region_id else ops_costs_sum_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
     
-    # 2c. Execute profit and ops costs
+    # Execute net profit
     gross_profit_sum = (await db.execute(gross_profit_sum_q)).scalar() or 0.0
-    ops_costs_sum = (await db.execute(ops_costs_sum_q)).scalar() or 0.0
+    ops_costs_sum = 0.0 # Moved into the profit calculation
 
-    # Sales Potential Gross Profit (Expected based on Invoices total)
+    # Sales Potential Net Profit (Expected based on Invoices total)
     potential_profit_sum_q = select(
         func.coalesce(func.sum(
-            (ReservationItem.price - func.coalesce(Product.production_price, 0) - func.coalesce(ReservationItem.salary_amount, 0) - func.coalesce(ReservationItem.marketing_amount, 0)) * 
+            (ReservationItem.price - 
+             func.coalesce(Product.production_price, 0) - 
+             func.coalesce(ReservationItem.marketing_amount, 0) - 
+             func.coalesce(ReservationItem.salary_amount, 0) -
+             func.coalesce(Product.other_expenses, 0)) * 
             ReservationItem.quantity
         ), 0.0)
     ).select_from(ReservationItem)\
@@ -784,9 +780,12 @@ async def get_comprehensive_drilldown(
             paid_ratio = (r.reservation.invoice.paid_amount or 0) / r.reservation.invoice.total_amount if r.reservation and r.reservation.invoice and r.reservation.invoice.total_amount > 0 else 0
             sale_price = r.price
             prod_price = r.product.production_price or 0
-            # Gross profit on drilldown now only subtract COGS (production price)
-            # operational expenses (bonuses/salary/marketing) are moved to the expenses category
-            unit_profit = sale_price - prod_price
+            # Net profit (Sof Foyda) = Sale - Cost - Bonus - Salary - Other
+            marketing = r.marketing_amount or 0
+            salary = r.salary_amount or 0
+            other = r.product.other_expenses or 0
+            
+            unit_profit = sale_price - prod_price - marketing - salary - other
             total_profit_realized = (unit_profit * r.quantity) * paid_ratio
             
             # Show all records, even if zero or negative, to prevent "No data" confusion
