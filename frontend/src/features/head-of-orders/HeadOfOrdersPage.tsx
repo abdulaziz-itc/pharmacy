@@ -977,7 +977,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                 onMouseMove={reservationsScroll.onMouseMove}
                                 className={`overflow-auto max-h-[70vh] ${reservationsScroll.isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
                             >
-                                <table className="min-w-[1400px] w-full text-[10px] whitespace-nowrap border-separate border-spacing-0">
+                                <table className="min-w-[1500px] w-full text-[10px] whitespace-nowrap border-separate border-spacing-0">
                                     <thead className="sticky top-0 z-30">
                                         <tr>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
@@ -986,22 +986,22 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СУММА С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">ДЕБИТОР</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКИДКА %</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА БРОНИ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СУММА С/Ф</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ПОСТУПЛЕНИЕ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ДЕБИТОР</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СКИДКА %</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ДАТА БРОНИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОДОБРЕНО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОМО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ВОЗВРАТ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОПЛАТА</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕЙСТВИЯ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИСТОРИЯ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СПИСОК</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКАЧАТЬ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">УДАЛИТЬ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">ТИП ФАКТУРЫ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ТИП</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ТИП К/А</th>
                                         </tr>
                                     </thead>
@@ -1029,36 +1029,36 @@ const HeadOfOrdersPage: React.FC = () => {
 
                                             return (
                                                 <tr key={res.id} className={`border-b transition-colors group ${res.is_deletion_pending || res.invoice?.is_deletion_pending || res.is_return_pending ? 'bg-yellow-100/70 hover:bg-yellow-100 border-yellow-200' : 'border-slate-50 hover:bg-slate-50/80'}`}>
-                                                    <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic text-center text-[9px]">{idx + 1}</td>
-                                                    <td className="px-3 py-4 text-center">
-                                                        <div className="flex items-center justify-center gap-1">
-                                                            <span className="font-black text-slate-700 tracking-tight text-[9px]">{res.invoice?.realization_date ? format(new Date(res.invoice.realization_date), 'dd/MM/yyyy') : (res.invoice?.created_at ? format(new Date(res.invoice.created_at), 'dd/MM/yyyy') : '—')}</span>
+                                                    <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic text-center">{idx + 1}</td>
+                                                    <td className="px-3 py-4">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="font-black text-slate-700 tracking-tight">{res.invoice?.realization_date ? format(new Date(res.invoice.realization_date), 'dd/MM/yyyy') : (res.invoice?.created_at ? format(new Date(res.invoice.created_at), 'dd/MM/yyyy') : '—')}</span>
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'date')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 text-center">
-                                                        <div className="flex items-center justify-center gap-1">
-                                                            <span className="font-black text-slate-700 tracking-tight text-[9px]">{res.invoice?.factura_number || '—'}</span>
+                                                    <td className="px-3 py-4">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="font-black text-slate-700 tracking-tight">{res.invoice?.factura_number || '—'}</span>
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'factura')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-4 font-black">
-                                                        <div className="flex items-center gap-1 text-slate-800 tracking-tight text-[9px]">
+                                                        <div className="flex items-center gap-1 text-slate-800 tracking-tight">
                                                             <span>{res.med_org?.name || '—'}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 font-bold text-slate-600 text-[10px]">{region}</td>
-                                                    <td className="px-3 py-4 font-black text-slate-600 tracking-tight text-[10px]">{inn}</td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center text-[10px]">{formatMoney(totalAmount)}</td>
-                                                    <td className="px-3 py-4 font-black text-emerald-600 text-center text-[10px]">{formatMoney(paidAmount)}</td>
-                                                    <td className="px-3 py-4 font-black text-rose-600 text-center text-[10px]">{formatMoney(debt)}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{region}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{inn}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{formatMoney(totalAmount)}</td>
+                                                    <td className="px-3 py-4 font-black text-emerald-600 text-center">{formatMoney(paidAmount)}</td>
+                                                    <td className="px-3 py-4 font-black text-rose-600 text-center">{formatMoney(debt)}</td>
                                                     <td className="px-3 py-4 font-black text-center">
-                                                        <div className="flex items-center justify-center gap-1 text-[10px]">
+                                                        <div className="flex items-center justify-center gap-1">
                                                             <span className="text-slate-700">{discount}%</span>
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'discount')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 font-bold text-slate-500 text-center text-[10px]">{res.date ? format(new Date(res.date), 'dd/MM/yyyy') : '—'}</td>
+                                                    <td className="px-3 py-4 font-bold text-slate-500 text-center">{res.date ? format(new Date(res.date), 'dd/MM/yyyy') : '—'}</td>
                                                     <td className="px-3 py-4 text-center">
                                                         <div className="flex justify-center flex-col items-center gap-1">
                                                             <button
@@ -1075,8 +1075,8 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             )}
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 uppercase text-[9px]">{manufacturer}</td>
-                                                    <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50 text-[10px]">{promoVal.toLocaleString()}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
+                                                    <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">{promoVal.toLocaleString()}</td>
                                                     <td className="px-3 py-4 text-center">
                                                         <button
                                                             onClick={() => { setSelectedResForReturn(res); setReturnQuantities({}); setShowReturnModal(true); }}
@@ -1091,7 +1091,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             disabled={(res.is_deletion_pending || res.invoice?.is_deletion_pending) || (res.status !== 'approved' && res.status !== 'paid' && res.status !== 'partial')}
                                                             className="h-8 bg-slate-100 hover:bg-blue-600 text-slate-600 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all px-4 disabled:opacity-50"
                                                         >
-                                                            {res.is_deletion_pending || res.invoice?.is_deletion_pending ? 'Ждёт удаления' : `ОПЛАТА`}
+                                                            {res.is_deletion_pending || res.invoice?.is_deletion_pending ? 'Ждёт удаления' : `ПОСТУПЛЕНИЕ ${res.status !== 'approved' && res.status !== 'paid' && res.status !== 'partial' ? '(Ждёт одобрения)' : ''}`}
                                                         </Button>
                                                     </td>
                                                     <td className="px-3 py-4 text-center">
@@ -1128,7 +1128,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
                                                     </td>
-                                                    <td className="px-3 py-4 font-black text-slate-800 tracking-tight text-[9px]">{medRepName}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-800 tracking-tight">{medRepName}</td>
                                                     <td className="px-3 py-4">
                                                         <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase tracking-wider ${res.is_tovar_skidka ? 'bg-orange-100 text-orange-700' : res.warehouse?.is_wholesale ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
                                                             {res.is_tovar_skidka ? 'Товарная скидка' : res.warehouse?.is_wholesale ? 'Через оптовик' : 'Обычная'}
@@ -1294,7 +1294,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                 onMouseMove={invoicesScroll.onMouseMove}
                                 className={`overflow-auto max-h-[70vh] ${invoicesScroll.isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
                             >
-                                <table className="min-w-[1400px] w-full text-[10px] whitespace-nowrap border-separate border-spacing-0">
+                                <table className="min-w-[1500px] w-full text-[10px] whitespace-nowrap border-separate border-spacing-0">
                                     <thead className="sticky top-0 z-30">
                                         <tr>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
@@ -1303,27 +1303,25 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СУММА С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">ДЕБИТОР</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКИДКА %</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА БРОНИ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СУММА С/Ф</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ПОСТУПЛЕНИЕ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ДЕБИТОР</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СКИДКА %</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ДАТА БРОНИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОДОБРЕНО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОМО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ВОЗВРАТ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОПЛАТА</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕЙСТВИЯ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИСТОРИЯ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СПИСОК</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКАЧАТЬ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">УДАЛИТЬ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">ТИП ФАКТУРЫ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ТИП</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ТИП К/А</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        {filteredInv.length === 0 ? (
                                     <tbody>
                                         {filteredInv.length === 0 ? (
                                             <tr>
@@ -1348,36 +1346,36 @@ const HeadOfOrdersPage: React.FC = () => {
 
                                             return (
                                                 <tr key={inv.id} className={`border-b transition-colors group ${res?.is_deletion_pending || inv.is_deletion_pending || res?.is_return_pending ? 'bg-yellow-100/70 hover:bg-yellow-100 border-yellow-200' : 'border-slate-50 hover:bg-slate-50/80'}`}>
-                                                    <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic text-center text-[9px]">{idx + 1}</td>
-                                                    <td className="px-3 py-4 text-center">
-                                                        <div className="flex items-center justify-center gap-1">
-                                                            <span className="font-black text-slate-700 tracking-tight text-[9px]">{inv.realization_date ? format(new Date(inv.realization_date), 'dd/MM/yyyy') : (inv.created_at ? format(new Date(inv.created_at), 'dd/MM/yyyy') : '—')}</span>
+                                                    <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
+                                                    <td className="px-3 py-4">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="font-black text-slate-700 tracking-tight">{inv.realization_date ? format(new Date(inv.realization_date), 'dd/MM/yyyy') : (inv.created_at ? format(new Date(inv.created_at), 'dd/MM/yyyy') : '—')}</span>
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'date')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 text-center">
-                                                        <div className="flex items-center justify-center gap-1">
-                                                            <span className="font-black text-slate-700 tracking-tight text-[9px]">{inv.factura_number || '—'}</span>
+                                                    <td className="px-3 py-4">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="font-black text-slate-700 tracking-tight">{inv.factura_number || '—'}</span>
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'factura')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-4 font-black">
-                                                        <div className="flex items-center gap-1 text-slate-800 tracking-tight text-[9px]">
+                                                        <div className="flex items-center gap-1 text-slate-800 tracking-tight">
                                                             <span>{res.med_org?.name || '—'}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 font-bold text-slate-600 text-[10px]">{region}</td>
-                                                    <td className="px-3 py-4 font-black text-slate-600 tracking-tight text-[10px]">{inn}</td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center text-[10px]">{formatMoney(inv.total_amount || 0)}</td>
-                                                    <td className="px-3 py-4 font-black text-emerald-600 text-center text-[10px]">{formatMoney(paidAmount)}</td>
-                                                    <td className="px-3 py-4 font-black text-rose-600 text-center text-[10px]">{formatMoney(debt)}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{region}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{inn}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{formatMoney(inv.total_amount || 0)}</td>
+                                                    <td className="px-3 py-4 font-black text-emerald-600 text-center">{formatMoney(paidAmount)}</td>
+                                                    <td className="px-3 py-4 font-black text-rose-600 text-center">{formatMoney(debt)}</td>
                                                     <td className="px-3 py-4 font-black text-center">
-                                                        <div className="flex items-center justify-center gap-1 text-[10px]">
+                                                        <div className="flex items-center justify-center gap-1">
                                                             <span className="text-slate-700">{discount}%</span>
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'discount')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 font-bold text-slate-500 text-center text-[10px]">{res.date ? format(new Date(res.date), 'dd/MM/yyyy') : '—'}</td>
+                                                    <td className="px-3 py-4 font-bold text-slate-500 text-center">{res.date ? format(new Date(res.date), 'dd/MM/yyyy') : '—'}</td>
                                                     <td className="px-3 py-4 text-center">
                                                         <div className="flex justify-center">
                                                             <button
@@ -1387,8 +1385,8 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             </button>
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 uppercase text-[9px]">{manufacturer}</td>
-                                                    <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50 text-[10px]">{promoVal.toLocaleString()}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
+                                                    <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">{promoVal.toLocaleString()}</td>
                                                     <td className="px-3 py-4 text-center">
                                                         {res.is_return_pending ? (
                                                             <div className="flex items-center justify-center gap-1.5 p-1.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-100/50" title="Ожидает возврата">
@@ -1409,7 +1407,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             onClick={() => { setSelectedInvoice(inv); setIsPaymentModalOpen(true); }}
                                                             className="h-8 bg-slate-100 hover:bg-blue-600 text-slate-600 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all px-4"
                                                         >
-                                                            ОПЛАТА
+                                                            ПОСТУПЛЕНИЕ
                                                         </Button>
                                                     </td>
                                                     <td className="px-3 py-4 text-center">
@@ -1432,21 +1430,21 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             onClick={(e) => { 
                                                                 e.stopPropagation(); 
                                                                 if (paidAmount > 0) {
-                                                                    toast.error("Невозможно удалить: по этой накладной already sent.");
+                                                                    toast.error("Невозможно удалить: по этой накладной уже есть оплата.");
                                                                 } else if (res?.is_deletion_pending || inv.is_deletion_pending) {
-                                                                    toast.info("Заявка на удаление already sent.");
+                                                                    toast.info("Заявка на удаление уже отправлена.");
                                                                 } else {
                                                                     handleDeleteRes(res.id); 
                                                                 }
                                                             }}
                                                             className={`p-1.5 rounded-lg transition-all ${(paidAmount > 0 || res?.is_deletion_pending || inv.is_deletion_pending) ? 'text-slate-300 cursor-not-allowed' : 'hover:bg-rose-100 text-slate-400 hover:text-rose-600'}`}
-                                                            title={paidAmount > 0 ? "Невозможно удалить оплаченную fakturu" : "Уdaлить broнь"}
+                                                            title={paidAmount > 0 ? "Невозможно удалить оплаченную фактуру" : "Удалить бронь"}
                                                             disabled={paidAmount > 0 || res?.is_deletion_pending || inv.is_deletion_pending}
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
                                                     </td>
-                                                    <td className="px-3 py-4 font-black text-slate-800 tracking-tight text-[9px]">{medRepName}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-800 tracking-tight">{medRepName}</td>
                                                     <td className="px-3 py-4">
                                                         <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase tracking-wider ${res.is_tovar_skidka ? 'bg-orange-100 text-orange-700' : res.warehouse?.is_wholesale ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
                                                             {res.is_tovar_skidka ? 'Товарная скидка' : res.warehouse?.is_wholesale ? 'Через оптовик' : 'Обычная'}
@@ -1463,6 +1461,8 @@ const HeadOfOrdersPage: React.FC = () => {
                     </div>
                 )
             }
+
+            {/* ============================================================
                 TAB 3.5: ДЕБИТОРКА
             ============================================================ */}
             {
@@ -1645,31 +1645,38 @@ const HeadOfOrdersPage: React.FC = () => {
                                 onMouseMove={invoicesScroll.onMouseMove}
                                 className={`overflow-auto max-h-[70vh] ${invoicesScroll.isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
                             >
-                                <table className="min-w-[1400px] w-full text-[10px] whitespace-nowrap border-separate border-spacing-0">
+                                <table className="min-w-[1500px] w-full text-[10px] whitespace-nowrap border-separate border-spacing-0">
                                     <thead className="sticky top-0 z-30">
                                         <tr>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СУММА С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
-                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОПЛАЧЕНО</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">ДЕБИТОР</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКИДКА %</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА БРОНИ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СУММА С/Ф</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ПОСТУПЛЕНИЕ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center text-rose-500">ДЕБИТОР</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СКИДКА %</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ДАТА БРОНИ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОДОБРЕНО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОМО</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-slate-300">ВОЗВРАТ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕЙСТВИЯ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИСТОРИЯ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СПИСОК</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СКАЧАТЬ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">УДАЛИТЬ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">МП</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ТИП</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ТИП К/А</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredDebitorka.length === 0 ? (
                                             <tr>
-                                                <td colSpan={16} className="py-20 text-center">
+                                                <td colSpan={23} className="py-20 text-center">
                                                     <div className="flex flex-col items-center gap-3 opacity-20">
                                                         <Receipt className="w-12 h-12" />
                                                         <p className="font-black uppercase tracking-tighter text-xl text-slate-900">Задолженностей нет</p>
@@ -1685,30 +1692,44 @@ const HeadOfOrdersPage: React.FC = () => {
                                             const manufacturer = res.items?.[0]?.product?.manufacturers?.[0]?.name || '—';
                                             const region = res.med_org?.region?.name || '—';
                                             const inn = res.med_org?.inn || '—';
+                                            const promoVal = res ? calculatePromo(res) : 0;
+                                            const orgType = res.med_org?.org_type || '—';
 
                                             return (
                                                 <tr key={inv.id} className="border-b transition-colors group border-slate-50 hover:bg-slate-50/80">
                                                     <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
-                                                    <td className="px-3 py-4 font-black text-slate-800 tracking-tight">{medRepName}</td>
                                                     <td className="px-3 py-4">
                                                         <span className="font-black text-slate-700 tracking-tight">{inv.realization_date ? format(new Date(inv.realization_date), 'dd/MM/yyyy') : (inv.created_at ? format(new Date(inv.created_at), 'dd/MM/yyyy') : '—')}</span>
                                                     </td>
                                                     <td className="px-3 py-4">
                                                         <span className="font-black text-slate-700 tracking-tight">{inv.factura_number || `INV-${inv.id}`}</span>
                                                     </td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight">{formatMoney(inv.total_amount || 0)}</td>
                                                     <td className="px-3 py-4 font-black">
                                                         <span className="text-slate-800 tracking-tight">{res.med_org?.name || '—'}</span>
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{region}</td>
                                                     <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{inn}</td>
-                                                    <td className="px-3 py-4 font-black text-emerald-600">{formatMoney(paidAmount)}</td>
-                                                    <td className="px-3 py-4 font-black text-rose-600 tracking-tight">{formatMoney(debt)}</td>
-                                                    <td className="px-3 py-4 font-black">
+                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{formatMoney(inv.total_amount || 0)}</td>
+                                                    <td className="px-3 py-4 font-black text-emerald-600 text-center">{formatMoney(paidAmount)}</td>
+                                                    <td className="px-3 py-4 font-black text-rose-600 text-center">{formatMoney(debt)}</td>
+                                                    <td className="px-3 py-4 font-black text-center">
                                                         <span className="text-slate-700">{discount}%</span>
                                                     </td>
-                                                    <td className="px-3 py-4 font-bold text-slate-500">{res.date ? format(new Date(res.date), 'dd/MM/yyyy') : '—'}</td>
+                                                    <td className="px-3 py-4 font-bold text-slate-500 text-center">{res.date ? format(new Date(res.date), 'dd/MM/yyyy') : '—'}</td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <div className="flex justify-center">
+                                                            <button className="w-8 h-4 rounded-full relative transition-colors bg-emerald-500">
+                                                                <div className="absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all shadow-sm right-0.5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
                                                     <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
+                                                    <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">{promoVal.toLocaleString()}</td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <button disabled className="p-1.5 opacity-20 text-slate-400">
+                                                            <RefreshCw className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
                                                     <td className="px-3 py-4 text-center">
                                                         <Button
                                                             onClick={() => { setSelectedInvoice(inv); setIsPaymentModalOpen(true); }}
@@ -1716,6 +1737,11 @@ const HeadOfOrdersPage: React.FC = () => {
                                                         >
                                                             ПОСТУПЛЕНИЕ
                                                         </Button>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <button onClick={() => { setSelectedResForHistory(inv); setShowPaymentHistoryModal(true); }} className="p-1.5 hover:bg-indigo-100 hover:text-indigo-600 rounded-lg transition-colors text-slate-400">
+                                                            <Eye className="w-4 h-4" />
+                                                        </button>
                                                     </td>
                                                     <td className="px-3 py-4 text-center">
                                                         <button onClick={() => { setSelectedResItems(res.items || []); setShowProductListModal(true); }} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-400">
@@ -1727,6 +1753,18 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             <Download className="w-4 h-4" />
                                                         </button>
                                                     </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <button disabled className="p-1.5 opacity-20 text-slate-400">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-3 py-4 font-black text-slate-800 tracking-tight">{medRepName}</td>
+                                                    <td className="px-3 py-4">
+                                                        <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase tracking-wider ${res.is_tovar_skidka ? 'bg-orange-100 text-orange-700' : res.warehouse?.is_wholesale ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                            {res.is_tovar_skidka ? 'Товарная скидка' : res.warehouse?.is_wholesale ? 'Через оптовик' : 'Обычная'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-3 py-4 font-black text-slate-600 uppercase text-[9px] tracking-widest italic">{orgType}</td>
                                                 </tr>
                                             );
                                         })}
