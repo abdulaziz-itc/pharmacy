@@ -314,8 +314,8 @@ async def get_comprehensive_stats(
             q = q.join(ReservationItem, model_ref.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
         return q
 
-    # Sales Plan (UZS) - Dynamic: Quantity * Current Product Price
-    plan_q = select(func.sum(Plan.target_quantity * Product.price).label("total")).join(Product, Plan.product_id == Product.id)
+    # Sales Plan (UZS) - Direct sum of target_amount for accuracy
+    plan_q = select(func.sum(Plan.target_amount).label("total"))
     if quarter and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
     elif month and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
     elif year: plan_q = plan_q.where(Plan.year == year)
@@ -470,12 +470,12 @@ async def get_comprehensive_stats(
     # 4. PRODUCT STATS (Safe Split Logic)
     product_stats_map = {}
     
-    # 4a. Plan Products - Dynamic: Quantity * Current Product Price
+    # 4a. Plan Products - Sum target_amount
     plan_q = select(
         Plan.product_id,
-        func.sum(Plan.target_quantity * Product.price).label("plan_uzs"),
+        func.sum(Plan.target_amount).label("plan_uzs"),
         func.sum(Plan.target_quantity).label("plan_qty")
-    ).join(Product, Plan.product_id == Product.id).group_by(Plan.product_id)
+    ).group_by(Plan.product_id)
     
     if quarter and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
     elif month and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
