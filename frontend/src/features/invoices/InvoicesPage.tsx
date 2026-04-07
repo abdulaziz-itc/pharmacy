@@ -137,6 +137,22 @@ export default function InvoicesPage() {
             },
         },
         {
+            id: 'delay_days',
+            header: 'Просрочка',
+            cell: ({ row }: any) => {
+                const d = row.original.realization_date || row.original.date;
+                if (!d) return '—';
+                const diff = new Date().getTime() - new Date(d).getTime();
+                const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+                const isOverdue = days > 30;
+                return (
+                    <span className={`font-black ${isOverdue ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {days} дн.
+                    </span>
+                );
+            },
+        },
+        {
             id: 'total_amount',
             header: 'Сумма',
             cell: ({ row }: any) => formatMoney(row.original.total_amount || 0) + ' UZS',
@@ -228,7 +244,20 @@ export default function InvoicesPage() {
                             columns={columns}
                             data={invoices}
                             onRowClick={(row) => setSelectedInvoiceForView(row)}
-                            getRowClassName={(row: any) => row.is_deletion_pending || row.reservation?.is_deletion_pending || row.reservation?.is_return_pending ? 'bg-yellow-100/70 hover:bg-yellow-100' : ''}
+                            getRowClassName={(row: any) => {
+                                if (row.is_deletion_pending || row.reservation?.is_deletion_pending || row.reservation?.is_return_pending) return 'bg-yellow-100/70 hover:bg-yellow-100';
+                                
+                                const debt = (row.total_amount || 0) - (row.paid_amount || 0);
+                                if (debt > 0) {
+                                    const d = row.realization_date || row.date;
+                                    if (d) {
+                                        const diff = new Date().getTime() - new Date(d).getTime();
+                                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                                        if (days > 30) return 'bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer';
+                                    }
+                                }
+                                return '';
+                            }}
                         />
                     </div>
                 )}

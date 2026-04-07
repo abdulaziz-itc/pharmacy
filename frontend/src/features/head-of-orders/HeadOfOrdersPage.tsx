@@ -1308,6 +1308,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         <tr>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОСРОЧКА</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
@@ -1334,7 +1335,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                     <tbody>
                                         {filteredInv.length === 0 ? (
                                             <tr>
-                                                <td colSpan={23} className="py-20 text-center">
+                                                <td colSpan={24} className="py-20 text-center">
                                                     <div className="flex flex-col items-center gap-3 opacity-20">
                                                         <Receipt className="w-12 h-12" />
                                                         <p className="font-black uppercase tracking-tighter text-xl text-slate-900">Фактуры отсутствуют</p>
@@ -1354,13 +1355,30 @@ const HeadOfOrdersPage: React.FC = () => {
                                             const promoVal = calculatePromo(res);
 
                                             return (
-                                                <tr key={inv.id} className={`border-b transition-colors group ${res?.is_deletion_pending || inv.is_deletion_pending || res?.is_return_pending ? 'bg-yellow-100/70 hover:bg-yellow-100 border-yellow-200' : 'border-slate-50 hover:bg-slate-50/80'}`}>
+                                                <tr key={inv.id} className={`border-b transition-colors group 
+                                                    ${res?.is_deletion_pending || inv.is_deletion_pending || res?.is_return_pending 
+                                                        ? 'bg-yellow-100/70 hover:bg-yellow-100 border-yellow-200' 
+                                                        : 'border-slate-50 hover:bg-slate-50/80'
+                                                    }`}>
                                                     <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
                                                     <td className="px-3 py-4">
                                                         <div className="flex items-center gap-1">
                                                             <span className="font-black text-slate-700 tracking-tight">{inv.realization_date ? format(new Date(inv.realization_date), 'dd/MM/yyyy') : (inv.created_at ? format(new Date(inv.created_at), 'dd/MM/yyyy') : '—')}</span>
                                                             <Pencil onClick={() => handleOpenInvoiceEdit(res, 'date')} className="w-3 h-3 text-slate-300 hover:text-blue-500 cursor-pointer transition-colors" />
                                                         </div>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        {(() => {
+                                                            const d = inv.realization_date || inv.date || inv.created_at;
+                                                            if (!d) return '—';
+                                                            const diff = new Date().getTime() - new Date(d).getTime();
+                                                            const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+                                                            return (
+                                                                <span className={`font-black text-[10px] ${days > 30 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                                    {days} дн.
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </td>
                                                     <td className="px-3 py-4">
                                                         <div className="flex items-center gap-1">
@@ -1659,6 +1677,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         <tr>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОСРОЧКА</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
@@ -1685,7 +1704,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                     <tbody>
                                         {filteredDebitorka.length === 0 ? (
                                             <tr>
-                                                <td colSpan={23} className="py-20 text-center">
+                                                <td colSpan={24} className="py-20 text-center">
                                                     <div className="flex flex-col items-center gap-3 opacity-20">
                                                         <Receipt className="w-12 h-12" />
                                                         <p className="font-black uppercase tracking-tighter text-xl text-slate-900">Задолженностей нет</p>
@@ -1705,10 +1724,35 @@ const HeadOfOrdersPage: React.FC = () => {
                                             const orgType = res.med_org?.org_type || '—';
 
                                             return (
-                                                <tr key={inv.id} className="border-b transition-colors group border-slate-50 hover:bg-slate-50/80">
+                                                <tr key={inv.id} className={`border-b transition-colors group 
+                                                    ${res?.is_deletion_pending || inv.is_deletion_pending || res?.is_return_pending 
+                                                        ? 'bg-yellow-100/70 hover:bg-yellow-100 border-yellow-200' 
+                                                        : (() => {
+                                                            const d = inv.realization_date || inv.date || inv.created_at;
+                                                            if (d) {
+                                                                const diff = new Date().getTime() - new Date(d).getTime();
+                                                                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                                                                return days > 30;
+                                                            }
+                                                            return false;
+                                                        })() ? 'bg-rose-50 hover:bg-rose-100 border-rose-100' : 'border-slate-50 hover:bg-slate-50/80'
+                                                    }`}>
                                                     <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
                                                     <td className="px-3 py-4">
                                                         <span className="font-black text-slate-700 tracking-tight">{inv.realization_date ? format(new Date(inv.realization_date), 'dd/MM/yyyy') : (inv.created_at ? format(new Date(inv.created_at), 'dd/MM/yyyy') : '—')}</span>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        {(() => {
+                                                            const d = inv.realization_date || inv.date || inv.created_at;
+                                                            if (!d) return '—';
+                                                            const diff = new Date().getTime() - new Date(d).getTime();
+                                                            const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+                                                            return (
+                                                                <span className={`font-black text-[10px] ${days > 30 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                                    {days} дн.
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </td>
                                                     <td className="px-3 py-4">
                                                         <span className="font-black text-slate-700 tracking-tight">{inv.factura_number || `INV-${inv.id}`}</span>
