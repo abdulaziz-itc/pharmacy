@@ -108,8 +108,6 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
               children: [
                 _buildQuickActions(doctor, l10n),
                 const SizedBox(height: 32),
-                _buildDoctorBonusSection(doctor, l10n),
-                const SizedBox(height: 32),
                 _buildPlanHeader(l10n),
                 const SizedBox(height: 16),
                 _buildMonthYearSelector(l10n),
@@ -692,88 +690,4 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
     );
   }
 
-  Widget _buildDoctorBonusSection(DoctorModel doctor, S l10n) {
-    final bonusAsync = ref.watch(doctorBonusStatsProvider(DoctorBonusParams(
-      id: widget.doctorId,
-      month: _selectedMonth,
-      year: _selectedYear,
-    )));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle(l10n.bonusesPeriod, Icons.stars_rounded),
-        const SizedBox(height: 16),
-        bonusAsync.when(
-          data: (bonus) => Row(
-            children: [
-              Expanded(
-                child: _buildSimpleBonusCard(
-                  l10n.accruedLabel,
-                  '${_formatAmount(bonus.totalAccrued)} ${l10n.sumCurrency}',
-                  AppColors.success.withValues(alpha: 0.1),
-                  AppColors.success,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildSimpleBonusCard(
-                  l10n.paidBonusLabel,
-                  '${_formatAmount(bonus.totalPaid)} ${l10n.sumCurrency}',
-                  AppColors.primary.withValues(alpha: 0.1),
-                  AppColors.primary,
-                ),
-              ),
-            ],
-          ),
-          loading: () => const LinearProgressIndicator(color: AppColors.primary, backgroundColor: Colors.transparent),
-          error: (err, _) => Text(
-            l10n.bonusLoadError,
-            style: GoogleFonts.inter(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSimpleBonusCard(String label, String value, Color bgColor, Color textColor) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: textColor.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: textColor.withValues(alpha: 0.7),
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          FittedBox(
-            child: Text(
-              value,
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: textColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatAmount(double amount) {
-    final formatter = NumberFormat('#,##0', 'en_US');
-    return formatter.format(amount);
-  }
 }

@@ -90,37 +90,4 @@ final bonusProvider =
   final apiClient = ref.watch(apiClientProvider);
   return BonusNotifier(apiClient);
 });
-
-class DoctorBonusParams {
-  final int id;
-  final int month;
-  final int year;
-
-  DoctorBonusParams({required this.id, required this.month, required this.year});
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DoctorBonusParams &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          month == other.month &&
-          year == other.year;
-
-  @override
-  int get hashCode => id.hashCode ^ month.hashCode ^ year.hashCode;
-}
-
-final doctorBonusStatsProvider =
-    FutureProvider.family<BonusBalanceModel, DoctorBonusParams>((ref, params) async {
-  final apiClient = ref.watch(apiClientProvider);
-  final response = await apiClient.get(
-    ApiEndpoints.bonusBalance,
-    queryParameters: {
-      'doctor_id': params.id,
-      'month': params.month,
-      'year': params.year,
-    },
-  );
-  return BonusBalanceModel.fromJson(response.data as Map<String, dynamic>);
 });
