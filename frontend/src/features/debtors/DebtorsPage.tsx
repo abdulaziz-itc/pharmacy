@@ -72,7 +72,18 @@ export default function DebtorsPage() {
             resCount: invoices.length,
             promoAmount: totalPromo,
             tovarSkidkaAmount: 0,
-            tovarSkidkaCount: 0
+            tovarSkidkaCount: 0,
+            overdueAmount: invoices.reduce((sum: number, inv: any) => {
+                const d = inv.realization_date || inv.date || inv.created_at;
+                if (!d) return sum;
+                const diff = new Date().getTime() - new Date(d).getTime();
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                if (days > 30) {
+                    const debt = (Number(inv.total_amount) || 0) - (Number(inv.paid_amount) || 0);
+                    return sum + Math.max(0, debt);
+                }
+                return sum;
+            }, 0)
         };
     }, [invoices]);
 
@@ -212,6 +223,10 @@ export default function DebtorsPage() {
                                 {stats.debtAmount.toLocaleString()}
                             </span>
                             <span className="text-xl font-bold opacity-60">UZS</span>
+                        </div>
+                        <div className="mt-2 flex flex-col relative z-10">
+                            <span className="text-[10px] font-black text-rose-100 uppercase tracking-widest opacity-80">Из них просроченная задолженность:</span>
+                            <span className="text-lg font-black text-white tracking-tight drop-shadow-sm">{stats.overdueAmount.toLocaleString()} UZS</span>
                         </div>
                         <div className="mt-6 flex items-center gap-2 text-rose-100/60 text-[10px] font-black uppercase tracking-widest">
                             <div className="w-2 h-2 rounded-full bg-white animate-pulse" />

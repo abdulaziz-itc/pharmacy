@@ -644,6 +644,17 @@ const HeadOfOrdersPage: React.FC = () => {
         tovarSkidkaCount: allFilteredReservations.filter(r => r.is_tovar_skidka).length,
         tovarSkidkaAmount: allFilteredReservations.filter(r => r.is_tovar_skidka).reduce((sum, r) => sum + (r.total_amount || 0), 0),
         pendingResTotal: filteredReservationsPending.reduce((sum, r) => sum + (r.total_amount || 0), 0),
+        overdueAmount: filteredInv.reduce((sum, inv) => {
+            const d = inv.realization_date || inv.date || inv.created_at;
+            if (!d) return sum;
+            const diff = new Date().getTime() - new Date(d).getTime();
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            if (days > 30) {
+                const debt = (Number(inv.total_amount) || 0) - (Number(inv.paid_amount) || 0);
+                return sum + Math.max(0, debt);
+            }
+            return sum;
+        }, 0),
     };
 
 
@@ -1632,6 +1643,10 @@ const HeadOfOrdersPage: React.FC = () => {
                                         {formatMoney(filteredDebitorka.reduce((s, i) => s + ((i.total_amount || 0) - (i.paid_amount || 0)), 0))}
                                     </span>
                                     <span className="text-lg font-bold text-rose-200">UZS</span>
+                                </div>
+                                <div className="mt-1 relative z-10 flex flex-col">
+                                    <span className="text-[10px] font-black text-rose-100/70 uppercase tracking-widest">Из них просроченная задолженность:</span>
+                                    <span className="text-sm font-black text-white tracking-tight">{formatMoney(stats.overdueAmount)} UZS</span>
                                 </div>
                                 <div className="mt-4 flex items-center gap-2 relative z-10 bg-white/10 w-fit px-3 py-1.5 rounded-full border border-white/10">
                                     <div className="w-2 h-2 rounded-full bg-rose-300 animate-pulse" />
