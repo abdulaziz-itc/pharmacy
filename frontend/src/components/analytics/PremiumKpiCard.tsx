@@ -12,6 +12,8 @@ interface PremiumKpiCardProps {
     onClick?: () => void;
     subtitle?: string;
     suffix?: string;
+    subValue?: number;
+    subLabel?: string;
 }
 
 const CountUp = ({ value, suffix = 'UZS' }: { value: number, suffix?: string }) => {
@@ -57,7 +59,9 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
     badge,
     onClick,
     subtitle,
-    suffix = 'UZS'
+    suffix = 'UZS',
+    subValue,
+    subLabel
 }) => {
     const colorStyles: Record<string, any> = {
         blue: {
@@ -171,6 +175,21 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
                                 </motion.p>
                             )}
                         </AnimatePresence>
+
+                        {subLabel && subValue !== undefined && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mt-4 pt-3 border-t border-slate-100 flex flex-col"
+                            >
+                                <span className={`text-[9px] font-black uppercase tracking-widest ${style.text} opacity-70`}>
+                                    {subLabel}:
+                                </span>
+                                <span className="text-sm font-black text-slate-700 tracking-tight">
+                                    {formatMoney(subValue)} {suffix}
+                                </span>
+                            </motion.div>
+                        )}
                     </div>
                 </div>
 

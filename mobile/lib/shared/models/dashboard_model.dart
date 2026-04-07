@@ -18,6 +18,7 @@ class DashboardStatsModel {
   final int activeDoctors;
   final int pendingReservations;
   final double totalDebt;
+  final double totalOverdueDebt;
   final List<RevenueForecastPoint> revenueForecast;
   final int completedVisits;
   final int plannedVisits;
@@ -28,6 +29,7 @@ class DashboardStatsModel {
     required this.activeDoctors,
     required this.pendingReservations,
     required this.totalDebt,
+    required this.totalOverdueDebt,
     required this.revenueForecast,
     required this.completedVisits,
     required this.plannedVisits,
@@ -41,6 +43,7 @@ class DashboardStatsModel {
       activeDoctors: json['active_doctors'] as int? ?? 0,
       pendingReservations: json['pending_reservations'] as int? ?? 0,
       totalDebt: (json['total_debt'] as num?)?.toDouble() ?? 0.0,
+      totalOverdueDebt: (json['total_overdue_debt'] as num?)?.toDouble() ?? 0.0,
       revenueForecast: forecastList
           .map((e) => RevenueForecastPoint.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -56,6 +59,7 @@ class DashboardStatsModel {
       activeDoctors: 0,
       pendingReservations: 0,
       totalDebt: 0,
+      totalOverdueDebt: 0,
       revenueForecast: [],
       completedVisits: 0,
       plannedVisits: 0,

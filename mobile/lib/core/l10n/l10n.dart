@@ -285,6 +285,7 @@ class S {
       'attached_facts_label': 'ПРИКРЕПЛЕННЫЕ ФАКТЫ',
       'total_plan_title': 'ОБЩИЙ ПЛАН (УП)',
       'total_fact_title': 'ОБЩИЙ ФАКТ (УП)',
+      'of_which_overdue': 'Из них просрочено',
     },
       'uz': {
       'products': 'Mahsulotlar',
@@ -560,6 +561,7 @@ class S {
       'attached_facts_label': 'BIRIKTIRILGAN FAKTLAR',
       'total_plan_title': 'UMUMIY REJA (TA)',
       'total_fact_title': 'UMUMIY FAKT (TA)',
+      'of_which_overdue': 'Shundan muddati o\'tgan',
     },
   };
 
@@ -798,6 +800,7 @@ class S {
   String get doctorsTab => translate('doctors_tab');
   String get stockTab => translate('stock_tab');
   String get loadingError => translate('loading_error');
+  String get ofWhichOverdue => translate('of_which_overdue');
   String get nameLabel => translate('name_label');
   String get typeLabel => translate('type_label');
   String get pharmacy => translate('pharmacy');

@@ -151,15 +151,23 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
 
   Widget _buildInvoiceCard(InvoiceModel invoice, S l10n) {
     final formatter = NumberFormat('#,##0', 'en_US');
+    final effectiveDate = DateTime.tryParse(invoice.realizationDate ?? invoice.date) ?? DateTime.now();
+    final delayDays = DateTime.now().difference(effectiveDate).inDays;
+    final isOverdue = invoice.hasDebt && delayDays > 30;
+
+    final baseColor = isOverdue ? const Color(0xFFE11D48) : AppColors.primary;
+    final cardBg = isOverdue ? const Color(0xFFFFF1F2) : Theme.of(context).cardColor;
+    final borderColor = isOverdue ? const Color(0xFFFECDD3) : Theme.of(context).dividerColor;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: (isOverdue ? const Color(0xFFE11D48) : Colors.black).withValues(alpha: isOverdue ? 0.1 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -210,7 +218,23 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                       ),
                     ),
                     const SizedBox(width: 12),
-                    _buildStatusBadge(invoice),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _buildStatusBadge(invoice),
+                        if (isOverdue) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: const Color(0xFFE11D48), borderRadius: BorderRadius.circular(4)),
+                            child: Text(
+                              '${l10n.overdueStatus.toUpperCase()} $delayDays ${l10n.daysAgo.split(' ')[0]}',
+                              style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.black, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -219,22 +243,32 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
+                        color: baseColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.business_rounded, size: 16, color: AppColors.primary),
+                      child: Icon(Icons.business_rounded, size: 16, color: baseColor),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        invoice.customerName ?? l10n.unknownOrganization,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: null,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              invoice.customerName ?? l10n.unknownOrganization,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isOverdue ? const Color(0xFF881337) : null,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isOverdue) ...[
+                            const SizedBox(width: 8),
+                            const Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFE11D48)),
+                          ],
+                        ],
                       ),
                     ),
                   ],

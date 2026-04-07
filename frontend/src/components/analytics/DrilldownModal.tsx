@@ -157,68 +157,93 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
         }
 
         // ── Generic metrics: auto-render all columns ──
-        const columns = Object.keys(rows[0]).filter(k => k !== 'id' && typeof rows[0][k] !== 'object');
-
         const columnLabels: Record<string, string> = {
             date: 'Дата',
             amount: 'Сумма',
             invoice_num: '№ Фактуры',
             customer: 'Контрагент',
             type: 'Тип',
-            med_rep: 'Мед. Представитель',
-            product: 'Продукт',
-            month: 'Месяц',
-            year: 'Год',
-            qty: 'Кол-во',
-            total_amount: 'Общая сумма',
-            paid_amount: 'Оплачено',
-            debt_amount: 'Остаток долга',
-            category: 'Категория',
-            description: 'Описание',
-            author: 'Автор',
-            doctor: 'Врач',
-            paid_ratio: 'Оплачено %',
-            profit: 'Прибыль',
-            region: 'Регион'
+            med_rep: 'MedRep',
+            product: 'Mahsulot',
+            month: 'Oy',
+            year: 'Yil',
+            qty: 'Soni',
+            total_amount: 'Umumiy summa',
+            paid_amount: 'To\'langan',
+            debt_amount: 'Qarz balansi',
+            category: 'Kategoriya',
+            description: 'Tavsif',
+            author: 'Muallif',
+            doctor: 'Vrach',
+            paid_ratio: 'To\'lov %',
+            profit: 'Foyda',
+            region: 'Hudud',
+            realization_date: 'Realizatsiya sanasi',
+            delay_days: 'Kechikish (kunlar)'
         };
+
+        // Determine columns from first row + potential delay_days
+        const baseColumns = Object.keys(rows[0]).filter(k => k !== 'id' && typeof rows[0][k] !== 'object' && k !== 'realization_date');
+        const displayColumns = metric === 'receivables' ? [...baseColumns, 'delay_days'] : baseColumns;
 
         return (
             <div className="overflow-x-auto sleek-scrollbar">
                 <table className="w-full text-left border-separate border-spacing-0">
                     <thead>
                         <tr>
-                            {columns.map(col => (
-                                <th key={col} className="sticky top-0 bg-slate-50/90 backdrop-blur-md p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 z-20">
+                            {displayColumns.map(col => (
+                                <th key={col} className="sticky top-0 bg-slate-50/90 backdrop-blur-md p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 z-20 whitespace-nowrap">
                                     {columnLabels[col] || col}
                                 </th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                        {rows.map((row: any, idx: number) => (
-                            <motion.tr
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.015 }}
-                                key={row.id || idx}
-                                className="hover:bg-indigo-50/50 transition-colors group cursor-default"
-                            >
-                                {columns.map(col => {
-                                    let val = row[col];
-                                    if (col === 'date') val = format(new Date(val), 'dd.MM.yyyy HH:mm');
-                                    if (['amount', 'total_amount', 'paid_amount', 'debt_amount', 'profit'].includes(col)) {
-                                        val = formatCurrency(Number(val));
-                                    }
-                                    if (col === 'paid_ratio') val = val + '%';
-                                    
-                                    return (
-                                        <td key={col} className="p-5 text-sm font-black text-slate-700 group-hover:text-indigo-900 transition-colors">
-                                            {val}
-                                        </td>
-                                    );
-                                })}
-                            </motion.tr>
-                        ))}
+                        {rows.map((row: any, idx: number) => {
+                            const effectiveDate = new Date(row.realization_date || row.date);
+                            const delayDays = Math.max(0, Math.floor((new Date().getTime() - effectiveDate.getTime()) / (1000 * 60 * 60 * 24)));
+                            const isOverdueLine = metric === 'receivables' && delayDays > 30;
+                            
+                            const rowWithDelay = { ...row };
+                            if (metric === 'receivables') rowWithDelay.delay_days = delayDays;
+
+                            return (
+                                <motion.tr
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.015 }}
+                                    key={row.id || idx}
+                                    className={`${isOverdueLine 
+                                        ? 'bg-rose-50 hover:bg-rose-100 ring-1 ring-inset ring-rose-200' 
+                                        : 'hover:bg-indigo-50/50'} transition-colors group cursor-default`}
+                                >
+                                    {displayColumns.map(col => {
+                                        let val = rowWithDelay[col];
+                                        if (col === 'date' || col === 'realization_date') val = format(new Date(val), 'dd.MM.yyyy');
+                                        if (['amount', 'total_amount', 'paid_amount', 'debt_amount', 'profit'].includes(col)) {
+                                            val = formatCurrency(Number(val));
+                                        }
+                                        if (col === 'paid_ratio') val = val + '%';
+                                        
+                                        if (col === 'delay_days') {
+                                            return (
+                                                <td key={col} className="p-5">
+                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${val > 30 ? 'bg-rose-500 text-white shadow-md shadow-rose-200 animate-pulse' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                        {val} kun
+                                                    </span>
+                                                </td>
+                                            );
+                                        }
+                                        
+                                        return (
+                                            <td key={col} className={`p-5 text-sm font-black transition-colors ${isOverdueLine ? 'text-rose-900' : 'text-slate-700 group-hover:text-indigo-900'}`}>
+                                                {val}
+                                            </td>
+                                        );
+                                    })}
+                                </motion.tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

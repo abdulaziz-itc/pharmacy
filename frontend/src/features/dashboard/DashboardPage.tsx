@@ -28,6 +28,7 @@ interface DashboardStats {
     pending_reservations: number;
     pending_reservations_label: string;
     total_debt: number;
+    total_overdue_debt?: number;
     total_debt_change: string;
     revenue_forecast: Array<{ month: string; value: number }>;
     recent_activities: Array<{
@@ -88,6 +89,7 @@ export default function DashboardPage() {
                 pending_reservations: data.total_bonus_accrued,
                 pending_reservations_label: "БОНУСЫ НАЧИСЛЕНЫ",
                 total_debt: data.total_debt || 0,
+                total_overdue_debt: data.total_overdue_debt || 0,
                 total_debt_change: data.debt_change || "0%",
                 revenue_forecast: [],
                 recent_activities: data.recent_activities || [],
@@ -232,6 +234,8 @@ export default function DashboardPage() {
                     icon={Wallet}
                     color="rose"
                     onClick={() => navigate(user?.role === 'hrd' ? '/med-reps' : '/debtors')}
+                    subValue={stats?.total_overdue_debt}
+                    subLabel="Из них просрочено"
                 />
             </div>
 
@@ -302,7 +306,7 @@ export default function DashboardPage() {
     );
 }
 
-function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, onClick }: any) {
+function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, onClick, subValue, subLabel }: any) {
     const colorClasses: any = {
         blue: "bg-blue-600/10 text-blue-600",
         indigo: "bg-indigo-600/10 text-indigo-600",
@@ -341,6 +345,17 @@ function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, o
                 <div className="mt-6">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{title}</p>
                     <h3 className="text-3xl font-black text-slate-900 mt-1 tracking-tight">{value}</h3>
+                    
+                    {subLabel && subValue !== undefined && subValue > 0 && (
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col">
+                            <span className="text-[10px] font-bold text-rose-500 uppercase tracking-tight">
+                                {subLabel}:
+                            </span>
+                            <span className="text-sm font-black text-slate-700">
+                                {subValue.toLocaleString()} сум
+                            </span>
+                        </div>
+                    )}
                 </div>
                 <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-slate-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-700" />
             </CardContent>

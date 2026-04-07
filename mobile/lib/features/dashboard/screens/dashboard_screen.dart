@@ -186,7 +186,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               _buildStatCard(l10n.activeDoctors, stats.activeDoctors.toString(), Icons.people_alt_rounded, const Color(0xFF6366F1), onTap: () => ref.read(mainScreenTabIndexProvider.notifier).state = 1),
               _buildStatCard(l10n.pendingReservations, stats.pendingReservations.toString(), Icons.receipt_long_rounded, const Color(0xFFF59E0B), onTap: () => context.push('/reservations?year=${state.selectedYear}&month=${state.selectedMonth}')),
-              _buildStatCard(l10n.totalDebt, _formatAmount(stats.totalDebt), Icons.account_balance_wallet_rounded, const Color(0xFFEF4444), onTap: () => context.push('/invoices?showDebts=true&year=${state.selectedYear}&month=${state.selectedMonth}')),
+              _buildStatCard(l10n.totalDebt, _formatAmount(stats.totalDebt), Icons.account_balance_wallet_rounded, const Color(0xFFEF4444), 
+                onTap: () => context.push('/invoices?showDebts=true&year=${state.selectedYear}&month=${state.selectedMonth}'),
+                subValue: stats.totalOverdueDebt > 0 ? _formatAmount(stats.totalOverdueDebt) : null,
+                subLabel: l10n.ofWhichOverdue,
+              ),
               _buildStatCard(l10n.completedVisits, stats.completedVisits.toString(), Icons.check_circle_outline_rounded, AppColors.success, onTap: () => ref.read(mainScreenTabIndexProvider.notifier).state = 2),
             ],
           ),
@@ -246,19 +250,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color, {VoidCallback? onTap}) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, {VoidCallback? onTap, String? subValue, String? subLabel}) {
     return GestureDetector(
       onTap: onTap,
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 20)),
-              Text(value, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-              Text(title, style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)), child: Icon(icon, color: color, size: 18)),
+                  if (subValue != null) 
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(color: Color(0xFFFFF1F2), shape: BoxShape.circle),
+                      child: const Icon(Icons.priority_high_rounded, color: Color(0xFFE11D48), size: 10),
+                    ),
+                ],
+              ),
+              const Spacer(),
+              Text(value, style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text(title, style: GoogleFonts.inter(fontSize: 10, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (subValue != null) ...[
+                const SizedBox(height: 6),
+                const Divider(height: 1, thickness: 0.5),
+                const SizedBox(height: 6),
+                Text(subValue, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFFE11D48))),
+                Text(subLabel ?? '', style: GoogleFonts.inter(fontSize: 8, color: AppColors.textHint), maxLines: 1),
+              ],
             ],
           ),
         ),

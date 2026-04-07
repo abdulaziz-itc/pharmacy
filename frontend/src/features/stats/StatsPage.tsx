@@ -361,6 +361,8 @@ export default function StatsPage() {
                             value={kpis.receivables}
                             icon={Receipt}
                             color="rose"
+                            subValue={kpis.overdue_receivables}
+                            subLabel="Shundan muddati o'tgan"
                             onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Kreditorka' })}
                         />
 

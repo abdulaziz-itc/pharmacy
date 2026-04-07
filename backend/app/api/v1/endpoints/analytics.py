@@ -113,11 +113,25 @@ async def get_global_realtime_dashboard(
         )
         if end_tgt:
             _debt = _debt.where(Invoice.date < end_tgt)
-            
-        return _rev, _bonus, _qty, _debt
 
-    curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q = build_queries(start_date, end_date)
-    prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q = build_queries(prev_start_date, prev_end_date)
+        # Overdue Debt (Realization date > 30 days ago)
+        from datetime import datetime, timedelta
+        overdue_threshold = datetime.now() - timedelta(days=30)
+        _overdue = select(func.sum(Invoice.total_amount - Invoice.paid_amount)).where(
+            and_(
+                Invoice.status != InvoiceStatus.CANCELLED,
+                Invoice.total_amount > Invoice.paid_amount,
+                or_(
+                    and_(Invoice.realization_date != None, Invoice.realization_date < overdue_threshold),
+                    and_(Invoice.realization_date == None, Invoice.date < overdue_threshold)
+                )
+            )
+        )
+            
+        return _rev, _bonus, _qty, _debt, _overdue
+
+    curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q, curr_overdue_q = build_queries(start_date, end_date)
+    prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q, prev_overdue_q = build_queries(prev_start_date, prev_end_date)
     
     # Apply hierarchy filter if not director/admin
     is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
@@ -128,41 +142,46 @@ async def get_global_realtime_dashboard(
         if not rep_ids:
             rep_ids = [-1]
         
-        def apply_team(_rq, _bq, _qq, _dq):
+        def apply_team(_rq, _bq, _qq, _dq, _oq):
             _rq = _rq.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
             _bq = _bq.where(BonusLedger.user_id.in_(rep_ids))
             _qq = _qq.where(Reservation.created_by_id.in_(rep_ids))
             _dq = _dq.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
-            return _rq, _bq, _qq, _dq
+            _oq = _oq.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
+            return _rq, _bq, _qq, _dq, _oq
             
-        curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q = apply_team(curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q)
-        prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q = apply_team(prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q)
+        curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q, curr_overdue_q = apply_team(curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q, curr_overdue_q)
+        prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q, prev_overdue_q = apply_team(prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q, prev_overdue_q)
 
     # Apply region filter
     if final_region_ids:
-        def apply_region(_rq, _qq, _dq):
+        def apply_region(_rq, _qq, _dq, _oq):
             if not is_team_manager:
                 _rq = _rq.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
                 _dq = _dq.join(Reservation, Invoice.reservation_id == Reservation.id)
+                _oq = _oq.join(Reservation, Invoice.reservation_id == Reservation.id)
             _rq = _rq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
             _qq = _qq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
             _dq = _dq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
-            return _rq, _qq, _dq
+            _oq = _oq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+            return _rq, _qq, _dq, _oq
             
-        curr_rev_q, curr_qty_q, curr_debt_q = apply_region(curr_rev_q, curr_qty_q, curr_debt_q)
-        prev_rev_q, prev_qty_q, prev_debt_q = apply_region(prev_rev_q, prev_qty_q, prev_debt_q)
+        curr_rev_q, curr_qty_q, curr_debt_q, curr_overdue_q = apply_region(curr_rev_q, curr_qty_q, curr_debt_q, curr_overdue_q)
+        prev_rev_q, prev_qty_q, prev_debt_q, prev_overdue_q = apply_region(prev_rev_q, prev_qty_q, prev_debt_q, prev_overdue_q)
 
     # Executing Current
     c_rev = (await db.execute(curr_rev_q)).scalar() or 0.0
     c_bon = (await db.execute(curr_bonus_q)).scalar() or 0.0
     c_qty = (await db.execute(curr_qty_q)).scalar() or 0
     c_debt = (await db.execute(curr_debt_q)).scalar() or 0.0
+    c_overdue = (await db.execute(curr_overdue_q)).scalar() or 0.0
     
     # Executing Previous
     p_rev = (await db.execute(prev_rev_q)).scalar() or 0.0
     p_bon = (await db.execute(prev_bonus_q)).scalar() or 0.0
     p_qty = (await db.execute(prev_qty_q)).scalar() or 0
     p_debt = (await db.execute(prev_debt_q)).scalar() or 0.0
+    p_overdue = (await db.execute(prev_overdue_q)).scalar() or 0.0
 
     # Trend calculation
     def calc_trend(current, prev):
@@ -238,6 +257,7 @@ async def get_global_realtime_dashboard(
         "total_bonus_accrued": c_bon,
         "total_items_sold": c_qty,
         "total_debt": c_debt,
+        "total_overdue_debt": c_overdue,
         "revenue_change": rev_change,
         "bonus_change": bon_change,
         "items_sold_change": qty_change,
@@ -376,6 +396,24 @@ async def get_comprehensive_stats(
         debt_q = debt_q.join(Reservation, Invoice.reservation_id == Reservation.id)
         debt_q = apply_filters(debt_q, Reservation)
     debt_sum = (await db.execute(debt_q)).scalar() or 0
+
+    # Overdue Receivables (30+ days)
+    overdue_threshold = datetime.now() - timedelta(days=30)
+    overdue_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount).label("total")).where(
+        and_(
+            Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]),
+            Invoice.total_amount > Invoice.paid_amount,
+            or_(
+                and_(Invoice.realization_date != None, Invoice.realization_date < overdue_threshold),
+                and_(Invoice.realization_date == None, Invoice.date < overdue_threshold)
+            )
+        )
+    )
+    if start_date and end_date: overdue_q = overdue_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    if rep_ids or region_id or product_id:
+        overdue_q = overdue_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+        overdue_q = apply_filters(overdue_q, Reservation)
+    overdue_sum = (await db.execute(overdue_q)).scalar() or 0
 
     # Realized Gross Profit (Company Profit)
     # realized_profit = sum( (price - production_price - salary - bonus) * qty ) * (paid_amount / total_amount)
@@ -595,6 +633,7 @@ async def get_comprehensive_stats(
             "bonus_balance": float(max(0, accrued_sum - paid_sum - payout_sum)),
             "total_predinvest": float(predinvest_sum),
             "receivables": float(debt_sum),
+            "overdue_receivables": float(overdue_sum),
             "gross_profit": float(gross_profit_sum if gross_profit_sum > 0 else potential_profit_sum),
             "total_expenses": float(total_expenses),
             "net_profit": float((gross_profit_sum if gross_profit_sum > 0 else potential_profit_sum) - total_expenses),
@@ -722,7 +761,7 @@ async def get_comprehensive_drilldown(
             debt_q = apply_filters(debt_q, Reservation)
         debt_q = debt_q.where(Invoice.total_amount > Invoice.paid_amount)
         rows = (await db.execute(debt_q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.date.isoformat(), "invoice_num": r.factura_number, "total_amount": r.total_amount, "paid_amount": r.paid_amount, "debt_amount": r.total_amount - r.paid_amount, "customer": r.reservation.customer_name if r.reservation else "-", "region": r.reservation.med_org.region.name if r.reservation and r.reservation.med_org and r.reservation.med_org.region else "-"} for r in rows]
+        return [{"id": r.id, "date": r.date.isoformat(), "realization_date": r.realization_date.isoformat() if r.realization_date else None, "invoice_num": r.factura_number, "total_amount": r.total_amount, "paid_amount": r.paid_amount, "debt_amount": r.total_amount - r.paid_amount, "customer": r.reservation.customer_name if r.reservation else "-", "region": r.reservation.med_org.region.name if r.reservation and r.reservation.med_org and r.reservation.med_org.region else "-"} for r in rows]
 
     elif metric == "expenses":
         expense_q = select(OtherExpense).options(selectinload(OtherExpense.category), selectinload(OtherExpense.created_by), selectinload(OtherExpense.region))
