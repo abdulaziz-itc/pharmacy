@@ -464,12 +464,12 @@ const HeadOfOrdersPage: React.FC = () => {
         setLoading(true);
         try {
             await activateReservation(id);
-            toast.success("Bron aktiv qilindi (Бронь активирована)");
+            toast.success("Бронь активирована ✅");
             setShowActivateConfirm(null);
             loadReservations();
             loadInvoices();
         }
-        catch (e: any) { toast.error(e.response?.data?.detail || "Xatolik"); }
+        catch (e: any) { toast.error(e.response?.data?.detail || "Ошибка"); }
         finally { setLoading(false); }
     };
 
@@ -482,11 +482,11 @@ const HeadOfOrdersPage: React.FC = () => {
         const id = showDeleteConfirm;
         setShowDeleteConfirm(null);
         try {
-            await deleteReservation(id);
-            toast.success("Bron o'chirildi, dorilar omborga qaytarildi! ✅");
+            const res = await deleteReservation(id);
+            toast.success(res.message || "Бронь удалена, товары возвращены на склад. ✅");
             loadReservations();
         } catch (e: any) {
-            toast.error(e?.response?.data?.detail || "O'chirishda xato yuz berdi");
+            toast.error(e?.response?.data?.detail || "Ошибка при удалении");
         }
     };
 
@@ -501,20 +501,20 @@ const HeadOfOrdersPage: React.FC = () => {
             .map(([pid, qty]) => ({ product_id: parseInt(pid), quantity: qty }));
 
         if (itemsToReturn.length === 0) {
-            toast.error("Miqdorni kiriting (Укажите количество для возврата)");
+            toast.error("Укажите количество для возврата");
             return;
         }
 
         setReturnLoading(true);
         try {
             await axiosInstance.post(`/sales/reservations/${selectedResForReturn.id}/return`, { items: itemsToReturn });
-            toast.success("Ждет одобрения заведующего склада");
+            toast.success("Ожидает одобрения заведующего складом");
             setShowReturnModal(false);
             setReturnQuantities({});
             loadReservations();
             loadInvoices(); // Refund impacts total sums
         } catch (e: any) {
-            toast.error(e.response?.data?.detail || "Xatolik (Ошибка оформления возврата)");
+            toast.error(e.response?.data?.detail || "Ошибка оформления возврата");
         } finally {
             setReturnLoading(false);
         }
@@ -1016,8 +1016,8 @@ const HeadOfOrdersPage: React.FC = () => {
                                             const orgType = res.med_org?.org_type || '—';
 
                                             return (
-                                                <tr key={res.id} className={`border-b transition-colors group ${res.is_deletion_pending || res.is_return_pending ? 'bg-yellow-100/70 hover:bg-yellow-100 border-yellow-200' : 'border-slate-50 hover:bg-slate-50/80'}`}>
-                                                    <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic">{idx + 1}</td>
+                                                <tr key={res.id} className={`border-b transition-colors group ${res.is_deletion_pending || res.invoice?.is_deletion_pending || res.is_return_pending ? 'bg-yellow-100/70 hover:bg-yellow-100 border-yellow-200' : 'border-slate-50 hover:bg-slate-50/80'}`}>
+                                                    <td className="px-3 py-4 font-medium text-slate-400 group-hover:text-blue-600 transition-colors italic text-center">{idx + 1}</td>
                                                     <td className="px-3 py-4">
                                                         <div className="flex items-center gap-1">
                                                             <span className="font-black text-slate-700 tracking-tight">{res.invoice?.realization_date ? format(new Date(res.invoice.realization_date), 'dd/MM/yyyy') : (res.invoice?.created_at ? format(new Date(res.invoice.created_at), 'dd/MM/yyyy') : '—')}</span>
@@ -1054,7 +1054,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             >
                                                                 <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all shadow-sm ${res.status === 'approved' ? 'right-0.5' : 'left-0.5'}`} />
                                                             </button>
-                                                            {res.is_deletion_pending && (
+                                                            {(res.is_deletion_pending || res.invoice?.is_deletion_pending) && (
                                                                 <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">Ожидает удаления</span>
                                                             )}
                                                             {res.is_return_pending && (
@@ -1076,10 +1076,10 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     <td className="px-3 py-4 text-center">
                                                         <Button
                                                             onClick={() => { setSelectedInvoice(res.invoice); setIsPaymentModalOpen(true); }}
-                                                            disabled={res.status !== 'approved' && res.status !== 'paid' && res.status !== 'partial'}
+                                                            disabled={(res.is_deletion_pending || res.invoice?.is_deletion_pending) || (res.status !== 'approved' && res.status !== 'paid' && res.status !== 'partial')}
                                                             className="h-8 bg-slate-100 hover:bg-blue-600 text-slate-600 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all px-4 disabled:opacity-50"
                                                         >
-                                                            ПОСТУПЛЕНИЕ {res.status !== 'approved' && res.status !== 'paid' && res.status !== 'partial' ? '(Ждёт одобрения)' : ''}
+                                                            {res.is_deletion_pending || res.invoice?.is_deletion_pending ? 'Ждёт удаления' : `ПОСТУПЛЕНИЕ ${res.status !== 'approved' && res.status !== 'paid' && res.status !== 'partial' ? '(Ждёт одобрения)' : ''}`}
                                                         </Button>
                                                     </td>
                                                     <td className="px-3 py-4 text-center">

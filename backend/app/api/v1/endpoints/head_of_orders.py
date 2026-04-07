@@ -290,7 +290,7 @@ async def delete_reservation(
             f"Запрошено удаление брони #{id}. Ожидает подтверждения склада.",
             request
         )
-        return {"ok": True, "message": "Deletion request sent to Warehouse Head."}
+        return {"ok": True, "message": "Запрос на удаление отправлен заведующему складом."}
 
     # Director/Admin can still delete immediately
     await ReservationService.cancel_reservation(db, id)
