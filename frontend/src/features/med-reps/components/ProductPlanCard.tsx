@@ -72,13 +72,15 @@ interface ProductPlanCardProps {
     }) => Promise<void>;
     doctors?: any[];
     bonusBalance?: number;
+    salaryPaid?: number;
+    onPaySalary?: (data: { amount: number; notes: string; month: number; year: number }) => Promise<void>;
 }
 const MONTHS_RU = [
     "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
     "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
 ];
 
-export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan, onAssignFact, doctors = [], bonusBalance }: ProductPlanCardProps) {
+export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan, onAssignFact, doctors = [], bonusBalance, salaryPaid, onPaySalary }: ProductPlanCardProps) {
     const [currentMonth, setCurrentMonth] = React.useState<number>(new Date().getMonth() + 1);
     const [currentYear, setCurrentYear] = React.useState<number>(new Date().getFullYear());
     const [isAddOpen, setIsAddOpen] = React.useState(false);
@@ -105,6 +107,10 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
     const [assignFactDoctorId, setAssignFactDoctorId] = React.useState<number | null>(null);
     const [assignFactQuantity, setAssignFactQuantity] = React.useState("");
     const [isAssignFactSubmitting, setIsAssignFactSubmitting] = React.useState(false);
+    const [isPaySalaryOpen, setIsPaySalaryOpen] = React.useState(false);
+    const [paySalaryAmount, setPaySalaryAmount] = React.useState("");
+    const [paySalaryNotes, setPaySalaryNotes] = React.useState("");
+    const [isPaySalarySubmitting, setIsPaySalarySubmitting] = React.useState(false);
 
 
     // Plan Modal States
@@ -245,6 +251,26 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             console.error("Failed to assign fact", error);
         } finally {
             setIsAssignFactSubmitting(false);
+        }
+    };
+    
+    const handlePaySalary = async () => {
+        if (!onPaySalary || !paySalaryAmount) return;
+        try {
+            setIsPaySalarySubmitting(true);
+            await onPaySalary({
+                amount: parseFloat(paySalaryAmount),
+                notes: paySalaryNotes,
+                month: currentMonth,
+                year: currentYear
+            });
+            setIsPaySalaryOpen(false);
+            setPaySalaryAmount("");
+            setPaySalaryNotes("");
+        } catch (error) {
+            console.error("Failed to pay salary", error);
+        } finally {
+            setIsPaySalarySubmitting(false);
         }
     };
 
@@ -724,6 +750,52 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
+
+                    <Dialog open={isPaySalaryOpen} onOpenChange={setIsPaySalaryOpen}>
+                        <DialogContent className="sm:max-w-[425px] rounded-3xl">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black text-slate-900 tracking-tight">Выплатить зарплату</DialogTitle>
+                                <DialogDescription className="text-slate-500 text-xs">
+                                    Зафиксируйте выплату зарплаты или бонуса медпредставителю.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-5 py-6">
+                                <div className="grid gap-2">
+                                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Сумма выплаты (UZS)</Label>
+                                    <Input
+                                        type="number"
+                                        placeholder="0"
+                                        className="rounded-xl border-slate-200 h-11 font-black text-slate-800 text-lg"
+                                        value={paySalaryAmount}
+                                        onChange={(e) => setPaySalaryAmount(e.target.value)}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Комментарий</Label>
+                                    <Input
+                                        placeholder="Напр. Выплата за март"
+                                        className="rounded-xl border-slate-200 h-11 text-sm"
+                                        value={paySalaryNotes}
+                                        onChange={(e) => setPaySalaryNotes(e.target.value)}
+                                    />
+                                </div>
+                                <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
+                                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Текущий период</p>
+                                    <p className="text-sm font-black text-blue-800">{MONTHS_RU[currentMonth - 1]} {currentYear}</p>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest h-12 shadow-lg shadow-blue-500/20 disabled:opacity-50"
+                                    onClick={handlePaySalary}
+                                    disabled={!paySalaryAmount || parseFloat(paySalaryAmount) <= 0 || isPaySalarySubmitting}
+                                >
+                                    {isPaySalarySubmitting ? "Обработка..." : "Подтвердить выплату"}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 
@@ -741,8 +813,22 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                             <span className="text-xl font-black text-indigo-400">{totalFactAmount > 0 ? new Intl.NumberFormat('ru-RU').format(totalFactAmount) : '0'} UZS</span>
                         </div>
                         <div className="flex justify-between items-center max-w-xs border-b border-white/10 pb-2">
-                            <span className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Зарплата:</span>
+                            <span className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Начислено зарплата:</span>
                             <span className="text-xl font-black text-emerald-400">{new Intl.NumberFormat('ru-RU').format(totalSalary)} UZS</span>
+                        </div>
+                        <div className="flex justify-between items-center max-w-xs border-b border-white/10 pb-2 relative group">
+                            <span className="text-blue-400 text-xs font-bold uppercase tracking-widest">Оплачено зарплата:</span>
+                            <div className="flex flex-col items-end">
+                                <span className="text-xl font-black text-blue-400">{new Intl.NumberFormat('ru-RU').format(salaryPaid || 0)} UZS</span>
+                                <Button 
+                                    variant="link" 
+                                    size="sm" 
+                                    className="h-auto p-0 text-[10px] font-black text-blue-300 uppercase tracking-widest hover:text-white transition-colors"
+                                    onClick={() => setIsPaySalaryOpen(true)}
+                                >
+                                    платить зарплату
+                                </Button>
+                            </div>
                         </div>
                         <div className="flex justify-between items-center max-w-xs">
                             <span className="text-fuchsia-400 text-xs font-bold uppercase tracking-widest">Бонус (Остаток):</span>

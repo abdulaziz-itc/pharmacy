@@ -9,7 +9,13 @@ from app.models.sales import Invoice, InvoiceStatus, Plan, Reservation, Reservat
 from app.models.user import User, UserRole
 from app.models.crm import Doctor
 from app.models.ledger import DoctorMonthlyStat
-from app.schemas.finance import ExpenseCategory, ExpenseCategoryCreate, OtherExpense, OtherExpenseCreate
+from app.schemas.finance import (
+    ExpenseCategory, 
+    ExpenseCategoryCreate, 
+    OtherExpense, 
+    OtherExpenseCreate,
+    SalaryPaymentCreate
+)
 from app.services.expense_service import ExpenseService
 
 router = APIRouter()
@@ -213,3 +219,34 @@ async def create_expense(
     if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ACCOUNTANT]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return await ExpenseService.create_expense(db, obj_in, current_user.id)
+
+@router.post("/salary-payment")
+async def create_salary_payment(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    obj_in: SalaryPaymentCreate,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Record a salary/bonus payout to a Med Rep.
+    Creates a PAYOUT record in BonusLedger.
+    """
+    from app.models.ledger import BonusLedger, LedgerType
+    
+    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.ACCOUNTANT]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # We record payout as a negative amount in BonusLedger
+    payout = BonusLedger(
+        user_id=obj_in.user_id,
+        amount=-abs(obj_in.amount), # Always negative for payout
+        ledger_type=LedgerType.PAYOUT,
+        is_paid=True,
+        notes=obj_in.notes or "Выплата зарплаты",
+        target_month=obj_in.target_month,
+        target_year=obj_in.target_year
+    )
+    db.add(payout)
+    await db.commit()
+    await db.refresh(payout)
+    return {"status": "success", "id": payout.id, "amount": payout.amount}

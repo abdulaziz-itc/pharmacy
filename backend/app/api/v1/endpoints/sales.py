@@ -852,6 +852,7 @@ async def get_medrep_bonus_balance(
         total_accrued = 0.0
         total_paid = 0.0
         total_allocated = 0.0
+        total_payout = 0.0
         
         for e in all_entries:
             if e.ledger_type == LedgerType.ACCRUAL:
@@ -860,6 +861,8 @@ async def get_medrep_bonus_balance(
                     total_paid += e.amount
             elif e.ledger_type == LedgerType.OFFSET:
                 total_allocated += abs(e.amount)
+            elif e.ledger_type == LedgerType.PAYOUT:
+                total_payout += abs(e.amount)
         
         # Get history (all transactions)
         query = select(BonusLedger).options(
@@ -945,6 +948,7 @@ async def get_medrep_bonus_balance(
             "total_accrued": total_accrued,
             "total_paid": total_paid,
             "total_allocated": total_allocated,
+            "total_payout": total_payout,
             "history": history_data
         }
     except Exception as e:

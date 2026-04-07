@@ -353,6 +353,7 @@ async def get_comprehensive_stats(
     paid_sum = 0.0
     predinvest_sum = 0.0
     allocated_sum = 0.0
+    payout_sum = 0.0 # Salary payments
 
     for r in bonus_res:
         if r.ledger_type == LedgerType.ACCRUAL:
@@ -365,6 +366,8 @@ async def get_comprehensive_stats(
                     paid_sum += r.amount
         elif r.ledger_type == LedgerType.OFFSET:
             allocated_sum += abs(r.amount)
+        elif r.ledger_type == LedgerType.PAYOUT:
+            payout_sum += abs(r.amount)
 
     # Debt (Outstanding from Invoices)
     debt_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount).label("total")).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
@@ -588,7 +591,8 @@ async def get_comprehensive_stats(
             "bonus_accrued": float(accrued_sum),
             "bonus_allocated": float(allocated_sum),
             "bonus_paid": float(paid_sum),
-            "bonus_balance": float(max(0, accrued_sum - paid_sum)),
+            "salary_paid": float(payout_sum),
+            "bonus_balance": float(max(0, accrued_sum - paid_sum - payout_sum)),
             "total_predinvest": float(predinvest_sum),
             "receivables": float(debt_sum),
             "gross_profit": float(gross_profit_sum if gross_profit_sum > 0 else potential_profit_sum),

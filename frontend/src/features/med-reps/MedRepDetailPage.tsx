@@ -38,6 +38,7 @@ export default function MedRepDetailPage() {
     const [salesFacts, setSalesFacts] = React.useState<any[]>([]);
     const [bonusPayments, setBonusPayments] = React.useState<any[]>([]);
     const [bonusBalance, setBonusBalance] = React.useState<number>(0);
+    const [salaryPaid, setSalaryPaid] = React.useState<number>(0);
     const [invoices, setInvoices] = React.useState<any[]>([]);
     const [isReassignModalOpen, setIsReassignModalOpen] = React.useState(false);
     const { products, fetchProducts } = useProductStore();
@@ -107,6 +108,7 @@ export default function MedRepDetailPage() {
 
                 const balanceData = await getMedRepBonusBalance(repId);
                 setBonusBalance(balanceData.balance);
+                setSalaryPaid(balanceData.total_payout || 0);
 
                 const invs = await getInvoices({ med_rep_id: repId, limit: 1000 });
                 setInvoices(invs);
@@ -323,12 +325,36 @@ export default function MedRepDetailPage() {
                                             // Update bonus balance after assigning fact
                                             const balanceData = await getMedRepBonusBalance(repId);
                                             setBonusBalance(balanceData.balance);
+                                            setSalaryPaid(balanceData.total_payout || 0);
                                         } catch (e) {
                                             console.error(e);
                                             alert("Ошибка назначения факта");
                                         }
                                     }}
                                     bonusBalance={bonusBalance}
+                                    salaryPaid={salaryPaid}
+                                    onPaySalary={async (data) => {
+                                        try {
+                                            const repId = parseInt(id || "0");
+                                            const { createSalaryPayment } = await import('../../api/finance');
+                                            await createSalaryPayment({
+                                                user_id: repId,
+                                                amount: data.amount,
+                                                notes: data.notes,
+                                                target_month: data.month,
+                                                target_year: data.year
+                                            });
+                                            const balanceData = await getMedRepBonusBalance(repId);
+                                            setBonusBalance(balanceData.balance);
+                                            setSalaryPaid(balanceData.total_payout || 0);
+                                            const updatedBonuses = await getBonusPayments(repId);
+                                            setBonusPayments(updatedBonuses);
+                                            toast.success("Выплата зарплаты успешно зафиксирована");
+                                        } catch (e) {
+                                            console.error(e);
+                                            toast.error("Ошибка при выплате зарплаты");
+                                        }
+                                    }}
                                 />
                             </div>
 
