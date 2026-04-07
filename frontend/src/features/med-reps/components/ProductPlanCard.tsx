@@ -73,14 +73,18 @@ interface ProductPlanCardProps {
     doctors?: any[];
     bonusBalance?: number;
     salaryPaid?: number;
+    salaryAccrued?: number;
+    bonusAccrued?: number;
+    bonusPayout?: number;
     onPaySalary?: (data: { amount: number; notes: string; month: number; year: number }) => Promise<void>;
+    onPayBonus?: (data: { amount: number; notes: string; month: number; year: number }) => Promise<void>;
 }
 const MONTHS_RU = [
     "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
     "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
 ];
 
-export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan, onAssignFact, doctors = [], bonusBalance, salaryPaid, onPaySalary }: ProductPlanCardProps) {
+export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan, onAssignFact, doctors = [], bonusBalance, salaryPaid, salaryAccrued, bonusAccrued, bonusPayout, onPaySalary, onPayBonus }: ProductPlanCardProps) {
     const [currentMonth, setCurrentMonth] = React.useState<number>(new Date().getMonth() + 1);
     const [currentYear, setCurrentYear] = React.useState<number>(new Date().getFullYear());
     const [isAddOpen, setIsAddOpen] = React.useState(false);
@@ -107,10 +111,16 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
     const [assignFactDoctorId, setAssignFactDoctorId] = React.useState<number | null>(null);
     const [assignFactQuantity, setAssignFactQuantity] = React.useState("");
     const [isAssignFactSubmitting, setIsAssignFactSubmitting] = React.useState(false);
+    // Salary payment modal
     const [isPaySalaryOpen, setIsPaySalaryOpen] = React.useState(false);
     const [paySalaryAmount, setPaySalaryAmount] = React.useState("");
     const [paySalaryNotes, setPaySalaryNotes] = React.useState("");
     const [isPaySalarySubmitting, setIsPaySalarySubmitting] = React.useState(false);
+    // Bonus payment modal
+    const [isPayBonusOpen, setIsPayBonusOpen] = React.useState(false);
+    const [payBonusAmount, setPayBonusAmount] = React.useState("");
+    const [payBonusNotes, setPayBonusNotes] = React.useState("");
+    const [isPayBonusSubmitting, setIsPayBonusSubmitting] = React.useState(false);
 
 
     // Plan Modal States
@@ -271,6 +281,26 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             console.error("Failed to pay salary", error);
         } finally {
             setIsPaySalarySubmitting(false);
+        }
+    };
+
+    const handlePayBonus = async () => {
+        if (!onPayBonus || !payBonusAmount) return;
+        try {
+            setIsPayBonusSubmitting(true);
+            await onPayBonus({
+                amount: parseFloat(payBonusAmount),
+                notes: payBonusNotes,
+                month: currentMonth,
+                year: currentYear
+            });
+            setIsPayBonusOpen(false);
+            setPayBonusAmount("");
+            setPayBonusNotes("");
+        } catch (error) {
+            console.error("Failed to pay bonus", error);
+        } finally {
+            setIsPayBonusSubmitting(false);
         }
     };
 
@@ -796,6 +826,53 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
+
+                    {/* PayBonus Modal */}
+                    <Dialog open={isPayBonusOpen} onOpenChange={setIsPayBonusOpen}>
+                        <DialogContent className="sm:max-w-[425px] rounded-3xl">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black text-slate-900 tracking-tight">Выплатить бонус</DialogTitle>
+                                <DialogDescription className="text-slate-500 text-xs">
+                                    Зафиксируйте выплату маркетингового бонуса медпредставителю.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-5 py-6">
+                                <div className="grid gap-2">
+                                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Сумма выплаты (UZS)</Label>
+                                    <Input
+                                        type="number"
+                                        placeholder="0"
+                                        className="rounded-xl border-slate-200 h-11 font-black text-slate-800 text-lg"
+                                        value={payBonusAmount}
+                                        onChange={(e) => setPayBonusAmount(e.target.value)}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Комментарий</Label>
+                                    <Input
+                                        placeholder="Напр. Бонус за апрель"
+                                        className="rounded-xl border-slate-200 h-11 text-sm"
+                                        value={payBonusNotes}
+                                        onChange={(e) => setPayBonusNotes(e.target.value)}
+                                    />
+                                </div>
+                                <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50">
+                                    <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mb-1">Текущий период</p>
+                                    <p className="text-sm font-black text-indigo-800">{MONTHS_RU[currentMonth - 1]} {currentYear}</p>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest h-12 shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                                    onClick={handlePayBonus}
+                                    disabled={!payBonusAmount || parseFloat(payBonusAmount) <= 0 || isPayBonusSubmitting}
+                                >
+                                    {isPayBonusSubmitting ? "Обработка..." : "Подтвердить выплату бонуса"}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 
@@ -803,38 +880,58 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             <div className="p-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white grid grid-cols-1 md:grid-cols-2 gap-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20" />
                 <div className="relative z-10">
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center max-w-xs border-b border-white/10 pb-2">
-                            <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Общ план:</span>
-                            <span className="text-xl font-black">{totalPlanAmount > 0 ? new Intl.NumberFormat('ru-RU').format(totalPlanAmount) : '0'} UZS</span>
-                        </div>
-                        <div className="flex justify-between items-center max-w-xs border-b border-white/10 pb-2">
-                            <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Факт поступ:</span>
-                            <span className="text-xl font-black text-indigo-400">{totalFactAmount > 0 ? new Intl.NumberFormat('ru-RU').format(totalFactAmount) : '0'} UZS</span>
-                        </div>
-                        <div className="flex justify-between items-center max-w-xs border-b border-white/10 pb-2">
-                            <span className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Начислено зарплата:</span>
-                            <span className="text-xl font-black text-emerald-400">{new Intl.NumberFormat('ru-RU').format(totalSalary)} UZS</span>
-                        </div>
-                        <div className="flex justify-between items-center max-w-xs border-b border-white/10 pb-2 relative group">
-                            <span className="text-blue-400 text-xs font-bold uppercase tracking-widest">Оплачено зарплата:</span>
-                            <div className="flex flex-col items-end">
-                                <span className="text-xl font-black text-blue-400">{new Intl.NumberFormat('ru-RU').format(salaryPaid || 0)} UZS</span>
-                                <Button 
-                                    variant="link" 
-                                    size="sm" 
-                                    className="h-auto p-0 text-[10px] font-black text-blue-300 uppercase tracking-widest hover:text-white transition-colors"
-                                    onClick={() => setIsPaySalaryOpen(true)}
-                                >
-                                    платить зарплату
-                                </Button>
-                            </div>
+                    {/* ---- STATS PANEL: two columns ---- */}
+                    {/* Зарплата column */}
+                    <div className="space-y-3">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-white/10 pb-2 mb-1">ЗАРПЛАТА</p>
+                        <div className="flex justify-between items-center max-w-xs">
+                            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Начислено:</span>
+                            <span className="text-lg font-black text-emerald-400">{new Intl.NumberFormat('ru-RU').format(salaryAccrued || totalSalary)} UZS</span>
                         </div>
                         <div className="flex justify-between items-center max-w-xs">
-                            <span className="text-fuchsia-400 text-xs font-bold uppercase tracking-widest">Бонус (Остаток):</span>
-                            <span className="text-xl font-black text-fuchsia-400">
-                                {new Intl.NumberFormat('ru-RU').format(bonusBalance !== undefined ? bonusBalance : totalBonus)} UZS
-                            </span>
+                            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Оплачено:</span>
+                            <div className="flex flex-col items-end">
+                                <span className="text-lg font-black text-blue-400">{new Intl.NumberFormat('ru-RU').format(salaryPaid || 0)} UZS</span>
+                                {onPaySalary && (
+                                    <button
+                                        onClick={() => setIsPaySalaryOpen(true)}
+                                        className="text-[9px] font-black text-emerald-400 uppercase tracking-widest hover:text-white transition-colors underline underline-offset-2 mt-0.5"
+                                    >
+                                        выплатить зарплату →
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center max-w-xs border-t border-white/10 pt-2">
+                            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Остаток:</span>
+                            <span className="text-base font-black text-yellow-300">{new Intl.NumberFormat('ru-RU').format(Math.max(0, (salaryAccrued || totalSalary) - (salaryPaid || 0)))} UZS</span>
+                        </div>
+                    </div>
+
+                    {/* Бонус column */}
+                    <div className="space-y-3">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-white/10 pb-2 mb-1">БОНУС</p>
+                        <div className="flex justify-between items-center max-w-xs">
+                            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Начислено:</span>
+                            <span className="text-lg font-black text-indigo-400">{new Intl.NumberFormat('ru-RU').format(bonusAccrued || totalBonus)} UZS</span>
+                        </div>
+                        <div className="flex justify-between items-center max-w-xs">
+                            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Оплачено:</span>
+                            <div className="flex flex-col items-end">
+                                <span className="text-lg font-black text-fuchsia-400">{new Intl.NumberFormat('ru-RU').format(bonusPayout || 0)} UZS</span>
+                                {onPayBonus && (
+                                    <button
+                                        onClick={() => setIsPayBonusOpen(true)}
+                                        className="text-[9px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition-colors underline underline-offset-2 mt-0.5"
+                                    >
+                                        выплатить бонус →
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center max-w-xs border-t border-white/10 pt-2">
+                            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Остаток:</span>
+                            <span className="text-base font-black text-fuchsia-300">{new Intl.NumberFormat('ru-RU').format(Math.max(0, (bonusAccrued || totalBonus) - (bonusPayout || 0)))} UZS</span>
                         </div>
                     </div>
                 </div>

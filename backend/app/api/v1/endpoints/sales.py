@@ -853,16 +853,32 @@ async def get_medrep_bonus_balance(
         total_paid = 0.0
         total_allocated = 0.0
         total_payout = 0.0
+        # Separated by category
+        salary_accrued = 0.0
+        bonus_accrued = 0.0
+        salary_payout = 0.0
+        bonus_payout = 0.0
         
         for e in all_entries:
+            cat = getattr(e, 'category', None) or 'bonus'
             if e.ledger_type == LedgerType.ACCRUAL:
                 total_accrued += e.amount
                 if e.is_paid:
                     total_paid += e.amount
+                # Separate by category
+                # Legacy records without category: distinguish by notes text
+                if cat == 'salary' or ('Зарплата' in (e.notes or '') and cat not in ('bonus',)):
+                    salary_accrued += e.amount
+                else:
+                    bonus_accrued += e.amount
             elif e.ledger_type == LedgerType.OFFSET:
                 total_allocated += abs(e.amount)
             elif e.ledger_type == LedgerType.PAYOUT:
                 total_payout += abs(e.amount)
+                if cat == 'salary':
+                    salary_payout += abs(e.amount)
+                else:
+                    bonus_payout += abs(e.amount)
         
         # Get history (all transactions)
         query = select(BonusLedger).options(
@@ -949,6 +965,11 @@ async def get_medrep_bonus_balance(
             "total_paid": total_paid,
             "total_allocated": total_allocated,
             "total_payout": total_payout,
+            # Separated by category
+            "salary_accrued": salary_accrued,
+            "bonus_accrued": bonus_accrued,
+            "salary_payout": salary_payout,
+            "bonus_payout": bonus_payout,
             "history": history_data
         }
     except Exception as e:

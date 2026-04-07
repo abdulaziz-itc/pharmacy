@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from fastapi import HTTPException
 from app.models.sales import Payment, Invoice, InvoiceStatus, ReservationItem
-from app.models.ledger import BonusLedger, LedgerType, DoctorMonthlyStat
+from app.models.ledger import BonusLedger, LedgerType, LedgerCategory, DoctorMonthlyStat
 from app.models.product import Product
 from app.schemas.sales import PaymentCreate
 from datetime import datetime
@@ -108,6 +108,7 @@ class FinancialService:
                                 user_id=target_medrep_id,
                                 amount=payment_bonus_amount,
                                 ledger_type=LedgerType.ACCRUAL,
+                                category=LedgerCategory.BONUS,
                                 payment_id=payment.id,
                                 target_month=now.month,
                                 target_year=now.year,
@@ -121,6 +122,7 @@ class FinancialService:
                                 user_id=target_medrep_id,
                                 amount=payment_salary_total,
                                 ledger_type=LedgerType.ACCRUAL,
+                                category=LedgerCategory.SALARY,
                                 payment_id=payment.id,
                                 target_month=now.month,
                                 target_year=now.year,

@@ -18,6 +18,7 @@ import { getMedRepBonusBalance } from '../../api/orders-management';
 import { getUsers } from '../../api/user';
 import { getVisitPlans } from '../../api/visit-plans';
 import { getNotifications } from '../../api/notifications';
+import { createSalaryPayment } from '../../api/finance';
 import { useProductStore } from '../../store/productStore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useAuthStore } from '../../store/authStore';
@@ -39,6 +40,9 @@ export default function MedRepDetailPage() {
     const [bonusPayments, setBonusPayments] = React.useState<any[]>([]);
     const [bonusBalance, setBonusBalance] = React.useState<number>(0);
     const [salaryPaid, setSalaryPaid] = React.useState<number>(0);
+    const [salaryAccrued, setSalaryAccrued] = React.useState<number>(0);
+    const [bonusAccrued, setBonusAccrued] = React.useState<number>(0);
+    const [bonusPayout, setBonusPayout] = React.useState<number>(0);
     const [invoices, setInvoices] = React.useState<any[]>([]);
     const [isReassignModalOpen, setIsReassignModalOpen] = React.useState(false);
     const { products, fetchProducts } = useProductStore();
@@ -108,7 +112,10 @@ export default function MedRepDetailPage() {
 
                 const balanceData = await getMedRepBonusBalance(repId);
                 setBonusBalance(balanceData.balance);
-                setSalaryPaid(balanceData.total_payout || 0);
+                setSalaryPaid(balanceData.salary_payout || 0);
+                setSalaryAccrued(balanceData.salary_accrued || 0);
+                setBonusAccrued(balanceData.bonus_accrued || 0);
+                setBonusPayout(balanceData.bonus_payout || 0);
 
                 const invs = await getInvoices({ med_rep_id: repId, limit: 1000 });
                 setInvoices(invs);
@@ -325,7 +332,10 @@ export default function MedRepDetailPage() {
                                             // Update bonus balance after assigning fact
                                             const balanceData = await getMedRepBonusBalance(repId);
                                             setBonusBalance(balanceData.balance);
-                                            setSalaryPaid(balanceData.total_payout || 0);
+                                            setSalaryPaid(balanceData.salary_payout || 0);
+                                            setSalaryAccrued(balanceData.salary_accrued || 0);
+                                            setBonusAccrued(balanceData.bonus_accrued || 0);
+                                            setBonusPayout(balanceData.bonus_payout || 0);
                                         } catch (e) {
                                             console.error(e);
                                             alert("Ошибка назначения факта");
@@ -333,26 +343,57 @@ export default function MedRepDetailPage() {
                                     }}
                                     bonusBalance={bonusBalance}
                                     salaryPaid={salaryPaid}
+                                    salaryAccrued={salaryAccrued}
+                                    bonusAccrued={bonusAccrued}
+                                    bonusPayout={bonusPayout}
                                     onPaySalary={async (data) => {
                                         try {
                                             const repId = parseInt(id || "0");
-                                            const { createSalaryPayment } = await import('../../api/finance');
                                             await createSalaryPayment({
                                                 user_id: repId,
                                                 amount: data.amount,
                                                 notes: data.notes,
                                                 target_month: data.month,
-                                                target_year: data.year
+                                                target_year: data.year,
+                                                category: 'salary'
                                             });
                                             const balanceData = await getMedRepBonusBalance(repId);
                                             setBonusBalance(balanceData.balance);
-                                            setSalaryPaid(balanceData.total_payout || 0);
+                                            setSalaryPaid(balanceData.salary_payout || 0);
+                                            setSalaryAccrued(balanceData.salary_accrued || 0);
+                                            setBonusAccrued(balanceData.bonus_accrued || 0);
+                                            setBonusPayout(balanceData.bonus_payout || 0);
                                             const updatedBonuses = await getBonusPayments(repId);
                                             setBonusPayments(updatedBonuses);
-                                            toast.success("Выплата зарплаты успешно зафиксирована");
+                                            toast.success("Выплата зарплаты зафиксирована");
                                         } catch (e) {
                                             console.error(e);
                                             toast.error("Ошибка при выплате зарплаты");
+                                        }
+                                    }}
+                                    onPayBonus={async (data) => {
+                                        try {
+                                            const repId = parseInt(id || "0");
+                                            await createSalaryPayment({
+                                                user_id: repId,
+                                                amount: data.amount,
+                                                notes: data.notes || 'Выплата бонуса',
+                                                target_month: data.month,
+                                                target_year: data.year,
+                                                category: 'bonus'
+                                            });
+                                            const balanceData = await getMedRepBonusBalance(repId);
+                                            setBonusBalance(balanceData.balance);
+                                            setSalaryPaid(balanceData.salary_payout || 0);
+                                            setSalaryAccrued(balanceData.salary_accrued || 0);
+                                            setBonusAccrued(balanceData.bonus_accrued || 0);
+                                            setBonusPayout(balanceData.bonus_payout || 0);
+                                            const updatedBonuses = await getBonusPayments(repId);
+                                            setBonusPayments(updatedBonuses);
+                                            toast.success("Выплата бонуса зафиксирована");
+                                        } catch (e) {
+                                            console.error(e);
+                                            toast.error("Ошибка при выплате бонуса");
                                         }
                                     }}
                                 />

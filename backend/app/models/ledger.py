@@ -11,6 +11,10 @@ class LedgerType(str, enum.Enum):
     ACCRUAL = "accrual" # Earned bonus
     REVERSAL = "reversal" # Return
 
+class LedgerCategory(str, enum.Enum):
+    SALARY = "salary"   # Зарплата (salary_expense)
+    BONUS = "bonus"     # Маркетинговый бонус (marketing_expense)
+
 class BonusLedger(Base):
     """
     Unified ledger for Doctor and MedRep bonuses.
@@ -25,6 +29,7 @@ class BonusLedger(Base):
     
     amount = Column(Float, nullable=False) # Positive is Credit (earned), Negative is Debit (paid out / advance)
     ledger_type = Column(String, nullable=False, default=LedgerType.ACCRUAL)
+    category = Column(String, nullable=True, default=LedgerCategory.BONUS)  # 'salary' or 'bonus'
     
     # NEW logic: True = paid to MedRep's actual balance. False = pending accrual from fact.
     is_paid = Column(Boolean, default=False, nullable=False)

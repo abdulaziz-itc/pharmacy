@@ -233,20 +233,21 @@ async def create_salary_payment(
     """
     from app.models.ledger import BonusLedger, LedgerType
     
-    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.ACCOUNTANT]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.ACCOUNTANT, UserRole.DEPUTY_DIRECTOR, UserRole.INVESTOR]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    # We record payout as a negative amount in BonusLedger
+    # We record payout as negative in BonusLedger; category separates salary vs bonus
     payout = BonusLedger(
         user_id=obj_in.user_id,
         amount=-abs(obj_in.amount), # Always negative for payout
         ledger_type=LedgerType.PAYOUT,
+        category=obj_in.category or "salary",
         is_paid=True,
-        notes=obj_in.notes or "Выплата зарплаты",
+        notes=obj_in.notes or ("Выплата зарплаты" if (obj_in.category or "salary") == "salary" else "Выплата бонуса"),
         target_month=obj_in.target_month,
         target_year=obj_in.target_year
     )
     db.add(payout)
     await db.commit()
     await db.refresh(payout)
-    return {"status": "success", "id": payout.id, "amount": payout.amount}
+    return {"status": "success", "id": payout.id, "amount": payout.amount, "category": payout.category}

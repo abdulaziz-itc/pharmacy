@@ -46,3 +46,4 @@ class SalaryPaymentCreate(BaseModel):
     notes: Optional[str] = None
     target_month: Optional[int] = None
     target_year: Optional[int] = None
+    category: Optional[str] = "salary"  # 'salary' or 'bonus'
