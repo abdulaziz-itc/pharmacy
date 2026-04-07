@@ -20,6 +20,7 @@ export default function DeletionApprovalPage() {
     setIsLoading(true);
     try {
       const result = await warehouseApi.getDeletionRequests();
+      console.log('DEBUG DELETION DATA:', result);
       // Force refresh data-table if needed by ensuring state is truly new
       setData({ ...result });
     } catch (error) {
@@ -91,16 +92,16 @@ export default function DeletionApprovalPage() {
   };
 
   const handleForceCleanup = async () => {
-    if (!window.confirm('ВНИМАНИЕ: Bu barcha tasdiqlanishi kutilayotgan malumotlarni oʻchirib tashlaydi. Faqat texnik xatoliklarda foydalaning. Davom etamizmi?')) return;
+    if (!window.confirm('ВНИМАНИЕ: Это принудительно удалит все данные, помеченные к удалению. Используйте только в случае технических ошибок. Продолжить?')) return;
     
     setIsLoading(true);
     try {
       await warehouseApi.forceCleanup();
-      toast.success('Barcha maʼlumotlar oʻchirildi');
+      toast.success('Все помеченные данные успешно удалены');
       loadData();
     } catch (error: any) {
       console.error(error);
-      const msg = error?.response?.data?.detail || 'Xatolik yuz berdi';
+      const msg = error?.response?.data?.detail || 'Произошла ошибка при очистке';
       toast.error(msg);
     } finally {
       setIsLoading(false);

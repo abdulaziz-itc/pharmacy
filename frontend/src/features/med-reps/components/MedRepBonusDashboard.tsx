@@ -162,15 +162,15 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
     };
     const handleDeleteFact = async (id: number, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!window.confirm("Haqiqatan ham ushbu faktni o'chirmoqchimisiz? Bu amal bonus hisob-kitobini ham bekor qiladi.")) return;
+        if (!window.confirm("Вы действительно хотите удалить этот факт? Это действие также отменит расчет бонуса.")) return;
 
         try {
             // We pass id_type=ledger because we are deleting from the history table (BonusLedger)
             await deleteDoctorFact(id, 'ledger');
-            toast.success("Fakt muvaffaqiyatli o'chirildi");
+            toast.success("Факт успешно удален");
             loadData(filterMonth, filterYear);
         } catch (error: any) {
-            toast.error(error.response?.data?.detail || "O'chirishda xatolik");
+            toast.error(error.response?.data?.detail || "Ошибка при удалении");
         }
     };
 
@@ -315,9 +315,9 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                             <DialogTitle className="text-white text-lg font-black">{STAT_LABELS[statPanelType]}</DialogTitle>
                         </DialogHeader>
                         <p className="text-sm opacity-80 mt-1">
-                            {panelRows(statPanelType).length} ta tranzaktsiya
+                            {panelRows(statPanelType).length} транзакций
                             {' · '}
-                            {panelRows(statPanelType).reduce((s, h) => s + Math.abs(h.amount), 0).toLocaleString('ru-RU')} UZS jami
+                            {panelRows(statPanelType).reduce((s, h) => s + Math.abs(h.amount), 0).toLocaleString('ru-RU')} UZS всего
                         </p>
                     </div>
 
@@ -359,10 +359,10 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                                                 </span>
                                             )}
                                             {h.is_paid === false && h.ledger_type === 'accrual' && (
-                                                <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-bold">⏳ Kutmoqda</span>
+                                                <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-bold">⏳ Ожидает</span>
                                             )}
                                             {h.is_paid === true && h.ledger_type === 'accrual' && (
-                                                <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">✓ To'langan</span>
+                                                <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">✓ Оплачено</span>
                                             )}
                                         </div>
 
@@ -370,31 +370,31 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                                         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                                             {h.product && (
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Mahsulot</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Продукт</p>
                                                     <p className="font-semibold text-slate-700 truncate">{h.product.name}</p>
                                                 </div>
                                             )}
                                             {h.doctor && (
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Vrach</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Врач</p>
                                                     <p className="font-semibold text-slate-700 truncate">{h.doctor.full_name}</p>
                                                 </div>
                                             )}
                                             {h.target_month && h.target_year && (
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Oylik davr</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Период</p>
                                                     <p className="font-semibold text-slate-700">{MONTHS_SHORT[(h.target_month ?? 1) - 1]} {h.target_year}</p>
                                                 </div>
                                             )}
                                             {h.invoice_id && (
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Faktura</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Счет-фактура</p>
                                                     <p className="font-semibold text-blue-600">#{h.invoice_id}</p>
                                                 </div>
                                             )}
                                             {h.reservation_id && (
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Rezervatsiya</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Бронь</p>
                                                     <p className="font-semibold text-blue-600">#{h.reservation_id} 🔗</p>
                                                 </div>
                                             )}

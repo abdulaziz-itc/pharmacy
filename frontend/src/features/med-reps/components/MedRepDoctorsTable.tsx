@@ -86,7 +86,7 @@ const columns: ColumnDef<any>[] = [
                                     e.stopPropagation();
                                     onDeleteClick(row.original);
                                 }}
-                                title="O'chirish (bazadan)"
+                                title="Удалить (из базы)"
                             >
                                 <Trash2 className="h-4 w-4" />
                             </Button>
@@ -139,15 +139,15 @@ export function MedRepDoctorsTable({ data, salesPlans, salesFacts, bonusPayments
 
     const handleDeleteDoctor = async (doctorData: any) => {
         const doctor = doctorData.rawDoctor;
-        const confirmed = window.confirm(`"${doctor.full_name}" – bu vrach bazadan butunlay o'chiriladi. Davom etasizmi?`);
+        const confirmed = window.confirm(`"${doctor.full_name}" – этот врач будет полностью удален из базы. Продолжить?`);
         if (!confirmed) return;
         try {
             const api = (await import('../../../api/axios')).default;
             await api.delete(`/crm/doctors/${doctor.id}`);
-            toast.success("Vrach bazadan o'chirildi.");
+            toast.success("Врач удален из базы.");
             window.location.reload();
         } catch (error: any) {
-            const msg = error.response?.data?.detail || "O'chirishda xato yuz berdi.";
+            const msg = error.response?.data?.detail || "Ошибка при удалении.";
             toast.error(msg);
         }
     };

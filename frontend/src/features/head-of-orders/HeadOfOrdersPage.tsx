@@ -2107,31 +2107,31 @@ const HeadOfOrdersPage: React.FC = () => {
             {/* Confirmation for Delete */}
             <Dialog open={!!showDeleteConfirm} onOpenChange={v => { if (!v) setShowDeleteConfirm(null); }}>
                 <DialogContent className="max-w-md rounded-2xl shadow-2xl p-0 overflow-hidden border-0">
-                    <DialogTitle className="sr-only">Bronni o'chirish</DialogTitle>
-                    <DialogDescription className="sr-only">Bronni o'chirishni tasdiqlang</DialogDescription>
+                    <DialogTitle className="sr-only">Удаление брони</DialogTitle>
+                    <DialogDescription className="sr-only">Подтвердите удаление брони</DialogDescription>
                     <div className="p-6">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                                 <Trash2 className="w-6 h-6 text-red-600" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-slate-800">Bronni o'chirish</h3>
+                                <h3 className="text-lg font-bold text-slate-800">Удаление брони</h3>
                                 <p className="text-sm text-slate-500 mt-0.5">
-                                    Bron #{showDeleteConfirm} o'chiriladi. Barcha dorilar <span className="font-semibold text-slate-700">omborga qaytariladi</span>.
-                                    Bu amalni ortga qaytarib bo'lmaydi.
+                                    Бронь #{showDeleteConfirm} будет удалена. Bce товары <span className="font-semibold text-slate-700">будут возвращены на склад</span>.
+                                    Это действие нельзя отменить.
                                 </p>
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 mt-6">
                             <Button variant="outline" className="rounded-xl" onClick={() => setShowDeleteConfirm(null)}>
-                                Bekor qilish
+                                Отмена
                             </Button>
                             <Button
                                 className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6"
                                 onClick={confirmDeleteRes}
                             >
                                 <Trash2 className="w-4 h-4 mr-2" />
-                                Ha, o'chirish
+                                Да, удалить
                             </Button>
                         </div>
                     </div>
