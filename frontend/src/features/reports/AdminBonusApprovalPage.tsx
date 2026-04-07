@@ -387,7 +387,7 @@ export default function AdminBonusApprovalPage() {
                                                 {(rep.accrued || 0).toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-amber-600 bg-slate-50/30 whitespace-nowrap">
-                                                {(rep.predinvest || 0).toLocaleString('ru-RU')} UZS
+                                                {Math.max(0, (rep.paid || 0) - (rep.accrued || 0)).toLocaleString('ru-RU')} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-emerald-600 bg-slate-50/30 whitespace-nowrap">
                                                 {(rep.paid || 0).toLocaleString('ru-RU')} UZS
