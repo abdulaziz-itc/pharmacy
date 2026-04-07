@@ -10,6 +10,7 @@ import { Input } from "../../components/ui/input";
 import { Banknote, CreditCard, Landmark } from "lucide-react";
 import { cn } from "../../lib/utils";
 import api from "../../api/axios";
+import { formatMoney, parseMoney } from "../../components/ui/MoneyInput";
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -91,13 +92,13 @@ export function PaymentModal({ isOpen, onClose, availableInvoices, onSuccess }: 
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Сумма оплаты (Сум)</label>
                         <Input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
                             min={1}
-                            max={(selectedInvoice?.total_amount - selectedInvoice?.paid_amount) || 999999999}
-                            value={form.amount}
-                            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                            value={formatMoney(form.amount)}
+                            onChange={(e) => setForm({ ...form, amount: parseMoney(e.target.value) })}
                             className="h-12 text-lg font-black border-slate-200 focus-visible:ring-green-500"
-                            placeholder="Например, 500000"
+                            placeholder="500.000"
                             disabled={!selectedInvoice}
                         />
                     </div>

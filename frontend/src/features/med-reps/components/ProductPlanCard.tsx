@@ -16,6 +16,7 @@ import { DatePicker } from "../../../components/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { useProductStore } from "../../../store/productStore";
+import { formatMoney, parseMoney } from "../../../components/ui/MoneyInput";
 
 
 interface Plan {
@@ -793,11 +794,12 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                 <div className="grid gap-2">
                                     <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Сумма выплаты (UZS)</Label>
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
                                         className="rounded-xl border-slate-200 h-11 font-black text-slate-800 text-lg"
-                                        value={paySalaryAmount}
-                                        onChange={(e) => setPaySalaryAmount(e.target.value)}
+                                        value={formatMoney(paySalaryAmount)}
+                                        onChange={(e) => setPaySalaryAmount(parseMoney(e.target.value))}
                                     />
                                 </div>
                                 <div className="grid gap-2">
@@ -840,11 +842,12 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                 <div className="grid gap-2">
                                     <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Сумма выплаты (UZS)</Label>
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
                                         className="rounded-xl border-slate-200 h-11 font-black text-slate-800 text-lg"
-                                        value={payBonusAmount}
-                                        onChange={(e) => setPayBonusAmount(e.target.value)}
+                                        value={formatMoney(payBonusAmount)}
+                                        onChange={(e) => setPayBonusAmount(parseMoney(e.target.value))}
                                     />
                                 </div>
                                 <div className="grid gap-2">

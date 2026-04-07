@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
+import { formatMoney } from '../ui/MoneyInput';
 
 interface PremiumKpiCardProps {
     label: string;
@@ -42,7 +43,7 @@ const CountUp = ({ value, suffix = 'UZS' }: { value: number, suffix?: string }) 
 
     return (
         <span className="tabular-nums">
-            {displayValue.toLocaleString()}
+            {formatMoney(displayValue)}
             <span className="text-[10px] ml-1.5 opacity-40 font-bold uppercase tracking-widest">{suffix}</span>
         </span>
     );

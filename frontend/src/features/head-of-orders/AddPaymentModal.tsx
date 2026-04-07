@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { createPayment } from '@/api/orders-management';
+import { formatMoney, parseMoney } from '@/components/ui/MoneyInput';
 
 interface AddPaymentModalProps {
     isOpen: boolean;
@@ -62,7 +63,13 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClos
 
                     <div className="grid gap-2">
                         <label className="text-sm font-medium">Сумма платежа</label>
-                        <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+                        <Input
+                            type="text"
+                            inputMode="numeric"
+                            value={formatMoney(amount)}
+                            onChange={(e) => setAmount(parseMoney(e.target.value))}
+                            placeholder="0"
+                        />
                         <div className="flex gap-2">
                             <Button
                                 type="button"

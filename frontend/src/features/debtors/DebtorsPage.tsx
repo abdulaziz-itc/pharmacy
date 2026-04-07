@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import { ModernStatsBar } from '../../components/ui/ModernStatsBar';
 import { FilterBar } from '../../components/ui/FilterBar';
 import type { FilterValues } from '../../components/ui/FilterBar';
+import { formatMoney } from '../../components/ui/MoneyInput';
 import { ReservationDetailsModal } from '../reservations/ReservationDetailsModal';
 
 export default function DebtorsPage() {
@@ -99,6 +100,11 @@ export default function DebtorsPage() {
             cell: ({ row }: any) => row.original.reservation?.med_org?.name || row.original.reservation?.customer_name || '—',
         },
         {
+            id: 'region',
+            header: 'Регион',
+            cell: ({ row }: any) => row.original.reservation?.med_org?.region?.name || '—',
+        },
+        {
             accessorKey: 'status',
             header: 'Статус',
             cell: ({ row }: any) => {
@@ -125,17 +131,17 @@ export default function DebtorsPage() {
         {
             id: 'total_amount',
             header: 'Сумма',
-            cell: ({ row }: any) => (row.original.total_amount || 0).toLocaleString() + ' UZS',
+            cell: ({ row }: any) => formatMoney(row.original.total_amount || 0) + ' UZS',
         },
         {
             id: 'paid_amount',
             header: 'Оплачено',
-            cell: ({ row }: any) => (row.original.paid_amount || 0).toLocaleString() + ' UZS',
+            cell: ({ row }: any) => formatMoney(row.original.paid_amount || 0) + ' UZS',
         },
         {
             id: 'debt_amount',
             header: 'Дебитор',
-            cell: ({ row }: any) => <span className="font-black text-rose-600 tracking-tight">{((row.original.total_amount || 0) - (row.original.paid_amount || 0)).toLocaleString()} UZS</span>,
+            cell: ({ row }: any) => <span className="font-black text-rose-600 tracking-tight">{formatMoney((row.original.total_amount || 0) - (row.original.paid_amount || 0))} UZS</span>,
         },
         {
             id: 'actions',

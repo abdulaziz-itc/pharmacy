@@ -14,6 +14,7 @@ import { useManufacturerStore } from "../../store/manufacturerStore";
 import { useCategoryStore } from "../../store/categoryStore";
 import { Pencil, X, Package, Tag, Building2, TrendingUp, HandCoins, DollarSign } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { formatMoney, parseMoney } from "../../components/ui/MoneyInput";
 
 interface EditProductModalProps {
     isOpen: boolean;
@@ -29,11 +30,11 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
 
     const [form, setForm] = useState<{
         name: string;
-        price: number;
-        production_price: number;
-        marketing_expense: number;
-        salary_expense: number;
-        other_expenses: number;
+        price: string | number;
+        production_price: string | number;
+        marketing_expense: string | number;
+        salary_expense: string | number;
+        other_expenses: string | number;
         manufacturer_ids: number[];
         category_id: number;
         is_active: boolean;
@@ -81,7 +82,14 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
 
         setIsSubmitting(true);
         try {
-            await updateProduct(product.id, form);
+            await updateProduct(product.id, {
+                ...form,
+                price: parseFloat(String(form.price)) || 0,
+                production_price: parseFloat(String(form.production_price)) || 0,
+                marketing_expense: parseFloat(String(form.marketing_expense)) || 0,
+                salary_expense: parseFloat(String(form.salary_expense)) || 0,
+                other_expenses: parseFloat(String(form.other_expenses)) || 0,
+            });
             onClose();
         } catch (error) {
             console.error("Failed to update product:", error);
@@ -227,10 +235,11 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                                 </Label>
                                 <div className="relative flex items-center">
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
-                                        value={form.price || ''}
-                                        onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                                        value={formatMoney(form.price)}
+                                        onChange={(e) => setForm({ ...form, price: parseMoney(e.target.value) })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -242,10 +251,11 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                                 </Label>
                                 <div className="relative flex items-center">
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
-                                        value={form.production_price || ''}
-                                        onChange={(e) => setForm({ ...form, production_price: Number(e.target.value) })}
+                                        value={formatMoney(form.production_price)}
+                                        onChange={(e) => setForm({ ...form, production_price: parseMoney(e.target.value) })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -257,10 +267,11 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                                 </Label>
                                 <div className="relative flex items-center">
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
-                                        value={form.marketing_expense || ''}
-                                        onChange={(e) => setForm({ ...form, marketing_expense: Number(e.target.value) })}
+                                        value={formatMoney(form.marketing_expense)}
+                                        onChange={(e) => setForm({ ...form, marketing_expense: parseMoney(e.target.value) })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -272,10 +283,11 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                                 </Label>
                                 <div className="relative flex items-center">
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
-                                        value={form.salary_expense || ''}
-                                        onChange={(e) => setForm({ ...form, salary_expense: Number(e.target.value) })}
+                                        value={formatMoney(form.salary_expense)}
+                                        onChange={(e) => setForm({ ...form, salary_expense: parseMoney(e.target.value) })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -287,10 +299,11 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                                 </Label>
                                 <div className="relative flex items-center">
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
-                                        value={form.other_expenses || ''}
-                                        onChange={(e) => setForm({ ...form, other_expenses: Number(e.target.value) })}
+                                        value={formatMoney(form.other_expenses)}
+                                        onChange={(e) => setForm({ ...form, other_expenses: parseMoney(e.target.value) })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>

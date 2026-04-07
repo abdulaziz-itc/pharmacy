@@ -18,9 +18,10 @@ import { useDoctorStore } from '../../store/doctorStore';
 import { DrilldownModal } from '../../components/analytics/DrilldownModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PremiumKpiCard } from '../../components/analytics/PremiumKpiCard';
+import { formatMoney } from '../../components/ui/MoneyInput';
 
 const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('ru-RU').format(Math.round(value)) + ' UZS';
+    return formatMoney(Math.round(value)) + ' UZS';
 };
 
 export default function StatsPage() {

@@ -6,6 +6,7 @@ import { DataTable } from '../../components/ui/data-table';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { formatMoney } from '../../components/ui/MoneyInput';
 import { PaymentModal } from './PaymentModal';
 
 export default function PaymentsPage() {
@@ -24,15 +25,19 @@ export default function PaymentsPage() {
         { header: 'ID Инвойса', accessor: 'id' },
         {
             header: 'Организация',
-            accessor: (row: any) => row.med_org?.name || 'Свободная продажа'
+            accessor: (row: any) => row.med_org?.name || row.reservation?.med_org?.name || '—'
+        },
+        {
+            header: 'Регион',
+            accessor: (row: any) => row.med_org?.region?.name || row.reservation?.med_org?.region?.name || '—'
         },
         {
             header: 'Сумма Позиций',
-            accessor: (row: any) => `${row.total_amount.toLocaleString()} сум`
+            accessor: (row: any) => `${formatMoney(row.total_amount)} сум`
         },
         {
             header: 'Остаток',
-            accessor: (row: any) => `${(row.total_amount - row.paid_amount).toLocaleString()} сум`
+            accessor: (row: any) => `${formatMoney(row.total_amount - row.paid_amount)} сум`
         },
         {
             header: 'Статус Оплаты',

@@ -11,6 +11,7 @@ import { ModernStatsBar } from '../../components/ui/ModernStatsBar';
 import { useState } from 'react';
 import { FilterBar } from '../../components/ui/FilterBar';
 import type { FilterValues } from '../../components/ui/FilterBar';
+import { formatMoney } from '../../components/ui/MoneyInput';
 import { ReservationDetailsModal } from '../reservations/ReservationDetailsModal';
 
 export default function InvoicesPage() {
@@ -107,6 +108,11 @@ export default function InvoicesPage() {
             cell: ({ row }: any) => row.original.reservation?.med_org?.name || row.original.reservation?.customer_name || '—',
         },
         {
+            id: 'region',
+            header: 'Регион',
+            cell: ({ row }: any) => row.original.reservation?.med_org?.region?.name || '—',
+        },
+        {
             accessorKey: 'status',
             header: 'Статус',
             cell: ({ row }: any) => {
@@ -133,12 +139,12 @@ export default function InvoicesPage() {
         {
             id: 'total_amount',
             header: 'Сумма',
-            cell: ({ row }: any) => (row.original.total_amount || 0).toLocaleString() + ' UZS',
+            cell: ({ row }: any) => formatMoney(row.original.total_amount || 0) + ' UZS',
         },
         {
             id: 'paid_amount',
             header: 'Оплачено',
-            cell: ({ row }: any) => (row.original.paid_amount || 0).toLocaleString() + ' UZS',
+            cell: ({ row }: any) => formatMoney(row.original.paid_amount || 0) + ' UZS',
         },
         {
             id: 'actions',

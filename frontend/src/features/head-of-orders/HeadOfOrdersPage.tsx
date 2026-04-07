@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import axiosInstance from '@/api/axios';
 import { ModernStatsBar } from '@/components/ui/ModernStatsBar';
 import { SearchableProductSelect } from '@/components/SearchableProductSelect';
+import { formatMoney } from '@/components/ui/MoneyInput';
 
 
 
@@ -784,11 +785,11 @@ const HeadOfOrdersPage: React.FC = () => {
                                                             </span>
                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-slate-700">
-                                                            {prod?.price?.toLocaleString() || '—'}
+                                                            {formatMoney(prod?.price || 0)}
                                                         </td>
                                                         <td className="px-4 py-3 text-sm">
                                                             <span className={`font-bold ${stock.quantity > 0 ? 'text-slate-800' : 'text-red-400'}`}>
-                                                                {stock.quantity.toLocaleString()}
+                                                                {formatMoney(stock.quantity)}
                                                             </span>
                                                         </td>
                                                         <td className="px-4 py-3">
@@ -972,6 +973,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
+                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СУММА С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
@@ -1036,9 +1038,9 @@ const HeadOfOrdersPage: React.FC = () => {
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{inn}</td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{totalAmount.toLocaleString()}</td>
-                                                    <td className="px-3 py-4 font-black text-emerald-600 text-center">{paidAmount.toLocaleString()}</td>
-                                                    <td className="px-3 py-4 font-black text-rose-600 text-center">{debt.toLocaleString()}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{formatMoney(totalAmount)}</td>
+                                                    <td className="px-3 py-4 font-black text-emerald-600 text-center">{formatMoney(paidAmount)}</td>
+                                                    <td className="px-3 py-4 font-black text-rose-600 text-center">{formatMoney(debt)}</td>
                                                     <td className="px-3 py-4 font-black text-center">
                                                         <div className="flex items-center justify-center gap-1">
                                                             <span className="text-slate-700">{discount}%</span>
@@ -1289,6 +1291,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
+                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СУММА С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПОСТУПЛЕНИЕ</th>
@@ -1353,9 +1356,9 @@ const HeadOfOrdersPage: React.FC = () => {
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{inn}</td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{inv.total_amount?.toLocaleString() || 0}</td>
-                                                    <td className="px-3 py-4 font-black text-emerald-600 text-center">{paidAmount.toLocaleString()}</td>
-                                                    <td className="px-3 py-4 font-black text-rose-600 text-center">{debt.toLocaleString()}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight text-center">{formatMoney(inv.total_amount || 0)}</td>
+                                                    <td className="px-3 py-4 font-black text-emerald-600 text-center">{formatMoney(paidAmount)}</td>
+                                                    <td className="px-3 py-4 font-black text-rose-600 text-center">{formatMoney(debt)}</td>
                                                     <td className="px-3 py-4 font-black text-center">
                                                         <div className="flex items-center justify-center gap-1">
                                                             <span className="text-slate-700">{discount}%</span>
@@ -1590,7 +1593,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                 </div>
                                 <div className="flex items-baseline gap-2 relative z-10">
                                     <span className="text-4xl font-black tracking-tighter text-white tabular-nums">
-                                        {filteredDebitorka.reduce((s, i) => s + ((i.total_amount || 0) - (i.paid_amount || 0)), 0).toLocaleString()}
+                                        {formatMoney(filteredDebitorka.reduce((s, i) => s + ((i.total_amount || 0) - (i.paid_amount || 0)), 0))}
                                     </span>
                                     <span className="text-lg font-bold text-rose-200">UZS</span>
                                 </div>
@@ -1609,7 +1612,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                 </div>
                                 <div className="flex items-baseline gap-2">
                                     <span className="text-4xl font-black tracking-tighter text-slate-900 tabular-nums">
-                                        {filteredDebitorka.reduce((s, i) => s + (i.paid_amount || 0), 0).toLocaleString()}
+                                        {formatMoney(filteredDebitorka.reduce((s, i) => s + (i.paid_amount || 0), 0))}
                                     </span>
                                     <span className="text-lg font-bold text-slate-300">UZS</span>
                                 </div>
@@ -1617,7 +1620,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                     <div className="flex flex-col">
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">ВСЕГО ПРОДАЖ ПО ДЕБИТОРАМ</span>
                                         <span className="text-sm font-bold text-slate-600">
-                                            {filteredDebitorka.reduce((s, i) => s + (i.total_amount || 0), 0).toLocaleString()} UZS
+                                            {formatMoney(filteredDebitorka.reduce((s, i) => s + (i.total_amount || 0), 0))} UZS
                                         </span>
                                     </div>
                                 </div>
@@ -1642,6 +1645,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">СУММА С/Ф</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
+                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОПЛАЧЕНО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-rose-500">ДЕБИТОР</th>
@@ -1656,7 +1660,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                     <tbody>
                                         {filteredDebitorka.length === 0 ? (
                                             <tr>
-                                                <td colSpan={15} className="py-20 text-center">
+                                                <td colSpan={16} className="py-20 text-center">
                                                     <div className="flex flex-col items-center gap-3 opacity-20">
                                                         <Receipt className="w-12 h-12" />
                                                         <p className="font-black uppercase tracking-tighter text-xl text-slate-900">Задолженностей нет</p>
@@ -1670,6 +1674,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             const discount = res.items?.[0]?.discount_percent || 0;
                                             const medRepName = res.med_org?.assigned_reps?.[0]?.full_name || '—';
                                             const manufacturer = res.items?.[0]?.product?.manufacturers?.[0]?.name || '—';
+                                            const region = res.med_org?.region?.name || '—';
                                             const inn = res.med_org?.inn || '—';
 
                                             return (
@@ -1682,14 +1687,14 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     <td className="px-3 py-4">
                                                         <span className="font-black text-slate-700 tracking-tight">{inv.factura_number || `INV-${inv.id}`}</span>
                                                     </td>
-                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight">{inv.total_amount?.toLocaleString() || 0}</td>
+                                                    <td className="px-3 py-4 font-black text-slate-700 tracking-tight">{formatMoney(inv.total_amount || 0)}</td>
                                                     <td className="px-3 py-4 font-black">
                                                         <span className="text-slate-800 tracking-tight">{res.med_org?.name || '—'}</span>
                                                     </td>
+                                                    <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{region}</td>
                                                     <td className="px-3 py-4 font-black text-slate-600 tracking-tight">{inn}</td>
-                                                    <td className="px-3 py-4 font-black text-emerald-600">{paidAmount.toLocaleString()}</td>
-                                                    <td className="px-3 py-4 font-black text-rose-600 tracking-tight">{debt.toLocaleString()}</td>
-                                                    <td className="px-3 py-4 font-black text-slate-800 tracking-tight">{medRepName}</td>
+                                                    <td className="px-3 py-4 font-black text-emerald-600">{formatMoney(paidAmount)}</td>
+                                                    <td className="px-3 py-4 font-black text-rose-600 tracking-tight">{formatMoney(debt)}</td>
                                                     <td className="px-3 py-4 font-black">
                                                         <span className="text-slate-700">{discount}%</span>
                                                     </td>
@@ -1766,7 +1771,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         {org.credit_balance > 0 && (
                                             <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 w-fit">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                <span className="text-[10px] font-black uppercase tracking-wider">Кредиторка: {org.credit_balance?.toLocaleString()} UZS</span>
+                                                <span className="text-[10px] font-black uppercase tracking-wider">Кредиторка: {formatMoney(org.credit_balance || 0)} UZS</span>
                                             </div>
                                         )}
                                     </div>
@@ -1807,8 +1812,8 @@ const HeadOfOrdersPage: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                             {[
                                 { label: 'Всего броней', value: stats.resCount, sub: `Ожидает: ${stats.resPendingCount}  |  Актив.: ${stats.resActiveCount}`, color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-100', Icon: CalendarRange },
-                                { label: "Всего оплат", value: `${stats.paidAmount.toLocaleString()} UZS`, sub: `${stats.paidInvoicesCount} полностью оплачено`, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100', Icon: DollarSign },
-                                { label: 'Задолженность', value: `${stats.debtAmount.toLocaleString()} UZS`, sub: `${stats.partialInvoicesCount} частично оплачено`, color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-100', Icon: TrendingUp },
+                                { label: "Всего оплат", value: `${formatMoney(stats.paidAmount)} UZS`, sub: `${stats.paidInvoicesCount} полностью оплачено`, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100', Icon: DollarSign },
+                                { label: 'Задолженность', value: `${formatMoney(stats.debtAmount)} UZS`, sub: `${stats.partialInvoicesCount} частично оплачено`, color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-100', Icon: TrendingUp },
                             ].map(c => (
                                 <div key={c.label} className={`${c.bg} ${c.border} border rounded-xl p-5`}>
                                     <div className="flex items-center gap-2 mb-3">
@@ -1877,11 +1882,11 @@ const HeadOfOrdersPage: React.FC = () => {
                                 <p className="text-white/60 text-xs">
                                     {editProduct.category?.name && <span className="bg-white/10 px-2 py-0.5 rounded mr-2">{editProduct.category.name}</span>}
                                     Текущий остаток на складе: <span className="font-bold text-white">
-                                        {(selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0).toLocaleString()} шт
+                                        {formatMoney(selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0)} шт
                                     </span>
                                     {stockMap[editProduct.id] > (selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0) && (
                                         <span className="block text-[10px] text-white/50 mt-1 italic italic-normal">
-                                            (Общий остаток по всем складам: {stockMap[editProduct.id].toLocaleString()} шт)
+                                            (Общий остаток по всем складам: {formatMoney(stockMap[editProduct.id] || 0)} шт)
                                         </span>
                                     )}
                                 </p>
@@ -1905,11 +1910,11 @@ const HeadOfOrdersPage: React.FC = () => {
                         {editProduct && editQty !== '' && (
                             <div className="text-sm text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <p>
-                                    Текущий остаток: <span className="font-bold text-slate-700">{(selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0).toLocaleString()} шт</span>
+                                    Текущий остаток: <span className="font-bold text-slate-700">{formatMoney(selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0)} шт</span>
                                 </p>
                                 <p className="mt-1">
                                     Станет после сохранения: <span className={`font-bold ${parseInt(editQty) > (selectedWarehouse?.stocks?.find((s: any) => s.product_id === editProduct.id)?.quantity || 0) ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                        {parseInt(editQty || '0').toLocaleString()} шт
+                                        {formatMoney(parseInt(editQty || '0'))} шт
                                     </span>
                                 </p>
                                 <p className="text-[10px] text-slate-400 mt-2 italic">
@@ -2219,25 +2224,25 @@ const HeadOfOrdersPage: React.FC = () => {
                                                         </div>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-4 text-right font-bold text-slate-600">{(item.product?.price || 0).toLocaleString()}</td>
+                                                <td className="px-4 py-4 text-right font-bold text-slate-600">{formatMoney(item.product?.price || 0)}</td>
                                                 <td className="px-4 py-4 text-right">
                                                     <div className="flex flex-col items-end">
                                                         <span className="font-black text-purple-600">
-                                                            {(actualQty * (item.marketing_amount || item.default_marketing_amount || 0)).toLocaleString()}
+                                                            {formatMoney(actualQty * (item.marketing_amount || item.default_marketing_amount || 0))}
                                                         </span>
                                                         <span className="text-[10px] text-slate-400 font-bold mt-1">
-                                                            {actualQty} * {(item.marketing_amount || item.default_marketing_amount || 0).toLocaleString()}
+                                                            {actualQty} * {formatMoney(item.marketing_amount || item.default_marketing_amount || 0)}
                                                         </span>
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-4 text-right">
                                                     <div className="flex flex-col items-end">
                                                         <span className="px-2 py-1 bg-emerald-50 text-emerald-600 font-black rounded-lg">
-                                                            {totalDisplay.toLocaleString()}
+                                                            {formatMoney(totalDisplay)}
                                                         </span>
                                                         {item.returned_quantity > 0 && (
                                                             <span className="text-[10px] text-rose-500 font-bold mt-1 line-through">
-                                                                {(item.quantity * (item.product?.price || 0)).toLocaleString()}
+                                                                {formatMoney(item.quantity * (item.product?.price || 0))}
                                                             </span>
                                                         )}
                                                     </div>
@@ -2365,7 +2370,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <span className="text-sm font-black text-emerald-600">
-                                                        {p.amount.toLocaleString()} UZS
+                                                        {formatMoney(p.amount)} UZS
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">

@@ -12,6 +12,7 @@ import api from '../../api/axios';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatMoney } from '../ui/MoneyInput';
 
 interface DrilldownModalProps {
     isOpen: boolean;
@@ -22,7 +23,7 @@ interface DrilldownModalProps {
 }
 
 const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('ru-RU').format(val) + ' UZS';
+    return formatMoney(val) + ' UZS';
 };
 
 export const DrilldownModal: React.FC<DrilldownModalProps> = ({ 
@@ -87,7 +88,7 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                     <table className="w-full text-left border-separate border-spacing-0">
                         <thead>
                             <tr>
-                                {['Дата', 'Сумма бонуса', 'Поступление (оплата)', 'Фактура', 'Контрагент', 'Мед. Представитель', 'Врач', 'Продукт', 'Описание'].map(h => (
+                                {['Дата', 'Регион', 'Сумма бонуса', 'Поступление (оплата)', 'Фактура', 'Контрагент', 'Мед. Представитель', 'Врач', 'Продукт', 'Описание'].map(h => (
                                     <th key={h} className="sticky top-0 bg-slate-50/90 backdrop-blur-md p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 z-20 whitespace-nowrap">
                                         {h}
                                     </th>
@@ -105,6 +106,9 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                                 >
                                     <td className="p-5 text-sm font-bold text-slate-500 whitespace-nowrap">
                                         {format(new Date(row.date), 'dd.MM.yyyy HH:mm')}
+                                    </td>
+                                    <td className="p-5 text-sm font-bold text-slate-700 whitespace-nowrap">
+                                        {row.region || '—'}
                                     </td>
                                     <td className="p-5">
                                         <span className="inline-flex items-center px-3 py-1 rounded-xl bg-emerald-50 text-emerald-700 font-black text-sm">
@@ -174,7 +178,8 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
             author: 'Автор',
             doctor: 'Врач',
             paid_ratio: 'Оплачено %',
-            profit: 'Прибыль'
+            profit: 'Прибыль',
+            region: 'Регион'
         };
 
         return (

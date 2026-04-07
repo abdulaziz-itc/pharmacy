@@ -14,6 +14,7 @@ import { useManufacturerStore } from "../../store/manufacturerStore";
 import { useCategoryStore } from "../../store/categoryStore";
 import { Package, X, DollarSign, Tag, Building2, TrendingUp, HandCoins } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { formatMoney, parseMoney } from "../../components/ui/MoneyInput";
 
 interface AddProductModalProps {
     isOpen: boolean;
@@ -28,11 +29,11 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
 
     const [form, setForm] = useState({
         name: "",
-        price: 0,
-        production_price: 0,
-        marketing_expense: 0,
-        salary_expense: 0,
-        other_expenses: 0,
+        price: "" as string | number,
+        production_price: "" as string | number,
+        marketing_expense: "" as string | number,
+        salary_expense: "" as string | number,
+        other_expenses: "" as string | number,
         manufacturer_ids: [] as number[],
         category_id: 0,
     });
@@ -44,11 +45,11 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
             // Reset form on open
             setForm({
                 name: "",
-                price: 0,
-                production_price: 0,
-                marketing_expense: 0,
-                salary_expense: 0,
-                other_expenses: 0,
+                price: "",
+                production_price: "",
+                marketing_expense: "",
+                salary_expense: "",
+                other_expenses: "",
                 manufacturer_ids: [],
                 category_id: 0,
             });
@@ -65,6 +66,11 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
         try {
             await createProduct({
                 ...form,
+                price: parseFloat(String(form.price)) || 0,
+                production_price: parseFloat(String(form.production_price)) || 0,
+                marketing_expense: parseFloat(String(form.marketing_expense)) || 0,
+                salary_expense: parseFloat(String(form.salary_expense)) || 0,
+                other_expenses: parseFloat(String(form.other_expenses)) || 0,
                 is_active: true,
             });
             onClose(); // Auto close on success (200 OK from backend)
@@ -207,10 +213,11 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
                                 </Label>
                                 <div className="relative flex items-center">
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
-                                        value={form.price || ''}
-                                        onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                                        value={formatMoney(form.price)}
+                                        onChange={(e) => setForm({ ...form, price: parseMoney(e.target.value) })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -222,10 +229,11 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
                                 </Label>
                                 <div className="relative flex items-center">
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
-                                        value={form.production_price || ''}
-                                        onChange={(e) => setForm({ ...form, production_price: Number(e.target.value) })}
+                                        value={formatMoney(form.production_price)}
+                                        onChange={(e) => setForm({ ...form, production_price: parseMoney(e.target.value) })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -237,10 +245,11 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
                                 </Label>
                                 <div className="relative flex items-center">
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
-                                        value={form.marketing_expense || ''}
-                                        onChange={(e) => setForm({ ...form, marketing_expense: Number(e.target.value) })}
+                                        value={formatMoney(form.marketing_expense)}
+                                        onChange={(e) => setForm({ ...form, marketing_expense: parseMoney(e.target.value) })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -252,10 +261,11 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
                                 </Label>
                                 <div className="relative flex items-center">
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
-                                        value={form.salary_expense || ''}
-                                        onChange={(e) => setForm({ ...form, salary_expense: Number(e.target.value) })}
+                                        value={formatMoney(form.salary_expense)}
+                                        onChange={(e) => setForm({ ...form, salary_expense: parseMoney(e.target.value) })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -267,10 +277,11 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
                                 </Label>
                                 <div className="relative flex items-center">
                                     <Input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="0"
-                                        value={form.other_expenses || ''}
-                                        onChange={(e) => setForm({ ...form, other_expenses: Number(e.target.value) })}
+                                        value={formatMoney(form.other_expenses)}
+                                        onChange={(e) => setForm({ ...form, other_expenses: parseMoney(e.target.value) })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>

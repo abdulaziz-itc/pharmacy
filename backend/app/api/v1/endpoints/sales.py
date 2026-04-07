@@ -1029,6 +1029,7 @@ class BonusSummary(BaseModel):
     postupleniya: float = 0.0
     debitorka: float = 0.0
     has_overdue_bonus: bool = False
+    region: Optional[str] = None
 
 class BonusPayRequest(BaseModel):
     med_rep_id: int
@@ -1039,6 +1040,7 @@ async def get_admin_bonus_summary(
     month: int = None,
     year: int = None,
     product_id: int = None,
+    region_id: int = None,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
@@ -1051,13 +1053,19 @@ async def get_admin_bonus_summary(
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     from app.models.user import User
+    from app.models.crm import MedicalOrganization
     from app.models.ledger import BonusLedger, LedgerType
     from app.models.sales import Invoice, Payment, Reservation, ReservationItem, InvoiceStatus
     from datetime import datetime, timedelta
     from sqlalchemy import func, and_, or_
+    from sqlalchemy.orm import selectinload
     
     # Get all medreps
-    medreps_result = await db.execute(select(User).where(User.role == UserRole.MED_REP, User.is_active == True))
+    medreps_stmt = select(User).options(selectinload(User.assigned_regions)).where(User.role == UserRole.MED_REP, User.is_active == True)
+    if region_id:
+        medreps_stmt = medreps_stmt.where(User.assigned_regions.any(id=region_id))
+        
+    medreps_result = await db.execute(medreps_stmt)
     medreps = medreps_result.scalars().all()
     rep_ids = [r.id for r in medreps]
     
@@ -1171,9 +1179,12 @@ async def get_admin_bonus_summary(
         overdue_res = await db.execute(overdue_q)
         has_overdue = overdue_res.scalar_one_or_none() is not None
         
+        # Get region name (first assigned region) Russian: Регион
+        region_name = rep.assigned_regions[0].name if rep.assigned_regions else "—"
+
         summaries.append(BonusSummary(
             med_rep_id=rep.id,
-            med_rep_name=rep.full_name,
+            med_rep_name=rep.full_name or rep.username,
             accrued=accrued,
             paid=paid,
             remainder=remainder,
@@ -1182,7 +1193,8 @@ async def get_admin_bonus_summary(
             realization=realization_map.get(rep.id, 0.0),
             postupleniya=postupleniya_map.get(rep.id, 0.0),
             debitorka=debitorka_map.get(rep.id, 0.0),
-            has_overdue_bonus=has_overdue
+            has_overdue_bonus=has_overdue,
+            region=region_name
         ))
         
     return summaries

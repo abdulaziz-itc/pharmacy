@@ -9,6 +9,7 @@ import { getWarehouses } from '@/api/orders-management';
 import { useProductStore } from '@/store/productStore';
 import axiosInstance from '@/api/axios';
 import { SearchableProductSelect } from '../../components/SearchableProductSelect';
+import { formatMoney, parseMoney } from '@/components/ui/MoneyInput';
 
 interface CreateReservationModalProps {
     isOpen: boolean;
@@ -541,10 +542,11 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                             <div className="flex items-center gap-1">
                                                 <span className="text-[10px] text-slate-400 font-medium">Цена:</span>
                                                 <Input
-                                                    type="number" min={0}
+                                                    type="text"
+                                                    inputMode="numeric"
                                                     className={`h-8 w-24 text-xs border-slate-200 ${isBonusEligible && it.product_id && (parseFloat(it.price) > (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 1.3 || parseFloat(it.price) < (products.find(p => p.id.toString() === it.product_id)?.price || 0) * 0.7) ? 'border-red-500 text-red-600 bg-red-50' : ''}`}
-                                                    value={it.price}
-                                                    onChange={e => updateItem(idx, 'price', e.target.value)}
+                                                    value={formatMoney(it.price)}
+                                                    onChange={e => updateItem(idx, 'price', parseMoney(e.target.value))}
                                                     placeholder="Цена"
                                                 />
                                             </div>
@@ -552,10 +554,11 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Промо (Бонус):</span>
                                                     <Input
-                                                        type="number" min={0}
+                                                        type="text"
+                                                        inputMode="numeric"
                                                         className={`h-8 w-24 text-xs border-slate-200 ${it.product_id && (parseFloat(it.marketing_amount) > parseFloat(it.price) * 0.3) ? 'border-red-500 text-red-600 bg-red-50' : ''}`}
-                                                        value={it.marketing_amount}
-                                                        onChange={e => updateItem(idx, 'marketing_amount', e.target.value)}
+                                                        value={formatMoney(it.marketing_amount)}
+                                                        onChange={e => updateItem(idx, 'marketing_amount', parseMoney(e.target.value))}
                                                         placeholder="Промо"
                                                     />
                                                 </div>
@@ -564,10 +567,11 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Зарплата:</span>
                                                     <Input
-                                                        type="number" min={0}
+                                                        type="text"
+                                                        inputMode="numeric"
                                                         className={`h-8 w-24 text-xs border-slate-200 ${it.product_id && (parseFloat(it.salary_amount) > parseFloat(it.price) * 0.3) ? 'border-red-500 text-red-600 bg-red-50' : ''}`}
-                                                        value={it.salary_amount}
-                                                        onChange={e => updateItem(idx, 'salary_amount', e.target.value)}
+                                                        value={formatMoney(it.salary_amount)}
+                                                        onChange={e => updateItem(idx, 'salary_amount', parseMoney(e.target.value))}
                                                         placeholder="Зарплата"
                                                     />
                                                 </div>

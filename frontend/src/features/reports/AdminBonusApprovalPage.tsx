@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Wallet, CheckCircle2, AlertCircle, Banknote, Search, ArrowRight } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { DrilldownModal } from "@/components/analytics/DrilldownModal";
+import { formatMoney, parseMoney } from "@/components/ui/MoneyInput";
 
 // TypeScript Interfaces
 interface BonusSummary {
@@ -24,6 +25,7 @@ interface BonusSummary {
     postupleniya: number;
     debitorka: number;
     has_overdue_bonus: boolean;
+    region: string;
 }
 
 export default function AdminBonusApprovalPage() {
@@ -35,10 +37,13 @@ export default function AdminBonusApprovalPage() {
     const [month, setMonth] = useState<string>("all");
     const [year, setYear] = useState<string>("all");
     const [productId, setProductId] = useState<string>("all");
+    const [regionId, setRegionId] = useState<string>("all");
     const [products, setProducts] = useState<any[]>([]);
+    const [regions, setRegions] = useState<any[]>([]);
 
     useEffect(() => {
         axiosInstance.get('/products/').then(res => setProducts(res.data)).catch(console.error);
+        axiosInstance.get('/crm/regions/').then(res => setRegions(res.data)).catch(console.error);
     }, []);
 
     // Pay Modal State
@@ -117,6 +122,7 @@ export default function AdminBonusApprovalPage() {
             if (month !== "all") params.append("month", month);
             if (year !== "all") params.append("year", year);
             if (productId !== "all") params.append("product_id", productId);
+            if (regionId !== "all") params.append("region_id", regionId);
             
             const response = await axiosInstance.get(`/sales/admin/bonuses/summary?${params.toString()}`);
             setSummaries(response.data);
@@ -130,7 +136,7 @@ export default function AdminBonusApprovalPage() {
 
     useEffect(() => {
         fetchSummaries();
-    }, [month, year, productId]);
+    }, [month, year, productId, regionId]);
 
     const handleOpenPayModal = (rep: BonusSummary) => {
         setSelectedRep(rep);
@@ -154,7 +160,7 @@ export default function AdminBonusApprovalPage() {
                 amount_to_pay: amount
             });
 
-            toast.success(`Успешно выплачено: ${response.data.paid_amount.toLocaleString('ru-RU')} UZS`);
+            toast.success(`Успешно выплачено: ${formatMoney(response.data.paid_amount || 0)} UZS`);
             setIsPayModalOpen(false);
             fetchSummaries(); // Refresh data
         } catch (error: any) {
@@ -201,7 +207,7 @@ export default function AdminBonusApprovalPage() {
                         <CardTitle className="text-sm font-bold text-slate-500 uppercase tracking-wider">Всего реализация</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black text-slate-900">{(totalRealization || 0).toLocaleString('ru-RU')} UZS</div>
+                        <div className="text-2xl font-black text-slate-900">{formatMoney(totalRealization || 0)} UZS</div>
                         <p className="text-xs text-slate-500 mt-1 font-medium">Общая сумма продаж</p>
                     </CardContent>
                 </Card>
@@ -214,7 +220,7 @@ export default function AdminBonusApprovalPage() {
                         <CardTitle className="text-sm font-bold text-blue-700 uppercase tracking-wider">Поступления</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black">{(totalPostupleniya || 0).toLocaleString('ru-RU')} UZS</div>
+                        <div className="text-2xl font-black">{formatMoney(totalPostupleniya || 0)} UZS</div>
                         <p className="text-xs text-blue-700/80 mt-1 font-medium">Фактические оплаты от клиентов</p>
                     </CardContent>
                 </Card>
@@ -227,7 +233,7 @@ export default function AdminBonusApprovalPage() {
                         <CardTitle className="text-sm font-bold text-rose-700 uppercase tracking-wider">Дебиторка</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black">{(totalDebitorka || 0).toLocaleString('ru-RU')} UZS</div>
+                        <div className="text-2xl font-black">{formatMoney(totalDebitorka || 0)} UZS</div>
                         <p className="text-xs text-rose-700/80 mt-1 font-medium">Общий долг клиентов</p>
                     </CardContent>
                 </Card>
@@ -243,7 +249,7 @@ export default function AdminBonusApprovalPage() {
                         <CardTitle className="text-sm font-bold text-slate-500 uppercase tracking-wider">Всего начислено</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black text-slate-900">{totalAccrued.toLocaleString('ru-RU')} UZS</div>
+                        <div className="text-2xl font-black text-slate-900">{formatMoney(totalAccrued)} UZS</div>
                         <p className="text-xs text-slate-500 mt-1 font-medium">Общая сумма заработанная МП</p>
                     </CardContent>
                 </Card>
@@ -256,7 +262,7 @@ export default function AdminBonusApprovalPage() {
                         <CardTitle className="text-sm font-bold text-emerald-100 uppercase tracking-wider">Всего выплачено</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black">{totalPaid.toLocaleString('ru-RU')} UZS</div>
+                        <div className="text-2xl font-black">{formatMoney(totalPaid)} UZS</div>
                         <p className="text-xs text-emerald-100/80 mt-1 font-medium">Сумма переведенная на баланс МП</p>
                     </CardContent>
                 </Card>
@@ -269,7 +275,7 @@ export default function AdminBonusApprovalPage() {
                         <CardTitle className="text-sm font-bold text-indigo-100 uppercase tracking-wider">Остаток к выплате</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black">{totalRemainder.toLocaleString('ru-RU')} UZS</div>
+                        <div className="text-2xl font-black">{formatMoney(totalRemainder)} UZS</div>
                         <p className="text-xs text-indigo-100/80 mt-1 font-medium">Ожидает вашего утверждения</p>
                     </CardContent>
                 </Card>
@@ -326,6 +332,19 @@ export default function AdminBonusApprovalPage() {
                         ))}
                     </select>
                 </div>
+                <div className="space-y-1.5 w-full sm:w-auto min-w-[200px]">
+                    <Label className="text-xs font-bold text-slate-500 uppercase">Регион</Label>
+                    <select
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2.5 outline-none focus:border-blue-500 transition-colors font-semibold"
+                        value={regionId}
+                        onChange={e => setRegionId(e.target.value)}
+                    >
+                        <option value="all">Все регионы</option>
+                        {regions.map(r => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                    </select>
+                </div>
             </Card>
 
             {/* Main Table */}
@@ -347,6 +366,7 @@ export default function AdminBonusApprovalPage() {
                         <TableHeader className="bg-slate-50/80 border-b border-slate-100">
                             <TableRow className="hover:bg-transparent">
                                 <TableHead className="font-semibold text-slate-700 h-11 whitespace-nowrap">Медпредставитель</TableHead>
+                                <TableHead className="font-semibold text-slate-700 h-11 whitespace-nowrap">Регион</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Начислено (Факт)</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Аванс</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Выплачено</TableHead>
@@ -358,13 +378,13 @@ export default function AdminBonusApprovalPage() {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                                    <TableCell colSpan={8} className="h-32 text-center text-slate-500">
                                         Загрузка данных...
                                     </TableCell>
                                 </TableRow>
                             ) : filteredSummaries.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                                    <TableCell colSpan={8} className="h-32 text-center text-slate-500">
                                         Нет данных для отображения
                                     </TableCell>
                                 </TableRow>
@@ -383,23 +403,26 @@ export default function AdminBonusApprovalPage() {
                                                     {rep.med_rep_name}
                                                 </div>
                                             </TableCell>
+                                            <TableCell className="text-slate-500 text-sm font-medium">
+                                                {rep.region}
+                                            </TableCell>
                                             <TableCell className="text-right font-medium text-slate-600 bg-slate-50/30 whitespace-nowrap">
-                                                {(rep.accrued || 0).toLocaleString('ru-RU')} UZS
+                                                {formatMoney(rep.accrued || 0)} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-amber-600 bg-slate-50/30 whitespace-nowrap">
-                                                {Math.max(0, (rep.paid || 0) - (rep.accrued || 0)).toLocaleString('ru-RU')} UZS
+                                                {formatMoney(Math.max(0, (rep.paid || 0) - (rep.accrued || 0)))} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-emerald-600 bg-slate-50/30 whitespace-nowrap">
-                                                {(rep.paid || 0).toLocaleString('ru-RU')} UZS
+                                                {formatMoney(rep.paid || 0)} UZS
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${rep.remainder > 0 ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600'
                                                     }`}>
-                                                    {(rep.remainder || 0).toLocaleString('ru-RU')} UZS
+                                                    {formatMoney(rep.remainder || 0)} UZS
                                                 </span>
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-slate-500">
-                                                {(rep.allocated || 0).toLocaleString('ru-RU')} UZS
+                                                {formatMoney(rep.allocated || 0)} UZS
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Button
@@ -420,7 +443,7 @@ export default function AdminBonusApprovalPage() {
                                         </TableRow>
                                         {expandedRepId === rep.med_rep_id && (
                                             <TableRow className={rep.has_overdue_bonus ? 'bg-rose-50/30' : 'bg-slate-50'}>
-                                                <TableCell colSpan={7} className="p-0">
+                                                <TableCell colSpan={8} className="p-0">
                                                     <div className="p-4 border-b border-t border-slate-100">
                                                         <h4 className="font-bold text-slate-700 mb-3 ml-2 flex items-center gap-2">
                                                             <Banknote className="w-4 h-4 text-slate-400" />
@@ -475,13 +498,13 @@ export default function AdminBonusApprovalPage() {
                                                                                 <TableCell className="text-xs py-2 text-right font-medium text-slate-500">
                                                                                     {h.payment_amount ? (
                                                                                         <>
-                                                                                            {h.payment_amount.toLocaleString('ru-RU')}
+                                                                                            {formatMoney(h.payment_amount)}
                                                                                             <span className="text-[10px] ml-1 opacity-70">({h.payment_type})</span>
                                                                                         </>
                                                                                     ) : '-'}
                                                                                 </TableCell>
                                                                                 <TableCell className={`text-xs py-2 text-right font-bold ${h.ledger_type === 'ACCRUAL' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                                                    {h.ledger_type === 'ACCRUAL' ? '+' : '-'}{h.amount.toLocaleString('ru-RU')}
+                                                                                    {h.ledger_type === 'ACCRUAL' ? '+' : '-'}{formatMoney(h.amount)}
                                                                                 </TableCell>
                                                                             </TableRow>
                                                                         ))}
@@ -525,7 +548,7 @@ export default function AdminBonusApprovalPage() {
                                 </div>
                                 <div className="text-right">
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Доступно к выплате</p>
-                                    <p className="text-indigo-600 font-black text-lg">{selectedRep.remainder.toLocaleString('ru-RU')} UZS</p>
+                                    <p className="text-indigo-600 font-black text-lg">{formatMoney(selectedRep.remainder)} UZS</p>
                                 </div>
                             </div>
                         )}
@@ -536,9 +559,10 @@ export default function AdminBonusApprovalPage() {
                             </Label>
                             <div className="relative">
                                 <Input
-                                    type="number"
-                                    value={payAmount}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayAmount(e.target.value)}
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={formatMoney(payAmount)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayAmount(parseMoney(e.target.value))}
                                     className="pl-4 pr-12 h-14 bg-slate-50 border-slate-200 text-lg font-bold rounded-xl focus-visible:ring-blue-500"
                                     placeholder="0"
                                 />
@@ -619,13 +643,13 @@ export default function AdminBonusApprovalPage() {
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                         <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Сумма</p>
                                         <p className="text-sm font-black text-blue-600">
-                                            {selectedResDetails.total_amount?.toLocaleString()} UZS
+                                            {formatMoney(selectedResDetails.total_amount || 0)} UZS
                                         </p>
                                     </div>
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                         <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Оплачено</p>
                                         <p className="text-sm font-black text-emerald-600">
-                                            {selectedResDetails.invoice?.paid_amount?.toLocaleString() || 0} UZS
+                                            {formatMoney(selectedResDetails.invoice?.paid_amount || 0)} UZS
                                         </p>
                                     </div>
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -657,8 +681,8 @@ export default function AdminBonusApprovalPage() {
                                                 <tr key={idx} className="hover:bg-slate-50/50">
                                                     <td className="px-4 py-3 font-bold text-slate-700">{item.product?.name}</td>
                                                     <td className="px-4 py-3 text-center font-bold text-slate-600">{item.quantity}</td>
-                                                    <td className="px-4 py-3 text-right font-medium text-slate-500">{item.price?.toLocaleString()}</td>
-                                                    <td className="px-4 py-3 text-right font-bold text-slate-900">{item.total_price?.toLocaleString()}</td>
+                                                    <td className="px-4 py-3 text-right font-medium text-slate-500">{formatMoney(item.price || 0)}</td>
+                                                    <td className="px-4 py-3 text-right font-bold text-slate-900">{formatMoney(item.total_price || 0)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -672,13 +696,13 @@ export default function AdminBonusApprovalPage() {
                                                         <tr>
                                                             <td colSpan={3} className="px-4 py-2 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px]">Сумма без НДС</td>
                                                             <td className="px-4 py-2 text-right font-bold text-slate-700">
-                                                                {Math.round(subtotal).toLocaleString()} UZS
+                                                                {formatMoney(Math.round(subtotal))} UZS
                                                             </td>
                                                         </tr>
                                                         <tr>
                                                             <td colSpan={3} className="px-4 py-2 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px]">НДС {selectedResDetails.nds_percent}%</td>
                                                             <td className="px-4 py-2 text-right font-bold text-slate-700">
-                                                                {Math.round(ndsAmount).toLocaleString()} UZS
+                                                                {formatMoney(Math.round(ndsAmount))} UZS
                                                             </td>
                                                         </tr>
                                                     </>
@@ -687,7 +711,7 @@ export default function AdminBonusApprovalPage() {
                                             <tr>
                                                 <td colSpan={3} className="px-4 py-3 text-right font-black text-slate-500 uppercase tracking-widest">Итого к оплате</td>
                                                 <td className="px-4 py-3 text-right font-black text-blue-600 text-sm">
-                                                    {(selectedResDetails.total_amount || 0).toLocaleString()} UZS
+                                                    {formatMoney(selectedResDetails.total_amount || 0)} UZS
                                                 </td>
                                             </tr>
                                         </tfoot>
@@ -719,7 +743,8 @@ export default function AdminBonusApprovalPage() {
                     filters={{
                         month: month === "all" ? undefined : parseInt(month),
                         year: year === "all" ? undefined : parseInt(year),
-                        product_id: productId === "all" ? undefined : parseInt(productId)
+                        product_id: productId === "all" ? undefined : parseInt(productId),
+                        region_id: regionId === "all" ? undefined : parseInt(regionId)
                     }}
                 />
             )}
