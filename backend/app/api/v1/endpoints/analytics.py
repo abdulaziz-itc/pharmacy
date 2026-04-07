@@ -388,7 +388,7 @@ async def get_comprehensive_stats(
              func.coalesce(ReservationItem.marketing_amount, 0) - 
              func.coalesce(ReservationItem.salary_amount, 0) -
              func.coalesce(Product.other_expenses, 0)) * 
-            ReservationItem.quantity * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
+            (ReservationItem.quantity - ReservationItem.returned_quantity) * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
         ), 0.0)
     ).select_from(ReservationItem)\
      .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
@@ -429,7 +429,7 @@ async def get_comprehensive_stats(
              func.coalesce(ReservationItem.marketing_amount, 0) - 
              func.coalesce(ReservationItem.salary_amount, 0) -
              func.coalesce(Product.other_expenses, 0)) * 
-            ReservationItem.quantity
+            (ReservationItem.quantity - ReservationItem.returned_quantity)
         ), 0.0)
     ).select_from(ReservationItem)\
      .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
@@ -786,7 +786,8 @@ async def get_comprehensive_drilldown(
             other = r.product.other_expenses or 0
             
             unit_profit = sale_price - prod_price - marketing - salary - other
-            total_profit_realized = (unit_profit * r.quantity) * paid_ratio
+            effective_qty = r.quantity - r.returned_quantity
+            total_profit_realized = (unit_profit * effective_qty) * paid_ratio
             
             # Show all records, even if zero or negative, to prevent "No data" confusion
             res_payload.append({
@@ -794,7 +795,7 @@ async def get_comprehensive_drilldown(
                 "invoice_num": r.reservation.invoice.factura_number if r.reservation and r.reservation.invoice else "-",
                 "date": r.reservation.invoice.date.isoformat() if r.reservation and r.reservation.invoice else "-",
                 "product": r.product.name if r.product else "-",
-                "qty": r.quantity,
+                "qty": effective_qty,
                 "paid_ratio": round(paid_ratio * 100, 1),
                 "profit": float(total_profit_realized)
             })
