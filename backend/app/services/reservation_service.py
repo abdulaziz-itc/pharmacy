@@ -127,6 +127,11 @@ class ReservationService:
 
             # 4. Items + Stock Movements
             for item_in in obj_in.items:
+                # Fetch product to snapshot production_price and other_expenses
+                prod_query = select(Product).where(Product.id == item_in.product_id)
+                prod_result = await db.execute(prod_query)
+                product_item = prod_result.scalar_one_or_none()
+                
                 # We store base price in 'price', but 'total_price' includes NDS for consistency with total_amount
                 # However, usually total_price in item level refers to qty * price. 
                 # Let's align: if total_amount includes NDS, item.total_price should too.
@@ -139,6 +144,8 @@ class ReservationService:
                     discount_percent=item_in.discount_percent,
                     marketing_amount=item_in.marketing_amount,
                     salary_amount=item_in.salary_amount,
+                    production_price=product_item.production_price if product_item else 0.0,
+                    other_expenses=product_item.other_expenses if product_item else 0.0,
                     total_price=item_total_plain * nds_multiplier,
                 ))
                 db.add(StockMovement(
@@ -153,8 +160,6 @@ class ReservationService:
             # 5. Build modification summary for Audit
             modifications = []
             for item_in in obj_in.items:
-                prod_row = next((stocks[sid] for sid in stocks if sid == item_in.product_id), None)
-                # Need product for default values
                 product_item = (await db.execute(select(Product).where(Product.id == item_in.product_id))).scalar_one_or_none()
                 if product_item:
                     changes = []
