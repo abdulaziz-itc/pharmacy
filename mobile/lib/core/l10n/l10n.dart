@@ -283,6 +283,8 @@ class S {
       'available_units_label': 'Доступно',
       'submit_fact': 'Подтвердить факт',
       'attached_facts_label': 'ПРИКРЕПЛЕННЫЕ ФАКТЫ',
+      'total_plan_title': 'ОБЩИЙ ПЛАН (УП)',
+      'total_fact_title': 'ОБЩИЙ ФАКТ (УП)',
     },
       'uz': {
       'products': 'Mahsulotlar',
@@ -556,6 +558,8 @@ class S {
       'available_units_label': 'Mavjud',
       'submit_fact': 'Faktni tasdiqlash',
       'attached_facts_label': 'BIRIKTIRILGAN FAKTLAR',
+      'total_plan_title': 'UMUMIY REJA (TA)',
+      'total_fact_title': 'UMUMIY FAKT (TA)',
     },
   };
 
@@ -715,6 +719,8 @@ class S {
   String get availableUnitsLabel => translate('available_units_label');
   String get submitFact => translate('submit_fact');
   String get attachedFactsLabel => translate('attached_facts_label');
+  String get totalPlanTitle => translate('total_plan_title');
+  String get totalFactTitle => translate('total_fact_title');
   String get categorizationSection => translate('categorization_section');
   String get specialtiesLoadError => translate('specialties_load_error');
   String get categoriesLoadError => translate('categories_load_error');

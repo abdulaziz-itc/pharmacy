@@ -108,6 +108,8 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
               children: [
                 _buildQuickActions(doctor, l10n),
                 const SizedBox(height: 32),
+                _buildDoctorPlanSummary(l10n),
+                const SizedBox(height: 32),
                 _buildPlanHeader(l10n),
                 const SizedBox(height: 16),
                 _buildMonthYearSelector(l10n),
@@ -687,7 +689,94 @@ class _DoctorDetailScreenState extends ConsumerState<DoctorDetailScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Divider(height: 1, color: Theme.of(context).dividerColor),
+    );  Widget _buildDoctorPlanSummary(S l10n) {
+    final plansAsync = ref.watch(doctorPlansProvider(DoctorPlansParams(
+      id: widget.doctorId,
+      month: _selectedMonth,
+      year: _selectedYear,
+    )));
+
+    return plansAsync.when(
+      data: (plans) {
+        if (plans.isEmpty) return const SizedBox.shrink();
+        
+        final totalTarget = plans.fold(0, (sum, p) => sum + p.targetQuantity);
+        final totalFact = plans.fold(0, (sum, p) => sum + p.factQuantity);
+
+        return Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                l10n.totalPlanTitle,
+                totalTarget.toString(),
+                const Color(0xFFE0F2FE),
+                const Color(0xFF0284C7),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                l10n.totalFactTitle,
+                totalFact.toString(),
+                const Color(0xFFDCFCE7),
+                const Color(0xFF16A34A),
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const SizedBox(
+        height: 80,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
+  Widget _buildSummaryCard(String label, String value, Color bgColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: textColor.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: textColor.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: textColor.withOpacity(0.7),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
