@@ -127,39 +127,45 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
             className={`
                 relative p-8 rounded-[2.5rem] bg-white border border-slate-100
                 shadow-2xl shadow-slate-200/50 overflow-hidden group
-                ${style.glow} ${onClick ? 'cursor-pointer active:shadow-none' : ''}
+                ${style.glow} ${onClick ? 'cursor-pointer active:shadow-none translate-y-0 hover:-translate-y-2' : ''}
                 transition-all duration-500
-                ${variant === 'minimal' ? 'rounded-[3rem] shadow-xl shadow-slate-100' : ''}
+                ${variant === 'minimal' ? 'rounded-[3rem] shadow-xl shadow-slate-200/40 bg-gradient-to-b from-white to-slate-50/30 border-white/50' : ''}
             `}
         >
-            {/* Mesh Background Overlay (Only for premium) */}
-            {variant === 'premium' && (
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${style.mesh}`} />
-            )}
+            {/* Mesh Background Overlay (Subtle for minimal, full for premium) */}
+            <div className={`
+                absolute inset-0 transition-opacity duration-700 ${style.mesh}
+                ${variant === 'minimal' ? 'opacity-[0.02] group-hover:opacity-[0.05]' : 'opacity-0 group-hover:opacity-100'}
+            `} />
             
-            {/* Decorative Pulse Glow */}
-            <div className={`absolute top-0 right-0 w-48 h-48 -mr-12 -mt-12 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl`} />
+            {/* Decorative Pulse Glow (Top Right) */}
+            <div className={`absolute top-0 right-0 w-64 h-64 -mr-16 -mt-16 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-3xl`} />
             
             <div className="relative z-10 flex flex-col h-full">
                 {/* Icon & Badge Header */}
                 <div className="flex items-start justify-between mb-8">
                     <motion.div 
-                        whileHover={{ rotate: [0, -10, 10, 0] }}
-                        className={`w-16 h-16 rounded-[1.25rem] ${style.bg} ${style.border} border-2 flex items-center justify-center shadow-inner relative`}
+                        whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
+                        className={`w-16 h-16 rounded-[1.25rem] ${style.bg} ${style.border} border-2 flex items-center justify-center shadow-inner relative group-hover:shadow-lg transition-shadow duration-300`}
                     >
-                        <div className={`absolute inset-0 ${style.text} opacity-20 blur-xl group-hover:opacity-40 transition-opacity`} />
+                        {/* Floating Glow Aura */}
+                        <div className={`absolute -inset-4 ${style.text} opacity-20 blur-2xl group-hover:opacity-40 transition-opacity duration-500`} />
                         <Icon strokeWidth={2.5} className={`w-8 h-8 ${style.text} relative z-10`} />
                     </motion.div>
     
                     {badge && (
-                        <div className={`
-                            px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm border
-                            ${variant === 'minimal' 
-                                ? 'bg-emerald-500 text-white border-emerald-400' 
-                                : `${style.bg} ${style.text} ${style.border}`}
-                        `}>
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className={`
+                                px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm border
+                                ${variant === 'minimal' 
+                                    ? 'bg-emerald-500 text-white border-emerald-400 shadow-emerald-200/50' 
+                                    : `${style.bg} ${style.text} ${style.border}`}
+                            `}
+                        >
                             {badge}
-                        </div>
+                        </motion.div>
                     )}
                 </div>
     
@@ -167,14 +173,14 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
                 <div className="mt-auto">
                     <h3 className={`
                         text-slate-400 text-[10px] font-black uppercase tracking-[0.25em] mb-3 group-hover:translate-x-1 transition-transform duration-300
-                        ${variant === 'minimal' ? 'text-slate-400/80 font-extrabold tracking-widest' : ''}
+                        ${variant === 'minimal' ? 'text-slate-400 font-extrabold tracking-widest' : ''}
                     `}>
                         {label}
                     </h3>
                     
                     <div className="space-y-1">
                         <div className={`
-                            text-3xl font-black tracking-tighter leading-none
+                            text-3xl font-black tracking-tighter leading-none flex items-baseline gap-2
                             ${variant === 'minimal' ? 'text-slate-900 text-4xl' : 'text-slate-800'}
                         `}>
                             <CountUp value={value} suffix={suffix} />

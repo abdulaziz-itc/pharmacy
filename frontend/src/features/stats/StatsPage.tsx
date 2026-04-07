@@ -5,7 +5,8 @@ import {
     BarChart3, TrendingUp, Users, Package, Wallet,
     ArrowUpRight, Target, LayoutDashboard, Coins, 
     HandCoins, Receipt, Banknote, ChevronRight,
-    MapPin, UserCheck, Briefcase, FilterX, Search
+    MapPin, UserCheck, Briefcase, FilterX, Search,
+    Activity, Boxes
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
@@ -333,7 +334,7 @@ export default function StatsPage() {
                         }}
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
                     >
-                        {/* ROW 1: Sales & Shipments */}
+                        {/* ROW 1: Sales Performance */}
                         <PremiumKpiCard
                             variant="minimal"
                             label="ПЛАН ПРОДАЖ"
@@ -357,11 +358,17 @@ export default function StatsPage() {
                             icon={HandCoins}
                             color="emerald"
                             badge={kpis.sales_plan_amount > 0 ? `${((kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100).toFixed(0)}% ВЫПОЛНЕНО` : undefined}
-                            onClick={() => setDrilldownMetric({ id: 'cash_in', label: 'Fact поступлений' })}
+                            onClick={() => setDrilldownMetric({ id: 'cash_in', label: 'Fact postuplyeniy' })}
                         />
-                        <div className="hidden lg:block" /> {/* Column Spacer */}
+                        <PremiumKpiCard
+                            variant="minimal"
+                            label="ВАЛОВАЯ ПРИБЫЛЬ"
+                            value={kpis.gross_profit}
+                            icon={TrendingUp}
+                            color="cyan"
+                        />
 
-                        {/* ROW 2: Bonuses & Preinvest */}
+                        {/* ROW 2: Incentive Programs */}
                         <PremiumKpiCard
                             variant="minimal"
                             label="НАЧИСЛЕНО БОНУСА"
@@ -394,7 +401,7 @@ export default function StatsPage() {
                             onClick={() => setDrilldownMetric({ id: 'preinvest', label: 'Predinvest' })}
                         />
 
-                        {/* ROW 3: Receivables */}
+                        {/* ROW 3: Financial Health */}
                         <PremiumKpiCard
                             variant="minimal"
                             label="ДЕБИТОРКА"
@@ -411,10 +418,22 @@ export default function StatsPage() {
                             color="rose"
                             onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Prosrochennaya debitorka' })}
                         />
-                        <div className="hidden lg:block" />
-                        <div className="hidden lg:block" />
+                        <PremiumKpiCard
+                            variant="minimal"
+                            label="МАРКЕТИНГ/ПРОЧИЕ"
+                            value={kpis.total_expenses}
+                            icon={Activity}
+                            color="pink"
+                        />
+                        <PremiumKpiCard
+                            variant="minimal"
+                            label="ЧИСТАЯ ПРИБЫЛЬ"
+                            value={kpis.net_profit}
+                            icon={BarChart3}
+                            color="emerald"
+                        />
 
-                        {/* ROW 4: MP Salaries */}
+                        {/* ROW 4: MP Payroll & Logistics */}
                         <PremiumKpiCard
                             variant="minimal"
                             label="МП ЗАРПЛАТА"
@@ -435,6 +454,14 @@ export default function StatsPage() {
                             value={kpis.salary_balance}
                             icon={Wallet}
                             color="amber"
+                        />
+                        <PremiumKpiCard
+                            variant="minimal"
+                            label="ТОВАРЫ (ШТ)"
+                            value={kpis.total_items_sold}
+                            icon={Boxes}
+                            color="violet"
+                            suffix=""
                         />
                     </motion.div>
 
