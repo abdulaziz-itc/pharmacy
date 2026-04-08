@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../shared/models/reservation_model.dart';
 import '../../../shared/widgets/empty_view.dart';
 import '../../../shared/widgets/error_view.dart';
@@ -165,7 +165,6 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen>
   }
 
   Widget _buildReservationCard(ReservationModel reservation, S l10n) {
-    final formatter = NumberFormat('#,##0', 'en_US');
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
@@ -255,7 +254,7 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen>
                       ],
                     ),
                     Text(
-                      '${formatter.format(reservation.totalAmount)} ${l10n.sumCurrency}',
+                      '${CurrencyFormatter.format(reservation.totalAmount)} ${l10n.sumCurrency}',
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,

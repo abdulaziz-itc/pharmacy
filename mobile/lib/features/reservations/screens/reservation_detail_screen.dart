@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../shared/models/reservation_model.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../providers/reservations_provider.dart';
@@ -50,7 +50,6 @@ class _ReservationDetailScreenState
   }
 
   Widget _buildContent(ReservationModel reservation, S l10n) {
-    final formatter = NumberFormat('#,##0', 'en_US');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -95,7 +94,7 @@ class _ReservationDetailScreenState
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  '${formatter.format(reservation.totalAmount)} ${l10n.sumCurrency}',
+                  '${CurrencyFormatter.format(reservation.totalAmount)} ${l10n.sumCurrency}',
                   style: GoogleFonts.inter(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
@@ -240,7 +239,7 @@ class _ReservationDetailScreenState
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${item.quantity} ${l10n.pcs} × ${formatter.format(item.price)} ${l10n.sumCurrency}',
+                                '${item.quantity} ${l10n.pcs} × ${CurrencyFormatter.format(item.price)} ${l10n.sumCurrency}',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
                                     color: AppColors.textHint,
@@ -250,7 +249,7 @@ class _ReservationDetailScreenState
                             ),
                           ),
                           Text(
-                            '${formatter.format(item.totalAmount)}',
+                            '${CurrencyFormatter.format(item.totalAmount)}',
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w900,

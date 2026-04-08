@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../doctors/providers/doctors_provider.dart';
 import '../../products/providers/products_provider.dart';
 import '../providers/bonus_provider.dart';
@@ -203,7 +203,7 @@ class _AllocationDialogState extends ConsumerState<AllocationDialog> {
                           : 0;
                       availableHint = '${l10n.availableUnitsLabel}: $maxUnits ${l10n.pcs}';
                     } else {
-                      availableHint = '${l10n.availableBalance}: ${NumberFormat('#,##0').format(widget.availableBalance)} UZS';
+                      availableHint = '${l10n.availableBalance}: ${CurrencyFormatter.format(widget.availableBalance)} UZS';
                     }
 
                     return Column(

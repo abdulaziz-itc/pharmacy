@@ -11,6 +11,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../doctors/providers/doctors_provider.dart';
 import '../providers/bonus_provider.dart';
 import '../widgets/allocation_dialog.dart';
+import '../../../core/utils/currency_formatter.dart';
 
 class BonusScreen extends ConsumerStatefulWidget {
   const BonusScreen({super.key});
@@ -29,7 +30,7 @@ class _BonusScreenState extends ConsumerState<BonusScreen> {
   }
 
   String _formatAmount(double amount) {
-    return NumberFormat('#,##0', 'en_US').format(amount);
+    return CurrencyFormatter.format(amount);
   }
 
   @override

@@ -13,6 +13,7 @@ import '../../../shared/widgets/loading_shimmer.dart';
 import '../../../shared/widgets/notification_action.dart';
 import '../providers/dashboard_provider.dart';
 import '../../main/providers/main_provider.dart';
+import '../../../core/utils/currency_formatter.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -31,9 +32,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   String _formatAmount(double amount) {
-    final formatter = NumberFormat('#,##0', 'ru_RU');
-    if (amount >= 1000000) return '${formatter.format(amount / 1000000)} млн';
-    return formatter.format(amount);
+    return CurrencyFormatter.format(amount);
   }
 
   String _getMonthName(int month, S l10n) {

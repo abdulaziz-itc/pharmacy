@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../shared/models/invoice_model.dart';
 import '../../../shared/widgets/empty_view.dart';
 import '../../../shared/widgets/error_view.dart';
@@ -150,7 +150,6 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
   }
 
   Widget _buildInvoiceCard(InvoiceModel invoice, S l10n) {
-    final formatter = NumberFormat('#,##0', 'en_US');
     final effectiveDate = DateTime.tryParse(invoice.realizationDate ?? invoice.date) ?? DateTime.now();
     final delayDays = DateTime.now().difference(effectiveDate).inDays;
     final isOverdue = invoice.hasDebt && delayDays > 30;
@@ -229,7 +228,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                             decoration: BoxDecoration(color: const Color(0xFFE11D48), borderRadius: BorderRadius.circular(4)),
                             child: Text(
                               '${l10n.overdueStatus.toUpperCase()} $delayDays ${l10n.daysAgo.split(' ')[0]}',
-                              style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.black, color: Colors.white),
+                              style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white),
                             ),
                           ),
                         ],
@@ -293,7 +292,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${formatter.format(invoice.totalAmount)} ${l10n.sumCurrency}',
+                            '${CurrencyFormatter.format(invoice.totalAmount)} ${l10n.sumCurrency}',
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -316,7 +315,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${formatter.format(invoice.hasDebt ? invoice.debt : invoice.paidAmount)} ${l10n.sumCurrency}',
+                            '${CurrencyFormatter.format(invoice.hasDebt ? invoice.debt : invoice.paidAmount)} ${l10n.sumCurrency}',
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../shared/models/invoice_model.dart';
 import '../providers/invoices_provider.dart';
 
@@ -43,7 +43,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
   }
 
   Widget _buildContent(InvoiceModel invoice, S l10n) {
-    final formatter = NumberFormat('#,##0', 'en_US');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -90,7 +89,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  '${formatter.format(invoice.totalAmount)} ${l10n.sumCurrency}',
+                  '${CurrencyFormatter.format(invoice.totalAmount)} ${l10n.sumCurrency}',
                   style: GoogleFonts.inter(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
@@ -122,7 +121,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                           style: GoogleFonts.inter(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          '${formatter.format(invoice.debt)} ${l10n.sumCurrency}',
+                          '${CurrencyFormatter.format(invoice.debt)} ${l10n.sumCurrency}',
                           style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
                         ),
                       ],
@@ -151,7 +150,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           ),
           const SizedBox(height: 16),
           if (invoice.payments.isNotEmpty) ...[
-            ...invoice.payments.map((p) => _buildPaymentItem(p, formatter, l10n)),
+            ...invoice.payments.map((p) => _buildPaymentItem(p, l10n)),
           ] else
             EmptyView(
               title: l10n.noPayments,
@@ -222,7 +221,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
     );
   }
 
-  Widget _buildPaymentItem(PaymentModel payment, NumberFormat formatter, S l10n) {
+  Widget _buildPaymentItem(PaymentModel payment, S l10n) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -254,7 +253,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${formatter.format(payment.amount)} ${l10n.sumCurrency}',
+                  '${CurrencyFormatter.format(payment.amount)} ${l10n.sumCurrency}',
                   style: GoogleFonts.inter(
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
