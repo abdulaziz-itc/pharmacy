@@ -1,3 +1,4 @@
+# v1.1 - Corrected for Phusion Passenger
 import os
 import sys
 
