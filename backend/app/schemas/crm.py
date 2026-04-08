@@ -52,6 +52,7 @@ class MedicalOrganizationBase(BaseModel):
     contact_phone: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    credit_balance: float = 0.0
 
 class MedicalOrganizationCreate(MedicalOrganizationBase):
     inn: str

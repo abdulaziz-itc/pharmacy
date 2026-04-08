@@ -569,20 +569,23 @@ async def get_comprehensive_stats(
                     "plan": plan_month_map.get(m, 0)
                 })
 
+    kpis = {
+        "sales_plan_amount": float(plan_sum),
+        "sales_fact_received_amount": float(fact_sum),
+        "bonus_accrued": float(accrued_sum),
+        "bonus_allocated": float(allocated_sum),
+        "bonus_paid": float(paid_sum),
+        "bonus_balance": float(max(0, accrued_sum - paid_sum)),
+        "total_predinvest": float(predinvest_sum),
+        "receivables": float(debt_sum),
+        "gross_profit": float(gross_profit_sum if fact_sum > 0 else potential_profit_sum),
+        "total_expenses": float(total_expenses),
+        "net_profit": float((gross_profit_sum if fact_sum > 0 else potential_profit_sum) - total_expenses),
+    }
+
     return {
-        "kpis": {
-            "sales_plan_amount": float(plan_sum),
-            "sales_fact_received_amount": float(fact_sum),
-            "bonus_accrued": float(accrued_sum),
-            "bonus_allocated": float(allocated_sum),
-            "bonus_paid": float(paid_sum),
-            "bonus_balance": float(max(0, accrued_sum - paid_sum)),
-            "total_predinvest": float(predinvest_sum),
-            "receivables": float(debt_sum),
-            "gross_profit": float(gross_profit_sum if fact_sum > 0 else potential_profit_sum),
-            "total_expenses": float(total_expenses),
-            "net_profit": float((gross_profit_sum if fact_sum > 0 else potential_profit_sum) - total_expenses),
-        },
+        "kpis": kpis,
+        **kpis,
         "product_stats": product_stats,
         "trends": trends,
         "view_mode": "accountant" if current_user.role == UserRole.ACCOUNTANT else "standard"
