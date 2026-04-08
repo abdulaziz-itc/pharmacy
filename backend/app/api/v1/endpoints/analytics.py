@@ -113,25 +113,11 @@ async def get_global_realtime_dashboard(
         )
         if end_tgt:
             _debt = _debt.where(Invoice.date < end_tgt)
-
-        # Overdue Debt (Realization date > 30 days ago)
-        from datetime import datetime, timedelta
-        overdue_threshold = datetime.now() - timedelta(days=30)
-        _overdue = select(func.sum(Invoice.total_amount - Invoice.paid_amount)).where(
-            and_(
-                Invoice.status != InvoiceStatus.CANCELLED,
-                Invoice.total_amount > Invoice.paid_amount,
-                or_(
-                    and_(Invoice.realization_date != None, Invoice.realization_date < overdue_threshold),
-                    and_(Invoice.realization_date == None, Invoice.date < overdue_threshold)
-                )
-            )
-        )
             
-        return _rev, _bonus, _qty, _debt, _overdue
+        return _rev, _bonus, _qty, _debt
 
-    curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q, curr_overdue_q = build_queries(start_date, end_date)
-    prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q, prev_overdue_q = build_queries(prev_start_date, prev_end_date)
+    curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q = build_queries(start_date, end_date)
+    prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q = build_queries(prev_start_date, prev_end_date)
     
     # Apply hierarchy filter if not director/admin
     is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
@@ -142,46 +128,41 @@ async def get_global_realtime_dashboard(
         if not rep_ids:
             rep_ids = [-1]
         
-        def apply_team(_rq, _bq, _qq, _dq, _oq):
+        def apply_team(_rq, _bq, _qq, _dq):
             _rq = _rq.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
             _bq = _bq.where(BonusLedger.user_id.in_(rep_ids))
             _qq = _qq.where(Reservation.created_by_id.in_(rep_ids))
             _dq = _dq.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
-            _oq = _oq.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
-            return _rq, _bq, _qq, _dq, _oq
+            return _rq, _bq, _qq, _dq
             
-        curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q, curr_overdue_q = apply_team(curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q, curr_overdue_q)
-        prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q, prev_overdue_q = apply_team(prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q, prev_overdue_q)
+        curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q = apply_team(curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q)
+        prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q = apply_team(prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q)
 
     # Apply region filter
     if final_region_ids:
-        def apply_region(_rq, _qq, _dq, _oq):
+        def apply_region(_rq, _qq, _dq):
             if not is_team_manager:
                 _rq = _rq.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
                 _dq = _dq.join(Reservation, Invoice.reservation_id == Reservation.id)
-                _oq = _oq.join(Reservation, Invoice.reservation_id == Reservation.id)
             _rq = _rq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
             _qq = _qq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
             _dq = _dq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
-            _oq = _oq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
-            return _rq, _qq, _dq, _oq
+            return _rq, _qq, _dq
             
-        curr_rev_q, curr_qty_q, curr_debt_q, curr_overdue_q = apply_region(curr_rev_q, curr_qty_q, curr_debt_q, curr_overdue_q)
-        prev_rev_q, prev_qty_q, prev_debt_q, prev_overdue_q = apply_region(prev_rev_q, prev_qty_q, prev_debt_q, prev_overdue_q)
+        curr_rev_q, curr_qty_q, curr_debt_q = apply_region(curr_rev_q, curr_qty_q, curr_debt_q)
+        prev_rev_q, prev_qty_q, prev_debt_q = apply_region(prev_rev_q, prev_qty_q, prev_debt_q)
 
     # Executing Current
     c_rev = (await db.execute(curr_rev_q)).scalar() or 0.0
     c_bon = (await db.execute(curr_bonus_q)).scalar() or 0.0
     c_qty = (await db.execute(curr_qty_q)).scalar() or 0
     c_debt = (await db.execute(curr_debt_q)).scalar() or 0.0
-    c_overdue = (await db.execute(curr_overdue_q)).scalar() or 0.0
     
     # Executing Previous
     p_rev = (await db.execute(prev_rev_q)).scalar() or 0.0
     p_bon = (await db.execute(prev_bonus_q)).scalar() or 0.0
     p_qty = (await db.execute(prev_qty_q)).scalar() or 0
     p_debt = (await db.execute(prev_debt_q)).scalar() or 0.0
-    p_overdue = (await db.execute(prev_overdue_q)).scalar() or 0.0
 
     # Trend calculation
     def calc_trend(current, prev):
@@ -257,7 +238,6 @@ async def get_global_realtime_dashboard(
         "total_bonus_accrued": c_bon,
         "total_items_sold": c_qty,
         "total_debt": c_debt,
-        "total_overdue_debt": c_overdue,
         "revenue_change": rev_change,
         "bonus_change": bon_change,
         "items_sold_change": qty_change,
@@ -334,7 +314,7 @@ async def get_comprehensive_stats(
             q = q.join(ReservationItem, model_ref.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
         return q
 
-    # Sales Plan (UZS) - Direct sum of target_amount for accuracy
+    # Sales Plan (UZS)
     plan_q = select(func.sum(Plan.target_amount).label("total"))
     if quarter and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
     elif month and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
@@ -361,7 +341,7 @@ async def get_comprehensive_stats(
     fact_sum = (await db.execute(fact_q)).scalar() or 0
 
     # Bonus Ledger (Earned, Paid, Advances)
-    bonus_q = select(BonusLedger.user_id, BonusLedger.doctor_id, BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
+    bonus_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
     if start_date and end_date: bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
     if rep_ids: bonus_q = bonus_q.where(BonusLedger.user_id.in_(rep_ids))
     if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
@@ -369,32 +349,22 @@ async def get_comprehensive_stats(
     
     bonus_res = (await db.execute(bonus_q)).all()
     
-    user_data = {} # {id: {"accrued": 0.0, "paid": 0.0}}
+    accrued_sum = 0.0
+    paid_sum = 0.0
+    predinvest_sum = 0.0
     allocated_sum = 0.0
-    payout_sum = 0.0 # Salary payments
 
     for r in bonus_res:
-        key = f"u_{r.user_id}" if r.user_id else f"d_{r.doctor_id}" if r.doctor_id else "unknown"
-        if key not in user_data:
-            user_data[key] = {"accrued": 0.0, "paid": 0.0}
-            
         if r.ledger_type == LedgerType.ACCRUAL:
             if r.notes == "Аванс (Предынвест)":
-                user_data[key]["paid"] += r.amount
+                predinvest_sum += r.amount
+                paid_sum += r.amount
             else:
-                user_data[key]["accrued"] += r.amount
+                accrued_sum += r.amount
                 if r.is_paid:
-                    user_data[key]["paid"] += r.amount
+                    paid_sum += r.amount
         elif r.ledger_type == LedgerType.OFFSET:
             allocated_sum += abs(r.amount)
-        elif r.ledger_type == LedgerType.PAYOUT:
-            payout_sum += abs(r.amount)
-
-    # Calculate global totals from individual balances
-    accrued_sum = sum(d["accrued"] for d in user_data.values())
-    paid_sum = sum(d["paid"] for d in user_data.values())
-    predinvest_sum = sum(max(0.0, d["paid"] - d["accrued"]) for d in user_data.values())
-    bonus_balance_sum = sum(max(0.0, d["accrued"] - d["paid"]) for d in user_data.values())
 
     # Debt (Outstanding from Invoices)
     debt_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount).label("total")).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
@@ -404,40 +374,21 @@ async def get_comprehensive_stats(
         debt_q = apply_filters(debt_q, Reservation)
     debt_sum = (await db.execute(debt_q)).scalar() or 0
 
-    # Overdue Receivables (30+ days)
-    overdue_threshold = datetime.now() - timedelta(days=30)
-    overdue_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount).label("total")).where(
-        and_(
-            Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]),
-            Invoice.total_amount > Invoice.paid_amount,
-            or_(
-                and_(Invoice.realization_date != None, Invoice.realization_date < overdue_threshold),
-                and_(Invoice.realization_date == None, Invoice.date < overdue_threshold)
-            )
-        )
-    )
-    if start_date and end_date: overdue_q = overdue_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-    if rep_ids or region_id or product_id:
-        overdue_q = overdue_q.join(Reservation, Invoice.reservation_id == Reservation.id)
-        overdue_q = apply_filters(overdue_q, Reservation)
-    overdue_sum = (await db.execute(overdue_q)).scalar() or 0
-
     # Realized Gross Profit (Company Profit)
     # realized_profit = sum( (price - production_price - salary - bonus) * qty ) * (paid_amount / total_amount)
     # We use a simplified approx: (Sum(Potential Profit) * (Invoice.paid_amount / Invoice.total_amount))
     # To be more precise, we join all items.
     from app.models.product import Product
     
-    # Sales Realized Net Profit (Revenue - COGS - Bonuses - Salaries - Other)
-    # Priority: ReservationItem (Snapshot) > Product (Current Default)
+    # Sales Realized Gross Profit (Actually Paid portion of profit)
     gross_profit_sum_q = select(
         func.coalesce(func.sum(
-            (ReservationItem.price - 
-             func.coalesce(ReservationItem.production_price, Product.production_price, 0) - 
-             func.coalesce(ReservationItem.marketing_amount, Product.marketing_expense, 0) - 
-             func.coalesce(ReservationItem.salary_amount, Product.salary_expense, 0) -
-             func.coalesce(ReservationItem.other_expenses, Product.other_expenses, 0)) * 
-            (ReservationItem.quantity - ReservationItem.returned_quantity) * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
+            (ReservationItem.price * (1 - func.coalesce(ReservationItem.discount_percent, 0) / 100.0) - 
+             func.coalesce(Product.production_price, 0) - 
+             func.case((ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
+             func.case((ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
+             func.coalesce(Product.other_expenses, 0)) * 
+            ReservationItem.quantity * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
         ), 0.0)
     ).select_from(ReservationItem)\
      .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
@@ -455,41 +406,22 @@ async def get_comprehensive_stats(
                 MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
             )
         )
+    if region_id:
+        gross_profit_sum_q = gross_profit_sum_q.where(MedicalOrganization.region_id == region_id)
     if product_id:
         gross_profit_sum_q = gross_profit_sum_q.where(ReservationItem.product_id == product_id)
-        
-    # MP Salary Accrued (Based on Collections)
-    salary_accrued_q = select(
-        func.coalesce(func.sum(
-            func.coalesce(ReservationItem.salary_amount, Product.salary_expense, 0) * 
-            (ReservationItem.quantity - ReservationItem.returned_quantity) * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
-        ), 0.0)
-    ).select_from(ReservationItem)\
-     .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
-     .join(Invoice, Invoice.reservation_id == Reservation.id)\
-     .join(Product, ReservationItem.product_id == Product.id)\
-     .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
-
-    if start_date and end_date: salary_accrued_q = salary_accrued_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-    if rep_ids or region_id: salary_accrued_q = salary_accrued_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
-    if rep_ids: salary_accrued_q = salary_accrued_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
-    if region_id: salary_accrued_q = salary_accrued_q.where(MedicalOrganization.region_id == region_id)
-    if product_id: salary_accrued_q = salary_accrued_q.where(ReservationItem.product_id == product_id)
-
-    # Execute profit and salary
+    
     gross_profit_sum = (await db.execute(gross_profit_sum_q)).scalar() or 0.0
-    salary_accrued = (await db.execute(salary_accrued_q)).scalar() or 0.0
 
-    # Sales Potential Net Profit (Expected based on Invoices total)
-    # Priority: ReservationItem (Snapshot) > Product (Current Default)
+    # Sales Potential Gross Profit (Expected based on Invoices total)
     potential_profit_sum_q = select(
         func.coalesce(func.sum(
-            (ReservationItem.price - 
-             func.coalesce(ReservationItem.production_price, Product.production_price, 0) - 
-             func.coalesce(ReservationItem.marketing_amount, Product.marketing_expense, 0) - 
-             func.coalesce(ReservationItem.salary_amount, Product.salary_expense, 0) -
-             func.coalesce(ReservationItem.other_expenses, Product.other_expenses, 0)) * 
-            (ReservationItem.quantity - ReservationItem.returned_quantity)
+            (ReservationItem.price * (1 - func.coalesce(ReservationItem.discount_percent, 0) / 100.0) - 
+             func.coalesce(Product.production_price, 0) - 
+             func.case((ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
+             func.case((ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
+             func.coalesce(Product.other_expenses, 0)) * 
+            ReservationItem.quantity
         ), 0.0)
     ).select_from(ReservationItem)\
      .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
@@ -514,18 +446,16 @@ async def get_comprehensive_stats(
         
     potential_profit_sum = (await db.execute(potential_profit_sum_q)).scalar() or 0.0
 
-    # Total Expenses (Prochie Rasxodi + Bonuses + Marketing)
+    # Total Expenses (Prochie Rasxodi)
     from app.services.expense_service import ExpenseService
-    other_expenses = await ExpenseService.get_total_expenses(db, start_date, end_date)
-    total_expenses = other_expenses
+    total_expenses = await ExpenseService.get_total_expenses(db, start_date, end_date)
 
-    # net_profit = gross_profit_sum - other_expenses - bonuses - marketing
     net_profit = gross_profit_sum - total_expenses
 
     # 4. PRODUCT STATS (Safe Split Logic)
     product_stats_map = {}
     
-    # 4a. Plan Products - Sum target_amount
+    # 4a. Plan Products
     plan_q = select(
         Plan.product_id,
         func.sum(Plan.target_amount).label("plan_uzs"),
@@ -646,17 +576,12 @@ async def get_comprehensive_stats(
             "bonus_accrued": float(accrued_sum),
             "bonus_allocated": float(allocated_sum),
             "bonus_paid": float(paid_sum),
-            "salary_paid": float(payout_sum),
-            "salary_balance": float(max(0, salary_accrued - payout_sum)),
-            "salary_accrued": float(salary_accrued),
-            "total_invoice_sum": float(sales_total),
-            "bonus_balance": float(bonus_balance_sum),
+            "bonus_balance": float(max(0, accrued_sum - paid_sum)),
             "total_predinvest": float(predinvest_sum),
             "receivables": float(debt_sum),
-            "overdue_receivables": float(overdue_sum),
-            "gross_profit": float(gross_profit_sum if gross_profit_sum > 0 else potential_profit_sum),
+            "gross_profit": float(gross_profit_sum if fact_sum > 0 else potential_profit_sum),
             "total_expenses": float(total_expenses),
-            "net_profit": float((gross_profit_sum if gross_profit_sum > 0 else potential_profit_sum) - total_expenses),
+            "net_profit": float((gross_profit_sum if fact_sum > 0 else potential_profit_sum) - total_expenses),
         },
         "product_stats": product_stats,
         "trends": trends,
@@ -727,76 +652,57 @@ async def get_comprehensive_drilldown(
         return q
 
     if metric == "sales_plan":
-        plan_q = select(Plan).options(
-            selectinload(Plan.med_rep).selectinload(User.assigned_regions), 
-            selectinload(Plan.product), 
-            selectinload(Plan.med_org).selectinload(MedicalOrganization.region)
-        )
+        plan_q = select(Plan).options(selectinload(Plan.med_rep), selectinload(Plan.product))
         if quarter and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
         elif month and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
         elif year: plan_q = plan_q.where(Plan.year == year)
         if rep_ids: plan_q = plan_q.where(Plan.med_rep_id.in_(rep_ids))
         if region_id: plan_q = plan_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
         if product_id: plan_q = plan_q.where(Plan.product_id == product_id)
-        plan_q = plan_q.where(or_(Plan.target_amount > 0, Plan.target_quantity > 0))
         rows = (await db.execute(plan_q.offset(skip).limit(limit))).scalars().all()
-        return [
-            {
-                "id": r.id, 
-                "med_rep": r.med_rep.full_name if r.med_rep else "-", 
-                "product": r.product.name if r.product else "-", 
-                "month": r.month, 
-                "year": r.year, 
-                "amount": r.target_amount, 
-                "qty": r.target_quantity, 
-                "region": (
-                    r.med_org.region.name if r.med_org and r.med_org.region 
-                    else (r.med_rep.assigned_regions[0].name if r.med_rep and r.med_rep.assigned_regions else "-")
-                )
-            } for r in rows
-        ]
+        return [{"id": r.id, "med_rep": r.med_rep.full_name if r.med_rep else "-", "product": r.product.name if r.product else "-", "month": r.month, "year": r.year, "amount": r.target_amount, "qty": r.target_quantity} for r in rows]
 
     elif metric == "realization":
-        real_q = select(Invoice).options(selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region)).where(Invoice.status != InvoiceStatus.CANCELLED)
+        real_q = select(Invoice).options(selectinload(Invoice.reservation)).where(Invoice.status != InvoiceStatus.CANCELLED)
         if start_date and end_date: real_q = real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
         if rep_ids or region_id or product_id:
             real_q = real_q.join(Reservation, Invoice.reservation_id == Reservation.id)
             real_q = apply_filters(real_q, Reservation)
         rows = (await db.execute(real_q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.date.isoformat(), "invoice_num": r.factura_number, "total_amount": r.total_amount, "customer": r.reservation.customer_name if r.reservation else "-", "region": r.reservation.med_org.region.name if r.reservation and r.reservation.med_org and r.reservation.med_org.region else "-"} for r in rows]
+        return [{"id": r.id, "date": r.date.isoformat(), "invoice_num": r.factura_number, "total_amount": r.total_amount, "customer": r.reservation.customer_name if r.reservation else "-"} for r in rows]
 
     elif metric == "cash_in":
-        fact_q = select(Payment).options(selectinload(Payment.invoice).selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region)).join(Invoice, Payment.invoice_id == Invoice.id)
+        fact_q = select(Payment).options(selectinload(Payment.invoice).selectinload(Invoice.reservation)).join(Invoice, Payment.invoice_id == Invoice.id)
         if start_date and end_date: fact_q = fact_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
         if rep_ids or region_id or product_id:
             fact_q = fact_q.join(Reservation, Invoice.reservation_id == Reservation.id)
             fact_q = apply_filters(fact_q, Reservation)
         rows = (await db.execute(fact_q.order_by(Payment.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "type": r.payment_type, "invoice_num": r.invoice.factura_number if r.invoice else "-", "customer": r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-", "region": r.invoice.reservation.med_org.region.name if r.invoice and r.invoice.reservation and r.invoice.reservation.med_org and r.invoice.reservation.med_org.region else "-"} for r in rows]
+        return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "type": r.payment_type, "invoice_num": r.invoice.factura_number if r.invoice else "-", "customer": r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-"} for r in rows]
 
     elif metric == "receivables":
-        debt_q = select(Invoice).options(selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region)).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
+        debt_q = select(Invoice).options(selectinload(Invoice.reservation)).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
         if start_date and end_date: debt_q = debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
         if rep_ids or region_id or product_id:
             debt_q = debt_q.join(Reservation, Invoice.reservation_id == Reservation.id)
             debt_q = apply_filters(debt_q, Reservation)
         debt_q = debt_q.where(Invoice.total_amount > Invoice.paid_amount)
         rows = (await db.execute(debt_q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.date.isoformat(), "realization_date": r.realization_date.isoformat() if r.realization_date else None, "invoice_num": r.factura_number, "total_amount": r.total_amount, "paid_amount": r.paid_amount, "debt_amount": r.total_amount - r.paid_amount, "customer": r.reservation.customer_name if r.reservation else "-", "region": r.reservation.med_org.region.name if r.reservation and r.reservation.med_org and r.reservation.med_org.region else "-"} for r in rows]
+        return [{"id": r.id, "date": r.date.isoformat(), "invoice_num": r.factura_number, "total_amount": r.total_amount, "paid_amount": r.paid_amount, "debt_amount": r.total_amount - r.paid_amount, "customer": r.reservation.customer_name if r.reservation else "-"} for r in rows]
 
     elif metric == "expenses":
-        expense_q = select(OtherExpense).options(selectinload(OtherExpense.category), selectinload(OtherExpense.created_by), selectinload(OtherExpense.region))
+        expense_q = select(OtherExpense).options(selectinload(OtherExpense.category), selectinload(OtherExpense.created_by))
         if start_date and end_date: expense_q = expense_q.where(and_(OtherExpense.date >= start_date, OtherExpense.date < end_date))
         if rep_ids: expense_q = expense_q.where(OtherExpense.created_by_id.in_(rep_ids))
         if region_id: expense_q = expense_q.where(OtherExpense.region_id == region_id)
         rows = (await db.execute(expense_q.order_by(OtherExpense.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "category": r.category.name if r.category else "-", "description": r.comment or "-", "author": r.created_by.full_name if r.created_by else "-", "region": r.region.name if r.region else "-"} for r in rows]
+        return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "category": r.category.name if r.category else "-", "description": r.comment or "-", "author": r.created_by.full_name if r.created_by else "-"} for r in rows]
 
     elif metric in ["bonus_accrued", "bonus_paid", "preinvest"]:
         from app.models.sales import Payment, Invoice, Reservation
         from sqlalchemy.orm import selectinload as sil
         bonus_q = select(BonusLedger).options(
-            sil(BonusLedger.doctor).selectinload(Doctor.region),
+            sil(BonusLedger.doctor),
             sil(BonusLedger.user),
             sil(BonusLedger.product),
             sil(BonusLedger.payment).selectinload(Payment.invoice).selectinload(Invoice.reservation)
@@ -847,12 +753,11 @@ async def get_comprehensive_drilldown(
                 "description": r.notes or "-",
                 "payment": payment_info,
                 "invoice": invoice_info,
-                "region": r.doctor.region.name if r.doctor and r.doctor.region else "-",
             })
         return result
 
     elif metric == "gross_profit":
-        gross_q = select(ReservationItem).options(selectinload(ReservationItem.product), selectinload(ReservationItem.reservation).selectinload(Reservation.invoice), selectinload(ReservationItem.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region)).join(Reservation, ReservationItem.reservation_id == Reservation.id).join(Invoice, Invoice.reservation_id == Reservation.id).join(Product, ReservationItem.product_id == Product.id).where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
+        gross_q = select(ReservationItem).options(selectinload(ReservationItem.product), selectinload(ReservationItem.reservation).selectinload(Reservation.invoice)).join(Reservation, ReservationItem.reservation_id == Reservation.id).join(Invoice, Invoice.reservation_id == Reservation.id).join(Product, ReservationItem.product_id == Product.id).where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
         if start_date and end_date: gross_q = gross_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
         if rep_ids or region_id: gross_q = gross_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
         if rep_ids: gross_q = gross_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
@@ -863,141 +768,24 @@ async def get_comprehensive_drilldown(
         res_payload = []
         for r in rows:
             paid_ratio = (r.reservation.invoice.paid_amount or 0) / r.reservation.invoice.total_amount if r.reservation and r.reservation.invoice and r.reservation.invoice.total_amount > 0 else 0
-            sale_price = r.price
-            # Net profit (Sof Foyda) = Sale - Cost - Bonus - Salary - Other
-            # Use snapshotted fields from ReservationItem, fallback to product for legacy
-            prod_price = r.production_price if r.production_price else (r.product.production_price or 0)
-            marketing = r.marketing_amount or 0
-            salary = r.salary_amount or 0
-            other = r.other_expenses if r.other_expenses else (r.product.other_expenses or 0)
-            
-            unit_profit = sale_price - prod_price - marketing - salary - other
-            effective_qty = r.quantity - r.returned_quantity
-            total_profit_realized = (unit_profit * effective_qty) * paid_ratio
-            
-            # Show all records, even if zero or negative, to prevent "No data" confusion
-            res_payload.append({
-                "id": r.id,
-                "invoice_num": r.reservation.invoice.factura_number if r.reservation and r.reservation.invoice else "-",
-                "date": r.reservation.invoice.date.isoformat() if r.reservation and r.reservation.invoice else "-",
-                "product": r.product.name if r.product else "-",
-                "qty": effective_qty,
-                "paid_ratio": round(paid_ratio * 100, 1),
-                "profit": float(total_profit_realized),
-                "region": r.reservation.med_org.region.name if r.reservation and r.reservation.med_org and r.reservation.med_org.region else "-"
-            })
-        return res_payload
-
-    elif metric == "salary_accrued":
-        from app.models.product import Product
-        q = select(ReservationItem).options(
-            selectinload(ReservationItem.product),
-            selectinload(ReservationItem.reservation).selectinload(Reservation.invoice),
-            selectinload(ReservationItem.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
-            selectinload(ReservationItem.reservation).selectinload(Reservation.created_by)
-        ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
-         .join(Invoice, Invoice.reservation_id == Reservation.id)\
-         .join(Product, ReservationItem.product_id == Product.id)\
-         .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
-        
-        if start_date and end_date: q = q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-        q = apply_filters(q, Reservation)
-        
-        rows = (await db.execute(q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{
-            "id": r.id,
-            "date": r.reservation.invoice.date.isoformat(),
-            "mp_name": r.reservation.created_by.full_name if r.reservation.created_by else "-",
-            "product": r.product.name if r.product else "-",
-            "qty": r.quantity - r.returned_quantity,
-            "salary_earned": float((r.salary_amount or r.product.salary_expense or 0) * (r.quantity - r.returned_quantity) * (r.reservation.invoice.paid_amount / r.reservation.invoice.total_amount)),
-            "invoice_num": r.reservation.invoice.factura_number or f"#{r.reservation.invoice.id}",
-            "region": r.reservation.med_org.region.name if r.reservation.med_org and r.reservation.med_org.region else "-"
-        } for r in rows]
-
-    elif metric == "salary_paid":
-        q = select(BonusLedger).options(
-            selectinload(BonusLedger.user)
-        ).where(BonusLedger.ledger_type == LedgerType.PAYOUT, BonusLedger.category == "salary")
-        
-        if start_date and end_date: q = q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
-        if rep_ids: q = q.where(BonusLedger.user_id.in_(rep_ids))
-        
-        rows = (await db.execute(q.order_by(BonusLedger.created_at.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{
-            "id": r.id,
-            "date": r.created_at.isoformat(),
-            "mp_name": r.user.full_name if r.user else "-",
-            "amount": r.amount,
-            "description": r.notes or "-",
-        } for r in rows]
-
-    elif metric == "salary_balance":
-        # List of salaries balances per MedRep
-        from app.models.product import Product
-        reps_q = select(User).where(User.is_active == True, User.role == UserRole.MED_REP)
-        if rep_ids: reps_q = reps_q.where(User.id.in_(rep_ids))
-        reps = (await db.execute(reps_q)).scalars().all()
-        
-        result = []
-        for rep in reps:
-            # 1. Accrued for this rep
-            accrued_q = select(
-                func.coalesce(func.sum(
-                    func.coalesce(ReservationItem.salary_amount, Product.salary_expense, 0) * 
-                    (ReservationItem.quantity - ReservationItem.returned_quantity) * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
-                ), 0.0)
-            ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
-             .join(Invoice, Invoice.reservation_id == Reservation.id)\
-             .join(Product, ReservationItem.product_id == Product.id)\
-             .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED, Reservation.created_by_id == rep.id))
-            
-            if start_date and end_date: accrued_q = accrued_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-            
-            # 2. Paid for this rep
-            paid_q = select(func.sum(BonusLedger.amount)).where(BonusLedger.user_id == rep.id, BonusLedger.ledger_type == LedgerType.PAYOUT, BonusLedger.category == "salary")
-            if start_date and end_date: paid_q = paid_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
-            
-            accrued_val = (await db.execute(accrued_q)).scalar() or 0.0
-            paid_val = abs((await db.execute(paid_q)).scalar() or 0.0)
-            
-            if accrued_val > 0 or paid_val > 0:
-                result.append({
-                    "mp_name": rep.full_name,
-                    "accrued": accrued_val,
-                    "paid": paid_val,
-                    "balance": max(0, accrued_val - paid_val),
-                    "region": rep.assigned_regions[0].name if rep.assigned_regions else "-"
+            sale_price = r.price * (1 - (r.discount_percent or 0) / 100.0)
+            prod_price = r.product.production_price or 0
+            salary = r.salary_amount if (r.salary_amount or 0) > 0 else (r.product.salary_expense or 0)
+            marketing = r.marketing_amount if (r.marketing_amount or 0) > 0 else (r.product.marketing_expense or 0)
+            other_per_unit = r.product.other_expenses or 0
+            unit_profit = sale_price - prod_price - salary - marketing - other_per_unit
+            total_profit_realized = (unit_profit * r.quantity) * paid_ratio
+            if total_profit_realized > 0:
+                res_payload.append({
+                    "id": r.id,
+                    "invoice_num": r.reservation.invoice.factura_number if r.reservation and r.reservation.invoice else "-",
+                    "date": r.reservation.invoice.date.isoformat() if r.reservation and r.reservation.invoice else "-",
+                    "product": r.product.name if r.product else "-",
+                    "qty": r.quantity,
+                    "paid_ratio": round(paid_ratio * 100, 1),
+                    "profit": float(total_profit_realized)
                 })
-        
-        return result
-
-    elif metric == "sold_items":
-        from app.models.product import Product
-        q = select(ReservationItem).options(
-            selectinload(ReservationItem.product),
-            selectinload(ReservationItem.reservation).selectinload(Reservation.invoice),
-            selectinload(ReservationItem.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
-            selectinload(ReservationItem.reservation).selectinload(Reservation.created_by)
-        ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
-         .join(Invoice, Invoice.reservation_id == Reservation.id)\
-         .join(Product, ReservationItem.product_id == Product.id)\
-         .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
-        
-        if start_date and end_date: q = q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
-        q = apply_filters(q, Reservation)
-        
-        rows = (await db.execute(q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{
-            "id": r.id,
-            "date": r.reservation.invoice.date.isoformat(),
-            "customer": r.reservation.customer_name or "-",
-            "product": r.product.name if r.product else "-",
-            "qty": r.quantity - r.returned_quantity,
-            "mp_name": r.reservation.created_by.full_name if r.reservation.created_by else "-",
-            "invoice_num": r.reservation.invoice.factura_number or f"#{r.reservation.invoice.id}",
-            "region": r.reservation.med_org.region.name if r.reservation.med_org and r.reservation.med_org.region else "-"
-        } for r in rows]
+        return res_payload
 
     return []
 

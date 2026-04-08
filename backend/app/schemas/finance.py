@@ -39,11 +39,3 @@ class FinanceStats(BaseModel):
     net_profit: float
     inflow: float
     outflow: float
-
-class SalaryPaymentCreate(BaseModel):
-    user_id: int
-    amount: float
-    notes: Optional[str] = None
-    target_month: Optional[int] = None
-    target_year: Optional[int] = None
-    category: Optional[str] = "salary"  # 'salary' or 'bonus'

@@ -64,7 +64,6 @@ class MedicalOrganization(Base):
     
     region = relationship("Region", back_populates="med_orgs")
     doctors = relationship("Doctor", back_populates="med_org")
-    payments = relationship("Payment", back_populates="med_org")
 
 class Doctor(Base):
     id = Column(Integer, primary_key=True, index=True)

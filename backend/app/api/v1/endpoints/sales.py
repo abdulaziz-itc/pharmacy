@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
@@ -25,8 +25,7 @@ from app.schemas.sales import (
     Invoice as InvoiceSchema, Payment as PaymentSchema, PaymentCreate,
     DoctorFactAssignment as DoctorFactAssignmentSchema, DoctorFactAssignmentCreate, SaleFact,
     BonusPayment as BonusPaymentSchema, BonusPaymentCreate, BonusPaymentUpdate,
-    ReservationReturnCreate, BonusAllocationCreate,
-    CounterpartyFinanceHistoryItem, BalanceTopUpCreate
+    ReservationReturnCreate, BonusAllocationCreate
 )
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -52,7 +51,7 @@ async def create_plan(
     )
     return plan
 
-@router.get("/plans/", response_model=List["Plan"])
+@router.get("/plans/", response_model=List[Plan])
 async def read_plans(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -101,23 +100,7 @@ async def delete_plan(
     plan = await crud_sales.get_plan(db, id=id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
-
-    # Security Check: Prevent deletion if facts (realization) exist
-    from app.models.sales import DoctorFactAssignment
-    facts_check = await db.execute(
-        select(DoctorFactAssignment).where(
-            DoctorFactAssignment.doctor_id == plan.doctor_id,
-            DoctorFactAssignment.product_id == plan.product_id,
-            DoctorFactAssignment.month == plan.month,
-            DoctorFactAssignment.year == plan.year
-        ).limit(1)
-    )
-    if facts_check.scalars().first():
-        raise HTTPException(
-            status_code=400,
-            detail="Невозможно удалить план. У этого врача уже есть факт (реализация) по данному препарату за указанный месяц."
-        )
-
+        
     await crud_sales.delete_plan(db, id=id)
     from app.services.audit_service import log_action
     await log_action(
@@ -517,152 +500,6 @@ async def get_eligible_invoices_for_tovar_skidka(
         logger.error(f"Error in get_eligible_invoices_for_tovar_skidka: {error_detail}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# --- Organization Financials & Balances ---
-
-@router.get("/organizations/balances")
-async def read_organization_balances(
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-    skip: int = 0,
-    limit: int = 100,
-    search: Optional[str] = None
-) -> Any:
-    """
-    Get all organizations with their credit_balance and summary stats.
-    """
-    query = select(MedicalOrganization).options(
-        selectinload(MedicalOrganization.region),
-        selectinload(MedicalOrganization.assigned_reps)
-    )
-    if search:
-        query = query.where(
-            (MedicalOrganization.name.ilike(f"%{search}%")) |
-            (MedicalOrganization.inn.ilike(f"%{search}%"))
-        )
-    
-    query = query.offset(skip).limit(limit)
-    result = await db.execute(query)
-    orgs = result.scalars().all()
-    
-    output = []
-    for org in orgs:
-        # Calculate total debt (unpaid invoices)
-        debt_query = select(Invoice).join(Reservation).where(
-            (Reservation.med_org_id == org.id) &
-            (Invoice.total_amount > Invoice.paid_amount)
-        )
-        debt_res = await db.execute(debt_query)
-        unpaid_invoices = debt_res.scalars().all()
-        total_debt = sum(max(0, i.total_amount - i.paid_amount) for i in unpaid_invoices)
-        
-        output.append({
-            "id": org.id,
-            "name": org.name,
-            "inn": org.inn,
-            "region": org.region.name if org.region else None,
-            "credit_balance": org.credit_balance or 0.0,
-            "debt_balance": total_debt,
-            "total_balance": (org.credit_balance or 0.0) - total_debt
-        })
-    
-    return output
-
-@router.get("/organizations/{id}/finance-history", response_model=List[CounterpartyFinanceHistoryItem])
-async def read_organization_finance_history(
-    id: int,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user)
-) -> Any:
-    """
-    Get chronological history of invoices and payments for an organization.
-    """
-    # 1. Fetch Invoices
-    inv_query = select(Invoice).join(Reservation).where(Reservation.med_org_id == id).order_by(Invoice.date.desc())
-    inv_res = await db.execute(inv_query)
-    invoices = inv_res.scalars().all()
-    
-    # 2. Fetch Payments (including top-ups to invoices)
-    pay_query = select(Payment).where(Payment.med_org_id == id).order_by(Payment.date.desc())
-    pay_res = await db.execute(pay_query)
-    payments = pay_res.scalars().all()
-    
-    # 3. Fetch Manual Balance Top-ups (The actual source transactions)
-    from app.models.sales import BalanceTopUp
-    topup_query = select(BalanceTopUp).where(BalanceTopUp.med_org_id == id).order_by(BalanceTopUp.date.desc())
-    topup_res = await db.execute(topup_query)
-    topups = topup_res.scalars().all()
-    
-    history = []
-    for inv in invoices:
-        history.append({
-            "id": inv.id,
-            "type": "invoice",
-            "date": inv.date,
-            "amount": inv.total_amount,
-            "status": inv.status,
-            "reference": inv.factura_number or f"INV-{inv.id}",
-            "description": f"Реализация (Счет-фактура)"
-        })
-    
-    for pay in payments:
-        # If this payment was generated via FIFO, it will have a specific comment
-        history.append({
-            "id": pay.id,
-            "type": "payment",
-            "date": pay.date,
-            "amount": pay.amount,
-            "status": "paid",
-            "reference": f"PAY-{pay.id}",
-            "description": pay.comment or "Поступление средств"
-        })
-        
-    for tp in topups:
-        history.append({
-            "id": tp.id,
-            "type": "topup",
-            "date": tp.date,
-            "amount": tp.amount,
-            "status": "completed",
-            "reference": f"TOP-{tp.id}",
-            "description": f"Пополнение баланса: {tp.comment}"
-        })
-    
-    # Sort by date
-    history.sort(key=lambda x: x['date'], reverse=True)
-    return history
-
-@router.post("/organizations/{id}/top-up")
-async def top_up_organization_balance(
-    id: int,
-    *,
-    db: AsyncSession = Depends(deps.get_db),
-    top_up_in: BalanceTopUpCreate,
-    current_user: User = Depends(deps.get_current_user),
-    request: Request
-) -> Any:
-    """
-    Manual balance top-up for an organization with automatic FIFO debt settlement.
-    """
-    from app.services.finance_service import FinanceService
-    
-    top_up = await FinanceService.top_up_balance(
-        db, 
-        med_org_id=id, 
-        amount=top_up_in.amount, 
-        comment=top_up_in.comment, 
-        processed_by_id=current_user.id,
-        top_up_date=top_up_in.date
-    )
-    
-    from app.services.audit_service import log_action
-    await log_action(
-        db, current_user, "TOPUP", "MedicalOrganization", id,
-        f"Пополнение баланса организации: {top_up_in.amount:,.0f} UZS. Основание: {top_up_in.comment}",
-        request
-    )
-    
-    return {"id": top_up.id, "amount": top_up.amount, "date": top_up.date}
-
 # Payments
 @router.post("/payments/", response_model=PaymentSchema)
 async def create_payment(
@@ -1015,33 +852,14 @@ async def get_medrep_bonus_balance(
         total_accrued = 0.0
         total_paid = 0.0
         total_allocated = 0.0
-        total_payout = 0.0
-        # Separated by category
-        salary_accrued = 0.0
-        bonus_accrued = 0.0
-        salary_payout = 0.0
-        bonus_payout = 0.0
         
         for e in all_entries:
-            cat = getattr(e, 'category', None) or 'bonus'
             if e.ledger_type == LedgerType.ACCRUAL:
                 total_accrued += e.amount
                 if e.is_paid:
                     total_paid += e.amount
-                # Separate by category
-                # Legacy records without category: distinguish by notes text
-                if cat == 'salary' or ('Зарплата' in (e.notes or '') and cat not in ('bonus',)):
-                    salary_accrued += e.amount
-                else:
-                    bonus_accrued += e.amount
             elif e.ledger_type == LedgerType.OFFSET:
                 total_allocated += abs(e.amount)
-            elif e.ledger_type == LedgerType.PAYOUT:
-                total_payout += abs(e.amount)
-                if cat == 'salary':
-                    salary_payout += abs(e.amount)
-                else:
-                    bonus_payout += abs(e.amount)
         
         # Get history (all transactions)
         query = select(BonusLedger).options(
@@ -1127,12 +945,6 @@ async def get_medrep_bonus_balance(
             "total_accrued": total_accrued,
             "total_paid": total_paid,
             "total_allocated": total_allocated,
-            "total_payout": total_payout,
-            # Separated by category
-            "salary_accrued": salary_accrued,
-            "bonus_accrued": bonus_accrued,
-            "salary_payout": salary_payout,
-            "bonus_payout": bonus_payout,
             "history": history_data
         }
     except Exception as e:
@@ -1192,18 +1004,25 @@ class BonusSummary(BaseModel):
     postupleniya: float = 0.0
     debitorka: float = 0.0
     has_overdue_bonus: bool = False
-    region: Optional[str] = None
+
+class GlobalStats(BaseModel):
+    realization: float = 0.0
+    postupleniya: float = 0.0
+    debitorka: float = 0.0
+
+class AdminBonusSummaryResponse(BaseModel):
+    summaries: List[BonusSummary]
+    global_stats: GlobalStats
 
 class BonusPayRequest(BaseModel):
     med_rep_id: int
     amount_to_pay: float # How much of the remainder to pay now
 
-@router.get("/admin/bonuses/summary", response_model=List[BonusSummary])
+@router.get("/admin/bonuses/summary", response_model=AdminBonusSummaryResponse)
 async def get_admin_bonus_summary(
     month: int = None,
     year: int = None,
     product_id: int = None,
-    region_id: int = None,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
@@ -1216,19 +1035,13 @@ async def get_admin_bonus_summary(
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     from app.models.user import User
-    from app.models.crm import MedicalOrganization
     from app.models.ledger import BonusLedger, LedgerType
     from app.models.sales import Invoice, Payment, Reservation, ReservationItem, InvoiceStatus
     from datetime import datetime, timedelta
     from sqlalchemy import func, and_, or_
-    from sqlalchemy.orm import selectinload
     
     # Get all medreps
-    medreps_stmt = select(User).options(selectinload(User.assigned_regions)).where(User.role == UserRole.MED_REP, User.is_active == True)
-    if region_id:
-        medreps_stmt = medreps_stmt.where(User.assigned_regions.any(id=region_id))
-        
-    medreps_result = await db.execute(medreps_stmt)
+    medreps_result = await db.execute(select(User).where(User.role == UserRole.MED_REP, User.is_active == True))
     medreps = medreps_result.scalars().all()
     rep_ids = [r.id for r in medreps]
     
@@ -1301,7 +1114,54 @@ async def get_admin_bonus_summary(
             if start_date and end_date: debt_q = debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
             if product_id: debt_q = debt_q.where(ReservationItem.product_id == product_id)
             debitorka_map[rep.id] = float((await db.execute(debt_q)).scalar() or 0.0)
-    
+
+    # GLOBAL AGGREGATES (Independent of MedReps)
+    if not product_id:
+        # Realization
+        g_real_q = select(func.coalesce(func.sum(Invoice.total_amount), 0.0)).where(Invoice.status != InvoiceStatus.CANCELLED)
+        if start_date and end_date: g_real_q = g_real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        global_realization = float((await db.execute(g_real_q)).scalar() or 0.0)
+
+        # Postupleniya
+        g_pay_q = select(func.coalesce(func.sum(Invoice.paid_amount), 0.0)).where(Invoice.status != InvoiceStatus.CANCELLED)
+        if start_date and end_date: g_pay_q = g_pay_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        global_postupleniya = float((await db.execute(g_pay_q)).scalar() or 0.0)
+
+        # Debitorka
+        g_debt_q = select(func.coalesce(func.sum(Invoice.total_amount - Invoice.paid_amount), 0.0)).where(
+            Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED])
+        )
+        if start_date and end_date: g_debt_q = g_debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        global_debitorka = float((await db.execute(g_debt_q)).scalar() or 0.0)
+    else:
+        # Realization (Product Specific)
+        g_real_q = select(func.coalesce(func.sum(ReservationItem.quantity * ReservationItem.price), 0.0)).select_from(Invoice)\
+            .join(Reservation, Invoice.reservation_id == Reservation.id)\
+            .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+            .where(Invoice.status != InvoiceStatus.CANCELLED, ReservationItem.product_id == product_id)
+        if start_date and end_date: g_real_q = g_real_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        global_realization = float((await db.execute(g_real_q)).scalar() or 0.0)
+
+        # Postupleniya (Product Specific)
+        g_pay_q = select(func.coalesce(func.sum(Payment.amount * (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount)), 0.0)).select_from(Payment)\
+            .join(Invoice, Payment.invoice_id == Invoice.id)\
+            .join(Reservation, Invoice.reservation_id == Reservation.id)\
+            .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+            .where(Invoice.total_amount > 0, ReservationItem.product_id == product_id)
+        if start_date and end_date: g_pay_q = g_pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+        global_postupleniya = float((await db.execute(g_pay_q)).scalar() or 0.0)
+
+        # Debitorka (Product Specific)
+        g_debt_q = select(func.coalesce(func.sum(
+            (ReservationItem.quantity * ReservationItem.price) -
+            (ReservationItem.quantity * ReservationItem.price / Invoice.total_amount * Invoice.paid_amount)
+        ), 0.0)).select_from(Invoice)\
+            .join(Reservation, Invoice.reservation_id == Reservation.id)\
+            .join(ReservationItem, Reservation.id == ReservationItem.reservation_id)\
+            .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]), Invoice.total_amount > 0, ReservationItem.product_id == product_id)
+        if start_date and end_date: g_debt_q = g_debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        global_debitorka = float((await db.execute(g_debt_q)).scalar() or 0.0)
+
     summaries = []
     for rep in medreps:
         q = select(BonusLedger).where(BonusLedger.user_id == rep.id)
@@ -1319,6 +1179,7 @@ async def get_admin_bonus_summary(
         for e in entries:
             if e.ledger_type == LedgerType.ACCRUAL:
                 if e.notes == "Аванс (Предынвест)":
+                    predinvest += e.amount
                     paid += e.amount
                 else:
                     accrued += e.amount
@@ -1328,7 +1189,6 @@ async def get_admin_bonus_summary(
                 allocated += abs(e.amount)
                 
         remainder = max(0.0, accrued - paid)
-        predinvest = max(0.0, paid - accrued)
         
         overdue_q = select(BonusLedger.id).where(
             and_(
@@ -1342,12 +1202,9 @@ async def get_admin_bonus_summary(
         overdue_res = await db.execute(overdue_q)
         has_overdue = overdue_res.scalar_one_or_none() is not None
         
-        # Get region name (first assigned region) Russian: Регион
-        region_name = rep.assigned_regions[0].name if rep.assigned_regions else "—"
-
         summaries.append(BonusSummary(
             med_rep_id=rep.id,
-            med_rep_name=rep.full_name or rep.username,
+            med_rep_name=rep.full_name,
             accrued=accrued,
             paid=paid,
             remainder=remainder,
@@ -1356,11 +1213,17 @@ async def get_admin_bonus_summary(
             realization=realization_map.get(rep.id, 0.0),
             postupleniya=postupleniya_map.get(rep.id, 0.0),
             debitorka=debitorka_map.get(rep.id, 0.0),
-            has_overdue_bonus=has_overdue,
-            region=region_name
+            has_overdue_bonus=has_overdue
         ))
         
-    return summaries
+    return AdminBonusSummaryResponse(
+        summaries=summaries,
+        global_stats=GlobalStats(
+            realization=global_realization,
+            postupleniya=global_postupleniya,
+            debitorka=global_debitorka
+        )
+    )
 
 @router.post("/admin/bonuses/pay")
 async def pay_medrep_bonus(

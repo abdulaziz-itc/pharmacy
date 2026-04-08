@@ -82,24 +82,24 @@ class ReservationService:
                         )
                     
                     # 2. Marketing amount check (Promo)
-                    # User requirement: Max 100% of price
-                    max_mkt = item.price * 1.0
+                    # User requirement: Max 30% of price
+                    max_mkt = item.price * 0.3
                     if item.marketing_amount > max_mkt:
                          raise HTTPException(
                             status_code=400,
                             detail=f"Промо-сумма товара '{product.name}' ({item.marketing_amount:,.0f}) "
-                                   f"не может превышать 100% от цены ({max_mkt:,.0f} UZS)"
+                                   f"не может превышать 30% от цены ({max_mkt:,.0f} UZS)"
                         )
 
                     # 3. Salary amount check
-                    # User requirement: Max 100% of price
+                    # User requirement: Max 30% of price
                     if obj_in.is_salary_enabled:
-                        max_salary = item.price * 1.0
+                        max_salary = item.price * 0.3
                         if item.salary_amount > max_salary:
                             raise HTTPException(
                                 status_code=400,
                                 detail=f"Сумма зарплаты товара '{product.name}' ({item.salary_amount:,.0f}) "
-                                       f"не может превышать 100% от цены ({max_salary:,.0f} UZS)"
+                                       f"не может превышать 30% от цены ({max_salary:,.0f} UZS)"
                             )
                 
                 # Item amount BEFORE NDS
@@ -127,11 +127,6 @@ class ReservationService:
 
             # 4. Items + Stock Movements
             for item_in in obj_in.items:
-                # Fetch product to snapshot production_price and other_expenses
-                prod_query = select(Product).where(Product.id == item_in.product_id)
-                prod_result = await db.execute(prod_query)
-                product_item = prod_result.scalar_one_or_none()
-                
                 # We store base price in 'price', but 'total_price' includes NDS for consistency with total_amount
                 # However, usually total_price in item level refers to qty * price. 
                 # Let's align: if total_amount includes NDS, item.total_price should too.
@@ -144,8 +139,6 @@ class ReservationService:
                     discount_percent=item_in.discount_percent,
                     marketing_amount=item_in.marketing_amount,
                     salary_amount=item_in.salary_amount,
-                    production_price=product_item.production_price if product_item else 0.0,
-                    other_expenses=product_item.other_expenses if product_item else 0.0,
                     total_price=item_total_plain * nds_multiplier,
                 ))
                 db.add(StockMovement(
@@ -160,6 +153,8 @@ class ReservationService:
             # 5. Build modification summary for Audit
             modifications = []
             for item_in in obj_in.items:
+                prod_row = next((stocks[sid] for sid in stocks if sid == item_in.product_id), None)
+                # Need product for default values
                 product_item = (await db.execute(select(Product).where(Product.id == item_in.product_id))).scalar_one_or_none()
                 if product_item:
                     changes = []
@@ -339,56 +334,56 @@ class ReservationService:
                     )
                     db.add(unassigned)
 
-            # 6. Apply organization balance (net balance logic)
-            # When an invoice is finalized, it "consumes" some amount of the organization's virtual capital.
-            if reservation.med_org:
-                from app.services.finance_service import FinanceService
-                
-                # 6.1. Subtract invoice total from organization's virtual balance (Debt increases or Credit decreases)
-                # User: "koroxna balansi 0 va u 500 000 so'mlik faktura bilan tovar olsa balans avtomatik -500000"
-                reservation.med_org.credit_balance = (reservation.med_org.credit_balance or 0.0) - invoice.total_amount
-                
-                # 6.2. If the balance is still positive (or was very positive), 
-                # we should apply that positive balance to this invoice immediately.
-                # However, our FIFO logic usually handles this. 
-                # Let's see: if org has +200k balance and we just subtracted 500k, balance is -300k.
-                # We need to create a payment of 200k to THIS invoice to reflect that it used the existing credit.
-                
-                # RE-CHECK: If balance was +1000k, and we subtract 500k, balance is +500k.
-                # We should pay this invoice FULLY (500k) from the balance.
-                
-                # Simpler: If med_org.credit_balance was > -invoice.total_amount before subtraction, 
-                # it means there's some credit to apply.
-                
-                # Let's use a more direct approach that matches user requirement:
-                # If after subtraction the organization still has "haqqi" (which is not possible if it's a debt)
-                # Wait, the user logic is: Balance is a single number. 
-                # If I have +200k and I buy 500k, balance becomes -300k.
-                # This means 200k of my previous "haqqi" was used to pay part of the 500k.
-                
-                previous_balance = reservation.med_org.credit_balance + invoice.total_amount
-                if previous_balance > 0:
-                    amount_to_pay = min(previous_balance, invoice.total_amount)
+            # 6. Apply existing credit balance (kreditorka)
+            if reservation.med_org and (reservation.med_org.credit_balance or 0) > 0:
+                credit_to_apply = min(reservation.med_org.credit_balance, invoice.total_amount - invoice.paid_amount)
+                if credit_to_apply > 0:
+                    invoice.paid_amount += credit_to_apply
+                    reservation.med_org.credit_balance -= credit_to_apply
                     
-                    # Create the payment record for the used credit
-                    invoice.paid_amount += amount_to_pay
+                    # SYNC: Reduce paid_amount on invoices that carry this credit
+                    logger.info(f"Applying credit: {credit_to_apply} for MedOrg {reservation.med_org_id}")
+                    
+                    overpaid_invoices_query = select(Invoice).join(
+                        Reservation, Invoice.reservation_id == Reservation.id
+                    ).where(
+                        (Reservation.med_org_id == reservation.med_org_id) &
+                        (Invoice.paid_amount > Invoice.total_amount) &
+                        (Invoice.id != invoice.id)
+                    ).order_by(Invoice.date.asc()).with_for_update()
+                    
+                    overpaid_res = await db.execute(overpaid_invoices_query)
+                    overpaid_invoices = overpaid_res.scalars().all()
+                    
+                    logger.info(f"Found {len(overpaid_invoices)} overpaid invoices to sync")
+                    
+                    temp_credit = credit_to_apply
+                    for op_inv in overpaid_invoices:
+                        if temp_credit <= 0: break
+                        excess = op_inv.paid_amount - op_inv.total_amount
+                        reduction = min(temp_credit, excess)
+                        logger.info(f"Reducing Invoice #{op_inv.id} paid_amount by {reduction}")
+                        op_inv.paid_amount -= reduction
+                        temp_credit -= reduction
+                    
+                    await db.flush()
+
                     if invoice.paid_amount >= invoice.total_amount:
                         invoice.status = InvoiceStatus.PAID
                     else:
                         invoice.status = InvoiceStatus.PARTIAL
                         
+                    # Create payment record for the applied credit
                     credit_payment = Payment(
                         invoice_id=invoice.id,
-                        med_org_id=reservation.med_org_id,
-                        amount=amount_to_pay,
-                        payment_type=PaymentType.OTHER,
+                        amount=credit_to_apply,
+                        payment_type=PaymentType.BANK,
                         processed_by_id=reservation.created_by_id,
-                        comment="Оплачено через баланс (Ранее существующий аванс)",
-                        date=datetime.utcnow()
+                        comment="За счет кредиторки"
                     )
                     db.add(credit_payment)
-                    
-            # 6.5. Apply Tovar Skidka (Promo balance from another invoice) - Keep existing logic
+
+            # 6.5. Apply Tovar Skidka (Promo balance from another invoice)
             if reservation.is_tovar_skidka and reservation.source_invoice_id:
                 # Deduct promo balance from source invoice and mark this one paid
                 source_inv_query = select(Invoice).where(Invoice.id == reservation.source_invoice_id).with_for_update()

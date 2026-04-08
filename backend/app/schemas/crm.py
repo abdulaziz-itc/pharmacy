@@ -56,7 +56,6 @@ class MedicalOrganizationBase(BaseModel):
     inn: Optional[str] = None
     director_name: Optional[str] = None
     contact_phone: Optional[str] = None
-    credit_balance: Optional[float] = 0.0
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
