@@ -363,6 +363,7 @@ class ReservationService:
                     logger.info(f"Found {len(overpaid_invoices)} overpaid invoices to sync")
                     
                     temp_credit = credit_to_apply
+                    used_invoices_refs = []
                     for op_inv in overpaid_invoices:
                         if temp_credit <= 0: break
                         excess = op_inv.paid_amount - op_inv.total_amount
@@ -370,6 +371,9 @@ class ReservationService:
                         logger.info(f"Reducing Invoice #{op_inv.id} paid_amount by {reduction}")
                         op_inv.paid_amount -= reduction
                         temp_credit -= reduction
+                        
+                        ref = op_inv.factura_number if op_inv.factura_number else f"#{op_inv.id}"
+                        used_invoices_refs.append(ref)
                     
                     await db.flush()
 
@@ -379,12 +383,16 @@ class ReservationService:
                         invoice.status = InvoiceStatus.PARTIAL
                         
                     # Create payment record for the applied credit
+                    comment = "За счет кредиторки"
+                    if used_invoices_refs:
+                        comment += f" (счет-фактуры: {', '.join(used_invoices_refs)})"
+                        
                     credit_payment = Payment(
                         invoice_id=invoice.id,
                         amount=credit_to_apply,
                         payment_type=PaymentType.BANK,
                         processed_by_id=reservation.created_by_id,
-                        comment="За счет кредиторки"
+                        comment=comment
                     )
                     db.add(credit_payment)
 

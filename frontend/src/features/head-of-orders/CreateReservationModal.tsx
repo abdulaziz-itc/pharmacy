@@ -420,7 +420,14 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                         >
                                             <span className="text-xl">{selectedOrgTypeObj?.icon}</span>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-slate-800 text-sm truncate">{org.name}</p>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="font-semibold text-slate-800 text-sm truncate">{org.name}</p>
+                                                    {org.credit_balance > 0 && (
+                                                        <span className="shrink-0 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full border border-emerald-200">
+                                                            +{org.credit_balance.toLocaleString()} UZS
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-xs text-slate-400">
                                                     {org.inn ? `ИНН: ${org.inn} ` : ''}
                                                     {org.inn && org.address ? '• ' : ''}
@@ -433,6 +440,24 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                         </button>
                                     ))}
                                     </div>
+                                    
+                                    {/* Credit Balance Alert/Card */}
+                                    {selectedOrgObj && selectedOrgObj.credit_balance > 0 && (
+                                        <div className="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                                            <div className="w-10 h-10 bg-white rounded-lg shadow-sm flex items-center justify-center text-emerald-600 shrink-0">
+                                                <Plus className="w-5 h-5" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Доступная кредиторка</p>
+                                                <p className="text-sm font-black text-emerald-900">
+                                                    {selectedOrgObj.credit_balance.toLocaleString()} UZS
+                                                </p>
+                                                <p className="text-[10px] text-emerald-600 mt-0.5 leading-tight">
+                                                    Сумма будет автоматически списана при подтверждении брони
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </>
                             )}
 
