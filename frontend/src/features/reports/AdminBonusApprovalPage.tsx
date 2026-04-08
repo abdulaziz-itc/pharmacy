@@ -410,7 +410,7 @@ export default function AdminBonusApprovalPage() {
                                                 {formatMoney(rep.accrued || 0)} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-amber-600 bg-slate-50/30 whitespace-nowrap">
-                                                {formatMoney(Math.max(0, (rep.paid || 0) - (rep.accrued || 0)))} UZS
+                                                {formatMoney(rep.predinvest || 0)} UZS
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-emerald-600 bg-slate-50/30 whitespace-nowrap">
                                                 {formatMoney(rep.paid || 0)} UZS

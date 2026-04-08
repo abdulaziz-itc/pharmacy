@@ -377,12 +377,13 @@ async def get_comprehensive_stats(
 
     for r in bonus_res:
         if r.ledger_type == LedgerType.ACCRUAL:
-            accrued_sum += r.amount
-            if r.is_paid:
+            if r.notes == "Аванс (Предынвест)":
+                predinvest_sum += r.amount
                 paid_sum += r.amount
-            # According to user, the 132.0 payment should be standard Viplacheno, and Predinvest should be 0.
-            # We will use a stricter check for Pre-invest in the future if needed.
-            # predinvest_sum remains 0.0
+            else:
+                accrued_sum += r.amount
+                if r.is_paid:
+                    paid_sum += r.amount
         elif r.ledger_type == LedgerType.OFFSET:
             allocated_sum += abs(r.amount)
         elif r.ledger_type == LedgerType.PAYOUT:
