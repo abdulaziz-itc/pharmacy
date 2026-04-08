@@ -12,7 +12,26 @@ interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElemen
  */
 export function formatMoney(value: string | number): string {
     if (value === null || value === undefined || value === '') return '';
-    const num = typeof value === 'number' ? value : Number(value.toString().replace(/\./g, '').replace(/,/g, '.'));
+    
+    let num: number;
+    if (typeof value === 'number') {
+        num = value;
+    } else {
+        const valStr = value.toString();
+        // Heuristic: if it has a comma, it's the formatted style (1.000,00)
+        // If it has multiple dots, it's also formatted (1.000.000)
+        const hasComma = valStr.includes(',');
+        const hasManyDots = (valStr.match(/\./g) || []).length > 1;
+        
+        if (hasComma || hasManyDots) {
+            num = Number(valStr.replace(/\./g, '').replace(/,/g, '.'));
+        } else {
+            // Raw JS number string (e.g. "12899.69" or "1000")
+            // Number() handles these dots correctly as decimals.
+            num = Number(valStr);
+        }
+    }
+    
     if (isNaN(num)) return '';
     
     const fixed = num.toFixed(2);
@@ -25,8 +44,16 @@ export function formatMoney(value: string | number): string {
  * Strips everything except digits and the first decimal separator.
  */
 export function parseMoney(formatted: string): string {
-    // Standardize to dot as decimal
-    return formatted.replace(/\./g, '').replace(/,/g, '.');
+    if (typeof formatted !== 'string') return String(formatted);
+    
+    // Heuristic similar to formatMoney: 
+    // If it has a comma or multiple dots, treat it as formatted and strip thousands.
+    if (formatted.includes(',') || (formatted.match(/\./g) || []).length > 1) {
+        return formatted.replace(/\./g, '').replace(/,/g, '.');
+    }
+    
+    // Single dot and no comma: likely already a raw numeric string
+    return formatted;
 }
 
 /**
@@ -120,7 +147,7 @@ export function MoneyInput({ value, onChange, className, ...props }: MoneyInputP
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
         setIsFocused(false);
-        // Strict formatting on blur
+        // Strict formatting on blur using the standardized formatMoney
         setLocalValue(formatMoney(value));
         props.onBlur?.(e);
     };
@@ -131,6 +158,7 @@ export function MoneyInput({ value, onChange, className, ...props }: MoneyInputP
             ref={inputRef}
             type="text"
             inputMode="decimal"
+            autoComplete="off"
             value={localValue}
             onChange={handleChange}
             onFocus={handleFocus}

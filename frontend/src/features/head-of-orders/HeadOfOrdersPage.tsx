@@ -620,8 +620,8 @@ const HeadOfOrdersPage: React.FC = () => {
     });
 
     const filteredDebitorka = filteredInv.filter(inv => {
-        const debt = (inv.total_amount || 0) - (inv.paid_amount || 0);
-        return debt > 0;
+        const debt = (Number(inv.total_amount) || 0) - (Number(inv.paid_amount) || 0);
+        return Math.round(debt) > 0;
     });
 
     // --- Stats Calculation ---
