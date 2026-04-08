@@ -76,7 +76,8 @@ export default function InvoicesPage() {
         return {
             totalAmount: total,
             paidAmount: paid,
-            debtAmount: total - paid,
+            debtAmount: invoices.reduce((acc: number, inv: any) => acc + Math.max(0, (inv.total_amount || 0) - (inv.paid_amount || 0)), 0),
+            creditAmount: invoices.reduce((acc: number, inv: any) => acc + Math.max(0, (inv.paid_amount || 0) - (inv.total_amount || 0)), 0),
             resCount: invoices.length,
             promoAmount: totalPromo,
             tovarSkidkaAmount,

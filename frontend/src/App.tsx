@@ -30,6 +30,8 @@ import DirectorHRDPage from './features/hrd/DirectorHRDPage';
 import LoginHistoryPage from './features/hrd/LoginHistoryPage';
 import RolePermissionsPage from './features/permissions/RolePermissionsPage';
 import AccountantPage from './features/finance/AccountantPage';
+import KreditorkaPage from './features/kreditorka/KreditorkaPage';
+import CounterpartyBalancePage from './features/counterparty-balance/CounterpartyBalancePage';
 import DashboardLayout from './layouts/DashboardLayout';
 import { useAuthStore } from './store/authStore';
 import { Toaster } from 'sonner';
@@ -86,6 +88,8 @@ function App() {
             <Route path="/hrd/login-history" element={<LoginHistoryPage />} />
             <Route path="/role-permissions" element={<RolePermissionsPage />} />
             <Route path="/accountant" element={<AccountantPage />} />
+            <Route path="/kreditorka" element={<KreditorkaPage />} />
+            <Route path="/counterparty-balance" element={<CounterpartyBalancePage />} />
           </Route>
 
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

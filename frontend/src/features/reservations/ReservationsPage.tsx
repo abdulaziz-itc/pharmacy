@@ -76,6 +76,7 @@ export default function ReservationsPage() {
             totalAmount: totalAmount,
             paidAmount: 0,
             debtAmount: 0,
+            creditAmount: 0,
             resCount: reservations.length,
             promoAmount: totalPromo,
             tovarSkidkaAmount,

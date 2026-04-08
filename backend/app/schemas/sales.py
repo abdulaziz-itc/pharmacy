@@ -274,7 +274,8 @@ class DeletionRequests(BaseModel):
 
 # Payment
 class PaymentBase(BaseModel):
-    invoice_id: int
+    invoice_id: Optional[int] = None
+    med_org_id: Optional[int] = None
     amount: float
     payment_type: PaymentType
     comment: Optional[str] = None
@@ -289,6 +290,19 @@ class Payment(PaymentBase):
     processed_by: Optional[User] = None
     class Config:
         orm_mode = True
+
+# Counterparty Finance History
+class CounterpartyFinanceHistoryItem(BaseModel):
+    id: int
+    type: str # 'invoice' or 'payment'
+    date: datetime
+    amount: float # total_amount for invoice, amount for payment
+    status: Optional[str] = None
+    reference: Optional[str] = None # factura_number or payment comment
+    description: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 
 Reservation.model_rebuild()
 Invoice.model_rebuild()
@@ -371,6 +385,22 @@ class BonusAllocationCreate(BaseModel):
     target_month: int
     target_year: int
     notes: Optional[str] = None
+
+# Balance Top-up
+class BalanceTopUpBase(BaseModel):
+    amount: float
+    comment: str
+    date: Optional[datetime] = None
+
+class BalanceTopUpCreate(BalanceTopUpBase):
+    pass
+
+class BalanceTopUp(BalanceTopUpBase):
+    id: int
+    med_org_id: int
+    processed_by_id: int
+    class Config:
+        from_attributes = True
 
 # Unassigned Sale Sub-schemas
 class MedOrgInUnassigned(BaseModel):

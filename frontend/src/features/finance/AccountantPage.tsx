@@ -18,6 +18,7 @@ import { DrilldownModal } from '../../components/analytics/DrilldownModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PremiumKpiCard } from '../../components/analytics/PremiumKpiCard';
 import { MoneyInput } from '../../components/ui/MoneyInput';
+import { Landmark } from 'lucide-react';
 
 type Expense = {
     id: number;
@@ -463,6 +464,45 @@ export default function AccountantPage() {
                     badge="NET PROFIT"
                 />
             </motion.div>
+
+            {/* Financial Management Quick Links */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div 
+                    onClick={() => window.location.href = '/counterparty-balance'}
+                    className="group bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between cursor-pointer hover:border-indigo-500/30 transition-all hover:-translate-y-1"
+                >
+                    <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 transition-colors group-hover:bg-indigo-600 group-hover:text-white">
+                            <Landmark className="w-7 h-7" />
+                        </div>
+                        <div>
+                            <h4 className="text-xl font-black text-slate-800">Баланс контрагентов</h4>
+                            <p className="text-sm font-medium text-slate-500">Управление авансами и долгами организаций</p>
+                        </div>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600">
+                        <Plus className="w-5 h-5" />
+                    </div>
+                </div>
+
+                <div 
+                    onClick={() => window.location.href = '/kreditorka'}
+                    className="group bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-between cursor-pointer hover:border-rose-500/30 transition-all hover:-translate-y-1"
+                >
+                    <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600 transition-colors group-hover:bg-rose-600 group-hover:text-white">
+                            <Plus className="w-7 h-7" />
+                        </div>
+                        <div>
+                            <h4 className="text-xl font-black text-slate-800">Кредиторка</h4>
+                            <p className="text-sm font-medium text-slate-500">Реестр переплат по счетам-фактурам</p>
+                        </div>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-rose-50 group-hover:text-rose-600">
+                        <Plus className="w-5 h-5" />
+                    </div>
+                </div>
+            </div>
 
             {drilldownMetric && (
                 <DrilldownModal 

@@ -20,6 +20,7 @@ import {
     Activity,
     Warehouse,
     Shield,
+    Landmark,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuthStore } from '../store/authStore';
@@ -47,6 +48,8 @@ const ALL_SIDEBAR_ITEMS = [
     { icon: FileText, label: 'Фактура', href: '/invoices', sectionKey: 'invoices' },
     { icon: CreditCard, label: 'Дебиторка', href: '/debtors', sectionKey: 'debtors' },
     { icon: Wallet, label: 'Платежи', href: '/payments', sectionKey: 'payments' },
+    { icon: Activity, label: 'Кредиторка', href: '/kreditorka', sectionKey: 'kreditorka' },
+    { icon: Landmark, label: 'Баланс контрагентов', href: '/counterparty-balance', sectionKey: 'counterparty_balance' },
     { icon: PieChart, label: 'Статистика', href: '/stats', sectionKey: 'stats' },
     { icon: Activity, label: 'Журнал аудита', href: '/audit', sectionKey: 'audit' },
     // Head of Orders sections
@@ -126,7 +129,7 @@ export function Sidebar() {
                 .filter(item => {
                     // For accountant, force-enable common financial sections
                     if (user?.role === 'accountant') {
-                        const accountantSections = ['dashboard', 'accountant', 'reports', 'stats', 'invoices', 'payments', 'debtors'];
+                        const accountantSections = ['dashboard', 'accountant', 'reports', 'stats', 'invoices', 'payments', 'debtors', 'kreditorka', 'counterparty_balance'];
                         if (accountantSections.includes(item.sectionKey)) return true;
                     }
                     return enabledSections.includes(item.sectionKey);

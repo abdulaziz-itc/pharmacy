@@ -1,6 +1,6 @@
 import { PageContainer } from '../../components/PageContainer';
 import { PageHeader } from '../../components/PageHeader';
-import { FileText, Download, Wallet, TrendingDown, Landmark } from 'lucide-react';
+import { FileText, Download, Wallet, TrendingDown, Landmark, Plus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { DataTable } from '../../components/ui/data-table';
@@ -31,7 +31,7 @@ export default function DebtorsPage() {
     const { data: invoices = [], isLoading, refetch } = useQuery({
         queryKey: ['invoices-debtors', filterValues],
         queryFn: async () => {
-            const params: any = { has_debt: true };
+            const params: any = {};
             if (filterValues.dateStart) params.date_from = filterValues.dateStart;
             if (filterValues.dateEnd) params.date_to = filterValues.dateEnd;
             if (filterValues.selectedMedRep !== 'all') params.med_rep_id = filterValues.selectedMedRep;
@@ -68,7 +68,8 @@ export default function DebtorsPage() {
         return {
             totalAmount: total,
             paidAmount: paid,
-            debtAmount: total - paid,
+            debtAmount: invoices.reduce((acc: number, inv: any) => acc + Math.max(0, (inv.total_amount || 0) - (inv.paid_amount || 0)), 0),
+            creditAmount: invoices.reduce((acc: number, inv: any) => acc + Math.max(0, (inv.paid_amount || 0) - (inv.total_amount || 0)), 0),
             resCount: invoices.length,
             promoAmount: totalPromo,
             tovarSkidkaAmount: 0,
@@ -208,7 +209,7 @@ export default function DebtorsPage() {
             />
 
             {/* HIGH-VISIBILITY TOTAL DEBT BANNER */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-gradient-to-br from-rose-500 to-rose-600 rounded-[2rem] p-8 text-white shadow-2xl shadow-rose-200 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:scale-110 transition-transform duration-700" />
                     <div className="relative z-10">
@@ -230,7 +231,29 @@ export default function DebtorsPage() {
                         </div>
                         <div className="mt-6 flex items-center gap-2 text-rose-100/60 text-[10px] font-black uppercase tracking-widest">
                             <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                            Основано на {stats.resCount} фактурах
+                            Основано на {invoices.filter((i: any) => (i.total_amount || 0) > (i.paid_amount || 0)).length} фактурах
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-[2rem] p-8 text-white shadow-2xl shadow-indigo-200 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:scale-110 transition-transform duration-700" />
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                                <Plus className="w-6 h-6 text-white" />
+                            </div>
+                            <span className="text-xs font-black uppercase tracking-[0.2em] opacity-80 italic">КРЕДИТОРКА</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black tracking-tighter tabular-nums drop-shadow-lg">
+                                {stats.creditAmount.toLocaleString()}
+                            </span>
+                            <span className="text-xl font-bold opacity-60">UZS</span>
+                        </div>
+                        <div className="mt-6 flex items-center gap-2 text-indigo-100/60 text-[10px] font-black uppercase tracking-widest">
+                            <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                            Переплаты по {invoices.filter((i: any) => (i.paid_amount || 0) > (i.total_amount || 0)).length} фактурам
                         </div>
                     </div>
                 </div>

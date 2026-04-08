@@ -25,7 +25,8 @@ from app.schemas.sales import (
     Invoice as InvoiceSchema, Payment as PaymentSchema, PaymentCreate,
     DoctorFactAssignment as DoctorFactAssignmentSchema, DoctorFactAssignmentCreate, SaleFact,
     BonusPayment as BonusPaymentSchema, BonusPaymentCreate, BonusPaymentUpdate,
-    ReservationReturnCreate, BonusAllocationCreate
+    ReservationReturnCreate, BonusAllocationCreate,
+    CounterpartyFinanceHistoryItem
 )
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -515,6 +516,152 @@ async def get_eligible_invoices_for_tovar_skidka(
         error_detail = traceback.format_exc()
         logger.error(f"Error in get_eligible_invoices_for_tovar_skidka: {error_detail}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# --- Organization Financials & Balances ---
+
+@router.get("/organizations/balances")
+async def read_organization_balances(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    skip: int = 0,
+    limit: int = 100,
+    search: Optional[str] = None
+) -> Any:
+    """
+    Get all organizations with their credit_balance and summary stats.
+    """
+    query = select(MedicalOrganization).options(
+        selectinload(MedicalOrganization.region),
+        selectinload(MedicalOrganization.assigned_reps)
+    )
+    if search:
+        query = query.where(
+            (MedicalOrganization.name.ilike(f"%{search}%")) |
+            (MedicalOrganization.inn.ilike(f"%{search}%"))
+        )
+    
+    query = query.offset(skip).limit(limit)
+    result = await db.execute(query)
+    orgs = result.scalars().all()
+    
+    output = []
+    for org in orgs:
+        # Calculate total debt (unpaid invoices)
+        debt_query = select(Invoice).join(Reservation).where(
+            (Reservation.med_org_id == org.id) &
+            (Invoice.total_amount > Invoice.paid_amount)
+        )
+        debt_res = await db.execute(debt_query)
+        unpaid_invoices = debt_res.scalars().all()
+        total_debt = sum(max(0, i.total_amount - i.paid_amount) for i in unpaid_invoices)
+        
+        output.append({
+            "id": org.id,
+            "name": org.name,
+            "inn": org.inn,
+            "region": org.region.name if org.region else None,
+            "credit_balance": org.credit_balance or 0.0,
+            "debt_balance": total_debt,
+            "total_balance": (org.credit_balance or 0.0) - total_debt
+        })
+    
+    return output
+
+@router.get("/organizations/{id}/finance-history", response_model=List[CounterpartyFinanceHistoryItem])
+async def read_organization_finance_history(
+    id: int,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+) -> Any:
+    """
+    Get chronological history of invoices and payments for an organization.
+    """
+    # 1. Fetch Invoices
+    inv_query = select(Invoice).join(Reservation).where(Reservation.med_org_id == id).order_by(Invoice.date.desc())
+    inv_res = await db.execute(inv_query)
+    invoices = inv_res.scalars().all()
+    
+    # 2. Fetch Payments (including top-ups to invoices)
+    pay_query = select(Payment).where(Payment.med_org_id == id).order_by(Payment.date.desc())
+    pay_res = await db.execute(pay_query)
+    payments = pay_res.scalars().all()
+    
+    # 3. Fetch Manual Balance Top-ups (The actual source transactions)
+    from app.models.sales import BalanceTopUp
+    topup_query = select(BalanceTopUp).where(BalanceTopUp.med_org_id == id).order_by(BalanceTopUp.date.desc())
+    topup_res = await db.execute(topup_query)
+    topups = topup_res.scalars().all()
+    
+    history = []
+    for inv in invoices:
+        history.append({
+            "id": inv.id,
+            "type": "invoice",
+            "date": inv.date,
+            "amount": inv.total_amount,
+            "status": inv.status,
+            "reference": inv.factura_number or f"INV-{inv.id}",
+            "description": f"Реализация (Счет-фактура)"
+        })
+    
+    for pay in payments:
+        # If this payment was generated via FIFO, it will have a specific comment
+        history.append({
+            "id": pay.id,
+            "type": "payment",
+            "date": pay.date,
+            "amount": pay.amount,
+            "status": "paid",
+            "reference": f"PAY-{pay.id}",
+            "description": pay.comment or "Поступление средств"
+        })
+        
+    for tp in topups:
+        history.append({
+            "id": tp.id,
+            "type": "topup",
+            "date": tp.date,
+            "amount": tp.amount,
+            "status": "completed",
+            "reference": f"TOP-{tp.id}",
+            "description": f"Пополнение баланса: {tp.comment}"
+        })
+    
+    # Sort by date
+    history.sort(key=lambda x: x['date'], reverse=True)
+    return history
+
+@router.post("/organizations/{id}/top-up")
+async def top_up_organization_balance(
+    id: int,
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    top_up_in: BalanceTopUpCreate,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request
+) -> Any:
+    """
+    Manual balance top-up for an organization with automatic FIFO debt settlement.
+    """
+    from app.services.finance_service import FinanceService
+    
+    top_up = await FinanceService.top_up_balance(
+        db, 
+        med_org_id=id, 
+        amount=top_up_in.amount, 
+        comment=top_up_in.comment, 
+        processed_by_id=current_user.id,
+        top_up_date=top_up_in.date
+    )
+    
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "TOPUP", "MedicalOrganization", id,
+        f"Пополнение баланса организации: {top_up_in.amount:,.0f} UZS. Основание: {top_up_in.comment}",
+        request
+    )
+    
+    return {"id": top_up.id, "amount": top_up.amount, "date": top_up.date}
 
 # Payments
 @router.post("/payments/", response_model=PaymentSchema)

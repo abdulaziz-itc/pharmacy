@@ -165,8 +165,8 @@ const HeadOfOrdersPage: React.FC = () => {
 
     // Confirmation for activation
     const [showActivateConfirm, setShowActivateConfirm] = useState<number | null>(null);
-    // Confirmation for deletion
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+    const [showOverpaidModal, setShowOverpaidModal] = useState(false);
 
 
     // Filter states
@@ -634,7 +634,12 @@ const HeadOfOrdersPage: React.FC = () => {
         debtAmount: filteredInv.reduce((sum, inv) => {
             const total = Number(inv.total_amount) || 0;
             const paid = Number(inv.paid_amount) || 0;
-            return sum + (total - paid);
+            return sum + Math.max(0, total - paid);
+        }, 0),
+        creditAmount: filteredInv.reduce((sum, inv) => {
+            const total = Number(inv.total_amount) || 0;
+            const paid = Number(inv.paid_amount) || 0;
+            return sum + Math.max(0, paid - total);
         }, 0),
         resCount: allFilteredReservations.length,
         resPendingCount: allFilteredReservations.filter(r => r.status === 'pending').length,
@@ -1303,7 +1308,7 @@ const HeadOfOrdersPage: React.FC = () => {
                             countLabel="Кол-во (Фактуры)"
                             showPromo={false}
                             totalLabel="ОБЩАЯ ПРОДАЖА"
-                            showFinancials={true}
+                            onCreditClick={() => setShowOverpaidModal(true)}
                         />
                         <div className="bg-white rounded-3xl border border-slate-200 shadow-xl mx-4 mb-4">
                             <div
@@ -2603,6 +2608,83 @@ const HeadOfOrdersPage: React.FC = () => {
                             </Button>
                         </div>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+
+            {/* Overpaid Invoices Modal */}
+            <Dialog open={showOverpaidModal} onOpenChange={setShowOverpaidModal}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-none bg-slate-50/95 backdrop-blur-xl">
+                    <DialogHeader className="p-6 bg-white border-b border-slate-100">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                <Plus className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-2xl font-black text-slate-800 tracking-tight italic">Кредиторка</DialogTitle>
+                                <DialogDescription className="text-slate-400 font-medium">Список фактур с избыточной оплатой (переплаты)</DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+                    
+                    <div className="p-6">
+                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                                        <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400">Номер фактуры</TableHead>
+                                        <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400">Клиент</TableHead>
+                                        <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400">МП</TableHead>
+                                        <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 text-right">Сумма</TableHead>
+                                        <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 text-right">Оплачено</TableHead>
+                                        <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 text-right">Переплата</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredInv
+                                        .filter(inv => (Number(inv.paid_amount) || 0) > (Number(inv.total_amount) || 0))
+                                        .map(inv => {
+                                            const overpayment = (Number(inv.paid_amount) || 0) - (Number(inv.total_amount) || 0);
+                                            return (
+                                                <TableRow key={inv.id} className="hover:bg-indigo-50/30 transition-colors border-slate-100">
+                                                    <TableCell className="font-bold text-slate-700">{inv.factura_number || `INV-${inv.id}`}</TableCell>
+                                                    <TableCell className="font-medium text-slate-600">{inv.reservation?.med_org?.name || inv.reservation?.customer_name || '—'}</TableCell>
+                                                    <TableCell className="text-slate-500 text-xs italic">
+                                                        {inv.reservation?.med_org?.assigned_reps?.[0]?.full_name || '—'}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-medium text-slate-500">{formatMoney(inv.total_amount || 0)}</TableCell>
+                                                    <TableCell className="text-right font-bold text-slate-700">{formatMoney(inv.paid_amount || 0)}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg font-black text-xs">
+                                                            +{formatMoney(overpayment)}
+                                                        </span>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    {filteredInv.filter(inv => (Number(inv.paid_amount) || 0) > (Number(inv.total_amount) || 0)).length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="h-32 text-center text-slate-400 italic">
+                                                Переплат не найдено
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                    
+                    <DialogFooter className="p-6 bg-slate-50 border-t border-slate-200">
+                        <div className="flex items-center justify-between w-full">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ИТОГО КРЕДИТОРКА</span>
+                                <span className="text-xl font-black text-indigo-600 tracking-tight">{formatMoney(stats.creditAmount)} UZS</span>
+                            </div>
+                            <Button onClick={() => setShowOverpaidModal(false)} className="bg-slate-800 hover:bg-slate-900 text-white rounded-xl px-8 font-bold uppercase tracking-widest text-[10px] h-11">
+                                Закрыть
+                            </Button>
+                        </div>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
