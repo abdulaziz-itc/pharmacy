@@ -135,3 +135,23 @@ class Doctor(DoctorBase):
     class Config:
         orm_mode = True
         from_attributes = True
+
+# Balance
+from datetime import datetime
+
+class OrganizationBalanceTopUp(BaseModel):
+    med_org_id: int
+    amount: float
+    comment: Optional[str] = None
+
+class BalanceTransaction(BaseModel):
+    id: int
+    med_org_id: int
+    amount: float
+    transaction_type: str
+    comment: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
