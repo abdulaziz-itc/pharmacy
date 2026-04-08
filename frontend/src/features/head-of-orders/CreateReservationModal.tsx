@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2, ChevronRight, ChevronLeft, ShoppingCart, Building2, User, Warehouse, Check, Loader2 } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, ChevronLeft, ShoppingCart, Building2, User, Warehouse, Check, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { getWarehouses } from '@/api/orders-management';
 import { useProductStore } from '@/store/productStore';
@@ -58,6 +58,8 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     const [ndsPercent, setNdsPercent] = useState<number>(12);
     const [items, setItems] = useState<any[]>([{ product_id: '', quantity: 1, price: 0, marketing_amount: 0, salary_amount: 0 }]);
     const [showBonusConfirm, setShowBonusConfirm] = useState(false);
+    const [medRepSearch, setMedRepSearch] = useState('');
+    const [orgSearch, setOrgSearch] = useState('');
 
     useEffect(() => {
         if (isOpen) {
@@ -73,6 +75,8 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
             setSelectedSourceInvoice('');
             setItems([{ product_id: '', quantity: 1, price: 0, marketing_amount: 0, salary_amount: 0 }]);
             setShowBonusConfirm(false);
+            setMedRepSearch('');
+            setOrgSearch('');
             fetchInitialData().then(() => {
                 if (initialMedRepId && initialOrgType) {
                     fetchOrgs(initialMedRepId.toString(), initialOrgType);
@@ -311,10 +315,31 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                     <p className="text-xs text-slate-400">Отобразятся организации типа «{selectedOrgTypeObj?.label}»</p>
                                 </div>
                             </div>
+
+                            {/* Med Rep Search */}
+                            <div className="relative group">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                                <Input
+                                    placeholder="Поиск по имени или телефону..."
+                                    value={medRepSearch}
+                                    onChange={(e) => setMedRepSearch(e.target.value)}
+                                    className="pl-10 h-10 border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 rounded-xl text-sm italic"
+                                />
+                            </div>
+
                             <div className="grid gap-2 max-h-56 overflow-y-auto pr-1">
                                 {medReps.length === 0 ? (
                                     <p className="text-center py-8 text-slate-400 text-sm">Мед. представители не найдены</p>
-                                ) : medReps.map(rep => (
+                                ) : medReps
+                                    .filter(rep => {
+                                        const search = medRepSearch.toLowerCase().trim();
+                                        if (!search) return true;
+                                        const name = repName(rep).toLowerCase();
+                                        const phone = (rep.phone || '').toLowerCase();
+                                        return name.includes(search) || phone.includes(search);
+                                    })
+                                    .sort((a, b) => repName(a).localeCompare(repName(b)))
+                                    .map(rep => (
                                     <button
                                         key={rep.id}
                                         onClick={() => setSelectedMedRep(rep.id.toString())}
@@ -362,8 +387,29 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                     <p className="text-sm">Организации не найдены</p>
                                 </div>
                             ) : (
-                                <div className="grid gap-2 max-h-36 overflow-y-auto pr-1">
-                                    {orgs.map(org => (
+                                <>
+                                    {/* Org Search */}
+                                    <div className="relative group mb-1">
+                                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-violet-500 transition-colors" />
+                                        <Input
+                                            placeholder="Поиск по названию или ИНН..."
+                                            value={orgSearch}
+                                            onChange={(e) => setOrgSearch(e.target.value)}
+                                            className="pl-10 h-10 border-slate-200 focus:border-violet-400 focus:ring-4 focus:ring-violet-500/5 rounded-xl text-sm italic"
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-2 max-h-36 overflow-y-auto pr-1">
+                                        {orgs
+                                            .filter(org => {
+                                                const search = orgSearch.toLowerCase().trim();
+                                                if (!search) return true;
+                                                const name = (org.name || '').toLowerCase();
+                                                const inn = (org.inn || '').toLowerCase();
+                                                return name.includes(search) || inn.includes(search);
+                                            })
+                                            .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                                            .map(org => (
                                         <button
                                             key={org.id}
                                             onClick={() => setSelectedOrg(org.id.toString())}
@@ -386,7 +432,8 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                             )}
                                         </button>
                                     ))}
-                                </div>
+                                    </div>
+                                </>
                             )}
 
                             {/* Склад */}
