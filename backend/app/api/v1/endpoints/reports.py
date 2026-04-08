@@ -21,7 +21,7 @@ async def get_comprehensive_reports(
     current_user: User = Depends(deps.get_current_user),
     start_date: date = Query(None),
     end_date: date = Query(None),
-    period: str = Query("monthly", regex="^(daily|weekly|monthly|quarterly|yearly)$"),
+    period: str = Query("monthly", pattern="^(daily|weekly|monthly|quarterly|yearly)$"),
     product_id: Optional[int] = Query(None),
     region_id: Optional[int] = Query(None),
     med_rep_id: Optional[int] = Query(None),

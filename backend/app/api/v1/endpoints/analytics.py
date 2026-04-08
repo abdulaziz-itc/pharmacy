@@ -2,7 +2,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
-from sqlalchemy import Date, cast, select, func, and_, or_
+from sqlalchemy import Date, cast, select, func, and_, or_, case
 from app.api import deps
 from app.models.user import User, UserRole
 from app.models.ledger import DoctorMonthlyStat
@@ -385,8 +385,8 @@ async def get_comprehensive_stats(
         func.coalesce(func.sum(
             (ReservationItem.price * (1 - func.coalesce(ReservationItem.discount_percent, 0) / 100.0) - 
              func.coalesce(Product.production_price, 0) - 
-             func.case((ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
-             func.case((ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
+             case((ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
+             case((ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
              func.coalesce(Product.other_expenses, 0)) * 
             ReservationItem.quantity * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
         ), 0.0)
@@ -418,8 +418,8 @@ async def get_comprehensive_stats(
         func.coalesce(func.sum(
             (ReservationItem.price * (1 - func.coalesce(ReservationItem.discount_percent, 0) / 100.0) - 
              func.coalesce(Product.production_price, 0) - 
-             func.case((ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
-             func.case((ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
+             case((ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
+             case((ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
              func.coalesce(Product.other_expenses, 0)) * 
             ReservationItem.quantity
         ), 0.0)
