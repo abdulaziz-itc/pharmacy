@@ -343,14 +343,14 @@ export default function StatsPage() {
                         }}
                         className="flex flex-col gap-6 mb-8"
                     >
-                        {/* ROW 1: Sales Performance - Soft Blue/Slate */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-4 rounded-[2.5rem] bg-indigo-50/30 border border-indigo-100/20">
+                        {/* ROW 1: Sales Performance - Masculine Slate/Blue */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 p-6 rounded-[2.5rem] bg-slate-50/80 border border-slate-200 shadow-sm">
                             <PremiumKpiCard
                                 variant="minimal"
                                 label="ПЛАН ПРОДАЖ"
                                 value={kpis.sales_plan_amount}
                                 icon={Target}
-                                color="indigo"
+                                color="navy"
                                 onClick={() => setDrilldownMetric({ id: 'sales_plan', label: 'План Продаж' })}
                             />
                             <PremiumKpiCard
@@ -361,7 +361,7 @@ export default function StatsPage() {
                                 subLabel="Количество товаров"
                                 subSuffix="шт"
                                 icon={Receipt}
-                                color="blue"
+                                color="indigo"
                                 onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Факт Отгрузки' })}
                             />
                             <PremiumKpiCard
@@ -378,18 +378,18 @@ export default function StatsPage() {
                                 label="ВАЛОВАЯ ПРИБЫЛЬ"
                                 value={kpis.gross_profit}
                                 icon={TrendingUp}
-                                color="cyan"
+                                color="indigo"
                             />
                         </div>
 
-                        {/* ROW 2: Incentive Programs - Soft Violet */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-4 rounded-[2.5rem] bg-violet-50/30 border border-violet-100/20">
+                        {/* ROW 2: Incentive Programs - Bold Indigo */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 p-6 rounded-[2.5rem] bg-indigo-100/30 border border-indigo-200/30 shadow-sm">
                             <PremiumKpiCard
                                 variant="minimal"
                                 label="НАЧИСЛЕНО БОНУСА"
                                 value={kpis.bonus_accrued}
                                 icon={Coins}
-                                color="violet"
+                                color="indigo"
                                 onClick={() => setDrilldownMetric({ id: 'bonus_accrued', label: 'Начислено Бонуса' })}
                             />
                             <PremiumKpiCard
@@ -397,7 +397,7 @@ export default function StatsPage() {
                                 label="ВСЕГО ВЫПЛАЧЕНО (БОНУС)"
                                 value={kpis.bonus_paid}
                                 icon={Users}
-                                color="indigo"
+                                color="navy"
                                 onClick={() => setDrilldownMetric({ id: 'bonus_paid', label: 'Всего Выплачено' })}
                             />
                             <PremiumKpiCard
@@ -412,19 +412,19 @@ export default function StatsPage() {
                                 label="ПРЕДИНВЕСТ"
                                 value={kpis.total_predinvest}
                                 icon={Banknote}
-                                color="rose"
+                                color="emerald"
                                 onClick={() => setDrilldownMetric({ id: 'preinvest', label: 'Прединвест' })}
                             />
                         </div>
 
-                        {/* ROW 3: Financial Health - Soft Rose/Slate */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-4 rounded-[2.5rem] bg-rose-50/20 border border-rose-100/10">
+                        {/* ROW 3: Financial Health - Modern Emerald/Slate */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6 rounded-[2.5rem] bg-emerald-100/20 border border-emerald-200/20 shadow-sm">
                             <PremiumKpiCard
                                 variant="minimal"
                                 label="ДЕБИТОРКА"
                                 value={kpis.receivables}
                                 icon={Receipt}
-                                color="blue"
+                                color="indigo"
                                 onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Дебиторка' })}
                             />
                             <PremiumKpiCard
@@ -432,7 +432,7 @@ export default function StatsPage() {
                                 label="ПРОСРОЧЕННАЯ ДЕБИТОРКА"
                                 value={kpis.overdue_receivables}
                                 icon={FilterX}
-                                color="rose"
+                                color="navy"
                                 onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Просроченная Дебиторка' })}
                             />
                             <PremiumKpiCard
@@ -440,7 +440,7 @@ export default function StatsPage() {
                                 label="МАРКЕТИНГ/ПРОЧИЕ"
                                 value={kpis.total_expenses}
                                 icon={Activity}
-                                color="pink"
+                                color="slate"
                             />
                             <PremiumKpiCard
                                 variant="minimal"

@@ -7,7 +7,7 @@ interface PremiumKpiCardProps {
     label: string;
     value: number;
     icon: LucideIcon;
-    color: 'blue' | 'emerald' | 'rose' | 'violet' | 'amber' | 'indigo' | 'cyan' | 'pink';
+    color: 'blue' | 'emerald' | 'rose' | 'violet' | 'amber' | 'indigo' | 'cyan' | 'pink' | 'navy' | 'slate';
     badge?: string;
     onClick?: () => void;
     subtitle?: string;
@@ -69,46 +69,60 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
 }) => {
     const colorStyles: Record<string, any> = {
         blue: {
-            bg: 'bg-blue-50/50',
+            bg: 'bg-blue-50',
             text: 'text-blue-600',
-            border: 'border-blue-100',
+            border: 'border-blue-200/50',
             mesh: 'premium-mesh-blue',
             glow: 'shadow-blue-500/10'
         },
         emerald: {
-            bg: 'bg-emerald-50/50',
+            bg: 'bg-emerald-50',
             text: 'text-emerald-600',
-            border: 'border-emerald-100',
+            border: 'border-emerald-200/50',
             mesh: 'premium-mesh-emerald',
             glow: 'shadow-emerald-500/10'
         },
         rose: {
-            bg: 'bg-rose-50/50',
+            bg: 'bg-rose-50',
             text: 'text-rose-600',
-            border: 'border-rose-100',
+            border: 'border-rose-200/50',
             mesh: 'premium-mesh-rose',
             glow: 'shadow-rose-500/10'
         },
         violet: {
-            bg: 'bg-violet-50/50',
+            bg: 'bg-violet-50',
             text: 'text-violet-600',
-            border: 'border-violet-100',
+            border: 'border-violet-200/50',
             mesh: 'premium-mesh-violet',
             glow: 'shadow-violet-500/10'
         },
         amber: {
-            bg: 'bg-amber-50/50',
+            bg: 'bg-amber-50',
             text: 'text-amber-600',
-            border: 'border-amber-100',
-            mesh: 'premium-mesh-blue', // fallback or add rose/violet
+            border: 'border-amber-200/50',
+            mesh: 'premium-mesh-rose', 
             glow: 'shadow-amber-500/10'
         },
         indigo: {
-            bg: 'bg-indigo-50/50',
+            bg: 'bg-indigo-50',
             text: 'text-indigo-600',
-            border: 'border-indigo-100',
+            border: 'border-indigo-200/50',
             mesh: 'premium-mesh-blue',
             glow: 'shadow-indigo-500/10'
+        },
+        navy: {
+            bg: 'bg-slate-100/80',
+            text: 'text-slate-900',
+            border: 'border-slate-300/50',
+            mesh: 'premium-mesh-blue',
+            glow: 'shadow-slate-500/10'
+        },
+        slate: {
+            bg: 'bg-slate-50',
+            text: 'text-slate-600',
+            border: 'border-slate-200',
+            mesh: 'premium-mesh-blue',
+            glow: 'shadow-slate-400/10'
         }
     };
 
