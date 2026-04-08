@@ -26,7 +26,7 @@ from app.schemas.sales import (
     DoctorFactAssignment as DoctorFactAssignmentSchema, DoctorFactAssignmentCreate, SaleFact,
     BonusPayment as BonusPaymentSchema, BonusPaymentCreate, BonusPaymentUpdate,
     ReservationReturnCreate, BonusAllocationCreate,
-    CounterpartyFinanceHistoryItem
+    CounterpartyFinanceHistoryItem, BalanceTopUpCreate
 )
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
