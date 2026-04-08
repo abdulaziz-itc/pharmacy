@@ -164,6 +164,7 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
             customer: 'Контрагент',
             type: 'Тип',
             med_rep: 'Мед. Представитель',
+            mp_name: 'Мед. Представитель',
             product: 'Продукт',
             month: 'Месяц',
             year: 'Год',
@@ -179,7 +180,11 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
             profit: 'Прибыль',
             region: 'Регион',
             realization_date: 'Дата реализации',
-            delay_days: 'Просрочка (дни)'
+            delay_days: 'Просрочка (дни)',
+            salary_earned: 'Заработанная з/п',
+            accrued: 'Начислено',
+            paid: 'Выплачено',
+            balance: 'Остаток'
         };
 
         // Determine columns from first row + potential delay_days
@@ -220,7 +225,7 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                                     {displayColumns.map(col => {
                                         let val = rowWithDelay[col];
                                         if (col === 'date' || col === 'realization_date') val = format(new Date(val), 'dd.MM.yyyy');
-                                        if (['amount', 'total_amount', 'paid_amount', 'debt_amount', 'profit'].includes(col)) {
+                                        if (['amount', 'total_amount', 'paid_amount', 'debt_amount', 'profit', 'salary_earned', 'accrued', 'paid', 'balance'].includes(col)) {
                                             val = formatCurrency(Number(val));
                                         }
                                         if (col === 'paid_ratio') val = val + '%';

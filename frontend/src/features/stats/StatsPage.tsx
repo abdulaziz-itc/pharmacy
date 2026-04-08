@@ -450,6 +450,7 @@ export default function StatsPage() {
                                 value={kpis.salary_accrued}
                                 icon={Coins}
                                 color="indigo"
+                                onClick={() => setDrilldownMetric({ id: 'salary_accrued', label: 'МП Зарплата (Начислено)' })}
                             />
                             <PremiumKpiCard
                                 variant="minimal"
@@ -457,6 +458,7 @@ export default function StatsPage() {
                                 value={kpis.salary_paid}
                                 icon={Users}
                                 color="blue"
+                                onClick={() => setDrilldownMetric({ id: 'salary_paid', label: 'МП Зарплата (Выплачено)' })}
                             />
                             <PremiumKpiCard
                                 variant="minimal"
@@ -464,6 +466,7 @@ export default function StatsPage() {
                                 value={kpis.salary_balance}
                                 icon={Wallet}
                                 color="amber"
+                                onClick={() => setDrilldownMetric({ id: 'salary_balance', label: 'МП Зарплата (Остаток)' })}
                             />
                             <PremiumKpiCard
                                 variant="minimal"
@@ -472,6 +475,7 @@ export default function StatsPage() {
                                 icon={Boxes}
                                 color="violet"
                                 suffix=""
+                                onClick={() => setDrilldownMetric({ id: 'sold_items', label: 'Проdanнные Товары (шт)' })}
                             />
                         </div>
                     </motion.div>

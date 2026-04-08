@@ -879,6 +879,117 @@ async def get_comprehensive_drilldown(
             })
         return res_payload
 
+    elif metric == "salary_accrued":
+        from app.models.product import Product
+        q = select(ReservationItem).options(
+            selectinload(ReservationItem.product),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.invoice),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.created_by)
+        ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+         .join(Invoice, Invoice.reservation_id == Reservation.id)\
+         .join(Product, ReservationItem.product_id == Product.id)\
+         .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
+        
+        if start_date and end_date: q = q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        q = apply_filters(q, Reservation)
+        
+        rows = (await db.execute(q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
+        return [{
+            "id": r.id,
+            "date": r.reservation.invoice.date.isoformat(),
+            "mp_name": r.reservation.created_by.full_name if r.reservation.created_by else "-",
+            "product": r.product.name if r.product else "-",
+            "qty": r.quantity - r.returned_quantity,
+            "salary_earned": float((r.salary_amount or r.product.salary_expense or 0) * (r.quantity - r.returned_quantity) * (r.reservation.invoice.paid_amount / r.reservation.invoice.total_amount)),
+            "invoice_num": r.reservation.invoice.factura_number or f"#{r.reservation.invoice.id}",
+            "region": r.reservation.med_org.region.name if r.reservation.med_org and r.reservation.med_org.region else "-"
+        } for r in rows]
+
+    elif metric == "salary_paid":
+        q = select(BonusLedger).options(
+            selectinload(BonusLedger.user)
+        ).where(BonusLedger.ledger_type == LedgerType.PAYOUT, BonusLedger.category == "salary")
+        
+        if start_date and end_date: q = q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+        if rep_ids: q = q.where(BonusLedger.user_id.in_(rep_ids))
+        
+        rows = (await db.execute(q.order_by(BonusLedger.created_at.desc()).offset(skip).limit(limit))).scalars().all()
+        return [{
+            "id": r.id,
+            "date": r.created_at.isoformat(),
+            "mp_name": r.user.full_name if r.user else "-",
+            "amount": r.amount,
+            "description": r.notes or "-",
+        } for r in rows]
+
+    elif metric == "salary_balance":
+        # List of salaries balances per MedRep
+        from app.models.product import Product
+        reps_q = select(User).where(User.is_active == True, User.role == UserRole.MED_REP)
+        if rep_ids: reps_q = reps_q.where(User.id.in_(rep_ids))
+        reps = (await db.execute(reps_q)).scalars().all()
+        
+        result = []
+        for rep in reps:
+            # 1. Accrued for this rep
+            accrued_q = select(
+                func.coalesce(func.sum(
+                    func.coalesce(ReservationItem.salary_amount, Product.salary_expense, 0) * 
+                    (ReservationItem.quantity - ReservationItem.returned_quantity) * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
+                ), 0.0)
+            ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+             .join(Invoice, Invoice.reservation_id == Reservation.id)\
+             .join(Product, ReservationItem.product_id == Product.id)\
+             .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED, Reservation.created_by_id == rep.id))
+            
+            if start_date and end_date: accrued_q = accrued_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+            
+            # 2. Paid for this rep
+            paid_q = select(func.sum(BonusLedger.amount)).where(BonusLedger.user_id == rep.id, BonusLedger.ledger_type == LedgerType.PAYOUT, BonusLedger.category == "salary")
+            if start_date and end_date: paid_q = paid_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+            
+            accrued_val = (await db.execute(accrued_q)).scalar() or 0.0
+            paid_val = abs((await db.execute(paid_q)).scalar() or 0.0)
+            
+            if accrued_val > 0 or paid_val > 0:
+                result.append({
+                    "mp_name": rep.full_name,
+                    "accrued": accrued_val,
+                    "paid": paid_val,
+                    "balance": max(0, accrued_val - paid_val),
+                    "region": rep.assigned_regions[0].name if rep.assigned_regions else "-"
+                })
+        
+        return result
+
+    elif metric == "sold_items":
+        from app.models.product import Product
+        q = select(ReservationItem).options(
+            selectinload(ReservationItem.product),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.invoice),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.created_by)
+        ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+         .join(Invoice, Invoice.reservation_id == Reservation.id)\
+         .join(Product, ReservationItem.product_id == Product.id)\
+         .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
+        
+        if start_date and end_date: q = q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        q = apply_filters(q, Reservation)
+        
+        rows = (await db.execute(q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
+        return [{
+            "id": r.id,
+            "date": r.reservation.invoice.date.isoformat(),
+            "customer": r.reservation.customer_name or "-",
+            "product": r.product.name if r.product else "-",
+            "qty": r.quantity - r.returned_quantity,
+            "mp_name": r.reservation.created_by.full_name if r.reservation.created_by else "-",
+            "invoice_num": r.reservation.invoice.factura_number or f"#{r.reservation.invoice.id}",
+            "region": r.reservation.med_org.region.name if r.reservation.med_org and r.reservation.med_org.region else "-"
+        } for r in rows]
+
     return []
 
 @router.get("/dashboard/director-report-excel")
