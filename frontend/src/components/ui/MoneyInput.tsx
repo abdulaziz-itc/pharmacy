@@ -1,4 +1,4 @@
-import React, { useRef, useLayoutEffect, useState } from 'react';
+import React, { useRef, useLayoutEffect, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
@@ -8,131 +8,121 @@ interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElemen
 }
 
 /**
- * Formats a number with dots as thousand separators (Uzbek/Russian style).
- * e.g., 1000000 → "1.000.000,00"
- * 
- * isFocused flag allows more flexible formatting during active typing.
+ * Standard Uzbek/Russian formatting: 1.000,00
  */
-export function formatMoney(value: string | number, isFocused: boolean = false): string {
+export function formatMoney(value: string | number): string {
     if (value === null || value === undefined || value === '') return '';
-    
-    const str = value.toString();
-    
-    // Normalize to a raw numeric string with '.' as the only decimal separator
-    let normalized = str;
-    if (str.includes(',')) {
-        // If it has a comma, it's definitely the formatted style (e.g., "1.234,56")
-        normalized = str.replace(/\./g, '').replace(/,/g, '.');
-    } else {
-        // If no comma, check if dots are thousand separators or a decimal point
-        const dotsCount = (str.match(/\./g) || []).length;
-        if (dotsCount > 1) {
-            // Multiple dots => thousand separators (e.g., "1.234.567")
-            normalized = str.replace(/\./g, '');
-        } else if (dotsCount === 1) {
-            // One dot => could be "1.234" (thousand) or "1234.5" (decimal)
-            // If it's a number from JS/Backend, it's always "1234.5"
-            // If it's a string, we check its length or just assume decimal if it looks like one
-            const parts = str.split('.');
-            if (parts[1].length === 3) {
-                // Highly likely a thousand separator (e.g., "1.234")
-                normalized = parts[0] + parts[1];
-            } else {
-                // Likely a decimal point (e.g., "1234.5")
-                normalized = str;
-            }
-        }
-    }
-
-    const parts = normalized.split('.');
-    const intPart = parts[0];
-    const decPart = parts[1];
-
-    const num = Number(normalized);
+    const num = typeof value === 'number' ? value : Number(value.toString().replace(/\./g, '').replace(/,/g, '.'));
     if (isNaN(num)) return '';
     
-    const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    
-    if (isFocused) {
-        // While focused, preserve decimal entry exactly as is (don't pad with zeros)
-        return decPart !== undefined ? `${formattedInt},${decPart}` : formattedInt;
-    }
-    
-    // For blur/static display: strictly force 2 decimal places
     const fixed = num.toFixed(2);
-    const [fInt, fDec] = fixed.split('.');
-    const finalInt = fInt.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return `${finalInt},${fDec}`;
+    const [intPart, decPart] = fixed.split('.');
+    const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${formattedInt},${decPart}`;
 }
 
 /**
- * Strips dots and returns raw numeric string with dot as decimal separator.
+ * Strips everything except digits and the first decimal separator.
  */
 export function parseMoney(formatted: string): string {
-    // Replace dots (thousands) with empty, and commas (decimal) with dots
+    // Standardize to dot as decimal
     return formatted.replace(/\./g, '').replace(/,/g, '.');
 }
 
 /**
- * An <input> that displays numbers with dot separators while the user types.
- * `onChange` receives the raw numeric string (with dots as decimal if any).
- * 
- * Uses useLayoutEffect for zero-flicker cursor restoration.
+ * Robust MoneyInput with local state and cursor tracking from the right.
  */
 export function MoneyInput({ value, onChange, className, ...props }: MoneyInputProps) {
     const inputRef = useRef<HTMLInputElement>(null);
-    const lastDigitsCount = useRef<number | null>(null);
-    const [isInternalFocused, setIsInternalFocused] = useState(false);
+    const [localValue, setLocalValue] = useState("");
+    const [isFocused, setIsFocused] = useState(false);
+    const cursorRef = useRef<{ digitsFromEnd: number } | null>(null);
 
-    // ZERO-FLICKER CURSOR RESTORATION
+    // 1. Sync local value with prop value when NOT focused or when prop changes significantly
+    useEffect(() => {
+        if (!isFocused) {
+            setLocalValue(formatMoney(value));
+        }
+    }, [value, isFocused]);
+
+    // 2. Formatting helper while typing
+    const formatDisplay = (val: string) => {
+        const raw = parseMoney(val);
+        if (!raw) return "";
+        
+        const parts = raw.split('.');
+        const intPart = parts[0];
+        const decPart = parts[1];
+
+        // Format integer part with dots
+        const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        
+        // Preserve decimals exactly as entered (don't pad yet)
+        return decPart !== undefined ? `${formattedInt},${decPart}` : formattedInt;
+    };
+
+    // 3. CURSOR MANAGEMENT (Track from Right side of integer part)
     useLayoutEffect(() => {
-        if (inputRef.current && lastDigitsCount.current !== null) {
+        if (inputRef.current && cursorRef.current) {
             const el = inputRef.current;
-            const targetDigits = lastDigitsCount.current;
-            const val = el.value;
+            const targetDigitsFromEnd = cursorRef.current.digitsFromEnd;
+            const currentVal = el.value;
             
-            let newPos = 0;
-            let digitsFound = 0;
+            let pos = currentVal.length;
+            let digitsSeen = 0;
             
-            if (targetDigits === 0) {
-                newPos = 0;
-            } else {
-                for (let i = 0; i < val.length; i++) {
-                    // We count both digits and the decimal comma as "content" to track
-                    if (/[\d,]/.test(val[i])) {
-                        digitsFound++;
-                    }
-                    if (digitsFound === targetDigits) {
-                        newPos = i + 1;
-                        break;
-                    }
+            // Scan from right to left
+            for (let i = currentVal.length - 1; i >= 0; i--) {
+                if (/\d/.test(currentVal[i])) {
+                    digitsSeen++;
+                }
+                if (digitsSeen === targetDigitsFromEnd) {
+                    pos = i;
+                    break;
                 }
             }
             
-            el.setSelectionRange(newPos, newPos);
-            lastDigitsCount.current = null;
+            el.setSelectionRange(pos, pos);
+            cursorRef.current = null;
         }
-    }, [value]);
+    }, [localValue]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const input = e.target;
-        const valBefore = input.value;
+        const val = input.value;
         const selectionStart = input.selectionStart || 0;
-        
-        // Count content characters (digits and comma) before cursor
-        const prefix = valBefore.substring(0, selectionStart);
-        lastDigitsCount.current = prefix.replace(/[^\d,]/g, '').length;
 
-        const raw = parseMoney(valBefore);
+        // Count how many DIGITS are to the RIGHT of the cursor
+        const suffix = val.substring(selectionStart);
+        const digitsFromEnd = suffix.replace(/\D/g, '').length;
+
+        const raw = parseMoney(val);
         
-        // Basic validation: allow digits and at most one dot/comma
-        if (raw && !/^-?\d*\.?\d*$/.test(raw)) {
-             // If invalid, we don't update state but we might need to reset the ref
-             lastDigitsCount.current = null;
-             return;
-        }
+        // Only allow valid numeric entry
+        if (raw !== "" && !/^-?\d*\.?\d*$/.test(raw)) return;
+
+        // Update local display immediately
+        setLocalValue(formatDisplay(val));
         
+        // Store cursor info
+        cursorRef.current = { digitsFromEnd };
+
+        // Notify parent
         onChange(raw);
+    };
+
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+        setIsFocused(true);
+        // Select all text on focus to allow easy overwrite
+        e.target.select();
+        props.onFocus?.(e);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        setIsFocused(false);
+        // Strict formatting on blur
+        setLocalValue(formatMoney(value));
+        props.onBlur?.(e);
     };
 
     return (
@@ -141,17 +131,10 @@ export function MoneyInput({ value, onChange, className, ...props }: MoneyInputP
             ref={inputRef}
             type="text"
             inputMode="decimal"
-            value={formatMoney(value, isInternalFocused)}
+            value={localValue}
             onChange={handleChange}
-            onFocus={(e) => {
-                setIsInternalFocused(true);
-                props.onFocus?.(e);
-            }}
-            onBlur={(e) => {
-                setIsInternalFocused(false);
-                // When focus is lost, the value will be re-formatted to strict 2 decimals via prop update
-                props.onBlur?.(e);
-            }}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             className={cn(
                 "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
                 "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
