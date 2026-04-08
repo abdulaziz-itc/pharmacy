@@ -1,0 +1,445 @@
+from typing import Any, List, Optional
+from datetime import datetime
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi.encoders import jsonable_encoder
+from pydantic.networks import EmailStr
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.api import deps
+from app.core.config import settings
+from app.crud import crud_user
+from app.models.user import User, UserRole
+from app.schemas.user import User as UserSchema, UserCreate, UserUpdate, UserLoginHistory
+
+router = APIRouter()
+
+@router.get("/", response_model=List[UserSchema])
+async def read_users(
+    db: AsyncSession = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    username: Optional[str] = Query(None),
+    full_name: Optional[str] = Query(None),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Retrieve users. Only for specific roles (e.g., DEPUTY_DIRECTOR).
+    """
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD, UserRole.ACCOUNTANT]:
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+    
+    users = await crud_user.get_multi(
+        db, skip=skip, limit=limit, username=username, full_name=full_name
+    )
+    
+    if current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+        descendant_ids = await crud_user.get_descendant_ids(db, current_user.id)
+        users = [u for u in users if u.id in descendant_ids]
+        
+    return users
+
+@router.post("/", response_model=UserSchema)
+async def create_user(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    user_in: UserCreate,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request,
+) -> Any:
+    """
+    Create new user.
+    """
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD]:
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+    
+    # If the creator is a Product Manager or Regional Manager, enforce themselves as the manager
+    # AND for Regional Manager, enforce regional boundaries
+    if current_user.role == UserRole.PRODUCT_MANAGER:
+        if user_in.role not in [UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.MED_REP]:
+            raise HTTPException(status_code=400, detail="Product Manager can only create subordinates")
+        user_in.manager_id = current_user.id
+    elif current_user.role == UserRole.REGIONAL_MANAGER:
+        if user_in.role != UserRole.MED_REP:
+            raise HTTPException(status_code=400, detail="Regional Manager can only create Medical Representatives")
+        user_in.manager_id = current_user.id
+        
+        # Enforce regional boundaries
+        if user_in.region_ids:
+            from sqlalchemy.orm import selectinload
+            result = await db.execute(select(User).options(selectinload(User.assigned_regions)).where(User.id == current_user.id))
+            rm_db = result.scalars().first()
+            allowed_ids = [r.id for r in rm_db.assigned_regions] if rm_db else []
+            for rid in user_in.region_ids:
+                if rid not in allowed_ids:
+                    raise HTTPException(status_code=400, detail=f"Unauthorized region assignment: Region {rid} is not assigned to you.")
+
+    user = await crud_user.get_by_username(db, username=user_in.username)
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="The user with this username already exists in the system.",
+        )
+    user = await crud_user.create(db, obj_in=user_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "CREATE", "User", user.id,
+        f"Создан новый пользователь: {user.username} ({user.role})",
+        request
+    )
+    return user
+
+@router.put("/{user_id}", response_model=UserSchema)
+async def update_user(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    user_id: int,
+    user_in: UserUpdate,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request,
+) -> Any:
+    """
+    Update a user.
+    """
+    user = await crud_user.get(db, id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD]:
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+        
+    if current_user.role == UserRole.PRODUCT_MANAGER:
+        if user.role not in [UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.MED_REP]:
+            raise HTTPException(status_code=400, detail="Product Manager can only edit subordinates")
+    elif current_user.role == UserRole.REGIONAL_MANAGER:
+        if user.manager_id != current_user.id:
+            raise HTTPException(status_code=400, detail="Regional Manager can only edit their own direct subordinates")
+        if user_in.role and user_in.role != UserRole.MED_REP:
+             raise HTTPException(status_code=400, detail="Regional Manager can only manage Medical Representatives")
+        
+        # Enforce regional boundaries
+        if user_in.region_ids:
+            from sqlalchemy.orm import selectinload
+            result = await db.execute(select(User).options(selectinload(User.assigned_regions)).where(User.id == current_user.id))
+            rm_db = result.scalars().first()
+            allowed_ids = [r.id for r in rm_db.assigned_regions] if rm_db else []
+            for rid in user_in.region_ids:
+                if rid not in allowed_ids:
+                    raise HTTPException(status_code=400, detail=f"Unauthorized region assignment: Region {rid} is not assigned to you.")
+            
+    # Validation for deactivation (is_active = False)
+    if user_in.is_active is False and user.is_active is True:
+        # Check subordinates
+        subordinates_query = await db.execute(select(User).where(User.manager_id == user_id, User.is_active == True))
+        if subordinates_query.scalars().first():
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Невозможно деактивировать пользователя. У него все еще есть активные подчиненные."
+            )
+            
+        # Check role-specific dependencies
+        if user.role == UserRole.MED_REP:
+            from app.models.crm import Doctor, medrep_organization
+            from app.models.sales import Plan
+            
+            # Check for assigned doctors
+            doctors_query = await db.execute(select(Doctor).where(Doctor.assigned_rep_id == user_id))
+            if doctors_query.scalars().first():
+                raise HTTPException(status_code=400, detail="Невозможно деактивировать медпредставителя. У него все еще есть прикрепленные врачи.")
+                
+            # Check for assigned organizations
+            orgs_query = await db.execute(select(medrep_organization.c.organization_id).where(medrep_organization.c.user_id == user_id))
+            if orgs_query.first():
+                raise HTTPException(status_code=400, detail="Невозможно деактивировать медпредставителя. У него все еще есть прикрепленные аптеки/клиники.")
+                
+            # Check for plans (you might want to clarify if ALL plans or just active/incomplete plans block deactivation. For now, we block if ANY plans exist in current/future months, but a simpler approach is blocking if ANY exist that aren't closed. Let's block if any plans exist for the current year/month onwards to be safe)
+            import datetime
+            now = datetime.datetime.now()
+            plans_query = await db.execute(
+                select(Plan).where(
+                    Plan.med_rep_id == user_id,
+                    (Plan.year > now.year) | ((Plan.year == now.year) & (Plan.month >= now.month))
+                )
+            )
+            if plans_query.scalars().first():
+                raise HTTPException(status_code=400, detail="Невозможно деактивировать медпредставителя. У него все еще есть активные планы на текущий или будущие месяцы.")
+
+    # Check if new username is already taken by someone else
+    if user_in.username and user_in.username != user.username:
+        user_exists = await crud_user.get_by_username(db, username=user_in.username)
+        if user_exists:
+            raise HTTPException(
+                status_code=400,
+                detail="The user with this username already exists in the system.",
+            )
+            
+    user = await crud_user.update(db, db_obj=user, obj_in=user_in)
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "UPDATE", "User", user.id,
+        f"Данные пользователя изменены: {user.username}",
+        request
+    )
+    return user
+
+@router.get("/me", response_model=UserSchema)
+async def read_user_me(
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Get current user.
+    """
+    return current_user
+
+@router.put("/me", response_model=UserSchema)
+async def update_user_me(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    user_in: UserUpdate,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request,
+) -> Any:
+    """
+    Update my own profile.
+    """
+    # Restrict what users can update about themselves
+    # For now, let them update full_name and password
+    update_data = {}
+    if user_in.full_name is not None:
+        update_data["full_name"] = user_in.full_name
+    if user_in.password is not None:
+        update_data["password"] = user_in.password
+        
+    user = await crud_user.update(db, db_obj=current_user, obj_in=update_data)
+    
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "UPDATE_ME", "User", user.id,
+        f"Пользователь обновил свой профиль: {user.username}",
+        request
+    )
+    return user
+
+@router.get("/med-reps")
+async def get_med_reps(
+    role: Optional[str] = Query(None, description="Filter by role"),
+    username: Optional[str] = Query(None),
+    full_name: Optional[str] = Query(None),
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Get users (optionally filtered by role) with their manager name resolved.
+    Used for the medical representatives page with role filter tabs.
+    """
+    from sqlalchemy.orm import selectinload
+    # Get all users to build manager lookup
+    all_users_result = await db.execute(select(User).options(selectinload(User.assigned_regions)))
+    all_users = all_users_result.scalars().all()
+    
+    # Build manager name lookup
+    manager_lookup = {u.id: u.full_name for u in all_users}
+    
+    # Filter by role if specified, otherwise return med_reps by default
+    if role == "all":
+        filtered = all_users
+    elif role:
+        filtered = [u for u in all_users if u.role == role]
+    else:
+        filtered = [u for u in all_users if u.role == UserRole.MED_REP]
+    
+    if username:
+        filtered = [u for u in filtered if username.lower() in u.username.lower()]
+    if full_name:
+        filtered = [u for u in filtered if full_name.lower() in u.full_name.lower()]
+        
+    from app.crud.crud_user import get_descendant_ids
+    if current_user.role in [UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.PRODUCT_MANAGER]:
+        descendant_ids = await get_descendant_ids(db, current_user.id)
+        filtered = [u for u in filtered if u.id in descendant_ids]
+    
+    # Build response with manager name and region IDs
+    result = []
+    for user in filtered:
+        # Load assigned_regions if not loaded
+        region_ids = [r.id for r in user.assigned_regions] if hasattr(user, 'assigned_regions') else []
+        result.append({
+            "id": user.id,
+            "username": user.username,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_active": user.is_active,
+            "manager_id": user.manager_id,
+            "manager_name": manager_lookup.get(user.manager_id, None) if user.manager_id else None,
+            "region_ids": region_ids
+        })
+    
+    return result
+
+from pydantic import BaseModel
+class ReassignRequest(BaseModel):
+    from_user_id: int
+    to_user_id: int
+
+@router.post("/reassign")
+async def reassign_user_dependencies(
+    request: Request,
+    req: ReassignRequest,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Transfer all subordinates, territories (doctors, organizations), and active plans 
+    from one user to another user of the same role.
+    """
+    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+        raise HTTPException(status_code=403, detail="Not enough permissions to reassign.")
+        
+    from_user = await crud_user.get(db, id=req.from_user_id)
+    to_user = await crud_user.get(db, id=req.to_user_id)
+    
+    if not from_user or not to_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if from_user.role != to_user.role:
+        raise HTTPException(status_code=400, detail="Cannot transfer dependencies between different roles.")
+        
+    if from_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+        if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR]:
+            raise HTTPException(status_code=403, detail="Only Admin, Director, or Deputy Director can reassign manager authority.")
+            
+    # For PM/RM, ensure both users are their descendants
+    if current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.FIELD_FORCE_MANAGER]:
+        from app.crud.crud_user import get_descendant_ids
+        descendants = await get_descendant_ids(db, current_user.id)
+        if req.from_user_id not in descendants or req.to_user_id not in descendants:
+            raise HTTPException(status_code=403, detail="You can only reassign between your own subordinates.")
+            
+    # Reassign subordinates
+    subordinates = await db.execute(select(User).where(User.manager_id == req.from_user_id))
+    for sub in subordinates.scalars().all():
+        sub.manager_id = req.to_user_id
+        
+    if from_user.role == UserRole.MED_REP:
+        from app.models.crm import Doctor, medrep_organization
+        from app.models.sales import Plan, DoctorFactAssignment, BonusPayment
+        import datetime
+        from sqlalchemy import update, delete
+
+        # 1. Transfer Doctors to new rep
+        await db.execute(
+            update(Doctor)
+            .where(Doctor.assigned_rep_id == req.from_user_id)
+            .values(assigned_rep_id=req.to_user_id)
+        )
+
+        # 2. Transfer Organizations (pharmacies) to new rep as-is
+        orgs_query = await db.execute(
+            select(medrep_organization.c.organization_id)
+            .where(medrep_organization.c.user_id == req.from_user_id)
+        )
+        org_ids = [row[0] for row in orgs_query.all()]
+
+        if org_ids:
+            existing_orgs_query = await db.execute(
+                select(medrep_organization.c.organization_id)
+                .where(
+                    medrep_organization.c.user_id == req.to_user_id,
+                    medrep_organization.c.organization_id.in_(org_ids)
+                )
+            )
+            existing_org_ids = [row[0] for row in existing_orgs_query.all()]
+            org_ids_to_add = [oid for oid in org_ids if oid not in existing_org_ids]
+
+            # Remove from old rep
+            await db.execute(
+                delete(medrep_organization)
+                .where(medrep_organization.c.user_id == req.from_user_id)
+            )
+            # Assign to new rep
+            if org_ids_to_add:
+                await db.execute(
+                    medrep_organization.insert().values(
+                        [{"user_id": req.to_user_id, "organization_id": oid} for oid in org_ids_to_add]
+                    )
+                )
+
+        # 3. Plans/Facts/Bonuses history stays with old rep.
+        #    Only DELETE doctor-specific plans that have NO fact recorded.
+        #    (Plans with a fact = real historical data → keep with old rep)
+        #    General (no doctor_id) plans also stay with old rep.
+
+        # Fetch all doctor-assigned plans for old rep
+        doctor_plans_result = await db.execute(
+            select(Plan).where(
+                Plan.med_rep_id == req.from_user_id,
+                Plan.doctor_id != None
+            )
+        )
+        doctor_plans = doctor_plans_result.scalars().all()
+
+        # Fetch all doctor fact assignments for old rep
+        facts_result = await db.execute(
+            select(DoctorFactAssignment).where(
+                DoctorFactAssignment.med_rep_id == req.from_user_id
+            )
+        )
+        facts = facts_result.scalars().all()
+        # Set of (doctor_id, product_id) combos that have an actual fact
+        fact_keys = {(f.doctor_id, f.product_id) for f in facts}
+
+        # Delete plans that have NO recorded fact (empty future plans)
+        plans_to_delete = [
+            p.id for p in doctor_plans
+            if (p.doctor_id, p.product_id) not in fact_keys
+        ]
+        if plans_to_delete:
+            await db.execute(
+                delete(Plan).where(Plan.id.in_(plans_to_delete))
+            )
+
+        # Everything else (general plans, all facts, all bonuses) stays
+        # with old rep — no update needed.
+        
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "REASSIGN", "User", req.from_user_id,
+        f"Полномочия переданы: {from_user.username} -> {to_user.username}",
+        request
+    )
+    await db.commit()
+    return {"msg": "Successfully transferred all dependencies."}
+
+@router.get("/login-history", response_model=List[UserLoginHistory])
+async def read_login_history(
+    db: AsyncSession = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    month: Optional[int] = Query(None, ge=1, le=12),
+    year: Optional[int] = Query(None),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Retrieve user login history. Only for specific roles (e.g., HRD, DIRECTOR, INVESTOR).
+    """
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HRD]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    return await crud_user.get_login_history(
+        db, skip=skip, limit=limit, month=month, year=year
+    )
+
+@router.delete("/login-history")
+async def delete_login_history(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Clear all login history. Only for HRD, DIRECTOR, or INVESTOR.
+    """
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HRD]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    count = await crud_user.clear_login_history(db)
+    return {"msg": f"Successfully cleared {count} login history records."}
