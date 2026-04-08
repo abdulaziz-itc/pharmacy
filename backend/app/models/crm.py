@@ -101,6 +101,25 @@ class MedicalOrganizationStock(Base):
     med_org = relationship("MedicalOrganization", backref="stocks")
     product = relationship("Product")
 
+class BalanceTransactionType(str, enum.Enum):
+    TOPUP = "topup"            # Manual accountant top-up
+    APPLICATION = "application"  # Automatic debt settlement
+    OVERPAYMENT = "overpayment"  # Surplus from invoice payment
+    MANUAL_ADJUSTMENT = "adjustment"
+
+class BalanceTransaction(Base):
+    __tablename__ = "balance_transaction"
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("medicalorganization.id"), nullable=False)
+    amount = Column(Float, nullable=False) # Positive for credit, negative for debit
+    transaction_type = Column(String, default=BalanceTransactionType.TOPUP)
+    related_invoice_id = Column(Integer, ForeignKey("invoice.id"), nullable=True)
+    comment = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    organization = relationship("MedicalOrganization", backref="balance_history")
+    related_invoice = relationship("Invoice")
+
 class Notification(Base):
     id = Column(Integer, primary_key=True, index=True)
     topic = Column(String, nullable=False)

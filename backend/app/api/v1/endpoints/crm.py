@@ -21,6 +21,7 @@ from app.models.product import Product
 from app.crud import crud_sales
 from app.schemas.sales import Plan
 from datetime import datetime
+from app.services.audit_service import log_action
 
 router = APIRouter()
 
@@ -55,7 +56,6 @@ async def update_med_org(
         raise HTTPException(status_code=404, detail="Medical Organization not found")
         
     updated_med_org = await crud_crm.update_med_org(db, db_obj=med_org, obj_in=med_org_in)
-    from app.services.audit_service import log_action
     await log_action(
         db, current_user, "UPDATE", "MedicalOrganization", updated_med_org.id,
         f"Обновлена организация: {updated_med_org.name}",
@@ -114,7 +114,6 @@ async def update_region(
         raise HTTPException(status_code=404, detail="Region not found")
         
     updated_region = await crud_crm.update_region(db, db_obj=region, obj_in=region_in)
-    from app.services.audit_service import log_action
     await log_action(
         db, current_user, "UPDATE", "Region", updated_region.id,
         f"Регион изменен: {updated_region.name}",
@@ -143,7 +142,6 @@ async def create_specialty(
     if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     specialty = await crud_crm.create_specialty(db, obj_in=specialty_in)
-    from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "Specialty", specialty.id,
         f"Добавлена специальность врача: {specialty.name}",
@@ -172,7 +170,6 @@ async def create_doctor_category(
     if current_user.role not in [UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     category = await crud_crm.create_doctor_category(db, obj_in=category_in)
-    from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "DoctorCategory", category.id,
         f"Добавлена категория врача: {category.name}",
@@ -254,7 +251,6 @@ async def create_med_org(
             db.add(new_warehouse)
             await db.commit()
 
-    from app.services.audit_service import log_action
     await log_action(
         db, current_user, "CREATE", "MedicalOrganization", med_org.id,
         f"Добавленa организация: {med_org.name}",
@@ -272,11 +268,11 @@ async def get_med_org_balance_history(
     """
     Get credit balance transaction history for a medical organization.
     """
-    from app.models.crm import BalanceTransaction
+    from app.models.crm import BalanceTransaction as BalanceTransactionModel
     result = await db.execute(
-        select(BalanceTransaction)
-        .where(BalanceTransaction.organization_id == org_id)
-        .order_by(BalanceTransaction.created_at.desc())
+        select(BalanceTransactionModel)
+        .where(BalanceTransactionModel.organization_id == org_id)
+        .order_by(BalanceTransactionModel.created_at.desc())
     )
     return result.scalars().all()
 
@@ -303,14 +299,13 @@ async def top_up_med_org_balance(
         db, 
         organization_id=org_id, 
         amount=top_up_in.amount, 
-        comment=f"{top_up_in.details or ''} | {top_up_in.comment or ''}".strip(" | "),
+        comment=f"{top_up_in.comment or ''}".strip(),
         user_id=current_user.id
     )
     
     if not updated_org:
         raise HTTPException(status_code=404, detail="Medical Organization not found")
         
-    from app.services.audit_service import log_action
     await log_action(
         db, current_user, "TOPUP", "MedicalOrganization", org_id,
         f"Баланс организации {updated_org.name} пополнен на {top_up_in.amount}. Коммент: {top_up_in.comment}",
@@ -440,7 +435,6 @@ async def create_doctor(
         doctor_in.assigned_rep_id = current_user.id
 
     doctor = await crud_crm.create_doctor(db, obj_in=doctor_in)
-    from app.services.audit_service import log_action
     await log_action(db, current_user, "CREATE", "Doctor", doctor.id,
                      f"Добавлен новый врач: {doctor.full_name}", request)
     return doctor
@@ -509,7 +503,6 @@ async def update_doctor(
                 )
 
     updated_doctor = await crud_crm.update_doctor(db, db_obj=doctor, obj_in=doctor_in)
-    from app.services.audit_service import log_action
     
     status_change_msg = ""
     if doctor_in.is_active is not None and doctor.is_active != doctor_in.is_active:
@@ -561,7 +554,6 @@ async def delete_doctor(
     doc_name = doctor.full_name
     await db.delete(doctor)
     
-    from app.services.audit_service import log_action
     await log_action(db, current_user, "DELETE", "Doctor", id,
                      f"Врач удален из базы: {doc_name}", request)
                      

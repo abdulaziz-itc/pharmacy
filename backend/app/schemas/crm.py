@@ -16,9 +16,7 @@ class RegionUpdate(BaseModel):
 
 class Region(RegionBase):
     id: int
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 # DoctorSpecialty
 class DoctorSpecialtyBase(BaseModel):
@@ -29,9 +27,7 @@ class DoctorSpecialtyCreate(DoctorSpecialtyBase):
 
 class DoctorSpecialty(DoctorSpecialtyBase):
     id: int
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 # DoctorCategory
 class DoctorCategoryBase(BaseModel):
@@ -42,9 +38,7 @@ class DoctorCategoryCreate(DoctorCategoryBase):
 
 class DoctorCategory(DoctorCategoryBase):
     id: int
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 # MedicalOrganization
 class MedicalOrganizationBase(BaseModel):
@@ -80,9 +74,7 @@ class MedicalOrganization(MedicalOrganizationBase):
     id: int
     region: Optional[Region] = None
     assigned_reps: Optional[List[User]] = []
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 # Doctor
 class DoctorBase(BaseModel):
@@ -132,9 +124,7 @@ class Doctor(DoctorBase):
     med_org: Optional[MedicalOrganization] = None
     assigned_rep: Optional[User] = None
     
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 # Balance
 from datetime import datetime
@@ -152,6 +142,4 @@ class BalanceTransaction(BaseModel):
     comment: Optional[str] = None
     created_at: Optional[datetime] = None
 
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = {"from_attributes": True}
