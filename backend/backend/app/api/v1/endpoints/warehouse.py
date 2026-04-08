@@ -152,12 +152,25 @@ async def get_deletion_requests(
 ) -> Any:
     """List all reservations and invoices pending deletion."""
     
-    if current_user.role not in [UserRole.HEAD_OF_WAREHOUSE, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.INVESTOR]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+    # Expanded roles for warehouse visibility
+    allowed_roles = [
+        UserRole.HEAD_OF_WAREHOUSE, 
+        UserRole.DIRECTOR, 
+        UserRole.ADMIN, 
+        UserRole.INVESTOR, 
+        UserRole.WHOLESALE_MANAGER,
+        UserRole.PRODUCT_MANAGER,
+        UserRole.ACCOUNTANT
+    ]
+    
+    logging.info(f"FETCH_DELETION_REQUESTS: User {current_user.full_name} (Role: {current_user.role}) is requesting data.")
+    
+    if current_user.role not in allowed_roles:
+        logging.warning(f"FETCH_DELETION_REQUESTS: Access denied for role {current_user.role}")
+        raise HTTPException(status_code=403, detail=f"Permission denied for role: {current_user.role}")
     
     try:
         from app.models.sales import Reservation, Invoice, ReservationItem
-        from app.schemas.sales import DeletionRequests, ApprovalReservationSchema, ApprovalInvoiceSchema
         
         # Reservations pending deletion
         res_query = (
@@ -185,23 +198,6 @@ async def get_deletion_requests(
         inv_result = await db.execute(inv_query)
         invoices = inv_result.scalars().all()
         
-        # SUPER DEEP DEBUG ON LIVE DB
-        all_inv_ids_res = await db.execute(select(Invoice.id))
-        actual_ids_in_db = [r[0] for r in all_inv_ids_res.all()]
-        
-        # COUNT GHOSTS
-        pending_inv_count = await db.execute(select(func.count(Invoice.id)).where(Invoice.is_deletion_pending == True))
-        pending_res_count = await db.execute(select(func.count(Reservation.id)).where(Reservation.is_deletion_pending == True))
-        pending_ret_count = await db.execute(select(func.count(Reservation.id)).where(Reservation.is_return_pending == True))
-        
-        stats = {
-            "total_invoices": len(actual_ids_in_db),
-            "pending_invoices_in_db": pending_inv_count.scalar(),
-            "pending_reservations_in_db": pending_res_count.scalar(),
-            "pending_returns_in_db": pending_ret_count.scalar(),
-        }
-        logging.info(f"LIVE STATS: {stats}")
-        
         # Pending returns
         ret_query = (
             select(Reservation)
@@ -214,7 +210,7 @@ async def get_deletion_requests(
         ret_result = await db.execute(ret_query)
         return_requests = ret_result.scalars().all()
 
-        # MANUAL MAPPING for maximum robustness
+        # Helper to map reservation to schema-like dict
         def map_reservation(r):
             res_items = []
             for item in r.items:
@@ -233,6 +229,7 @@ async def get_deletion_requests(
                 "items": res_items
             }
 
+        # Helper to map return request
         def map_return(r):
             res_items = []
             return_total_net = 0.0
@@ -245,7 +242,7 @@ async def get_deletion_requests(
                         "product_name": item.product.name if item.product else "N/A",
                         "quantity": qty,
                         "price": item.price,
-                        "total_price": item_net # Value being returned
+                        "total_price": item_net
                     })
             
             # Return with NDS
@@ -256,33 +253,27 @@ async def get_deletion_requests(
                 "customer_name": r.customer_name,
                 "med_org_name": r.med_org.name if r.med_org else None,
                 "date": r.date.isoformat() if r.date else None,
-                "total_amount": return_total_with_nds, # Actual return amount
+                "total_amount": return_total_with_nds,
                 "full_reservation_amount": r.total_amount,
                 "items": res_items
             }
 
         mapped_reservations = [map_reservation(r) for r in reservations]
         mapped_returns = [map_return(r) for r in return_requests]
-        
-        # Invoices
-        debug_invoices = []
+        mapped_invoices = []
         for i in invoices:
-            inv_data = {
+            mapped_invoices.append({
                 "id": i.id,
-                "factura_number": f"DB_ID:{i.id} | ALL:{actual_ids_in_db} | {i.factura_number}",
-                "date": i.date.isoformat() if i.date else None,
+                "factura_number": i.factura_number,
+                "date": i.realization_date.isoformat() if i.realization_date else (i.date.isoformat() if i.date else None),
                 "total_amount": i.total_amount,
                 "reservation": map_reservation(i.reservation) if i.reservation else None
-            }
-            debug_invoices.append(inv_data)
+            })
 
-        import time
         return {
             "reservations": mapped_reservations,
-            "invoices": debug_invoices,
-            "return_requests": mapped_returns,
-            "debug_timestamp": time.time(),
-            "debug_stats": stats
+            "invoices": mapped_invoices,
+            "return_requests": mapped_returns
         }
     except Exception as e:
         import traceback

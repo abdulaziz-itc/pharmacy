@@ -130,6 +130,65 @@ async def fulfill_stock(
 
     return {"ok": True, "new_quantity": stock.quantity}
 
+@router.post("/warehouses/{id}/set-stock")
+async def set_stock(
+    id: int,
+    fulfillment_in: StockFulfillment,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Set stock to an absolute value (Manual adjustment)."""
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # 1. Check if stock record exists
+    stock_query = select(Stock).where(
+        (Stock.warehouse_id == id) & 
+        (Stock.product_id == fulfillment_in.product_id)
+    ).with_for_update()
+    
+    result = await db.execute(stock_query)
+    stock = result.scalar_one_or_none()
+    
+    old_qty = stock.quantity if stock else 0
+    new_qty = fulfillment_in.quantity 
+    diff = new_qty - old_qty
+    
+    if stock:
+        stock.quantity = new_qty
+    else:
+        stock = Stock(
+            warehouse_id=id,
+            product_id=fulfillment_in.product_id,
+            quantity=new_qty
+        )
+        db.add(stock)
+
+    # 2. Record movement if change exists
+    if diff != 0:
+        from app.models.warehouse import StockMovement, StockMovementType
+        await db.flush()
+        
+        movement = StockMovement(
+            stock_id=stock.id,
+            movement_type=StockMovementType.ADJUSTMENT,
+            quantity_change=diff
+        )
+        db.add(movement)
+        
+    await db.commit()
+
+    # 3. Audit log
+    await log_action(
+        db, current_user, "UPDATE", "Stock", stock.id,
+        f"Ручная корректировка остатка: Склад #{id}, Продукт #{fulfillment_in.product_id}, "
+        f"Было: {old_qty} → Стало: {new_qty} (Изменение: {diff:+d})",
+        request
+    )
+
+    return {"ok": True, "new_quantity": stock.quantity}
+
 # --- Reservation Management ---
 
 @router.get("/reservations/", response_model=List[ReservationSchema])
@@ -214,12 +273,16 @@ async def delete_reservation(
         from app.models.sales import InvoiceStatus
         # If reservation has an invoice, mark the invoice for deletion instead
         # This makes it appear in "Invoices" section for Warehouse approval
+        # If reservation has an invoice, mark both for deletion to ensure visibility
         if reservation.invoice:
             if reservation.invoice.status == InvoiceStatus.PAID:
                 raise HTTPException(status_code=400, detail="Нельзя удалить оплаченную счет-фактуру. Сначала отмените платежи.")
                 
             reservation.invoice.is_deletion_pending = True
             reservation.invoice.deletion_requested_by_id = current_user.id
+            # Also mark reservation to ensure it shows up in filtered lists consistently
+            reservation.is_deletion_pending = True
+            reservation.deletion_requested_by_id = current_user.id
         else:
             reservation.is_deletion_pending = True
             reservation.deletion_requested_by_id = current_user.id
@@ -231,7 +294,7 @@ async def delete_reservation(
             f"Запрошено удаление брони #{id}. Ожидает подтверждения склада.",
             request
         )
-        return {"ok": True, "message": "Deletion request sent to Warehouse Head."}
+        return {"ok": True, "message": "Запрос на удаление отправлен заведующему складом."}
 
     # Director/Admin can still delete immediately
     await ReservationService.cancel_reservation(db, id)

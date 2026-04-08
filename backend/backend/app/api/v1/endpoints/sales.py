@@ -52,7 +52,7 @@ async def create_plan(
     )
     return plan
 
-@router.get("/plans/", response_model=List[Plan])
+@router.get("/plans/", response_model=List["Plan"])
 async def read_plans(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,

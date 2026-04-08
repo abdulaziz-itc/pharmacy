@@ -366,7 +366,7 @@ async def read_doctor(
         raise HTTPException(status_code=404, detail="Doctor not found")
     return doctor
 
-@router.get("/doctors/{id}/plans", response_model=List[Plan])
+@router.get("/doctors/{id}/plans", response_model=List["Plan"])
 async def read_doctor_plans(
     *,
     db: AsyncSession = Depends(deps.get_db),

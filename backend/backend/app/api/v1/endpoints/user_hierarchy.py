@@ -27,30 +27,31 @@ async def get_user_hierarchy(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Level 1: Field Force Managers
+        # Level 1: Field Force Managers (Managed by me)
         ffm_result = await db.execute(
             select(User).where(User.manager_id == user_id, User.role == UserRole.FIELD_FORCE_MANAGER)
         )
         field_force_managers = ffm_result.scalars().all()
         ffm_ids = [u.id for u in field_force_managers]
         
-        # Level 2: Regional Managers (managed by the FFMs)
-        regional_managers = []
-        rm_ids = []
-        if ffm_ids:
-            rm_result = await db.execute(
-                select(User).where(User.manager_id.in_(ffm_ids), User.role == UserRole.REGIONAL_MANAGER)
-            )
-            regional_managers = rm_result.scalars().all()
-            rm_ids = [u.id for u in regional_managers]
+        # Level 2: Regional Managers (Managed by me OR by my FFMs)
+        from sqlalchemy import or_
+        rm_query = select(User).where(
+            User.role == UserRole.REGIONAL_MANAGER,
+            or_(User.manager_id == user_id, User.manager_id.in_(ffm_ids) if ffm_ids else False)
+        )
+        rm_result = await db.execute(rm_query)
+        regional_managers = rm_result.scalars().all()
+        rm_ids = [u.id for u in regional_managers]
             
-        # Level 3: Med Reps (managed by the RMs)
-        med_reps = []
-        if rm_ids:
-            mr_result = await db.execute(
-                select(User).where(User.manager_id.in_(rm_ids), User.role == UserRole.MED_REP)
-            )
-            med_reps = mr_result.scalars().all()
+        # Level 3: Med Reps (Managed by me OR by my RMs OR by my FFMs)
+        all_manager_ids = [user_id] + ffm_ids + rm_ids
+        mr_query = select(User).where(
+            User.role == UserRole.MED_REP,
+            User.manager_id.in_(all_manager_ids)
+        )
+        mr_result = await db.execute(mr_query)
+        med_reps = mr_result.scalars().all()
         
         return {
             "user": UserSchema.model_validate(user),

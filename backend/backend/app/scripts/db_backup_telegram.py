@@ -120,7 +120,7 @@ def backup_to_telegram():
         try:
              requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", data={
                  'chat_id': chat_id,
-                 'text': f"❌ Xatolik: Database backup amaлгa oшмaди!\nError: {error_msg}"
+                 'text': f"❌ Xatolik: Database backup амалга ошмади!\nError: {error_msg}"
              })
         except:
             pass
