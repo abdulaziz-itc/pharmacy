@@ -16,6 +16,7 @@ import { getComprehensiveStats } from '../../api/sales';
 import { useProductStore } from '../../store/productStore';
 import { useMedRepStore } from '../../store/medRepStore';
 import { useDoctorStore } from '../../store/doctorStore';
+import { useRegionStore } from '../../store/regionStore';
 import { DrilldownModal } from '../../components/analytics/DrilldownModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PremiumKpiCard } from '../../components/analytics/PremiumKpiCard';
@@ -29,6 +30,7 @@ export default function StatsPage() {
     const { products, fetchProducts } = useProductStore();
     const { medReps, fetchMedReps } = useMedRepStore();
     const { doctors, fetchDoctors } = useDoctorStore();
+    const { regions: storeRegions, fetchRegions } = useRegionStore();
 
     const [isLoading, setIsLoading] = useState(true);
     const [stats, setStats] = useState<any>(null);
@@ -59,12 +61,14 @@ export default function StatsPage() {
     }, [medReps, selectedPMId]);
 
     const regions = useMemo(() => {
+        if (storeRegions.length > 0) return storeRegions;
+        // Fallback to doctor's regions if store is empty
         const unique = new Map<number, string>();
         doctors.forEach(d => {
             if (d.region && d.region_id) unique.set(d.region_id, d.region);
         });
         return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
-    }, [doctors]);
+    }, [storeRegions, doctors]);
 
     const clearFilters = () => {
         setSelectedPeriod('month');
@@ -79,10 +83,15 @@ export default function StatsPage() {
 
     useEffect(() => {
         const loadInit = async () => {
-            await Promise.all([fetchProducts(), fetchMedReps(), fetchDoctors()]);
+            await Promise.all([
+                fetchProducts(), 
+                fetchMedReps('all'), 
+                fetchDoctors(),
+                fetchRegions()
+            ]);
         };
         loadInit();
-    }, [fetchProducts, fetchMedReps, fetchDoctors]);
+    }, [fetchProducts, fetchMedReps, fetchDoctors, fetchRegions]);
 
     useEffect(() => {
         const loadStats = async () => {
