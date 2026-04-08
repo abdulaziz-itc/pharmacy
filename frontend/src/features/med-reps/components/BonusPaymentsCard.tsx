@@ -14,7 +14,7 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { useAuthStore } from "../../../store/authStore";
-import { formatMoney, parseMoney } from "../../../components/ui/MoneyInput";
+import { MoneyInput } from "../../../components/ui/MoneyInput";
 
 interface BonusPayment {
     id: number;
@@ -156,13 +156,11 @@ function BonusForm({
             {/* Amount */}
             <div className="grid gap-2">
                 <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Сумма бонуса (UZS)</Label>
-                <Input
-                    type="text"
-                    inputMode="numeric"
+                <MoneyInput
+                    value={amount}
+                    onChange={(val) => setAmount(val)}
                     placeholder="0"
                     className="rounded-xl border-slate-200 h-11"
-                    value={formatMoney(amount)}
-                    onChange={(e) => setAmount(parseMoney(e.target.value))}
                 />
             </div>
 

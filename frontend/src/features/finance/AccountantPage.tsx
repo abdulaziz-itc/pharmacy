@@ -17,7 +17,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { DrilldownModal } from '../../components/analytics/DrilldownModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PremiumKpiCard } from '../../components/analytics/PremiumKpiCard';
-import { formatMoney, parseMoney } from '../../components/ui/MoneyInput';
+import { MoneyInput } from '../../components/ui/MoneyInput';
 
 type Expense = {
     id: number;
@@ -350,15 +350,13 @@ export default function AccountantPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <label htmlFor="exp_amount" className="text-[10px] font-black text-slate-400 uppercase ml-2">Сумма (UZS)</label>
-                                            <input 
-                                                id="exp_amount" 
-                                                required 
-                                                type="text"
-                                                inputMode="numeric"
-                                                value={formatMoney(amount)}
-                                                onChange={(e) => setAmount(parseMoney(e.target.value))}
+                                            <MoneyInput
+                                                id="exp_amount"
+                                                required
+                                                value={amount}
+                                                onChange={(val) => setAmount(val)}
                                                 placeholder="0"
-                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all" 
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all"
                                             />
                                         </div>
                                         <div className="space-y-2">

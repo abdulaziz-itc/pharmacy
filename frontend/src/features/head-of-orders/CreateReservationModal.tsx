@@ -9,7 +9,7 @@ import { getWarehouses } from '@/api/orders-management';
 import { useProductStore } from '@/store/productStore';
 import axiosInstance from '@/api/axios';
 import { SearchableProductSelect } from '../../components/SearchableProductSelect';
-import { formatMoney, parseMoney } from '@/components/ui/MoneyInput';
+import { MoneyInput } from '@/components/ui/MoneyInput';
 
 interface CreateReservationModalProps {
     isOpen: boolean;
@@ -598,24 +598,20 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                         <div className="flex flex-col gap-1 items-end">
                                             <div className="flex items-center gap-1">
                                                 <span className="text-[10px] text-slate-400 font-medium">Цена:</span>
-                                                <Input
-                                                    type="text"
-                                                    inputMode="numeric"
+                                                <MoneyInput
                                                     className={`h-8 w-24 text-xs border-slate-200`}
-                                                    value={formatMoney(it.price)}
-                                                    onChange={e => updateItem(idx, 'price', parseMoney(e.target.value))}
+                                                    value={it.price}
+                                                    onChange={val => updateItem(idx, 'price', val)}
                                                     placeholder="Цена"
                                                 />
                                             </div>
                                             {isBonusEligible && it.product_id && (
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Промо (Бонус):</span>
-                                                    <Input
-                                                        type="text"
-                                                        inputMode="numeric"
+                                                    <MoneyInput
                                                         className={`h-8 w-24 text-xs border-slate-200`}
-                                                        value={formatMoney(it.marketing_amount)}
-                                                        onChange={e => updateItem(idx, 'marketing_amount', parseMoney(e.target.value))}
+                                                        value={it.marketing_amount}
+                                                        onChange={val => updateItem(idx, 'marketing_amount', val)}
                                                         placeholder="Промо"
                                                     />
                                                 </div>
@@ -623,12 +619,10 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                             {isSalaryEnabled && it.product_id && (
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Зарплата:</span>
-                                                    <Input
-                                                        type="text"
-                                                        inputMode="numeric"
+                                                    <MoneyInput
                                                         className={`h-8 w-24 text-xs border-slate-200`}
-                                                        value={formatMoney(it.salary_amount)}
-                                                        onChange={e => updateItem(idx, 'salary_amount', parseMoney(e.target.value))}
+                                                        value={it.salary_amount}
+                                                        onChange={val => updateItem(idx, 'salary_amount', val)}
                                                         placeholder="Зарплата"
                                                     />
                                                 </div>

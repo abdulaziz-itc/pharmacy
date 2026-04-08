@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { Wallet, ArrowUpRight, ArrowDownLeft, Clock, Eye, Banknote, CheckCircle2, AlertCircle, Users, Scale, Trash2 } from 'lucide-react';
 import { BonusDetailModal } from './BonusDetailModal';
 import { DoctorDetailModal } from './DoctorDetailModal';
-import { formatMoney, parseMoney } from '@/components/ui/MoneyInput';
+import { MoneyInput } from '@/components/ui/MoneyInput';
 
 interface MedRepBonusDashboardProps {
     doctors: any[];
@@ -693,12 +693,10 @@ export const MedRepBonusDashboard: React.FC<MedRepBonusDashboardProps> = ({ doct
                                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Бонус за ед. (UZS)</label>
                                         <span className="text-[10px] text-slate-400">По умолчанию: {selectedPlanMarketing.toLocaleString()}</span>
                                     </div>
-                                    <Input
-                                        type="text"
-                                        inputMode="numeric"
+                                    <MoneyInput
                                         placeholder={selectedPlanMarketing.toString()}
-                                        value={formatMoney(overrideMarketingAmount)}
-                                        onChange={e => setOverrideMarketingAmount(parseMoney(e.target.value))}
+                                        value={overrideMarketingAmount}
+                                        onChange={val => setOverrideMarketingAmount(val)}
                                         className="h-8 text-sm border-blue-100 focus:border-blue-400"
                                     />
                                     <p className="text-[10px] text-slate-400 font-medium italic">

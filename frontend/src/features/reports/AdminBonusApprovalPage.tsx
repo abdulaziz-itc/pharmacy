@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Wallet, CheckCircle2, AlertCircle, Banknote, Search, ArrowRight } from "lucide-react";
 import axiosInstance from "@/api/axios";
 import { DrilldownModal } from "@/components/analytics/DrilldownModal";
-import { formatMoney, parseMoney } from "@/components/ui/MoneyInput";
+import { MoneyInput, formatMoney } from "@/components/ui/MoneyInput";
 
 // TypeScript Interfaces
 interface BonusSummary {
@@ -558,11 +558,9 @@ export default function AdminBonusApprovalPage() {
                                 Сумма выплаты (UZS)
                             </Label>
                             <div className="relative">
-                                <Input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={formatMoney(payAmount)}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayAmount(parseMoney(e.target.value))}
+                                <MoneyInput
+                                    value={payAmount}
+                                    onChange={(val) => setPayAmount(val)}
                                     className="pl-4 pr-12 h-14 bg-slate-50 border-slate-200 text-lg font-bold rounded-xl focus-visible:ring-blue-500"
                                     placeholder="0"
                                 />

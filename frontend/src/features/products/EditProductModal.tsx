@@ -14,7 +14,7 @@ import { useManufacturerStore } from "../../store/manufacturerStore";
 import { useCategoryStore } from "../../store/categoryStore";
 import { Pencil, X, Package, Tag, Building2, TrendingUp, HandCoins, DollarSign } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { formatMoney, parseMoney } from "../../components/ui/MoneyInput";
+import { MoneyInput } from "../../components/ui/MoneyInput";
 
 interface EditProductModalProps {
     isOpen: boolean;
@@ -234,12 +234,10 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                                     Цена продажи
                                 </Label>
                                 <div className="relative flex items-center">
-                                    <Input
-                                        type="text"
-                                        inputMode="numeric"
+                                    <MoneyInput
                                         placeholder="0"
-                                        value={formatMoney(form.price)}
-                                        onChange={(e) => setForm({ ...form, price: parseMoney(e.target.value) })}
+                                        value={form.price}
+                                        onChange={(val: string) => setForm({ ...form, price: val })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -250,12 +248,10 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                                     Себестоимость
                                 </Label>
                                 <div className="relative flex items-center">
-                                    <Input
-                                        type="text"
-                                        inputMode="numeric"
+                                    <MoneyInput
                                         placeholder="0"
-                                        value={formatMoney(form.production_price)}
-                                        onChange={(e) => setForm({ ...form, production_price: parseMoney(e.target.value) })}
+                                        value={form.production_price}
+                                        onChange={(val: string) => setForm({ ...form, production_price: val })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -266,12 +262,10 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                                     <TrendingUp className="w-3 h-3 text-orange-400" /> Расходы на маркетинг
                                 </Label>
                                 <div className="relative flex items-center">
-                                    <Input
-                                        type="text"
-                                        inputMode="numeric"
+                                    <MoneyInput
                                         placeholder="0"
-                                        value={formatMoney(form.marketing_expense)}
-                                        onChange={(e) => setForm({ ...form, marketing_expense: parseMoney(e.target.value) })}
+                                        value={form.marketing_expense}
+                                        onChange={(val: string) => setForm({ ...form, marketing_expense: val })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -282,12 +276,10 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                                     <HandCoins className="w-3 h-3 text-orange-400" /> Расходы на зарплату
                                 </Label>
                                 <div className="relative flex items-center">
-                                    <Input
-                                        type="text"
-                                        inputMode="numeric"
+                                    <MoneyInput
                                         placeholder="0"
-                                        value={formatMoney(form.salary_expense)}
-                                        onChange={(e) => setForm({ ...form, salary_expense: parseMoney(e.target.value) })}
+                                        value={form.salary_expense}
+                                        onChange={(val: string) => setForm({ ...form, salary_expense: val })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
@@ -298,12 +290,10 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                                     Прочие расходы
                                 </Label>
                                 <div className="relative flex items-center">
-                                    <Input
-                                        type="text"
-                                        inputMode="numeric"
+                                    <MoneyInput
                                         placeholder="0"
-                                        value={formatMoney(form.other_expenses)}
-                                        onChange={(e) => setForm({ ...form, other_expenses: parseMoney(e.target.value) })}
+                                        value={form.other_expenses}
+                                        onChange={(val: string) => setForm({ ...form, other_expenses: val })}
                                         className="pl-4 h-12 bg-slate-50 border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 rounded-2xl transition-all shadow-none font-bold text-slate-800"
                                     />
                                 </div>
