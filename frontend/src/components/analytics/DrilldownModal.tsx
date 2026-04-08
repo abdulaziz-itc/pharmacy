@@ -234,7 +234,7 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                                             return (
                                                 <td key={col} className="p-5">
                                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${val > 30 ? 'bg-rose-500 text-white shadow-md shadow-rose-200 animate-pulse' : 'bg-emerald-100 text-emerald-700'}`}>
-                                                        {val} kun
+                                                        {val} дн.
                                                     </span>
                                                 </td>
                                             );
@@ -282,7 +282,7 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                                 </div>
                                 <div>
                                     <h2 className="text-3xl font-black text-slate-900 tracking-tight">{metricLabel}</h2>
-                                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] italic">Детализация данных из базы • Real-time stats</p>
+                                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] italic">Детализация данных из базы • Статистика в реальном времени</p>
                                 </div>
                             </div>
                             
@@ -323,7 +323,7 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                                 </button>
                                 <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex flex-col items-center justify-center text-white shadow-2xl shadow-indigo-200">
                                     <span className="text-xs font-black leading-none">{page + 1}</span>
-                                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-60">Str</span>
+                                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-60">Стр</span>
                                 </div>
                                 <button 
                                     disabled={!rows || rows.length < limit}

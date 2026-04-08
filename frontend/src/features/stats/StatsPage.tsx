@@ -118,8 +118,8 @@ export default function StatsPage() {
     return (
         <PageContainer>
             <PageHeader
-                title="Kengaytirilgan tahlillar"
-                description="Moliyaviy ko'rsatkichlar va savdo dinamikasi"
+                title="Расширенная аналитика"
+                description="Финансовые показатели и динамика продаж"
             />
 
             {/* Filter Section */}
@@ -133,7 +133,7 @@ export default function StatsPage() {
                                 onClick={() => setSelectedPeriod(p as any)}
                                 className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${selectedPeriod === p ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                {p === 'month' ? 'Oy' : p === 'quarter' ? 'Kvartal' : p === 'year' ? 'Yil' : 'Barchasi'}
+                                {p === 'month' ? 'Месяц' : p === 'quarter' ? 'Квартал' : p === 'year' ? 'Год' : 'Все'}
                             </button>
                         ))}
                     </div>
@@ -147,7 +147,7 @@ export default function StatsPage() {
                                     className="bg-slate-50 border-none rounded-xl px-4 py-2 text-sm font-semibold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500"
                                 >
                                     {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                        <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('uz-UZ', { month: 'long' })}</option>
+                                        <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('ru-RU', { month: 'long' })}</option>
                                     ))}
                                 </select>
                             )}
@@ -158,10 +158,10 @@ export default function StatsPage() {
                                     onChange={(e) => setCurrentQuarter(parseInt(e.target.value))}
                                     className="bg-slate-50 border-none rounded-xl px-4 py-2 text-sm font-semibold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500"
                                 >
-                                    <option value={1}>1-kvartal</option>
-                                    <option value={2}>2-kvartal</option>
-                                    <option value={3}>3-kvartal</option>
-                                    <option value={4}>4-kvartal</option>
+                                    <option value={1}>1-квартал</option>
+                                    <option value={2}>2-квартал</option>
+                                    <option value={3}>3-квартал</option>
+                                    <option value={4}>4-квартал</option>
                                 </select>
                             )}
 
@@ -171,7 +171,7 @@ export default function StatsPage() {
                                 className="bg-slate-50 border-none rounded-xl px-4 py-2 text-sm font-semibold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500"
                             >
                                 {[2024, 2025, 2026].map(y => (
-                                    <option key={y} value={y}>{y}-yil</option>
+                                    <option key={y} value={y}>{y}-год</option>
                                 ))}
                             </select>
                         </>
@@ -182,7 +182,7 @@ export default function StatsPage() {
                         className="ml-auto flex items-center gap-2 px-4 py-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-all text-xs font-bold uppercase tracking-wider"
                     >
                         <FilterX className="w-4 h-4" />
-                        Tozalash
+                        Очистить
                     </button>
                 </div>
 
@@ -197,7 +197,7 @@ export default function StatsPage() {
                             onChange={(e) => setSelectedRegionId(e.target.value)}
                             className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 appearance-none"
                         >
-                            <option value="">Barchasi</option>
+                            <option value="">Все</option>
                             {regions.map(r => (
                                 <option key={r.id} value={r.id}>{r.name}</option>
                             ))}
@@ -216,7 +216,7 @@ export default function StatsPage() {
                             }}
                             className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 appearance-none"
                         >
-                            <option value="">Barchasi</option>
+                            <option value="">Все</option>
                             {productManagers.map(u => (
                                 <option key={u.id} value={u.id}>{u.full_name}</option>
                             ))}
@@ -232,7 +232,7 @@ export default function StatsPage() {
                             onChange={(e) => setSelectedMedRepId(e.target.value)}
                             className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 appearance-none"
                         >
-                            <option value="">Barchasi</option>
+                            <option value="">Все</option>
                             {filteredMedReps.map(u => (
                                 <option key={u.id} value={u.id}>{u.full_name}</option>
                             ))}
@@ -241,14 +241,14 @@ export default function StatsPage() {
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1">
-                            <Package className="w-3 h-3" /> Mahsulot (Dori)
+                            <Package className="w-3 h-3" /> Продукт (Лекарство)
                         </label>
                         <select 
                             value={selectedProductId}
                             onChange={(e) => setSelectedProductId(e.target.value)}
                             className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 appearance-none"
                         >
-                            <option value="">Barchasi</option>
+                            <option value="">Все</option>
                             {products.map(p => (
                                 <option key={p.id} value={p.id}>{p.name}</option>
                             ))}
@@ -267,19 +267,19 @@ export default function StatsPage() {
                     
                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
                         <div className="space-y-2">
-                            <h2 className="text-white/70 text-xs font-black uppercase tracking-[0.2em]">Umumiy oylik ko'rsatkich</h2>
+                            <h2 className="text-white/70 text-xs font-black uppercase tracking-[0.2em]">Общий показатель за период</h2>
                             <div className="flex items-baseline gap-3">
                                 <span className="text-4xl md:text-5xl font-black text-white tracking-tighter">
                                     {(kpis.sales_plan_amount > 0 ? ((kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100).toFixed(1) : 0)}%
                                 </span>
-                                <span className="text-white/80 text-lg font-bold">bajarildi</span>
+                                <span className="text-white/80 text-lg font-bold">выполнеno</span>
                             </div>
                         </div>
 
                         <div className="flex-1 max-w-2xl">
                             <div className="flex justify-between items-end mb-3">
                                 <div className="space-y-1">
-                                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider">Haqiqiy tushum vs Reja</p>
+                                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider">Факт поступлений vs План</p>
                                     <p className="text-white font-bold text-sm">
                                         {formatCurrency(kpis.sales_fact_received_amount)} / <span className="text-white/50">{formatCurrency(kpis.sales_plan_amount)}</span>
                                     </p>
@@ -287,7 +287,7 @@ export default function StatsPage() {
                                 <div className="text-right">
                                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full backdrop-blur-sm">
                                         <div className={`w-2 h-2 rounded-full animate-pulse ${kpis.sales_fact_received_amount >= kpis.sales_plan_amount ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                                        <span className="text-white/90 text-[10px] font-black uppercase">Real vaqt rejimida</span>
+                                        <span className="text-white/90 text-[10px] font-black uppercase">В реальном времени</span>
                                     </div>
                                 </div>
                             </div>
@@ -306,7 +306,7 @@ export default function StatsPage() {
 
                         <div className="hidden lg:flex items-center gap-4 pl-8 border-l border-white/10">
                             <div className="text-center bg-white/5 p-4 rounded-3xl backdrop-blur-sm border border-white/5 min-w-[120px]">
-                                <p className="text-white/50 text-[9px] font-black uppercase mb-1">Qolgan summa</p>
+                                <p className="text-white/50 text-[9px] font-black uppercase mb-1">Остаток суммы</p>
                                 <p className="text-white text-sm font-bold truncate">
                                     {formatCurrency(Math.max(0, kpis.sales_plan_amount - kpis.sales_fact_received_amount))}
                                 </p>
@@ -475,7 +475,7 @@ export default function StatsPage() {
                                 icon={Boxes}
                                 color="violet"
                                 suffix=""
-                                onClick={() => setDrilldownMetric({ id: 'sold_items', label: 'Проdanнные Товары (шт)' })}
+                                onClick={() => setDrilldownMetric({ id: 'sold_items', label: 'Проданные Товары (шт)' })}
                             />
                         </div>
                     </motion.div>
@@ -488,7 +488,7 @@ export default function StatsPage() {
                                     <div className="p-2 bg-blue-50 rounded-xl">
                                         <Package className="w-5 h-5 text-blue-600" />
                                     </div>
-                                    Mahsulotlar dinamikasi
+                                    Динамика продуктов
                                 </h3>
                             </div>
                             <div className="h-[500px]">
@@ -514,8 +514,8 @@ export default function StatsPage() {
                                             formatter={(value: any) => [formatCurrency(value || 0), ""]}
                                         />
                                         <Legend wrapperStyle={{ paddingTop: '30px' }} />
-                                        <Bar dataKey="plan_uzs" name="Reja (UZS)" fill="#e2e8f0" radius={[0, 8, 8, 0]} maxBarSize={30} />
-                                        <Bar dataKey="fact_uzs" name="Fakt (UZS)" fill="#3b82f6" radius={[0, 8, 8, 0]} maxBarSize={30} />
+                                        <Bar dataKey="plan_uzs" name="План (UZS)" fill="#e2e8f0" radius={[0, 8, 8, 0]} maxBarSize={30} />
+                                        <Bar dataKey="fact_uzs" name="Факт (UZS)" fill="#3b82f6" radius={[0, 8, 8, 0]} maxBarSize={30} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
