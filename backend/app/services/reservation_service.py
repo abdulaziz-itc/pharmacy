@@ -379,7 +379,7 @@ class ReservationService:
                         amount=credit_to_apply,
                         payment_type=PaymentType.BANK,
                         processed_by_id=reservation.created_by_id,
-                        comment="За счет кредиторки"
+                        comment=f"Автоматическая оплата с баланса (Кредиторка). Сумма: {credit_to_apply:,.0f} UZS"
                     )
                     db.add(credit_payment)
 

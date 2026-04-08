@@ -206,20 +206,30 @@ class FinancialService:
                             amount=apply_other,
                             payment_type=obj_in.payment_type,
                             processed_by_id=processor_id,
-                            comment=f"За счет переплаты (счет #{invoice.id})"
+                            comment=f"Автоматическое погашение за счет переплаты по счёту №{invoice.factura_number or invoice.id}"
                         )
                         db.add(other_payment)
                     
-                    # If still remaining, add to organization's credit balance AND THIS invoice
+                    # If still remaining, add to organization's credit balance
                     if remaining_payment > 0:
-                        from app.models.crm import MedicalOrganization
+                        from app.models.crm import MedicalOrganization, BalanceTransaction, BalanceTransactionType
                         org_query = select(MedicalOrganization).where(MedicalOrganization.id == reservation.med_org_id).with_for_update()
                         org_result = await db.execute(org_query)
                         org = org_result.scalar_one_or_none()
                         if org:
                             org.credit_balance = (org.credit_balance or 0.0) + remaining_payment
-                            # Push excess to initial invoice to show -Debt
-                            invoice.paid_amount += remaining_payment
+                            
+                            # Record BalanceTransaction
+                            bt = BalanceTransaction(
+                                organization_id=org.id,
+                                amount=remaining_payment,
+                                transaction_type=BalanceTransactionType.OVERPAYMENT,
+                                related_invoice_id=invoice.id,
+                                comment=f"Переплата по счёту №{invoice.factura_number or invoice.id}"
+                            )
+                            db.add(bt)
+                            # Note: we do NOT add remaining_payment to invoice.paid_amount here 
+                            # to keep the invoice strictly at total_amount as requested.
 
                 await db.commit()
                 return payment

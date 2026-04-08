@@ -6,14 +6,15 @@ from sqlalchemy.orm import selectinload
 
 from app.models.sales import (
     Plan, Reservation, ReservationItem, Invoice, Payment,
-    ReservationStatus, InvoiceStatus, DoctorFactAssignment, BonusPayment
+    ReservationStatus, InvoiceStatus, PaymentType, DoctorFactAssignment, BonusPayment
 )
 from app.schemas.sales import (
     PlanCreate, ReservationCreate, ReservationUpdate, PaymentCreate,
-    DoctorFactAssignmentCreate, BonusPaymentCreate, ReservationDataUpdate
+    DoctorFactAssignmentCreate, BonusPaymentCreate, ReservationDataUpdate,
+    ReservationReturnCreate, BonusPaymentUpdate
 )
 from app.models.product import Product
-from app.models.crm import Doctor, MedicalOrganization
+from app.models.crm import Doctor, MedicalOrganization, BalanceTransaction, BalanceTransactionType
 from app.models.warehouse import Warehouse
 from app.models.user import User
 from app.models.sales import ReservationItem
@@ -348,6 +349,13 @@ async def update_reservation_data(db: AsyncSession, reservation_id: int, obj_in:
         reservation.total_amount = sum(item.total_price for item in reservation.items)
         if reservation.invoice:
             reservation.invoice.total_amount = reservation.total_amount
+            
+    # NEW: Apply existing credit balance to the (newly created or updated) invoice
+    if reservation.invoice and reservation.med_org:
+        # We need current user_id here. 
+        # Since user_id isn't directly passed to update_reservation_data in some paths, 
+        # let's use the reservation creator as a fallback.
+        await apply_balance_to_invoice(db, reservation.invoice, reservation.med_org, reservation.created_by_id)
 
     await db.commit()
     
@@ -501,22 +509,192 @@ async def get_invoices(
 
 # Payments
 async def create_payment(db: AsyncSession, obj_in: PaymentCreate, user_id: int) -> Payment:
-    db_obj = Payment(**obj_in.dict(), processed_by_id=user_id)
+    # 1. Fetch Invoice and related data
+    result = await db.execute(
+        select(Invoice)
+        .options(selectinload(Invoice.reservation).selectinload(Reservation.med_org))
+        .where(Invoice.id == obj_in.invoice_id)
+    )
+    invoice = result.scalars().first()
+    if not invoice:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    organization = invoice.reservation.med_org
+    remaining_debt = invoice.total_amount - invoice.paid_amount
+    payment_amount = obj_in.amount
+    surplus = 0.0
+
+    if payment_amount > remaining_debt:
+        actual_payment = remaining_debt
+        surplus = payment_amount - remaining_debt
+    else:
+        actual_payment = payment_amount
+
+    # Create the primary payment record
+    db_obj = Payment(
+        invoice_id=invoice.id,
+        amount=actual_payment,
+        payment_type=obj_in.payment_type,
+        comment=obj_in.comment,
+        processed_by_id=user_id,
+        allocated_doctor_id=obj_in.allocated_doctor_id
+    )
     db.add(db_obj)
     
     # Update Invoice paid_amount and status
-    result = await db.execute(select(Invoice).where(Invoice.id == obj_in.invoice_id))
-    invoice = result.scalars().first()
-    if invoice:
-        invoice.paid_amount += obj_in.amount
-        if invoice.paid_amount >= invoice.total_amount:
-            invoice.status = InvoiceStatus.PAID
-        elif invoice.paid_amount > 0:
-            invoice.status = InvoiceStatus.PARTIAL
+    invoice.paid_amount += actual_payment
+    if invoice.paid_amount >= invoice.total_amount:
+        invoice.status = InvoiceStatus.PAID
+    elif invoice.paid_amount > 0:
+        invoice.status = InvoiceStatus.PARTIAL
+
+    # Handle Surplus (Overpayment)
+    if surplus > 0 and organization:
+        # 1. Try to apply to other debts
+        remaining_surplus = await apply_surplus_to_debts(db, organization.id, surplus, user_id, source_invoice_id=invoice.id)
+        
+        # 2. If still surplus, add to credit_balance
+        if remaining_surplus > 0:
+            organization.credit_balance = (organization.credit_balance or 0.0) + remaining_surplus
+            
+            # Record BalanceTransaction
+            bt = BalanceTransaction(
+                organization_id=organization.id,
+                amount=remaining_surplus,
+                transaction_type=BalanceTransactionType.OVERPAYMENT,
+                related_invoice_id=invoice.id,
+                comment=f"Остаток от оплаты счета #{invoice.factura_number or invoice.id}"
+            )
+            db.add(bt)
     
     await db.commit()
     await db.refresh(db_obj)
     return db_obj
+
+async def apply_surplus_to_debts(db: AsyncSession, organization_id: int, amount: float, user_id: int, source_invoice_id: int = None) -> float:
+    """
+    Finds unpaid/partial invoices for the organization and applies the amount to them (FIFO).
+    Returns the remaining surplus if any.
+    """
+    query = (
+        select(Invoice)
+        .join(Reservation)
+        .where(Reservation.med_org_id == organization_id)
+        .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.DRAFT]))
+        .where(Invoice.total_amount > Invoice.paid_amount)
+        .order_by(Invoice.date.asc())
+    )
+    result = await db.execute(query)
+    invoices = result.scalars().all()
+    
+    remaining_surplus = amount
+    for inv in invoices:
+        if remaining_surplus <= 0:
+            break
+        
+        debt = inv.total_amount - inv.paid_amount
+        payment_to_apply = min(remaining_surplus, debt)
+        
+        # Create payment record
+        comment = "Автоматическое погашение"
+        if source_invoice_id:
+            comment += f" из переплаты по счетu #{source_invoice_id}"
+            
+        p = Payment(
+            invoice_id=inv.id,
+            amount=payment_to_apply,
+            payment_type=PaymentType.BANK,
+            comment=comment,
+            processed_by_id=user_id
+        )
+        db.add(p)
+        
+        inv.paid_amount += payment_to_apply
+        if inv.paid_amount >= inv.total_amount:
+            inv.status = InvoiceStatus.PAID
+        else:
+            inv.status = InvoiceStatus.PARTIAL
+            
+        remaining_surplus -= payment_to_apply
+        
+    return remaining_surplus
+
+async def apply_balance_to_invoice(db: AsyncSession, invoice: Invoice, organization: MedicalOrganization, user_id: int):
+    """
+    Applies available organization credit balance to an invoice.
+    """
+    if not organization or not organization.credit_balance or organization.credit_balance <= 0:
+        return
+    
+    available_balance = organization.credit_balance
+    debt = invoice.total_amount - invoice.paid_amount
+    
+    if debt <= 0:
+        return
+        
+    amount_to_apply = min(available_balance, debt)
+    
+    # Create Payment record
+    p = Payment(
+        invoice_id=invoice.id,
+        amount=amount_to_apply,
+        payment_type=PaymentType.BANK,
+        comment=f"Автоматическая оплата с баланса. (Баланс до: {available_balance:,.0f} UZS)",
+        processed_by_id=user_id
+    )
+    db.add(p)
+    
+    # Update Invoice
+    invoice.paid_amount += amount_to_apply
+    if invoice.paid_amount >= invoice.total_amount:
+        invoice.status = InvoiceStatus.PAID
+    else:
+        invoice.status = InvoiceStatus.PARTIAL
+        
+    # Update Organization Balance
+    organization.credit_balance -= amount_to_apply
+    
+    # Record Balance Transaction
+    bt = BalanceTransaction(
+        organization_id=organization.id,
+        amount=-amount_to_apply,
+        transaction_type=BalanceTransactionType.APPLICATION,
+        related_invoice_id=invoice.id,
+        comment=f"Оплата счета №{invoice.factura_number or invoice.id}"
+    )
+    db.add(bt)
+
+async def top_up_organization_balance(db: AsyncSession, organization_id: int, amount: float, comment: str, user_id: int) -> MedicalOrganization:
+    """
+    Manually top up organization balance.
+    If debt exists, it settles it first.
+    """
+    result = await db.execute(select(MedicalOrganization).where(MedicalOrganization.id == organization_id))
+    org = result.scalars().first()
+    if not org:
+        return None
+    
+    total_amount_received = amount
+    
+    # 1. Apply to existing debts first
+    remaining_after_debts = await apply_surplus_to_debts(db, organization_id, total_amount_received, user_id)
+    
+    # 2. Add remaining to credit_balance
+    if remaining_after_debts > 0:
+        # Record the top-up transaction for the balance part
+        bt = BalanceTransaction(
+            organization_id=org.id,
+            amount=remaining_after_debts,
+            transaction_type=BalanceTransactionType.TOPUP,
+            comment=f"Пополнение баланса бухгалтером. {comment or ''}"
+        )
+        db.add(bt)
+        org.credit_balance = (org.credit_balance or 0.0) + remaining_after_debts
+    
+    await db.commit()
+    await db.refresh(org)
+    return org
 
 # Facts
 async def get_facts(db: AsyncSession, med_rep_id: Optional[int] = None) -> List[dict]:

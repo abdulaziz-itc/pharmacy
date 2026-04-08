@@ -11,7 +11,8 @@ from app.schemas.crm import (
     Doctor, DoctorCreate, DoctorUpdate,
     MedicalOrganization, MedicalOrganizationCreate, MedicalOrganizationUpdate,
     DoctorSpecialty, DoctorSpecialtyCreate,
-    DoctorCategory, DoctorCategoryCreate
+    DoctorCategory, DoctorCategoryCreate,
+    BalanceTransaction, OrganizationBalanceTopUp
 )
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -260,6 +261,63 @@ async def create_med_org(
         request
     )
     return med_org
+
+@router.get("/med-orgs/{org_id}/balance-history", response_model=List[BalanceTransaction])
+async def get_med_org_balance_history(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    org_id: int,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Get credit balance transaction history for a medical organization.
+    """
+    from app.models.crm import BalanceTransaction
+    result = await db.execute(
+        select(BalanceTransaction)
+        .where(BalanceTransaction.organization_id == org_id)
+        .order_by(BalanceTransaction.created_at.desc())
+    )
+    return result.scalars().all()
+
+
+@router.post("/med-orgs/{org_id}/top-up-balance", response_model=MedicalOrganization)
+async def top_up_med_org_balance(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    org_id: int,
+    top_up_in: OrganizationBalanceTopUp,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request,
+) -> Any:
+    """
+    Manually top up organization balance (Accountant logic).
+    Settles debts first if any.
+    """
+    # Only allow certain roles
+    allowed_roles = {UserRole.ADMIN, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS}
+    if current_user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Not enough permissions to top up balance")
+    
+    updated_org = await crud_sales.top_up_organization_balance(
+        db, 
+        organization_id=org_id, 
+        amount=top_up_in.amount, 
+        comment=f"{top_up_in.details or ''} | {top_up_in.comment or ''}".strip(" | "),
+        user_id=current_user.id
+    )
+    
+    if not updated_org:
+        raise HTTPException(status_code=404, detail="Medical Organization not found")
+        
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "TOPUP", "MedicalOrganization", org_id,
+        f"Баланс организации {updated_org.name} пополнен на {top_up_in.amount}. Коммент: {top_up_in.comment}",
+        request
+    )
+    
+    return updated_org
 
 @router.get("/med-orgs/{id}/stock")
 async def get_med_org_stock(
