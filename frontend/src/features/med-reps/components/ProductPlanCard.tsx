@@ -1039,7 +1039,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                                 {/* Keep previous layout but removed as it was moved inside IIFE */}                                {/* Doctor rows */}
                                 {stat.doctorPlans.length > 0 && (
                                     <div className="divide-y divide-emerald-100/50 bg-emerald-50/10">
-                                        {stat.doctorPlans.map(docPlan => (
+                                        {stat.doctorPlans.filter(d => d.planQty > 0 || d.factQty > 0).map(docPlan => (
                                             <div key={docPlan.planId} className="px-4 py-3 flex items-center justify-between hover:bg-emerald-50/50 transition-colors">
                                                 <div className="flex-1 text-[13px] font-medium text-emerald-900/80 flex items-center gap-2">
                                                     Имя доктора ({docPlan.doctorName})
