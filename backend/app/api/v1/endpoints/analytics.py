@@ -361,7 +361,7 @@ async def get_comprehensive_stats(
     fact_sum = (await db.execute(fact_q)).scalar() or 0
 
     # Bonus Ledger (Earned, Paid, Advances)
-    bonus_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
+    bonus_q = select(BonusLedger.user_id, BonusLedger.doctor_id, BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
     if start_date and end_date: bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
     if rep_ids: bonus_q = bonus_q.where(BonusLedger.user_id.in_(rep_ids))
     if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
@@ -369,25 +369,32 @@ async def get_comprehensive_stats(
     
     bonus_res = (await db.execute(bonus_q)).all()
     
-    accrued_sum = 0.0
-    paid_sum = 0.0
-    predinvest_sum = 0.0
+    user_data = {} # {id: {"accrued": 0.0, "paid": 0.0}}
     allocated_sum = 0.0
     payout_sum = 0.0 # Salary payments
 
     for r in bonus_res:
+        key = f"u_{r.user_id}" if r.user_id else f"d_{r.doctor_id}" if r.doctor_id else "unknown"
+        if key not in user_data:
+            user_data[key] = {"accrued": 0.0, "paid": 0.0}
+            
         if r.ledger_type == LedgerType.ACCRUAL:
             if r.notes == "Аванс (Предынвест)":
-                predinvest_sum += r.amount
-                paid_sum += r.amount
+                user_data[key]["paid"] += r.amount
             else:
-                accrued_sum += r.amount
+                user_data[key]["accrued"] += r.amount
                 if r.is_paid:
-                    paid_sum += r.amount
+                    user_data[key]["paid"] += r.amount
         elif r.ledger_type == LedgerType.OFFSET:
             allocated_sum += abs(r.amount)
         elif r.ledger_type == LedgerType.PAYOUT:
             payout_sum += abs(r.amount)
+
+    # Calculate global totals from individual balances
+    accrued_sum = sum(d["accrued"] for d in user_data.values())
+    paid_sum = sum(d["paid"] for d in user_data.values())
+    predinvest_sum = sum(max(0.0, d["paid"] - d["accrued"]) for d in user_data.values())
+    bonus_balance_sum = sum(max(0.0, d["accrued"] - d["paid"]) for d in user_data.values())
 
     # Debt (Outstanding from Invoices)
     debt_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount).label("total")).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
@@ -643,7 +650,7 @@ async def get_comprehensive_stats(
             "salary_balance": float(max(0, salary_accrued - payout_sum)),
             "salary_accrued": float(salary_accrued),
             "total_invoice_sum": float(sales_total),
-            "bonus_balance": float(max(0, accrued_sum - paid_sum)),
+            "bonus_balance": float(bonus_balance_sum),
             "total_predinvest": float(predinvest_sum),
             "receivables": float(debt_sum),
             "overdue_receivables": float(overdue_sum),

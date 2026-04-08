@@ -1172,7 +1172,6 @@ async def get_admin_bonus_summary(
         for e in entries:
             if e.ledger_type == LedgerType.ACCRUAL:
                 if e.notes == "Аванс (Предынвест)":
-                    predinvest += e.amount
                     paid += e.amount
                 else:
                     accrued += e.amount
@@ -1182,6 +1181,7 @@ async def get_admin_bonus_summary(
                 allocated += abs(e.amount)
                 
         remainder = max(0.0, accrued - paid)
+        predinvest = max(0.0, paid - accrued)
         
         overdue_q = select(BonusLedger.id).where(
             and_(
