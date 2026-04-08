@@ -738,6 +738,7 @@ async def get_comprehensive_drilldown(
         if rep_ids: plan_q = plan_q.where(Plan.med_rep_id.in_(rep_ids))
         if region_id: plan_q = plan_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
         if product_id: plan_q = plan_q.where(Plan.product_id == product_id)
+        plan_q = plan_q.where(or_(Plan.target_amount > 0, Plan.target_quantity > 0))
         rows = (await db.execute(plan_q.offset(skip).limit(limit))).scalars().all()
         return [
             {
