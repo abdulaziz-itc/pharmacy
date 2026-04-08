@@ -410,7 +410,7 @@ export default function MedRepDetailPage() {
                                 }))} />
                             </div>
 
-                            {/* Bonus Payments Card */}
+                            {/* Bonus Payments Card - Hidden for now
                             <div className="lg:col-span-2 transition-all duration-300 hover:translate-y-[-4px]">
                                 <BonusPaymentsCard
                                     bonusPayments={bonusPayments}
@@ -452,6 +452,7 @@ export default function MedRepDetailPage() {
                                     }}
                                 />
                             </div>
+                            */}
                         </div>
                     </TabsContent>
 
