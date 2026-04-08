@@ -110,8 +110,10 @@ class ReservationItem(Base):
     return_requested_quantity = Column(Integer, default=0, server_default="0", nullable=False)
     price = Column(Float, nullable=False) 
     discount_percent = Column(Float, default=0.0)
-    marketing_amount = Column(Float, default=0.0) # Overridden marketing sum per unit
-    salary_amount = Column(Float, default=0.0) # Overridden salary sum per unit
+    marketing_amount = Column(Float, default=0.0) # Snapshotted marketing sum per unit
+    salary_amount = Column(Float, default=0.0) # Snapshotted salary sum per unit
+    production_price = Column(Float, default=0.0) # Snapshotted cost price per unit
+    other_expenses = Column(Float, default=0.0) # Snapshotted other expenses per unit
     total_price = Column(Float, default=0.0) 
 
     @property
@@ -122,10 +124,28 @@ class ReservationItem(Base):
     product = relationship("Product")
     manufacturer = relationship("Manufacturer")
 
+class BalanceTopUp(Base):
+    """
+    Records a manual balance top-up by an accountant.
+    Source of truth for the organization's virtual balance additions.
+    """
+    __tablename__ = "balance_top_up"
+    id = Column(Integer, primary_key=True, index=True)
+    med_org_id = Column(Integer, ForeignKey("medicalorganization.id"), index=True)
+    amount = Column(Float, nullable=False)
+    date = Column(DateTime, default=datetime.utcnow)
+    comment = Column(Text, nullable=True) # "Asos"
+    processed_by_id = Column(Integer, ForeignKey("user.id"))
+    
+    med_org = relationship("MedicalOrganization", backref="top_ups")
+    processed_by = relationship("User")
+
 class Payment(Base): # Postupleniya
     __tablename__ = "payment"
     id = Column(Integer, primary_key=True, index=True)
-    invoice_id = Column(Integer, ForeignKey("invoice.id"), index=True)
+    invoice_id = Column(Integer, ForeignKey("invoice.id"), index=True, nullable=True)
+    med_org_id = Column(Integer, ForeignKey("medicalorganization.id"), index=True, nullable=True)
+    top_up_id = Column(Integer, ForeignKey("balance_top_up.id"), nullable=True) # Link to settlement source
     amount = Column(Float, nullable=False)
     date = Column(DateTime, default=datetime.utcnow)
     payment_type = Column(String, default=PaymentType.BANK)
@@ -134,6 +154,8 @@ class Payment(Base): # Postupleniya
     allocated_doctor_id = Column(Integer, ForeignKey("doctor.id"), nullable=True) 
     
     invoice = relationship("Invoice", back_populates="payments")
+    med_org = relationship("MedicalOrganization", back_populates="payments") # Changed to back_populates for symmetry
+    top_up = relationship("BalanceTopUp", backref="generated_payments")
     processed_by = relationship("User")
     allocated_doctor = relationship("Doctor")
 

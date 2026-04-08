@@ -141,11 +141,16 @@ async def delete_plan(db: AsyncSession, id: int) -> bool:
 
 # Reservations
 async def create_reservation(db: AsyncSession, obj_in: ReservationCreate, user_id: int) -> Reservation:
-    # Calculate total amount
-    total_amount = 0.0
-    items_db = []
+    # 1. Fetch all products needed in one go to get snapshot costs
+    product_ids = [item.product_id for item in obj_in.items]
+    product_result = await db.execute(select(Product).where(Product.id.in_(product_ids)))
+    product_map = {p.id: p for p in product_result.scalars().all()}
     
+    items_db = []
+    total_amount = 0
+
     for item in obj_in.items:
+        prod = product_map.get(item.product_id)
         # Calculate item total: (price * qty) * (1 - discount/100)
         item_total = (item.price * item.quantity) * (1 - item.discount_percent / 100.0)
         total_amount += item_total
@@ -155,7 +160,12 @@ async def create_reservation(db: AsyncSession, obj_in: ReservationCreate, user_i
             quantity=item.quantity,
             price=item.price,
             discount_percent=item.discount_percent,
-            total_price=item_total
+            total_price=item_total,
+            # Snapshot all cost fields at the time of creation
+            production_price=prod.production_price if prod else 0.0,
+            marketing_amount=prod.marketing_expense if prod else 0.0,
+            salary_amount=prod.salary_expense if prod else 0.0,
+            other_expenses=prod.other_expenses if prod else 0.0
         )
         items_db.append(db_item)
 
@@ -501,18 +511,48 @@ async def get_invoices(
 
 # Payments
 async def create_payment(db: AsyncSession, obj_in: PaymentCreate, user_id: int) -> Payment:
+    from app.services.finance_service import FinanceService
+    
     db_obj = Payment(**obj_in.dict(), processed_by_id=user_id)
     db.add(db_obj)
     
-    # Update Invoice paid_amount and status
-    result = await db.execute(select(Invoice).where(Invoice.id == obj_in.invoice_id))
-    invoice = result.scalars().first()
-    if invoice:
-        invoice.paid_amount += obj_in.amount
-        if invoice.paid_amount >= invoice.total_amount:
-            invoice.status = InvoiceStatus.PAID
-        elif invoice.paid_amount > 0:
-            invoice.status = InvoiceStatus.PARTIAL
+    result = await db.execute(select(MedicalOrganization).where(MedicalOrganization.id == (obj_in.med_org_id or -1)).with_for_update())
+    med_org = result.scalar_one_or_none()
+    
+    # 1. If it's a general payment to organization (no invoice_id)
+    if not obj_in.invoice_id and obj_in.med_org_id:
+        if med_org:
+            med_org.credit_balance = (med_org.credit_balance or 0.0) + obj_in.amount
+            # Trigger FIFO settlement using the newly added balance
+            await FinanceService.settle_debt_fifo(db, med_org.id, obj_in.amount, processed_by_id=user_id)
+            
+    # 2. If it's linked to an invoice (normal payment)
+    if obj_in.invoice_id:
+        result = await db.execute(select(Invoice).options(
+            selectinload(Invoice.reservation).selectinload(Reservation.med_org)
+        ).where(Invoice.id == obj_in.invoice_id).with_for_update())
+        invoice = result.scalars().first()
+        if invoice:
+            if not db_obj.med_org_id and invoice.reservation:
+                db_obj.med_org_id = invoice.reservation.med_org_id
+            
+            invoice.paid_amount += obj_in.amount
+            
+            # Update MedicalOrg overall balance (every payment increases balance, every invoice decreases it)
+            if med_org:
+                med_org.credit_balance = (med_org.credit_balance or 0.0) + obj_in.amount
+                
+            # If overpaid this specific invoice, the excess was already added to med_org.credit_balance above.
+            # We can trigger FIFO to see if there are other debts to settle with the excess.
+            if invoice.paid_amount > invoice.total_amount:
+                excess = invoice.paid_amount - invoice.total_amount
+                if med_org:
+                    await FinanceService.settle_debt_fifo(db, med_org.id, excess, processed_by_id=user_id)
+                
+            if invoice.paid_amount >= invoice.total_amount:
+                invoice.status = InvoiceStatus.PAID
+            elif invoice.paid_amount > 0:
+                invoice.status = InvoiceStatus.PARTIAL
     
     await db.commit()
     await db.refresh(db_obj)
