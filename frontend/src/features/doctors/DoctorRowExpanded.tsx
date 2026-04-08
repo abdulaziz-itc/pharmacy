@@ -1,7 +1,8 @@
 import React from 'react';
 import type { Doctor } from '../../store/doctorStore';
-import { getPlans, getDoctorFacts, getBonusPayments } from '../../api/sales';
+import { getPlans, getDoctorFacts, getBonusPayments, deletePlan } from '../../api/sales';
 import { useProductStore } from '../../store/productStore';
+import { Trash2 } from 'lucide-react';
 
 interface DoctorRowExpandedProps {
     doctor: Doctor;
@@ -11,11 +12,12 @@ interface DoctorRowExpandedProps {
 
 interface ProductRow {
     productId: number;
+    planId?: number;
     productName: string;
     planQty: number;
     planSum: number;
     factQty: number;
-    bonusFactLabel?: string; // Not strictly needed but for clarity
+    bonusFactLabel?: string;
     bonusFact: number;
     bonusPred: number;
 }
@@ -41,6 +43,7 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
     const [bonusRows, setBonusRows] = React.useState<BonusRow[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [tab, setTab] = React.useState<'plans' | 'bonuses'>('plans');
+    const [refreshTrigger, setRefreshTrigger] = React.useState(0);
 
     // Bonus history filter
     const [bonusShowAll, setBonusShowAll] = React.useState(true);
@@ -89,13 +92,13 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
 
                 // Plan map — use LATEST plan per product (avoid summing duplicates)
                 const sortedPlans = [...plans].sort((a: any, b: any) => b.id - a.id);
-                const planMap: Record<number, { name: string; planQty: number; planSum: number }> = {};
+                const planMap: Record<number, { id: number; name: string; planQty: number; planSum: number }> = {};
                 for (const p of sortedPlans) {
                     const pid = p.product_id ?? p.product?.id;
                     if (!pid) continue;
                     const name = p.product?.name ?? `Продукт #${pid}`;
                     // overwrite: latest (highest id) plan wins — no double-counting
-                    planMap[pid] = { name, planQty: p.target_quantity ?? 0, planSum: p.target_amount ?? 0 };
+                    planMap[pid] = { id: p.id, name, planQty: p.target_quantity ?? 0, planSum: p.target_amount ?? 0 };
                 }
 
                 // Fact map (filter by month/year)
@@ -135,6 +138,7 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
 
                     return {
                         productId: pid,
+                        planId: planMap[pid]?.id,
                         productName: planMap[pid]?.name ?? `Продукт #${pid}`,
                         planQty: planMap[pid]?.planQty ?? 0,
                         planSum: planMap[pid]?.planSum ?? 0,
@@ -150,7 +154,17 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
             }
         };
         load();
-    }, [doctor.id, month, year, products]);
+    }, [doctor.id, month, year, products, refreshTrigger]);
+
+    const handleDeletePlan = async (planId: number, productName: string) => {
+        if (!window.confirm(`Вы действительно хотите удалить план для "${productName}"?`)) return;
+        try {
+            await deletePlan(planId);
+            setRefreshTrigger(prev => prev + 1);
+        } catch (e: any) {
+            alert(e.response?.data?.detail || 'Ошибка при удалении плана');
+        }
+    };
 
     const fmt = (n: number) => new Intl.NumberFormat('ru-RU').format(n);
     const totalBonus = filteredBonusRows.reduce((s, b) => s + b.amount, 0);
@@ -210,6 +224,7 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
                                         <th className="px-6 py-3.5 text-right w-20">Выполн. %</th>
                                         <th className="px-6 py-3.5 text-right w-28 text-emerald-600">Бонус (факт)</th>
                                         <th className="px-6 py-3.5 text-right w-28 text-amber-600">Предынвест</th>
+                                        <th className="px-6 py-3.5 text-center w-16">Действие</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
@@ -239,6 +254,17 @@ export function DoctorRowExpanded({ doctor, month, year }: DoctorRowExpandedProp
                                                     {p.bonusPred > 0 ? (
                                                         <span className="inline-flex px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 font-bold text-[10px] border border-amber-100">{fmt(p.bonusPred)}</span>
                                                     ) : <span className="text-slate-300 text-xs">—</span>}
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    {p.planId && p.factQty === 0 && (
+                                                        <button 
+                                                            onClick={() => handleDeletePlan(p.planId!, p.productName)}
+                                                            className="p-2 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all group"
+                                                            title="Удалить план"
+                                                        >
+                                                            <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );

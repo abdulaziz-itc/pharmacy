@@ -435,7 +435,8 @@ async def update_doctor(
         plans_query = await db.execute(
             select(Plan).where(
                 Plan.doctor_id == id,
-                (Plan.year > now.year) | ((Plan.year == now.year) & (Plan.month >= now.month))
+                (Plan.year > now.year) | ((Plan.year == now.year) & (Plan.month >= now.month)),
+                (Plan.target_quantity > 0) | (Plan.target_amount > 0)
             )
         )
         if plans_query.scalars().first():

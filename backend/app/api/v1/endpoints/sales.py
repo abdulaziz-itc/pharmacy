@@ -100,7 +100,23 @@ async def delete_plan(
     plan = await crud_sales.get_plan(db, id=id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
-        
+
+    # Security Check: Prevent deletion if facts (realization) exist
+    from app.models.sales import DoctorFactAssignment
+    facts_check = await db.execute(
+        select(DoctorFactAssignment).where(
+            DoctorFactAssignment.doctor_id == plan.doctor_id,
+            DoctorFactAssignment.product_id == plan.product_id,
+            DoctorFactAssignment.month == plan.month,
+            DoctorFactAssignment.year == plan.year
+        ).limit(1)
+    )
+    if facts_check.scalars().first():
+        raise HTTPException(
+            status_code=400,
+            detail="Невозможно удалить план. У этого врача уже есть факт (реализация) по данному препарату за указанный месяц."
+        )
+
     await crud_sales.delete_plan(db, id=id)
     from app.services.audit_service import log_action
     await log_action(
