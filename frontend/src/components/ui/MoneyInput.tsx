@@ -45,15 +45,9 @@ export function formatMoney(value: string | number): string {
  */
 export function parseMoney(formatted: string): string {
     if (typeof formatted !== 'string') return String(formatted);
-    
-    // Heuristic similar to formatMoney: 
-    // If it has a comma or multiple dots, treat it as formatted and strip thousands.
-    if (formatted.includes(',') || (formatted.match(/\./g) || []).length > 1) {
-        return formatted.replace(/\./g, '').replace(/,/g, '.');
-    }
-    
-    // Single dot and no comma: likely already a raw numeric string
-    return formatted;
+    // In the UI input field, dots are ALWAYS thousands separators, 
+    // and commas are decimal separators. We strip dots and convert comma to dot.
+    return formatted.replace(/\./g, "").replace(/,/g, ".");
 }
 
 /**
