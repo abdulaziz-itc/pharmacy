@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axiosInstance from '@/api/axios';
 import { Search, Plus, History, Wallet, Building2, MapPin, TrendingUp, TrendingDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface MedicalOrganization {
   id: number;
@@ -35,10 +36,16 @@ const BalanceManagement = () => {
 
   const fetchOrgs = async () => {
     try {
-      const resp = await axios.get('/api/v1/crm/med-orgs?limit=100');
-      setOrgs(resp.data);
+      const resp = await axiosInstance.get('/crm/med-orgs?limit=100');
+      // If the response is the new standard object { items: [], total: ... }
+      if (resp.data.items) {
+        setOrgs(resp.data.items);
+      } else {
+        setOrgs(resp.data);
+      }
     } catch (err) {
       console.error('Failed to fetch orgs', err);
+      toast.error('Не удалось загрузить организации');
     } finally {
       setLoading(false);
     }
@@ -46,10 +53,11 @@ const BalanceManagement = () => {
 
   const fetchHistory = async (orgId: number) => {
     try {
-      const resp = await axios.get(`/api/v1/crm/med-orgs/${orgId}/balance-history`);
+      const resp = await axiosInstance.get(`/crm/med-orgs/${orgId}/balance-history`);
       setHistory(resp.data);
     } catch (err) {
       console.error('Failed to fetch history', err);
+      toast.error('Не удалось загрузить историю');
     }
   };
 
@@ -57,7 +65,7 @@ const BalanceManagement = () => {
     if (!selectedOrg || !topUpAmount) return;
     setIsSubmitting(true);
     try {
-      await axios.post(`/api/v1/crm/med-orgs/${selectedOrg.id}/top-up-balance`, {
+      await axiosInstance.post(`/crm/med-orgs/${selectedOrg.id}/top-up-balance`, {
         amount: parseFloat(topUpAmount),
         comment: topUpComment
       });
@@ -65,16 +73,16 @@ const BalanceManagement = () => {
       setTopUpAmount('');
       setTopUpComment('');
       fetchOrgs();
-      alert('Баланс успешно пополнен');
+      toast.success('Баланс успешно пополнен');
     } catch (err) {
-      alert('Ошибка при пополнении баланса');
+      toast.error('Ошибка при пополнении баланса');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const filteredOrgs = orgs.filter(o => 
-    o.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (o.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
