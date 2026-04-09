@@ -11,7 +11,8 @@ import {
   TrendingDown, 
   ArrowUpRight, 
   ArrowDownRight,
-  FilterX
+  FilterX,
+  ArrowUpDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/PageContainer';
@@ -50,6 +51,7 @@ const BalanceManagement = () => {
   const [topUpAmount, setTopUpAmount] = useState('');
   const [topUpComment, setTopUpComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | 'none'>('none');
 
   useEffect(() => {
     fetchOrgs();
@@ -111,9 +113,26 @@ const BalanceManagement = () => {
     }
   };
 
-  const filteredOrgs = orgs.filter(o => 
-    (o.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOrgs = useMemo(() => {
+    let result = orgs.filter(o => 
+      (o.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (sortDirection !== 'none') {
+      result = [...result].sort((a, b) => {
+        const balA = (a.current_surplus || 0) - (a.current_debt || 0);
+        const balB = (b.current_surplus || 0) - (b.current_debt || 0);
+        return sortDirection === 'asc' ? balA - balB : balB - balA;
+      });
+    }
+    return result;
+  }, [orgs, searchTerm, sortDirection]);
+
+  const toggleSort = () => {
+    if (sortDirection === 'none') setSortDirection('desc');
+    else if (sortDirection === 'desc') setSortDirection('asc');
+    else setSortDirection('none');
+  };
 
   return (
     <PageContainer>
@@ -205,7 +224,15 @@ const BalanceManagement = () => {
                   <tr className="bg-slate-50 border-b border-slate-100">
                     <th className="pl-10 pr-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Контрагент</th>
                     <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Регион</th>
-                    <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Баланс / Долг</th>
+                    <th 
+                      className="px-6 py-6 text-right group cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      onClick={toggleSort}
+                    >
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Баланс / Долг</span>
+                        <ArrowUpDown className={`w-3 h-3 transition-colors ${sortDirection !== 'none' ? 'text-indigo-600' : 'text-slate-300 group-hover:text-slate-400'}`} />
+                      </div>
+                    </th>
                     <th className="pl-6 pr-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Действия</th>
                   </tr>
                 </thead>
