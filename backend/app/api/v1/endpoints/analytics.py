@@ -450,6 +450,70 @@ async def get_comprehensive_stats(
     from app.services.expense_service import ExpenseService
     total_expenses = await ExpenseService.get_total_expenses(db, start_date, end_date)
 
+    # 3. NEW Dashbaord KPIs
+    # 3a. Shipment Fact (Invoices Total)
+    invoice_q = select(
+        func.coalesce(func.sum(Invoice.total_amount), 0.0).label("total"),
+        func.coalesce(func.sum(Invoice.paid_amount), 0.0).label("paid")
+    ).join(Reservation, Invoice.reservation_id == Reservation.id).where(Invoice.status != InvoiceStatus.CANCELLED)
+    invoice_q = apply_filters(invoice_q, Reservation)
+    if start_date and end_date: invoice_q = invoice_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    
+    inv_res = (await db.execute(invoice_q)).one()
+    total_invoice_sum = float(inv_res.total)
+    
+    # 3b. Items Sold (Count)
+    items_sold_q = select(func.coalesce(func.sum(ReservationItem.quantity), 0))\
+        .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+        .join(Invoice, Invoice.reservation_id == Reservation.id)\
+        .where(Invoice.status != InvoiceStatus.CANCELLED)
+    items_sold_q = apply_filters(items_sold_q, Reservation)
+    if start_date and end_date: items_sold_q = items_sold_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    if product_id: items_sold_q = items_sold_q.where(ReservationItem.product_id == product_id)
+    
+    total_items_sold = (await db.execute(items_sold_q)).scalar() or 0
+
+    # 3c. Overdue Receivables (Older than 30 days)
+    overdue_date = datetime.utcnow() - timedelta(days=30)
+    overdue_q = select(func.coalesce(func.sum(Invoice.total_amount - Invoice.paid_amount), 0.0))\
+        .join(Reservation, Invoice.reservation_id == Reservation.id)\
+        .where(and_(
+            Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]),
+            Invoice.date < overdue_date
+        ))
+    overdue_q = apply_filters(overdue_q, Reservation)
+    overdue_receivables = (await db.execute(overdue_q)).scalar() or 0.0
+
+    # 3d. MedRep Salary Stats
+    # Realized salary based on invoice payments
+    salary_accrued_q = select(
+        func.coalesce(func.sum(ReservationItem.salary_amount * ReservationItem.quantity), 0.0)
+    ).select_from(ReservationItem)\
+     .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+     .join(Invoice, Invoice.reservation_id == Reservation.id)\
+     .where(and_(Reservation.is_salary_enabled == True, Invoice.status != InvoiceStatus.CANCELLED))
+    salary_accrued_q = apply_filters(salary_accrued_q, Reservation)
+    if start_date and end_date: salary_accrued_q = salary_accrued_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    if product_id: salary_accrued_q = salary_accrued_q.where(ReservationItem.product_id == product_id)
+    
+    salary_accrued = (await db.execute(salary_accrued_q)).scalar() or 0.0
+    
+    # We estimate salary_paid as the realization of accruals (same logic as profit)
+    salary_paid_q = select(
+        func.coalesce(func.sum(
+            (ReservationItem.salary_amount * ReservationItem.quantity) * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
+        ), 0.0)
+    ).select_from(ReservationItem)\
+     .join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+     .join(Invoice, Invoice.reservation_id == Reservation.id)\
+     .where(and_(Reservation.is_salary_enabled == True, Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
+    salary_paid_q = apply_filters(salary_paid_q, Reservation)
+    if start_date and end_date: salary_paid_q = salary_paid_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+    if product_id: salary_paid_q = salary_paid_q.where(ReservationItem.product_id == product_id)
+    
+    salary_paid = (await db.execute(salary_paid_q)).scalar() or 0.0
+    salary_balance = max(0, salary_accrued - salary_paid)
+
     net_profit = gross_profit_sum - total_expenses
 
     # 4. PRODUCT STATS (Safe Split Logic)
@@ -572,12 +636,18 @@ async def get_comprehensive_stats(
     kpis = {
         "sales_plan_amount": float(plan_sum),
         "sales_fact_received_amount": float(fact_sum),
+        "total_invoice_sum": float(total_invoice_sum),
+        "total_items_sold": int(total_items_sold),
         "bonus_accrued": float(accrued_sum),
         "bonus_allocated": float(allocated_sum),
         "bonus_paid": float(paid_sum),
         "bonus_balance": float(max(0, accrued_sum - paid_sum)),
         "total_predinvest": float(predinvest_sum),
         "receivables": float(debt_sum),
+        "overdue_receivables": float(overdue_receivables),
+        "salary_accrued": float(salary_accrued),
+        "salary_paid": float(salary_paid),
+        "salary_balance": float(salary_balance),
         "gross_profit": float(gross_profit_sum if fact_sum > 0 else potential_profit_sum),
         "total_expenses": float(total_expenses),
         "net_profit": float((gross_profit_sum if fact_sum > 0 else potential_profit_sum) - total_expenses),
