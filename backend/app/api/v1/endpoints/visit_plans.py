@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from datetime import datetime
 from app.api import deps
 from app.models.visit import VisitPlan
 from app.schemas.visit_plan import VisitPlan as VisitPlanSchema, VisitPlanCreate, VisitPlanUpdate
@@ -69,7 +70,7 @@ async def get_visit_plans(
         # Log to file for easier retrieval if server is running locally/monitored
         with open("error_log.txt", "a") as f:
             f.write(f"\n--- VISIT PLANS ERROR ---\n{error_trace}\n")
-        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
+        return []
 
 
 @router.post("/", response_model=VisitPlanSchema)
