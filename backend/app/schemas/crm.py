@@ -74,6 +74,7 @@ class MedicalOrganizationUpdate(BaseModel):
 class MedicalOrganization(MedicalOrganizationBase):
     id: int
     current_debt: Optional[float] = 0.0
+    current_surplus: Optional[float] = 0.0
     region: Optional[Region] = None
     assigned_reps: Optional[List[User]] = []
     model_config = {"from_attributes": True}

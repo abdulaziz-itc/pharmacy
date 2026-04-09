@@ -22,6 +22,7 @@ interface MedicalOrganization {
   name: string;
   region_name: string;
   credit_balance: number;
+  current_surplus: number;
   current_debt: number;
 }
 
@@ -74,7 +75,7 @@ const BalanceManagement = () => {
     let credit = 0;
     let debt = 0;
     orgs.forEach(o => {
-      credit += (o.credit_balance || 0);
+      credit += (o.current_surplus || 0);
       debt += (o.current_debt || 0);
     });
     return { credit, debt };
@@ -233,9 +234,9 @@ const BalanceManagement = () => {
                       </td>
                       <td className="px-6 py-6 text-right">
                         <div className="space-y-1">
-                            {org.credit_balance > 0 && (
+                            {org.current_surplus > 0 && (
                                 <div className="text-emerald-600 font-black text-lg tabular-nums">
-                                    +{formatMoney(org.credit_balance).split(' ')[0]}
+                                    +{formatMoney(org.current_surplus).split(' ')[0]}
                                     <span className="text-[10px] ml-1 opacity-40 font-bold uppercase">UZS</span>
                                 </div>
                             )}
@@ -245,11 +246,11 @@ const BalanceManagement = () => {
                                     <span className="text-[10px] ml-1 opacity-40 font-bold uppercase">UZS</span>
                                 </div>
                             )}
-                            {org.credit_balance === 0 && org.current_debt === 0 && (
+                            {org.current_surplus === 0 && org.current_debt === 0 && (
                                 <div className="text-slate-300 font-black text-lg tabular-nums">0</div>
                             )}
                             <div className="text-[9px] uppercase font-black tracking-widest text-slate-400">
-                                {org.credit_balance > 0 ? 'Kreditorka' : org.current_debt > 0 ? 'Debitorka' : 'Balans bo\'sh'}
+                                {org.current_surplus > 0 ? 'Kreditorka' : org.current_debt > 0 ? 'Debitorka' : 'Balans bo\'sh'}
                             </div>
                         </div>
                       </td>
