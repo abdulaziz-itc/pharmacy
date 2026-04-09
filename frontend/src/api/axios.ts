@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_BACKEND_URL
-    ? `${import.meta.env.VITE_BACKEND_URL}/api/v1`
-    : 'http://localhost:8000/api/v1';
+const baseURL = "https://backend.maax.uz/api/v1";
 
 const api = axios.create({
     baseURL,
