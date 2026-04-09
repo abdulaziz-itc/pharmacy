@@ -25,10 +25,11 @@ jobs:
           npm install
 
       - name: Build frontend
-        env:
-          VITE_BACKEND_URL: https://backend.maax.uz
         run: |
           cd frontend
+          npm cache clean --force
+          rm -rf node_modules
+          npm install
           npm run build
 
       - name: Upload to FTP
