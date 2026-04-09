@@ -222,10 +222,14 @@ async def create_med_org(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    # Allow MED_REP to create organizations
-    allowed = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.FIELD_FORCE_MANAGER, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN, UserRole.MED_REP}
+    # Allow MED_REP and Managers to create organizations
+    allowed = {
+        UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, 
+        UserRole.FIELD_FORCE_MANAGER, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER,
+        UserRole.HEAD_OF_ORDERS, UserRole.ADMIN, UserRole.MED_REP
+    }
     if current_user.role not in allowed:
-        raise HTTPException(status_code=400, detail="Not enough permissions")
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # Auto-assign MedRep if they are the creator
     if current_user.role == UserRole.MED_REP:
