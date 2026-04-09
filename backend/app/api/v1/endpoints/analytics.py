@@ -351,20 +351,23 @@ async def get_comprehensive_stats(
     
     accrued_sum = 0.0
     paid_sum = 0.0
-    predinvest_sum = 0.0
     allocated_sum = 0.0
 
     for r in bonus_res:
         if r.ledger_type == LedgerType.ACCRUAL:
-            if r.notes == "Аванс (Предынвест)":
-                predinvest_sum += r.amount
+            accrued_sum += r.amount
+            if r.is_paid:
                 paid_sum += r.amount
-            else:
-                accrued_sum += r.amount
-                if r.is_paid:
-                    paid_sum += r.amount
+        elif r.ledger_type == LedgerType.ADVANCE:
+            paid_sum += r.amount
+        elif r.ledger_type == LedgerType.PAYOUT:
+            paid_sum += r.amount
         elif r.ledger_type == LedgerType.OFFSET:
             allocated_sum += abs(r.amount)
+
+    # Calculate dynamic Predinvest and Balance
+    total_predinvest = max(0, paid_sum - accrued_sum)
+    bonus_balance = max(0, accrued_sum - paid_sum)
 
     # Debt (Outstanding from Invoices)
     debt_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount).label("total")).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
@@ -641,8 +644,8 @@ async def get_comprehensive_stats(
         "bonus_accrued": float(accrued_sum),
         "bonus_allocated": float(allocated_sum),
         "bonus_paid": float(paid_sum),
-        "bonus_balance": float(max(0, accrued_sum - paid_sum)),
-        "total_predinvest": float(predinvest_sum),
+        "bonus_balance": float(bonus_balance),
+        "total_predinvest": float(total_predinvest),
         "receivables": float(debt_sum),
         "overdue_receivables": float(overdue_receivables),
         "salary_accrued": float(salary_accrued),
