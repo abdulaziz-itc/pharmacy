@@ -82,24 +82,24 @@ class ReservationService:
                         )
                     
                     # 2. Marketing amount check (Promo)
-                    # User requirement: Max 30% of price
-                    max_mkt = item.price * 0.3
+                    # User requirement: Max 100% of price
+                    max_mkt = item.price * 1.0
                     if item.marketing_amount > max_mkt:
                          raise HTTPException(
                             status_code=400,
                             detail=f"Промо-сумма товара '{product.name}' ({item.marketing_amount:,.0f}) "
-                                   f"не может превышать 30% от цены ({max_mkt:,.0f} UZS)"
+                                   f"не может превышать 100% от цены ({max_mkt:,.0f} UZS)"
                         )
 
                     # 3. Salary amount check
-                    # User requirement: Max 30% of price
+                    # User requirement: Max 100% of price
                     if obj_in.is_salary_enabled:
-                        max_salary = item.price * 0.3
+                        max_salary = item.price * 1.0
                         if item.salary_amount > max_salary:
                             raise HTTPException(
                                 status_code=400,
                                 detail=f"Сумма зарплаты товара '{product.name}' ({item.salary_amount:,.0f}) "
-                                       f"не может превышать 30% от цены ({max_salary:,.0f} UZS)"
+                                       f"не может превышать 100% от цены ({max_salary:,.0f} UZS)"
                             )
                 
                 # Item amount BEFORE NDS
