@@ -69,6 +69,8 @@ async def create_doctor_category(db: AsyncSession, obj_in: DoctorCategoryCreate)
     await db.refresh(db_obj)
     return db_obj
 
+from sqlalchemy import func, case
+
 async def get_med_orgs(
     db: AsyncSession, 
     *,
@@ -79,17 +81,29 @@ async def get_med_orgs(
     rep_id: Optional[int] = None,
     rep_ids: Optional[List[int]] = None,
 ) -> List[MedicalOrganization]:
-    # Subquery for current debt
+    # Subquery for current debt and surplus
     debt_sub = select(
         Reservation.med_org_id,
-        func.sum(Invoice.total_amount - Invoice.paid_amount).label("total_debt")
+        func.sum(
+            case(
+                (Invoice.total_amount > Invoice.paid_amount, Invoice.total_amount - Invoice.paid_amount),
+                else_=0.0
+            )
+        ).label("total_debt"),
+        func.sum(
+            case(
+                (Invoice.paid_amount > Invoice.total_amount, Invoice.paid_amount - Invoice.total_amount),
+                else_=0.0
+            )
+        ).label("total_surplus")
     ).join(Invoice, Reservation.id == Invoice.reservation_id)\
-     .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))\
+     .where(Invoice.status != InvoiceStatus.CANCELLED)\
      .group_by(Reservation.med_org_id).subquery()
 
     query = select(
         MedicalOrganization,
-        func.coalesce(debt_sub.c.total_debt, 0.0).label("current_debt")
+        func.coalesce(debt_sub.c.total_debt, 0.0).label("current_debt"),
+        func.coalesce(debt_sub.c.total_surplus, 0.0).label("current_surplus")
     ).outerjoin(debt_sub, MedicalOrganization.id == debt_sub.c.med_org_id)\
      .options(
         selectinload(MedicalOrganization.region),
@@ -111,8 +125,10 @@ async def get_med_orgs(
     rows = result.all()
     
     final_orgs = []
-    for org, debt in rows:
+    for org, debt, surplus in rows:
         org.current_debt = float(debt)
+        # Total Creditorka = Manual Balance + Invoice Surplus
+        org.credit_balance = (org.credit_balance or 0.0) + float(surplus)
         final_orgs.append(org)
     return final_orgs
 
