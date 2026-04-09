@@ -9,6 +9,8 @@ from app.schemas.crm import (
     MedicalOrganizationCreate, MedicalOrganizationUpdate,
     DoctorSpecialtyCreate, DoctorCategoryCreate
 )
+from sqlalchemy import func
+from app.models.sales import Invoice, Reservation, InvoiceStatus
 
 # Region
 async def get_regions(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Region]:
@@ -67,7 +69,6 @@ async def create_doctor_category(db: AsyncSession, obj_in: DoctorCategoryCreate)
     await db.refresh(db_obj)
     return db_obj
 
-# Medical Organization
 async def get_med_orgs(
     db: AsyncSession, 
     *,
@@ -78,7 +79,19 @@ async def get_med_orgs(
     rep_id: Optional[int] = None,
     rep_ids: Optional[List[int]] = None,
 ) -> List[MedicalOrganization]:
-    query = select(MedicalOrganization).options(
+    # Subquery for current debt
+    debt_sub = select(
+        Reservation.med_org_id,
+        func.sum(Invoice.total_amount - Invoice.paid_amount).label("total_debt")
+    ).join(Invoice, Reservation.id == Invoice.reservation_id)\
+     .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))\
+     .group_by(Reservation.med_org_id).subquery()
+
+    query = select(
+        MedicalOrganization,
+        func.coalesce(debt_sub.c.total_debt, 0.0).label("current_debt")
+    ).outerjoin(debt_sub, MedicalOrganization.id == debt_sub.c.med_org_id)\
+     .options(
         selectinload(MedicalOrganization.region),
         selectinload(MedicalOrganization.assigned_reps)
     )
@@ -95,7 +108,13 @@ async def get_med_orgs(
         query = query.where(MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids)))
         
     result = await db.execute(query.offset(skip).limit(limit))
-    return result.scalars().all()
+    rows = result.all()
+    
+    final_orgs = []
+    for org, debt in rows:
+        org.current_debt = float(debt)
+        final_orgs.append(org)
+    return final_orgs
 
 async def create_med_org(db: AsyncSession, obj_in: MedicalOrganizationCreate) -> MedicalOrganization:
     obj_data = obj_in.dict()

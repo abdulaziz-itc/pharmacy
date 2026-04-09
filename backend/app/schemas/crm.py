@@ -53,6 +53,7 @@ class MedicalOrganizationBase(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     credit_balance: Optional[float] = 0.0
+    current_debt: Optional[float] = 0.0
 
 class MedicalOrganizationCreate(MedicalOrganizationBase):
     inn: str
