@@ -125,7 +125,7 @@ export default function AdminBonusApprovalPage() {
             if (regionId !== "all") params.append("region_id", regionId);
             
             const response = await axiosInstance.get(`/sales/admin/bonuses/summary?${params.toString()}`);
-            setSummaries(response.data);
+            setSummaries(response.data.summaries || []);
         } catch (error) {
             console.error("Failed to fetch bonus summaries:", error);
             toast.error("Не удалось загрузить данные по бонусам");
