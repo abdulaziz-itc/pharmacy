@@ -173,7 +173,7 @@ const BalanceManagement = () => {
                         <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100">
                             <TrendingUp className="w-5 h-5 text-emerald-600" />
                         </div>
-                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Jami Kreditorka</span>
+                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Всего Кредиторка</span>
                     </div>
                     <h2 className="text-5xl font-black tracking-tight text-slate-900 tabular-nums">
                         {formatMoney(totals.credit).split(' ')[0]}
@@ -196,7 +196,7 @@ const BalanceManagement = () => {
                         <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center border border-rose-100">
                             <TrendingDown className="w-5 h-5 text-rose-600" />
                         </div>
-                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Jami Debitorka</span>
+                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Всего Дебиторка</span>
                     </div>
                     <h2 className="text-5xl font-black tracking-tight text-slate-900 tabular-nums">
                         {formatMoney(totals.debt).split(' ')[0]}
@@ -277,7 +277,7 @@ const BalanceManagement = () => {
                                 <div className="text-slate-300 font-black text-lg tabular-nums">0</div>
                             )}
                             <div className="text-[9px] uppercase font-black tracking-widest text-slate-400">
-                                {org.current_surplus > 0 ? 'Kreditorka' : org.current_debt > 0 ? 'Debitorka' : 'Balans bo\'sh'}
+                                {org.current_surplus > 0 ? 'Кредиторка' : org.current_debt > 0 ? 'Дебиторка' : 'Баланс пуст'}
                             </div>
                         </div>
                       </td>
@@ -290,7 +290,7 @@ const BalanceManagement = () => {
                             }}
                             className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-100 active:scale-95 uppercase tracking-widest flex items-center gap-2"
                           >
-                            <Plus className="w-4 h-4" /> To'lov
+                            <Plus className="w-4 h-4" /> Платеж
                           </button>
                           <button 
                             onClick={() => {
@@ -300,7 +300,7 @@ const BalanceManagement = () => {
                             }}
                             className="h-10 px-5 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-black transition-all active:scale-95 uppercase tracking-widest flex items-center gap-2"
                           >
-                            <History className="w-4 h-4 text-slate-400" /> Tarix
+                            <History className="w-4 h-4 text-slate-400" /> История
                           </button>
                         </div>
                       </td>
@@ -338,15 +338,15 @@ const BalanceManagement = () => {
                   </div>
                   
                   <div className="text-center mb-12">
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Qabul qilingan to'lov</h2>
+                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Прием платежа</h2>
                     <p className="text-slate-500 mt-3 font-bold text-sm">
-                      <span className="text-indigo-600">{selectedOrg.name}</span> uchun balansni to'ldirish
+                      Пополнение баланса для <span className="text-indigo-600">{selectedOrg.name}</span>
                     </p>
                   </div>
 
                   <div className="space-y-8">
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-2">To'lov summasi (UZS)</label>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-2">Сумма платежа (UZS)</label>
                       <div className="relative">
                         <input 
                           type="number" 
@@ -360,10 +360,10 @@ const BalanceManagement = () => {
                     </div>
                     
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-2">Izoh / Maqsad</label>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-2">Комментарий / Цель</label>
                       <textarea 
                         rows={3}
-                        placeholder="Masalan: Bank o'tkazmasi yoki naqd to'lov..." 
+                        placeholder="Например: Банковский перевод или наличная оплата..." 
                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-5 px-8 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all text-base font-bold text-slate-700 resize-none"
                         value={topUpComment}
                         onChange={(e) => setTopUpComment(e.target.value)}
@@ -379,13 +379,13 @@ const BalanceManagement = () => {
                     >
                       {isSubmitting ? (
                         <div className="animate-spin w-6 h-6 border-3 border-white border-t-transparent rounded-full" />
-                      ) : 'To\'lovni tasdiqlash'}
+                      ) : 'Подтвердить платеж'}
                     </button>
                     <button 
                       onClick={() => setShowTopUp(false)}
                       className="w-full h-12 text-slate-400 hover:text-slate-600 font-black text-xs uppercase tracking-widest transition-all"
                     >
-                      Bekor qilish
+                      Отмена
                     </button>
                   </div>
                 </div>
@@ -410,7 +410,7 @@ const BalanceManagement = () => {
                       <History className="text-indigo-600 w-8 h-8" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">Tranzaksiyalar tarixi</h2>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">История транзакций</h2>
                       <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">{selectedOrg.name}</p>
                     </div>
                   </div>
@@ -426,7 +426,7 @@ const BalanceManagement = () => {
                   {history.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-24 text-slate-200">
                       <Wallet className="w-20 h-20 opacity-10 mb-6" />
-                      <p className="font-black uppercase tracking-[0.3em] text-[10px]">Tarixda ma'lumot yo'q</p>
+                      <p className="font-black uppercase tracking-[0.3em] text-[10px]">История пуста</p>
                     </div>
                   ) : (
                     history.map((tx) => (
@@ -446,7 +446,7 @@ const BalanceManagement = () => {
                             </span>
                           </div>
                           <p className="text-sm text-slate-500 mt-3 font-bold leading-relaxed max-w-md">
-                            {tx.comment || 'Hech qanday izoh yo\'q'}
+                            {tx.comment || 'Комментарии отсутствуют'}
                           </p>
                           <div className="mt-6 flex items-center gap-2">
                              <div className="w-1 h-1 rounded-full bg-slate-200" />
