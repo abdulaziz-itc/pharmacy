@@ -227,6 +227,8 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     const selectedOrgTypeObj = ORG_TYPES.find(t => t.value === orgType);
     const subtotal = items.reduce((s, it) => s + (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 0), 0);
     const totalAmount = subtotal * (1 + ndsPercent / 100);
+    const totalBonus = items.reduce((s, it) => s + (parseFloat(it.marketing_amount) || 0) * (parseInt(it.quantity) || 0), 0);
+    const totalSalary = items.reduce((s, it) => s + (parseFloat(it.salary_amount) || 0) * (parseInt(it.quantity) || 0), 0);
 
     const canNext = step === 1 ? !!orgType
         : step === 2 ? !!selectedMedRep
@@ -685,6 +687,18 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                         <span className="text-sm text-indigo-700 font-medium">Итоговая сумма (с НДС):</span>
                                         <span className="text-base font-bold text-indigo-800">{totalAmount.toLocaleString()} UZS</span>
                                     </div>
+                                    {isBonusEligible && totalBonus > 0 && (
+                                        <div className="flex justify-between items-center bg-amber-50 border border-amber-200 rounded-xl p-3">
+                                            <span className="text-sm text-amber-700 font-medium">Итоговый бонус:</span>
+                                            <span className="text-base font-bold text-amber-800">{totalBonus.toLocaleString()} UZS</span>
+                                        </div>
+                                    )}
+                                    {isSalaryEnabled && totalSalary > 0 && (
+                                        <div className="flex justify-between items-center bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                                            <span className="text-sm text-emerald-700 font-medium">Итоговая зарплата:</span>
+                                            <span className="text-base font-bold text-emerald-800">{totalSalary.toLocaleString()} UZS</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
