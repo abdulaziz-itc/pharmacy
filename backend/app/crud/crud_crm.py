@@ -151,13 +151,42 @@ async def create_med_org(db: AsyncSession, obj_in: MedicalOrganizationCreate) ->
     result = await db.execute(query)
     return result.scalars().first()
 
+from sqlalchemy import func, case, and_
+
 async def get_med_org(db: AsyncSession, id: int) -> Optional[MedicalOrganization]:
     query = select(MedicalOrganization).options(
         selectinload(MedicalOrganization.region),
         selectinload(MedicalOrganization.assigned_reps)
     ).where(MedicalOrganization.id == id)
     result = await db.execute(query)
-    return result.scalars().first()
+    org = result.scalars().first()
+    if org:
+        # Calculate debt for single org
+        from app.models.sales import Invoice, Reservation, InvoiceStatus
+        debt_q = select(
+            func.sum(
+                case(
+                    (Invoice.total_amount > Invoice.paid_amount, Invoice.total_amount - Invoice.paid_amount),
+                    else_=0.0
+                )
+            ).label("debt"),
+            func.sum(
+                case(
+                    (Invoice.paid_amount > Invoice.total_amount, Invoice.paid_amount - Invoice.total_amount),
+                    else_=0.0
+                )
+            ).label("surplus")
+        ).join(Reservation, Reservation.id == Invoice.reservation_id)\
+         .where(and_(Reservation.med_org_id == id, Invoice.status != InvoiceStatus.CANCELLED))
+        
+        debt_res = await db.execute(debt_q)
+        debt_row = debt_res.first()
+        debt_val = float(debt_row.debt or 0.0) if debt_row else 0.0
+        surplus_val = float(debt_row.surplus or 0.0) if debt_row else 0.0
+        
+        org.current_debt = debt_val
+        org.credit_balance = (org.credit_balance or 0.0) + surplus_val
+    return org
 
 async def update_med_org(db: AsyncSession, db_obj: MedicalOrganization, obj_in: MedicalOrganizationUpdate) -> MedicalOrganization:
     update_data = obj_in.dict(exclude_unset=True)

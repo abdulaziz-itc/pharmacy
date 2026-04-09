@@ -53,7 +53,6 @@ class MedicalOrganizationBase(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     credit_balance: Optional[float] = 0.0
-    current_debt: Optional[float] = 0.0
 
 class MedicalOrganizationCreate(MedicalOrganizationBase):
     inn: str
@@ -74,6 +73,7 @@ class MedicalOrganizationUpdate(BaseModel):
 
 class MedicalOrganization(MedicalOrganizationBase):
     id: int
+    current_debt: Optional[float] = 0.0
     region: Optional[Region] = None
     assigned_reps: Optional[List[User]] = []
     model_config = {"from_attributes": True}
