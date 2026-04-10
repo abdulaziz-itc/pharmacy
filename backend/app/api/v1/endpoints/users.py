@@ -27,16 +27,31 @@ async def read_users(
     """
     Retrieve users. Only for specific roles (e.g., DEPUTY_DIRECTOR).
     """
-    if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD, UserRole.ACCOUNTANT]:
+    if current_user.role not in [
+        UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, 
+        UserRole.HEAD_OF_ORDERS, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, 
+        UserRole.REGIONAL_MANAGER, UserRole.HRD, UserRole.ACCOUNTANT,
+        UserRole.MED_REP, UserRole.WHOLESALE_MANAGER, UserRole.HEAD_OF_WAREHOUSE
+    ]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     
-    users = await crud_user.get_multi(
-        db, skip=skip, limit=limit, username=username, full_name=full_name
-    )
+    # Restrict users visibility for non-admin/management roles
+    # Management roles can see all users (within their scope, but usually global for these roles)
+    management_roles = [
+        UserRole.INVESTOR, UserRole.ADMIN, UserRole.DIRECTOR, 
+        UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.HRD, 
+        UserRole.ACCOUNTANT
+    ]
     
-    if current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
+    allowed_user_ids = None
+    if current_user.role not in management_roles:
         descendant_ids = await crud_user.get_descendant_ids(db, current_user.id)
-        users = [u for u in users if u.id in descendant_ids]
+        # Always allow seeing themselves and their subordinates
+        allowed_user_ids = list(set(descendant_ids) | {current_user.id})
+
+    users = await crud_user.get_multi(
+        db, skip=skip, limit=limit, username=username, full_name=full_name, user_ids=allowed_user_ids
+    )
         
     return users
 

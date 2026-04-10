@@ -31,12 +31,15 @@ async def get_multi(
     limit: int = 100,
     username: Optional[str] = None,
     full_name: Optional[str] = None,
+    user_ids: Optional[List[int]] = None,
 ) -> List[User]:
     query = select(User).options(selectinload(User.assigned_regions))
     if username:
         query = query.where(User.username.ilike(f"%{username}%"))
     if full_name:
         query = query.where(User.full_name.ilike(f"%{full_name}%"))
+    if user_ids is not None:
+        query = query.where(User.id.in_(user_ids))
     
     result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()
