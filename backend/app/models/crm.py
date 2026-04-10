@@ -106,6 +106,7 @@ class BalanceTransactionType(str, enum.Enum):
     APPLICATION = "application"  # Automatic debt settlement
     OVERPAYMENT = "overpayment"  # Surplus from invoice payment
     MANUAL_ADJUSTMENT = "adjustment"
+    INVOICE = "invoice"        # Initial debt from reservation
 
 class BalanceTransaction(Base):
     __tablename__ = "balance_transaction"

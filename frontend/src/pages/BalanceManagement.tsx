@@ -479,7 +479,13 @@ const BalanceManagement = () => {
                         </div>
                         <div className="flex-1">
                           <div className="flex justify-between items-center">
-                            <span className="font-black text-slate-900 text-lg uppercase tracking-tight">{tx.transaction_type}</span>
+                            <span className="font-black text-slate-900 text-lg uppercase tracking-tight">
+                              {tx.transaction_type === 'topup' ? 'Пополнение' :
+                               tx.transaction_type === 'application' ? 'Оплата счета' :
+                               tx.transaction_type === 'overpayment' ? 'Сдача (Hauna)' :
+                               tx.transaction_type === 'invoice' ? 'Фактура (Qarz)' :
+                               tx.transaction_type}
+                            </span>
                             <span className={`text-2xl font-black tabular-nums ${tx.amount > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                               {tx.amount > 0 ? '+' : ''}{formatMoney(tx.amount)}
                               <span className="text-[10px] ml-1 opacity-40 font-bold uppercase tracking-widest font-sans text-slate-400">UZS</span>

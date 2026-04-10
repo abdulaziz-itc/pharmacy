@@ -330,6 +330,16 @@ async def update_reservation_data(db: AsyncSession, reservation_id: int, obj_in:
             paid_amount=0
         )
         db.add(reservation.invoice)
+        
+        # Record initial debt in balance ledger
+        bt = BalanceTransaction(
+            organization_id=reservation.med_org_id,
+            amount=-reservation.total_amount,
+            transaction_type=BalanceTransactionType.INVOICE,
+            related_invoice_id=reservation.id,
+            comment=f"Начисление долga по счету #{reservation.invoice.factura_number}"
+        )
+        db.add(bt)
 
     # Update Invoice fields
     if reservation.invoice:
