@@ -273,12 +273,24 @@ async def get_med_org_balance_history(
     Get credit balance transaction history for a medical organization.
     """
     from app.models.crm import BalanceTransaction as BalanceTransactionModel
+    from app.models.sales import Invoice
     result = await db.execute(
-        select(BalanceTransactionModel)
+        select(
+            BalanceTransactionModel,
+            Invoice.factura_number
+        )
+        .outerjoin(Invoice, BalanceTransactionModel.related_invoice_id == Invoice.id)
         .where(BalanceTransactionModel.organization_id == org_id)
         .order_by(BalanceTransactionModel.created_at.desc())
     )
-    return result.scalars().all()
+    
+    transactions = []
+    for row in result.all():
+        tx = row[0]
+        tx.factura_number = row[1]
+        transactions.append(tx)
+    
+    return transactions
 
 
 @router.post("/med-orgs/{org_id}/top-up-balance", response_model=MedicalOrganization)

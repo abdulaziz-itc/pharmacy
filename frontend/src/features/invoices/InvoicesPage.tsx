@@ -8,13 +8,15 @@ import { Button } from '../../components/ui/button';
 import { useAuthStore } from '../../store/authStore';
 import { useMemo } from 'react';
 import { ModernStatsBar } from '../../components/ui/ModernStatsBar';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FilterBar } from '../../components/ui/FilterBar';
 import type { FilterValues } from '../../components/ui/FilterBar';
 import { formatMoney } from '../../components/ui/MoneyInput';
 import { ReservationDetailsModal } from '../reservations/ReservationDetailsModal';
 
 export default function InvoicesPage() {
+    const [searchParams] = useSearchParams();
     const user = useAuthStore((state) => state.user);
     const isMedRep = user?.role === 'med_rep';
 
@@ -26,8 +28,15 @@ export default function InvoicesPage() {
         selectedCompany: 'all',
         selectedType: 'all',
         selectedInvoiceType: 'all',
-        invNumSearch: '',
+        invNumSearch: searchParams.get('inv_num') || '',
     });
+
+    useEffect(() => {
+        const invNum = searchParams.get('inv_num');
+        if (invNum) {
+            setFilterValues(prev => ({ ...prev, invNumSearch: invNum }));
+        }
+    }, [searchParams]);
 
     const [selectedInvoiceForView, setSelectedInvoiceForView] = useState<any | null>(null);
 

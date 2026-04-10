@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axiosInstance from '@/api/axios';
 import { 
   Search, 
@@ -34,6 +35,8 @@ interface BalanceTransaction {
   date: string;
   comment: string;
   created_at?: string;
+  related_invoice_id?: number;
+  factura_number?: string;
 }
 
 const formatMoney = (amount: number) => {
@@ -41,6 +44,7 @@ const formatMoney = (amount: number) => {
 };
 
 const BalanceManagement = () => {
+  const navigate = useNavigate();
   const [orgs, setOrgs] = useState<MedicalOrganization[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -331,17 +335,35 @@ const BalanceManagement = () => {
                 <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
                   <Wallet className="w-48 h-48 rotate-12" />
                 </div>
+
+                <button 
+                  onClick={() => setShowTopUp(false)}
+                  className="absolute top-8 right-8 w-12 h-12 hover:bg-slate-50 rounded-2xl transition-all flex items-center justify-center text-slate-300 hover:text-rose-500 hover:rotate-90 group z-20"
+                >
+                  <Plus className="w-8 h-8 rotate-45" />
+                </button>
                 
                 <div className="relative z-10">
                   <div className="w-20 h-20 bg-indigo-50 rounded-[28px] flex items-center justify-center mb-8 border border-indigo-100 mx-auto">
                     <Wallet className="text-indigo-600 w-10 h-10" />
                   </div>
                   
-                  <div className="text-center mb-12">
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Прием платежа</h2>
                     <p className="text-slate-500 mt-3 font-bold text-sm">
                       Пополнение баланса для <span className="text-indigo-600">{selectedOrg.name}</span>
                     </p>
+                    
+                    <div className="flex items-center justify-center mt-6">
+                      <div className="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 inline-block">
+                        <p className="text-[9px] uppercase font-black tracking-widest text-slate-400 mb-1">Текущий баланс (Tekushiy balans)</p>
+                        <div className={`text-base font-black tabular-nums transition-colors ${
+                          selectedOrg.current_surplus > 0 ? 'text-emerald-600' : 
+                          selectedOrg.current_debt > 0 ? 'text-rose-500' : 'text-slate-300'
+                        }`}>
+                          {selectedOrg.current_surplus > 0 ? `+${formatMoney(selectedOrg.current_surplus)}` : 
+                           selectedOrg.current_debt > 0 ? `-${formatMoney(selectedOrg.current_debt)}` : '0 UZS'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-8">
@@ -448,11 +470,26 @@ const BalanceManagement = () => {
                           <p className="text-sm text-slate-500 mt-3 font-bold leading-relaxed max-w-md">
                             {tx.comment || 'Комментарии отсутствуют'}
                           </p>
-                          <div className="mt-6 flex items-center gap-2">
-                             <div className="w-1 h-1 rounded-full bg-slate-200" />
-                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                                {new Date(tx.created_at || tx.date).toLocaleString('ru-RU')}
-                             </span>
+                          <div className="mt-6 flex flex-wrap items-center gap-4">
+                             <div className="flex items-center gap-2">
+                                <div className="w-1 h-1 rounded-full bg-slate-200" />
+                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                                    {new Date(tx.created_at || tx.date).toLocaleString('ru-RU')}
+                                </span>
+                             </div>
+
+                             {tx.factura_number && (
+                                <button 
+                                  onClick={() => navigate(`/invoices?inv_num=${tx.factura_number}`)}
+                                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors group/link"
+                                >
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                                  <span className="text-[10px] font-black uppercase tracking-widest">
+                                    Фактура: {tx.factura_number}
+                                  </span>
+                                  <ArrowUpRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-all -translate-x-1 group-hover/link:translate-x-0" />
+                                </button>
+                             )}
                           </div>
                         </div>
                       </div>

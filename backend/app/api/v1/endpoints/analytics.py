@@ -728,7 +728,10 @@ async def get_comprehensive_drilldown(
         return q
 
     if metric == "sales_plan":
-        plan_q = select(Plan).options(selectinload(Plan.med_rep), selectinload(Plan.product))
+        plan_q = select(Plan).options(selectinload(Plan.med_rep), selectinload(Plan.product), selectinload(Plan.doctor))
+        # Filter out zero-target plans to avoid clutter
+        plan_q = plan_q.where(or_(Plan.target_amount > 0, Plan.target_quantity > 0))
+        
         if quarter and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
         elif month and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
         elif year: plan_q = plan_q.where(Plan.year == year)
@@ -736,7 +739,18 @@ async def get_comprehensive_drilldown(
         if region_id: plan_q = plan_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
         if product_id: plan_q = plan_q.where(Plan.product_id == product_id)
         rows = (await db.execute(plan_q.offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "med_rep": r.med_rep.full_name if r.med_rep else "-", "product": r.product.name if r.product else "-", "month": r.month, "year": r.year, "amount": r.target_amount, "qty": r.target_quantity} for r in rows]
+        return [
+            {
+                "id": r.id, 
+                "med_rep": r.med_rep.full_name if r.med_rep else "-", 
+                "doctor": r.doctor.full_name if r.doctor else "-",
+                "product": r.product.name if r.product else "-", 
+                "month": r.month, 
+                "year": r.year, 
+                "amount": r.target_amount, 
+                "qty": r.target_quantity
+            } for r in rows
+        ]
 
     elif metric == "realization":
         real_q = select(Invoice).options(selectinload(Invoice.reservation)).where(Invoice.status != InvoiceStatus.CANCELLED)

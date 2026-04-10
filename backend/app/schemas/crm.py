@@ -139,10 +139,12 @@ class OrganizationBalanceTopUp(BaseModel):
 
 class BalanceTransaction(BaseModel):
     id: int
-    med_org_id: int
+    organization_id: int
     amount: float
     transaction_type: str
     comment: Optional[str] = None
     created_at: Optional[datetime] = None
+    related_invoice_id: Optional[int] = None
+    factura_number: Optional[str] = None
 
     model_config = {"from_attributes": True}
