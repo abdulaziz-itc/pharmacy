@@ -228,6 +228,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
     const subtotal = items.reduce((s, it) => s + (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 0), 0);
     const totalAmount = subtotal * (1 + ndsPercent / 100);
     const totalBonus = items.reduce((s, it) => s + (parseFloat(it.marketing_amount) || 0) * (parseInt(it.quantity) || 0), 0);
+    const totalSalary = items.reduce((s, it) => s + (parseFloat(it.salary_amount) || 0) * (parseInt(it.quantity) || 0), 0);
 
     const canNext = step === 1 ? !!orgType
         : step === 2 ? !!selectedMedRep
@@ -683,6 +684,12 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-2 bg-indigo-50 border border-indigo-200 rounded-xl p-3">
+                                        {isSalaryEnabled && totalSalary > 0 && (
+                                            <div className="flex justify-between items-center border-b border-indigo-100 pb-2 mb-1">
+                                                <span className="text-xs text-indigo-600 font-medium">Итоговая сумма зарплаты:</span>
+                                                <span className="text-sm font-bold text-indigo-700">{totalSalary.toLocaleString()} UZS</span>
+                                            </div>
+                                        )}
                                         {totalBonus > 0 && (
                                             <div className="flex justify-between items-center border-b border-indigo-100 pb-2 mb-1">
                                                 <span className="text-xs text-indigo-600 font-medium">Итоговая сумма бонуса:</span>
