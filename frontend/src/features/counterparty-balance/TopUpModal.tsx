@@ -6,7 +6,7 @@ import {
     DialogTitle,
 } from "../../components/ui/dialog";
 import { Button } from '../../components/ui/button';
-import { MoneyInput } from '../../components/ui/MoneyInput';
+import { MoneyInput, formatMoney } from '../../components/ui/MoneyInput';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { toast } from 'sonner';
