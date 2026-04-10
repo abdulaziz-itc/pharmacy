@@ -16,6 +16,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatMoney } from '@/components/ui/MoneyInput';
 import { PageContainer } from '@/components/PageContainer';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -39,9 +40,6 @@ interface BalanceTransaction {
   factura_number?: string;
 }
 
-const formatMoney = (amount: number) => {
-  return new Intl.NumberFormat('ru-RU').format(Math.abs(amount)) + ' UZS';
-};
 
 const BalanceManagement = () => {
   const navigate = useNavigate();
@@ -180,7 +178,7 @@ const BalanceManagement = () => {
                         <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Всего Кредиторка</span>
                     </div>
                     <h2 className="text-5xl font-black tracking-tight text-slate-900 tabular-nums">
-                        {formatMoney(totals.credit).split(' ')[0]}
+                        {formatMoney(totals.credit)}
                         <span className="text-lg font-bold text-slate-300 ml-2 uppercase tracking-widest">UZS</span>
                     </h2>
                     <p className="mt-6 text-emerald-600 font-bold text-xs flex items-center gap-2">
@@ -203,7 +201,7 @@ const BalanceManagement = () => {
                         <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Всего Дебиторка</span>
                     </div>
                     <h2 className="text-5xl font-black tracking-tight text-slate-900 tabular-nums">
-                        {formatMoney(totals.debt).split(' ')[0]}
+                        {formatMoney(totals.debt)}
                         <span className="text-lg font-bold text-slate-300 ml-2 uppercase tracking-widest">UZS</span>
                     </h2>
                     <p className="mt-6 text-rose-600 font-bold text-xs flex items-center gap-2">
@@ -267,13 +265,13 @@ const BalanceManagement = () => {
                         <div className="space-y-1">
                             {org.current_surplus > 0 && (
                                 <div className="text-emerald-600 font-black text-lg tabular-nums">
-                                    +{formatMoney(org.current_surplus).split(' ')[0]}
+                                    +{formatMoney(org.current_surplus)}
                                     <span className="text-[10px] ml-1 opacity-40 font-bold uppercase">UZS</span>
                                 </div>
                             )}
                             {org.current_debt > 0 && (
                                 <div className="text-rose-500 font-black text-lg tabular-nums">
-                                    -{formatMoney(org.current_debt).split(' ')[0]}
+                                    -{formatMoney(org.current_debt)}
                                     <span className="text-[10px] ml-1 opacity-40 font-bold uppercase">UZS</span>
                                 </div>
                             )}
@@ -359,8 +357,8 @@ const BalanceManagement = () => {
                           selectedOrg.current_surplus > 0 ? 'text-emerald-600' : 
                           selectedOrg.current_debt > 0 ? 'text-rose-500' : 'text-slate-300'
                         }`}>
-                          {selectedOrg.current_surplus > 0 ? `+${formatMoney(selectedOrg.current_surplus)}` : 
-                           selectedOrg.current_debt > 0 ? `-${formatMoney(selectedOrg.current_debt)}` : '0 UZS'}
+                          {selectedOrg.current_surplus > 0 ? `+${formatMoney(selectedOrg.current_surplus)} UZS` : 
+                           selectedOrg.current_debt > 0 ? `-${formatMoney(selectedOrg.current_debt)} UZS` : '0 UZS'}
                         </div>
                       </div>
                     </div>
@@ -462,7 +460,7 @@ const BalanceManagement = () => {
                           <div className="flex justify-between items-center">
                             <span className="font-black text-slate-900 text-lg uppercase tracking-tight">{tx.transaction_type}</span>
                             <span className={`text-2xl font-black tabular-nums ${tx.amount > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                              {tx.amount > 0 ? '+' : ''}{formatMoney(tx.amount).split(' ')[0]}
+                              {tx.amount > 0 ? '+' : ''}{formatMoney(tx.amount)}
                               <span className="text-[10px] ml-1 opacity-40 font-bold uppercase tracking-widest font-sans text-slate-400">UZS</span>
                             </span>
                           </div>
