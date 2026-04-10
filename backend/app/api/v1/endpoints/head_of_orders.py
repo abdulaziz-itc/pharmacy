@@ -130,6 +130,67 @@ async def fulfill_stock(
 
     return {"ok": True, "new_quantity": stock.quantity}
 
+@router.post("/warehouses/{id}/set-stock")
+async def set_stock(
+    id: int,
+    fulfillment_in: StockFulfillment,
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Set absolute stock level for a product in a warehouse."""
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # 1. Fetch current stock
+    stock_query = select(Stock).where(
+        (Stock.warehouse_id == id) & 
+        (Stock.product_id == fulfillment_in.product_id)
+    ).with_for_update()
+    
+    result = await db.execute(stock_query)
+    stock = result.scalar_one_or_none()
+    
+    old_qty = stock.quantity if stock else 0
+    new_qty = fulfillment_in.quantity
+    delta = new_qty - old_qty
+    
+    if delta == 0:
+        return {"ok": True, "new_quantity": old_qty, "message": "No change"}
+
+    if stock:
+        stock.quantity = new_qty
+    else:
+        stock = Stock(
+            warehouse_id=id,
+            product_id=fulfillment_in.product_id,
+            quantity=new_qty
+        )
+        db.add(stock)
+
+    # 2. Record movement
+    from app.models.warehouse import StockMovement, StockMovementType
+    await db.flush()
+    
+    movement = StockMovement(
+        stock_id=stock.id,
+        movement_type=StockMovementType.ADJUSTMENT,
+        quantity_change=delta
+    )
+    db.add(movement)
+    await db.commit()
+    await db.refresh(stock)
+    
+    # 3. Audit log
+    await log_action(
+        db, current_user, "UPDATE", "Stock", stock.id,
+        f"Корректировка склада: Склад #{id}, Продукт #{fulfillment_in.product_id}, "
+        f"Кол-во: {delta:+} (Было: {old_qty} → Стало: {new_qty})",
+        request
+    )
+
+    return {"ok": True, "new_quantity": stock.quantity}
+
 # --- Reservation Management ---
 
 @router.get("/reservations/", response_model=List[ReservationSchema])
