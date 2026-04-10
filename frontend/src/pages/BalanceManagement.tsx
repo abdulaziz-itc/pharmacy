@@ -13,12 +13,14 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   FilterX,
-  ArrowUpDown
+  ArrowUpDown,
+  ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatMoney } from '@/components/ui/MoneyInput';
 import { PageContainer } from '@/components/PageContainer';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ReservationDetailsModal } from '../features/reservations/ReservationDetailsModal';
 
 interface MedicalOrganization {
   id: number;
@@ -54,6 +56,11 @@ const BalanceManagement = () => {
   const [topUpComment, setTopUpComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | 'none'>('none');
+  
+  // New state for reservation details
+  const [selectedResDetails, setSelectedResDetails] = useState<any | null>(null);
+  const [showResDetail, setShowResDetail] = useState(false);
+  const [isFetchingRes, setIsFetchingRes] = useState(false);
 
   useEffect(() => {
     fetchOrgs();
@@ -92,6 +99,20 @@ const BalanceManagement = () => {
     } catch (err) {
       console.error('Failed to fetch history', err);
       toast.error('Не удалось загрузить историю');
+    }
+  };
+
+  const handleViewInvoice = async (reservationId: number) => {
+    setIsFetchingRes(true);
+    try {
+      const resp = await axiosInstance.get(`/sales/reservations/${reservationId}`);
+      setSelectedResDetails(resp.data);
+      setShowResDetail(true);
+    } catch (err) {
+      console.error('Failed to fetch reservation details', err);
+      toast.error('Не удалось загрузить детали бронирования');
+    } finally {
+      setIsFetchingRes(false);
     }
   };
 
@@ -475,17 +496,30 @@ const BalanceManagement = () => {
                                 </span>
                              </div>
 
-                             {tx.factura_number && (
-                                <button 
-                                  onClick={() => navigate(`/invoices?inv_num=${tx.factura_number}`)}
-                                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors group/link"
-                                >
-                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                                  <span className="text-[10px] font-black uppercase tracking-widest">
-                                    Фактура: {tx.factura_number}
-                                  </span>
-                                  <ArrowUpRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-all -translate-x-1 group-hover/link:translate-x-0" />
-                                </button>
+                             {tx.related_invoice_id && (
+                                <div className="flex items-center gap-3">
+                                  <button 
+                                    onClick={() => handleViewInvoice(tx.related_invoice_id!)}
+                                    disabled={isFetchingRes}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors group/card shadow-sm disabled:opacity-50"
+                                  >
+                                    <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                      {isFetchingRes ? 'Загрузка...' : 'Карточка'}
+                                    </span>
+                                    <ChevronRight className="w-3 h-3 group-hover/card:translate-x-0.5 transition-transform" />
+                                  </button>
+
+                                  <button 
+                                    onClick={() => navigate(`/invoices?inv_num=${tx.factura_number}`)}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-600 transition-colors group/link border border-slate-100"
+                                  >
+                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                      Счёт: {tx.factura_number}
+                                    </span>
+                                    <ArrowUpRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-all -translate-x-1 group-hover/link:translate-x-0" />
+                                  </button>
+                                </div>
                              )}
                           </div>
                         </div>
@@ -497,6 +531,13 @@ const BalanceManagement = () => {
             </div>
           )}
         </AnimatePresence>
+
+        {/* Reservation Details Card */}
+        <ReservationDetailsModal 
+          isOpen={showResDetail}
+          onClose={() => setShowResDetail(false)}
+          reservation={selectedResDetails}
+        />
       </div>
     </PageContainer>
   );
