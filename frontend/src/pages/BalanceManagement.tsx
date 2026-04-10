@@ -410,7 +410,6 @@ const BalanceManagement = () => {
                       Отмена
                     </button>
                   </div>
-                </div>
               </motion.div>
             </div>
           )}

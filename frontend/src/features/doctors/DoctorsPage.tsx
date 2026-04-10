@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '../../components/ui/data-table';
 import { getDoctorColumns } from './doctorColumns';
 import { useDoctorStore } from '../../store/doctorStore';

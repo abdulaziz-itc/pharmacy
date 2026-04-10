@@ -83,7 +83,6 @@ export default function MedRepDetailPage() {
                 // Fetch Visit Plans
                 const visits = await getVisitPlans(repId);
                 console.log("DEBUG: raw visits from API:", visits);
-                console.log("DEBUG: raw visits from API:", visits);
 
                 setDoctorPlans(visits.filter((v: any) => v.doctor_id !== null).map((p: any) => ({
                     ...p,
