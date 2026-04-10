@@ -81,20 +81,25 @@ export function OrganizationFinancialCard({ isOpen, onClose, organizationId, org
                             </div>
                         ) : (
                             history.map((item: any) => {
-                                const isInvoice = item.type === 'invoice';
-                                const isTopup = item.type === 'topup';
+                                const isTopup = item.transaction_type === 'topup';
+                                const isApplication = item.transaction_type === 'application';
+                                const isOverpayment = item.transaction_type === 'overpayment';
+                                const isAdjustment = item.transaction_type === 'adjustment';
+                                
+                                // Amount is positive for credit (topup, overpayment), negative for debit (application)
+                                const isPositive = item.amount > 0;
                                 
                                 return (
                                     <div 
-                                        key={`${item.type}-${item.id}`}
+                                        key={item.id}
                                         className="group relative flex items-start gap-5 p-5 rounded-[24px] border border-slate-100 bg-white hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 transform hover:-translate-y-0.5"
                                     >
                                         <div className={`p-4 rounded-2xl shrink-0 transition-all group-hover:scale-110 ${
-                                            isInvoice ? "bg-rose-50 text-rose-500 border border-rose-100/50" : 
+                                            isApplication ? "bg-rose-50 text-rose-500 border border-rose-100/50" : 
                                             isTopup ? "bg-indigo-50 text-indigo-500 border border-indigo-100/50" :
                                             "bg-emerald-50 text-emerald-500 border border-emerald-100/50"
                                         }`}>
-                                            {isInvoice ? <FileText className="w-6 h-6" /> : 
+                                            {isApplication ? <FileText className="w-6 h-6" /> : 
                                              isTopup ? <Landmark className="w-6 h-6" /> :
                                              <Banknote className="w-6 h-6" />}
                                         </div>
@@ -102,44 +107,46 @@ export function OrganizationFinancialCard({ isOpen, onClose, organizationId, org
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-start justify-between gap-4 mb-1.5">
                                                 <h4 className="font-black text-slate-800 text-base">
-                                                    {isInvoice ? "Реализация (Счет-фактура)" : 
-                                                     isTopup ? "Пополнение баланса" :
-                                                     "Поступление (Платеж)"}
+                                                    {isTopup ? "Пополнение баланса" : 
+                                                     isApplication ? "Погашение долга (Списание)" :
+                                                     isOverpayment ? "Переплата (Остаток)" :
+                                                     "Корректировка"}
                                                 </h4>
                                                 <span className={`text-xl font-black shrink-0 tabular-nums ${
-                                                    isInvoice ? "text-rose-600" : "text-emerald-600"
+                                                    isPositive ? "text-emerald-600" : "text-rose-600"
                                                 }`}>
-                                                    {isInvoice ? "-" : "+"}{formatMoney(item.amount)}
+                                                    {isPositive ? "+" : ""}{formatMoney(item.amount)}
                                                 </span>
                                             </div>
                                             
                                             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-bold uppercase tracking-wider">
                                                 <div className="flex items-center text-slate-400">
                                                     <Calendar className="w-3.5 h-3.5 mr-2 opacity-50" />
-                                                    {new Date(item.date).toLocaleDateString('ru-RU', {
+                                                    {new Date(item.created_at).toLocaleDateString('ru-RU', {
                                                         day: 'numeric', month: 'long', year: 'numeric',
                                                         hour: '2-digit', minute: '2-digit'
                                                     })}
                                                 </div>
-                                                {item.reference && (
-                                                    <div className="flex items-center text-indigo-500 font-mono">
-                                                        <span className="opacity-50 mr-1.5">REF_ID:</span>
-                                                        <span className="bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100/50">{item.reference}</span>
-                                                    </div>
+                                                {item.factura_number && (
+                                                    <a 
+                                                        href={`/invoices?inv_num=${item.factura_number}`}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            window.location.href = `/invoices?inv_num=${item.factura_number}`;
+                                                        }}
+                                                        className="flex items-center text-indigo-600 hover:text-indigo-800 transition-colors bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-100"
+                                                    >
+                                                        <FileText className="w-3 h-3 mr-1.5 opacity-70" />
+                                                        <span>Счёт: {item.factura_number}</span>
+                                                    </a>
                                                 )}
                                             </div>
-
-                                            {item.description && (
+                                            
+                                            {item.comment && (
                                                 <div className="mt-3 p-3 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
                                                     <p className="text-sm text-slate-600 font-medium leading-relaxed italic">
-                                                        "{item.description}"
+                                                        "{item.comment}"
                                                     </p>
-                                                </div>
-                                            )}
-                                            
-                                            {isInvoice && item.status === 'paid' && (
-                                                <div className="mt-3 inline-flex items-center text-[9px] font-black text-white bg-emerald-500 px-3 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-emerald-500/20">
-                                                    Оплачено
                                                 </div>
                                             )}
                                         </div>

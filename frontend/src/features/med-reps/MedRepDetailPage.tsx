@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { PageContainer } from '../../components/PageContainer';
 import { DoctorPlansTable } from './components/DoctorPlansTable';
@@ -24,32 +24,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { ModernStatsBar } from '../../components/ui/ModernStatsBar';
-import { useMemo } from 'react';
 
 export default function MedRepDetailPage() {
     const { id } = useParams<{ id: string }>();
-    const [isLoading, setIsLoading] = React.useState(true);
-    const [medRep, setMedRep] = React.useState<any>(null);
-    const [doctors, setDoctors] = React.useState<any[]>([]);
-    const [pharmacies, setPharmacies] = React.useState<any[]>([]);
-    const [doctorPlans, setDoctorPlans] = React.useState<any[]>([]);
-    const [pharmacyPlans, setPharmacyPlans] = React.useState<any[]>([]);
-    const [notifications, setNotifications] = React.useState<any[]>([]);
-    const [salesPlans, setSalesPlans] = React.useState<any[]>([]);
-    const [salesFacts, setSalesFacts] = React.useState<any[]>([]);
-    const [bonusPayments, setBonusPayments] = React.useState<any[]>([]);
-    const [bonusBalance, setBonusBalance] = React.useState<number>(0);
-    const [salaryPaid, setSalaryPaid] = React.useState<number>(0);
-    const [salaryAccrued, setSalaryAccrued] = React.useState<number>(0);
-    const [bonusAccrued, setBonusAccrued] = React.useState<number>(0);
-    const [bonusPayout, setBonusPayout] = React.useState<number>(0);
-    const [invoices, setInvoices] = React.useState<any[]>([]);
-    const [isReassignModalOpen, setIsReassignModalOpen] = React.useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [medRep, setMedRep] = useState<any>(null);
+    const [doctors, setDoctors] = useState<any[]>([]);
+    const [pharmacies, setPharmacies] = useState<any[]>([]);
+    const [doctorPlans, setDoctorPlans] = useState<any[]>([]);
+    const [pharmacyPlans, setPharmacyPlans] = useState<any[]>([]);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [salesPlans, setSalesPlans] = useState<any[]>([]);
+    const [salesFacts, setSalesFacts] = useState<any[]>([]);
+    const [bonusPayments, setBonusPayments] = useState<any[]>([]);
+    const [bonusBalance, setBonusBalance] = useState<number>(0);
+    const [salaryPaid, setSalaryPaid] = useState<number>(0);
+    const [salaryAccrued, setSalaryAccrued] = useState<number>(0);
+    const [bonusAccrued, setBonusAccrued] = useState<number>(0);
+    const [bonusPayout, setBonusPayout] = useState<number>(0);
+    const [invoices, setInvoices] = useState<any[]>([]);
+    const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
     const { products, fetchProducts } = useProductStore();
 
-    React.useEffect(() => { fetchProducts(); }, [fetchProducts]);
+    useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const fetchData = async () => {
             if (!id) return;
             setIsLoading(true);

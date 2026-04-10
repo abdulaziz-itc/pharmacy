@@ -1298,3 +1298,126 @@ async def pay_medrep_bonus(
     )
         
     return {"message": "Успешно выплачено", "paid_amount": actual_paid}
+
+# --- Organization Financial Management ---
+
+@router.get("/organizations/balances")
+async def get_organizations_balances(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    search: Optional[str] = None
+) -> Any:
+    """
+    Get all medical organizations with their calculated debt, surplus, and total balance.
+    """
+    from app.models.crm import MedicalOrganization
+    from app.models.sales import Invoice, InvoiceStatus, Reservation
+    from sqlalchemy import select, func
+    
+    query = select(MedicalOrganization)
+    if search:
+        query = query.where(
+            (MedicalOrganization.name.ilike(f"%{search}%")) |
+            (MedicalOrganization.inn.ilike(f"%{search}%"))
+        )
+    
+    result = await db.execute(query)
+    orgs = result.scalars().all()
+    
+    res_list = []
+    for org in orgs:
+        # Calculate current total debt (Unpaid/Partial Invoices)
+        debt_query = select(func.sum(Invoice.total_amount - Invoice.paid_amount)).join(Reservation).where(
+            Reservation.med_org_id == org.id,
+            Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.DRAFT])
+        )
+        debt_res = await db.execute(debt_query)
+        current_debt = debt_res.scalar() or 0.0
+        
+        current_surplus = org.credit_balance or 0.0
+        total_balance = current_surplus - current_debt
+        
+        res_list.append({
+            "id": org.id,
+            "name": org.name,
+            "inn": org.inn,
+            "org_type": org.org_type,
+            "current_debt": current_debt,
+            "current_surplus": current_surplus,
+            "total_balance": total_balance
+        })
+        
+    # Sort: biggest debt first (most negative total_balance)
+    res_list.sort(key=lambda x: x["total_balance"])
+    
+    return res_list
+
+@router.get("/organizations/{org_id}/finance-history")
+async def get_org_finance_history(
+    org_id: int,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+) -> Any:
+    """
+    Get balance transaction history for an organization, including related invoice details.
+    """
+    from app.models.crm import BalanceTransaction
+    from app.models.sales import Invoice
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    
+    query = select(BalanceTransaction).options(
+        selectinload(BalanceTransaction.related_invoice)
+    ).where(BalanceTransaction.organization_id == org_id).order_by(BalanceTransaction.created_at.desc())
+    
+    result = await db.execute(query)
+    transactions = result.scalars().all()
+    
+    res = []
+    for t in transactions:
+        res.append({
+            "id": t.id,
+            "amount": t.amount,
+            "transaction_type": t.transaction_type,
+            "comment": t.comment,
+            "created_at": t.created_at.isoformat(),
+            "related_invoice_id": t.related_invoice_id,
+            "factura_number": t.related_invoice.factura_number if t.related_invoice else None
+        })
+    return res
+
+@router.post("/organizations/{org_id}/top-up")
+async def top_up_org_balance(
+    org_id: int,
+    request_data: Dict[str, Any],
+    request: Request,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+) -> Any:
+    """
+    Accountant manual top-up for an organization.
+    """
+    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.ACCOUNTANT, UserRole.DEPUTY_DIRECTOR, UserRole.INVESTOR]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        
+    amount = request_data.get("amount")
+    comment = request_data.get("comment", "")
+    
+    if not amount or amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+        
+    org = await crud_sales.top_up_organization_balance(
+        db, organization_id=org_id, amount=amount, comment=comment, user_id=current_user.id
+    )
+    
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+        
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "TOPUP", "MedicalOrganization", org_id,
+        f"Пополнение баланса организации {org.name}: {amount:,.0f} UZS. {comment}",
+        request
+    )
+    
+    return {"message": "Успешно пополнено", "new_balance": org.credit_balance}

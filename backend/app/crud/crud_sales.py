@@ -722,6 +722,10 @@ async def get_facts(db: AsyncSession, med_rep_id: Optional[int] = None) -> List[
         if paid_ratio <= 0:
             continue
             
+        # If the invoice is basically paid (precision errors), consider it 100%
+        if paid_ratio > 0.999:
+            paid_ratio = 1.0
+            
         for item in res.items:
             paid_qty = item.quantity * paid_ratio
             paid_amt = item.total_price * paid_ratio
@@ -733,7 +737,7 @@ async def get_facts(db: AsyncSession, med_rep_id: Optional[int] = None) -> List[
                 "product_id": item.product_id,
                 "date": res.invoice.date.isoformat(),
                 "amount": paid_amt,
-                "quantity": int(paid_qty)
+                "quantity": int(round(paid_qty))
             })
             fact_id_counter += 1
             

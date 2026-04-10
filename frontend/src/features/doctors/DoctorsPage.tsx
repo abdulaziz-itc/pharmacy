@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '../../components/ui/data-table';
 import { getDoctorColumns } from './doctorColumns';
 import { useDoctorStore } from '../../store/doctorStore';
@@ -10,7 +10,6 @@ import { PageContainer } from '../../components/PageContainer';
 import { PageHeader } from '../../components/PageHeader';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
-import { useMemo, useState } from 'react';
 import type { Doctor } from '../../store/doctorStore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 

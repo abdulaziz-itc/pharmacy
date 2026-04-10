@@ -66,11 +66,23 @@ export function TopUpModal({ isOpen, onClose, organization, onSuccess }: TopUpMo
                 </DialogHeader>
 
                 <div className="p-6 space-y-6">
-                    <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
-                    <p className="text-[10px] uppercase font-bold text-indigo-400 tracking-widest mb-1">Организация</p>
-                    <p className="text-sm font-black text-indigo-900">{organization.name}</p>
-                    <p className="text-xs text-indigo-600 mt-1">ИНН: {organization.inn || '—'}</p>
-                </div>
+                    <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 flex justify-between items-center">
+                        <div>
+                            <p className="text-[10px] uppercase font-bold text-indigo-400 tracking-widest mb-1">Организация</p>
+                            <p className="text-sm font-black text-indigo-900">{organization.name}</p>
+                            <p className="text-xs text-indigo-600 mt-1">ИНН: {organization.inn || '—'} | {organization.region || ''}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Текущее сальдо</p>
+                            <p className={`text-sm font-black ${
+                                organization.total_balance > 0 ? "text-emerald-600" :
+                                organization.total_balance < 0 ? "text-rose-600" :
+                                "text-slate-800"
+                            }`}>
+                                {formatMoney(organization.total_balance)} UZS
+                            </p>
+                        </div>
+                    </div>
 
                 <div className="space-y-4">
                     <div className="space-y-2">

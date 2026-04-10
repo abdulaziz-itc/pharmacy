@@ -41,20 +41,20 @@ export default function CounterpartyBalancePage() {
             header: 'Регион',
         },
         {
-            accessorKey: 'debt_balance',
+            accessorKey: 'current_debt',
             header: 'Дебиторка (Долг)',
             cell: ({ row }: any) => (
-                <span className={row.original.debt_balance > 0 ? "text-rose-600 font-black" : "text-slate-400"}>
-                    {formatMoney(row.original.debt_balance)} UZS
+                <span className={row.original.current_debt > 0 ? "text-rose-600 font-black" : "text-slate-400"}>
+                    {formatMoney(row.original.current_debt)} UZS
                 </span>
             )
         },
         {
-            accessorKey: 'credit_balance',
+            accessorKey: 'current_surplus',
             header: 'Кредиторка (Аванс)',
             cell: ({ row }: any) => (
-                <span className={row.original.credit_balance > 0 ? "text-indigo-600 font-black" : "text-slate-400"}>
-                    {formatMoney(row.original.credit_balance)} UZS
+                <span className={row.original.current_surplus > 0 ? "text-indigo-600 font-black" : "text-slate-400"}>
+                    {formatMoney(row.original.current_surplus)} UZS
                 </span>
             )
         },

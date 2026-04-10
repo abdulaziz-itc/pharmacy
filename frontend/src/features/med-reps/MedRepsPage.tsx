@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 import { useAuthStore } from '../../store/authStore';
 import { CreateMedRepModal } from '../product-managers/components/CreateMedRepModal';
+import { EditSubordinateModal } from '../product-managers/components/EditSubordinateModal';
 
 export default function MedRepsPage() {
     const navigate = useNavigate();
@@ -21,6 +22,8 @@ export default function MedRepsPage() {
 
     // Modal states
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedMedRep, setSelectedMedRep] = useState<any>(null);
     const [isReassignOpen, setIsReassignOpen] = useState(false);
     const [reassignUserId, setReassignUserId] = useState<number>(0);
     const [reassignUserName, setReassignUserName] = useState<string>('');
@@ -48,6 +51,11 @@ export default function MedRepsPage() {
         setReassignUserId(id);
         setReassignUserName(name);
         setIsReassignOpen(true);
+    };
+
+    const handleEdit = (medRep: any) => {
+        setSelectedMedRep(medRep);
+        setIsEditModalOpen(true);
     };
 
     const handleToggleActive = async (medRep: any) => {
@@ -119,7 +127,7 @@ export default function MedRepsPage() {
                 <TabsContent value="active" className="mt-0 outline-none">
                     <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border overflow-hidden hover-lift transition-all duration-500">
                         <DataTable
-                            columns={medRepColumns(handleReassignOpen, undefined, handleToggleActive)}
+                            columns={medRepColumns(handleReassignOpen, handleEdit, handleToggleActive)}
                             data={activeReps}
                             searchColumn="username"
                             onRowClick={(row) => navigate(`/med-reps/${row.id}`)}
@@ -130,7 +138,7 @@ export default function MedRepsPage() {
                 <TabsContent value="archive" className="mt-0 outline-none">
                     <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border overflow-hidden hover-lift transition-all duration-500">
                         <DataTable
-                            columns={medRepColumns(handleReassignOpen, undefined, handleToggleActive)}
+                            columns={medRepColumns(handleReassignOpen, handleEdit, handleToggleActive)}
                             data={inactiveReps}
                             searchColumn="username"
                             onRowClick={(row) => navigate(`/med-reps/${row.id}`)}
@@ -152,6 +160,16 @@ export default function MedRepsPage() {
                 fromUserId={reassignUserId}
                 fromUserName={reassignUserName}
                 role="med_rep"
+            />
+
+            <EditSubordinateModal
+                isOpen={isEditModalOpen}
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    setSelectedMedRep(null);
+                }}
+                onSuccess={() => fetchMedReps("med_rep")}
+                user={selectedMedRep}
             />
         </PageContainer>
     );

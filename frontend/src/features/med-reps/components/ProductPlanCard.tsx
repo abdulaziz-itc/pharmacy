@@ -433,6 +433,7 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
         facts.forEach(f => {
             // Filter by date first
             let match = false;
+            // Handle different date formats/properties
             if (f.month && f.year) {
                 match = f.month === currentMonth && f.year === currentYear;
             } else if (f.date) {
@@ -443,7 +444,9 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             if (match) {
                 const product = products.find(p => p.id === f.product_id);
                 if (product) {
-                    sum += f.quantity * (product.salary_expense || 0);
+                    // Use Math.round to handle potential floating point quantities from backend
+                    const safeQuantity = Math.round(f.quantity || 0);
+                    sum += safeQuantity * (product.salary_expense || 0);
                 }
             }
         });
@@ -467,10 +470,11 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
             if (match) {
                 const product = products.find(p => p.id === f.product_id);
                 if (product) {
+                    const safeQuantity = Math.round(f.quantity || 0);
                     if (!f.doctor_id) {
-                        totalMarketing += f.quantity * (product.marketing_expense || 0);
+                        totalMarketing += safeQuantity * (product.marketing_expense || 0);
                     } else {
-                        doctorMarketing += f.quantity * (product.marketing_expense || 0);
+                        doctorMarketing += safeQuantity * (product.marketing_expense || 0);
                     }
                 }
             }
