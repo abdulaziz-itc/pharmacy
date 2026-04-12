@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { cn, formatCompactNumber, getAdaptiveFontSize } from '../../lib/utils';
+import { cn, getAdaptiveFontSize } from '../../lib/utils';
+import { formatMoney } from '../../components/ui/MoneyInput';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
@@ -350,10 +351,10 @@ function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, o
                         title={typeof value === 'number' ? value.toLocaleString() : value}
                         className={cn(
                             "font-black text-slate-900 mt-1 tracking-tight transition-all duration-300",
-                            getAdaptiveFontSize(typeof value === 'number' ? formatCompactNumber(value) : value, 'text-3xl')
+                            getAdaptiveFontSize(typeof value === 'number' ? formatMoney(value) : value, 'text-3xl')
                         )}
                     >
-                        {typeof value === 'number' ? formatCompactNumber(value) : value}
+                        {typeof value === 'number' ? formatMoney(value) : value}
                         {suffix && <span className="text-[10px] ml-1 opacity-40 uppercase font-black">{suffix}</span>}
                     </h3>
                     

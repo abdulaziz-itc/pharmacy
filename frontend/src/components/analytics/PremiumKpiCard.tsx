@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { formatMoney } from '../ui/MoneyInput';
-import { cn, formatCompactNumber, getAdaptiveFontSize } from '../../lib/utils';
+import { cn, getAdaptiveFontSize } from '../../lib/utils';
 
 interface PremiumKpiCardProps {
     label: string;
@@ -48,7 +48,7 @@ const CountUp = ({ value, suffix = 'UZS' }: { value: number, suffix?: string }) 
 
     return (
         <span className="tabular-nums" title={value.toLocaleString()}>
-            {value > 999999 ? formatCompactNumber(displayValue) : formatMoney(displayValue)}
+            {formatMoney(displayValue)}
             <span className="text-[10px] ml-1.5 opacity-40 font-bold uppercase tracking-widest">{suffix}</span>
         </span>
     );
@@ -201,7 +201,7 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
                             className={cn(
                                 "font-black tracking-tighter leading-none flex items-baseline gap-2 transition-all duration-300",
                                 variant === 'minimal' ? 'text-slate-900' : 'text-slate-800',
-                                getAdaptiveFontSize(value > 999999 ? formatCompactNumber(value) : formatMoney(value), variant === 'minimal' ? 'text-4xl' : 'text-3xl')
+                                getAdaptiveFontSize(formatMoney(value), variant === 'minimal' ? 'text-4xl' : 'text-3xl')
                             )}
                         >
                             <CountUp value={value} suffix={suffix} />

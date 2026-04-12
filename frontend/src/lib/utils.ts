@@ -30,10 +30,17 @@ export function formatCompactNumber(value: number): string {
 
 /**
  * Returns a Tailwind font-size class based on the length of a string.
+ * More aggressive tiers for handling long financial numbers.
  */
 export function getAdaptiveFontSize(text: string, baseSize: string = 'text-3xl'): string {
+    if (!text) return baseSize;
     const length = text.length;
-    if (length > 14) return 'text-xl';
-    if (length > 10) return 'text-2xl';
+    
+    // Very long (e.g., 1.234.567.890,00 UZS) -> ~20+ chars
+    if (length > 20) return 'text-base';
+    if (length > 17) return 'text-lg';
+    if (length > 13) return 'text-xl';
+    if (length > 9) return 'text-2xl';
+    
     return baseSize;
 }
