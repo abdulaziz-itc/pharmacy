@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { cn } from '../../lib/utils';
+import { cn, formatCompactNumber, getAdaptiveFontSize } from '../../lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
@@ -200,7 +200,8 @@ export default function DashboardPage() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <MetricCard
                     title={user?.role === 'hrd' ? "Штат сотрудников" : "Общие продажи"}
-                    value={user?.role === 'hrd' ? `${stats?.total_sales ?? 0}` : `${stats?.total_sales?.toLocaleString() ?? 0} сум`}
+                    value={stats?.total_sales ?? 0}
+                    suffix={user?.role === 'hrd' ? "" : "сум"}
                     change={stats?.total_sales_change}
                     isUp={stats?.total_sales_change?.startsWith('+')}
                     icon={TrendingUp}
@@ -209,7 +210,7 @@ export default function DashboardPage() {
                 />
                 <MetricCard
                     title={user?.role === 'hrd' ? "Охват врачей" : "Количество проданных товаров"}
-                    value={stats?.active_doctors?.toLocaleString() ?? 0}
+                    value={stats?.active_doctors ?? 0}
                     change={stats?.active_doctors_change}
                     isUp={stats?.active_doctors_change?.startsWith('+')}
                     icon={Users}
@@ -218,7 +219,7 @@ export default function DashboardPage() {
                 />
                 <MetricCard
                     title={user?.role === 'hrd' ? "Активность (24ч)" : "Начисленные бонусы"}
-                    value={stats?.pending_reservations?.toLocaleString() ?? 0}
+                    value={stats?.pending_reservations ?? 0}
                     change={stats?.pending_reservations_label}
                     isUp={false}
                     icon={CalendarClock}
@@ -228,7 +229,8 @@ export default function DashboardPage() {
                 />
                 <MetricCard
                     title={user?.role === 'hrd' ? "Выполнено визитов" : "Дебиторка"}
-                    value={user?.role === 'hrd' ? stats?.total_debt?.toLocaleString() : `${stats?.total_debt?.toLocaleString() ?? 0} сум`}
+                    value={stats?.total_debt ?? 0}
+                    suffix={user?.role === 'hrd' ? "" : "сум"}
                     change={stats?.total_debt_change}
                     isUp={!stats?.total_debt_change?.startsWith('+')} 
                     icon={Wallet}
@@ -306,7 +308,7 @@ export default function DashboardPage() {
     );
 }
 
-function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, onClick, subValue, subLabel }: any) {
+function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, onClick, subValue, subLabel, suffix }: any) {
     const colorClasses: any = {
         blue: "bg-blue-600/10 text-blue-600",
         indigo: "bg-indigo-600/10 text-indigo-600",
@@ -344,7 +346,16 @@ function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, o
                 </div>
                 <div className="mt-6">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{title}</p>
-                    <h3 className="text-3xl font-black text-slate-900 mt-1 tracking-tight">{value}</h3>
+                    <h3 
+                        title={typeof value === 'number' ? value.toLocaleString() : value}
+                        className={cn(
+                            "font-black text-slate-900 mt-1 tracking-tight transition-all duration-300",
+                            getAdaptiveFontSize(typeof value === 'number' ? formatCompactNumber(value) : value, 'text-3xl')
+                        )}
+                    >
+                        {typeof value === 'number' ? formatCompactNumber(value) : value}
+                        {suffix && <span className="text-[10px] ml-1 opacity-40 uppercase font-black">{suffix}</span>}
+                    </h3>
                     
                     {subLabel && subValue !== undefined && subValue > 0 && (
                         <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col">
