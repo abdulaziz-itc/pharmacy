@@ -236,7 +236,7 @@ async def delete_expense(
         action="DELETE_EXPENSE",
         entity_type="OtherExpense",
         entity_id=id,
-        description=f"O'chirildi: {expense.amount:,.0f} UZS (Kategoriya: {expense.category.name if expense.category else 'Noma'lum'}). Izoh: {expense.comment or 'yo'q'}"
+        description=f'O\'chirildi: {expense.amount:,.0f} UZS (Kategoriya: {expense.category.name if expense.category else "Noma\'lum"}). Izoh: {expense.comment or "yo\'q"}'
     )
     
     return {"message": "Expense deleted successfully"}
