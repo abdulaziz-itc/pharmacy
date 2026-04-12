@@ -995,6 +995,7 @@ from pydantic import BaseModel
 class BonusSummary(BaseModel):
     med_rep_id: int
     med_rep_name: str
+    region: str = "" # Added region field
     accrued: float # Начислено всего (Факт)
     paid: float    # Выплачено директором
     remainder: float # Остаток к выплате
@@ -1023,6 +1024,7 @@ async def get_admin_bonus_summary(
     month: int = None,
     year: int = None,
     product_id: int = None,
+    region_id: int = None, # Added region_id parameter
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
@@ -1040,8 +1042,13 @@ async def get_admin_bonus_summary(
     from datetime import datetime, timedelta
     from sqlalchemy import func, and_, or_
     
-    # Get all medreps
-    medreps_result = await db.execute(select(User).where(User.role == UserRole.MED_REP, User.is_active == True))
+    # Get all medreps with regions
+    query = select(User).where(User.role == UserRole.MED_REP, User.is_active == True).options(selectinload(User.assigned_regions))
+    
+    if region_id:
+        query = query.where(User.assigned_regions.any(Region.id == region_id))
+
+    medreps_result = await db.execute(query)
     medreps = medreps_result.scalars().all()
     rep_ids = [r.id for r in medreps]
     
@@ -1203,9 +1210,12 @@ async def get_admin_bonus_summary(
         overdue_res = await db.execute(overdue_q)
         has_overdue = overdue_res.scalar_one_or_none() is not None
         
+        rep_region = ", ".join([r.name for r in rep.assigned_regions]) if rep.assigned_regions else ""
+
         summaries.append(BonusSummary(
             med_rep_id=rep.id,
             med_rep_name=rep.full_name,
+            region=rep_region,
             accrued=accrued,
             paid=paid,
             remainder=remainder,

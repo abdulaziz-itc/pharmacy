@@ -57,3 +57,17 @@ class ExpenseService:
             query = query.where(OtherExpense.date.between(start_date, end_date))
         result = await db.execute(query)
         return result.scalar() or 0.0
+
+    @staticmethod
+    async def delete_expense(db: AsyncSession, expense_id: int) -> OtherExpense:
+        from sqlalchemy.orm import selectinload
+        result = await db.execute(
+            select(OtherExpense)
+            .options(selectinload(OtherExpense.category))
+            .where(OtherExpense.id == expense_id)
+        )
+        db_obj = result.scalar_one_or_none()
+        if db_obj:
+            await db.delete(db_obj)
+            await db.commit()
+        return db_obj

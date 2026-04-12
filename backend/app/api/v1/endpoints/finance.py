@@ -11,6 +11,7 @@ from app.models.crm import Doctor
 from app.models.ledger import DoctorMonthlyStat
 from app.schemas.finance import ExpenseCategory, ExpenseCategoryCreate, OtherExpense, OtherExpenseCreate
 from app.services.expense_service import ExpenseService
+from app.services.audit_service import log_action
 
 router = APIRouter()
 
@@ -213,3 +214,29 @@ async def create_expense(
     if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ACCOUNTANT]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return await ExpenseService.create_expense(db, obj_in, current_user.id)
+
+@router.delete("/expenses/{id}")
+async def delete_expense(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ACCOUNTANT]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    expense = await ExpenseService.delete_expense(db, id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+        
+    # Log the action for the director
+    await log_action(
+        db,
+        current_user=current_user,
+        action="DELETE_EXPENSE",
+        entity_type="OtherExpense",
+        entity_id=id,
+        description=f"O'chirildi: {expense.amount:,.0f} UZS (Kategoriya: {expense.category.name if expense.category else 'Noma'lum'}). Izoh: {expense.comment or 'yo'q'}"
+    )
+    
+    return {"message": "Expense deleted successfully"}

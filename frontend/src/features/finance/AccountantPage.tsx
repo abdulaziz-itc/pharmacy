@@ -5,7 +5,8 @@ import {
     TrendingDown, 
     Plus, 
     DollarSign,
-    PieChart
+    PieChart,
+    Trash2
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
@@ -139,6 +140,14 @@ export default function AccountantPage() {
         }
     });
 
+    const deleteExpenseMutation = useMutation({
+        mutationFn: (id: number) => api.delete(`/finance/expenses/${id}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['expenses'] });
+            queryClient.invalidateQueries({ queryKey: ['finance-stats'] });
+        }
+    });
+
     const addCategoryMutation = useMutation({
         mutationFn: (name: string) => api.post('/finance/categories', { name }),
         onSuccess: () => {
@@ -190,6 +199,22 @@ export default function AccountantPage() {
             accessorKey: 'comment',
             header: 'Комментарий',
             cell: ({ row }) => <span className="text-slate-500 italic max-w-xs block truncate">{row.original.comment || '—'}</span>
+        },
+        {
+            id: 'actions',
+            header: '',
+            cell: ({ row }) => (
+                <button
+                    onClick={() => {
+                        if (window.confirm("Haqiqatan ham ushbu xarajatni o'chirmoqchimisiz?")) {
+                            deleteExpenseMutation.mutate(row.original.id);
+                        }
+                    }}
+                    className="p-2 text-slate-400 hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            )
         }
     ];
 
