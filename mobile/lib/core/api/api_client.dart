@@ -39,7 +39,9 @@ class ApiClient {
           return handler.next(options);
         },
         onError: (error, handler) async {
-          if (error.response?.statusCode == 401) {
+          final statusCode = error.response?.statusCode;
+          if (statusCode == 401 || statusCode == 403) {
+            debugPrint('Auth error ($statusCode), clearing session...');
             await _storage.clearAll();
             onUnauthorized?.call();
           }
