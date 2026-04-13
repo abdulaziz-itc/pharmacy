@@ -419,6 +419,7 @@ async def read_invoices(
     med_rep_id: Optional[int] = None,
     med_org_id: Optional[int] = None,
     has_debt: bool = False,
+    only_overdue: bool = False,
 ) -> Any:
     try:
         med_rep_ids = None
@@ -460,7 +461,8 @@ async def read_invoices(
             status=status,
             has_debt=has_debt,
             med_org_id=med_org_id,
-            region_ids=region_ids
+            region_ids=region_ids,
+            only_overdue=only_overdue
         )
     except Exception as e:
         import traceback

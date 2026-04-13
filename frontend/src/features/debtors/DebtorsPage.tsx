@@ -24,6 +24,7 @@ export default function DebtorsPage() {
         selectedType: 'all',
         selectedInvoiceType: 'all',
         invNumSearch: '',
+        onlyOverdue: false,
     });
 
     const [selectedInvoiceForView, setSelectedInvoiceForView] = useState<any | null>(null);
@@ -42,9 +43,23 @@ export default function DebtorsPage() {
                 params.is_tovar_skidka = filterValues.selectedInvoiceType === 'tovar_skidka';
             }
             if (filterValues.invNumSearch) params.inv_num = filterValues.invNumSearch;
+            params.has_debt = true;
+            if (filterValues.onlyOverdue) params.only_overdue = true;
 
             const response = await api.get('/sales/invoices/', { params });
             return Array.isArray(response.data) ? response.data : (response.data?.items || response.data || []);
+        }
+    });
+
+    const { data: globalStats } = useQuery({
+        queryKey: ['debtors-global-stats', filterValues.selectedMedRep, filterValues.selectedRegion],
+        queryFn: async () => {
+            const params: any = {};
+            if (filterValues.selectedMedRep !== 'all') params.med_rep_id = filterValues.selectedMedRep;
+            if (filterValues.selectedRegion !== 'all') params.region_id = filterValues.selectedRegion;
+            
+            const response = await api.get('/analytics/stats/comprehensive', { params });
+            return response.data;
         }
     });
 
@@ -226,8 +241,10 @@ export default function DebtorsPage() {
                             <span className="text-xl font-bold opacity-60">UZS</span>
                         </div>
                         <div className="mt-2 flex flex-col relative z-10">
-                            <span className="text-[10px] font-black text-rose-100 uppercase tracking-widest opacity-80">Из них просроченная задолженность:</span>
-                            <span className="text-lg font-black text-white tracking-tight drop-shadow-sm">{stats.overdueAmount.toLocaleString()} UZS</span>
+                             <span className="text-[10px] font-black text-rose-100 uppercase tracking-widest opacity-80">Из них просроченная задолженность:</span>
+                            <span className="text-lg font-black text-white tracking-tight drop-shadow-sm">
+                                {globalStats ? globalStats.overdue_receivables.toLocaleString() : stats.overdueAmount.toLocaleString()} UZS
+                            </span>
                         </div>
                         <div className="mt-6 flex items-center gap-2 text-rose-100/60 text-[10px] font-black uppercase tracking-widest">
                             <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
@@ -283,12 +300,34 @@ export default function DebtorsPage() {
                 </div>
             </div>
 
+            <div className="flex items-center gap-4 mb-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                    <input 
+                        type="checkbox" 
+                        className="w-5 h-5 rounded border-slate-300 text-rose-600 focus:ring-rose-500 transition-all cursor-pointer"
+                        checked={filterValues.onlyOverdue as boolean}
+                        onChange={(e) => setFilterValues(prev => ({ ...prev, onlyOverdue: e.target.checked }))}
+                    />
+                    <span className="text-sm font-black text-slate-700 group-hover:text-rose-600 transition-colors uppercase tracking-tight">Только просроченные ( > 30 дней )</span>
+                </label>
+            </div>
+
             <FilterBar 
                 values={filterValues}
                 onChange={setFilterValues}
                 onSearch={() => refetch()}
                 onReset={() => {
-                    setFilterValues({ dateStart: '', dateEnd: '', selectedMedRep: 'all', selectedRegion: 'all', selectedCompany: 'all', selectedType: 'all', selectedInvoiceType: 'all', invNumSearch: '' });
+                    setFilterValues({ 
+                        dateStart: '', 
+                        dateEnd: '', 
+                        selectedMedRep: 'all', 
+                        selectedRegion: 'all', 
+                        selectedCompany: 'all', 
+                        selectedType: 'all', 
+                        selectedInvoiceType: 'all', 
+                        invNumSearch: '',
+                        onlyOverdue: false
+                    });
                     refetch();
                 }}
             />

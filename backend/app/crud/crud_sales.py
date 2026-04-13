@@ -1,7 +1,7 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
 
 from app.models.sales import (
@@ -401,7 +401,8 @@ async def get_invoices(
     warehouse_id: Optional[int] = None,
     has_debt: bool = False,
     med_org_id: Optional[int] = None,
-    region_ids: Optional[List[int]] = None
+    region_ids: Optional[List[int]] = None,
+    only_overdue: bool = False
 ) -> List[Invoice]:
     query = select(Invoice).options(
         selectinload(Invoice.payments).selectinload(Payment.processed_by),
@@ -418,6 +419,13 @@ async def get_invoices(
 
     if has_debt:
         query = query.where(Invoice.total_amount > Invoice.paid_amount)
+
+    if only_overdue:
+        overdue_date = datetime.utcnow() - timedelta(days=30)
+        query = query.where(and_(
+            Invoice.total_amount > Invoice.paid_amount,
+            func.coalesce(Invoice.realization_date, Invoice.date) < overdue_date
+        ))
 
     if warehouse_id:
         query = query.where(Invoice.reservation.has(warehouse_id=warehouse_id))

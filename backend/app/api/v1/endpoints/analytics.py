@@ -482,7 +482,7 @@ async def get_comprehensive_stats(
         .join(Reservation, Invoice.reservation_id == Reservation.id)\
         .where(and_(
             Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]),
-            Invoice.date < overdue_date
+            func.coalesce(Invoice.realization_date, Invoice.date) < overdue_date
         ))
     overdue_q = apply_filters(overdue_q, Reservation)
     overdue_receivables = (await db.execute(overdue_q)).scalar() or 0.0
