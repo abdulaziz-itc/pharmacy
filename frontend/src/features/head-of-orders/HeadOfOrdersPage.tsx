@@ -22,8 +22,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import axiosInstance from '@/api/axios';
 import { ModernStatsBar } from '@/components/ui/ModernStatsBar';
-import { SearchableProductSelect } from '@/components/SearchableProductSelect';
 import { formatMoney } from '@/components/ui/MoneyInput';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 
 
@@ -141,7 +141,7 @@ const HeadOfOrdersPage: React.FC = () => {
         { value: 'hospital', label: 'Больница' },
         { value: 'lechebniy', label: 'ЛПУ' },
         { value: 'wholesale', label: 'Оптовик' },
-    ];
+    ].sort((a, b) => a.label.localeCompare(b.label));
 
     // ----- Modals -----
     const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -241,7 +241,8 @@ const HeadOfOrdersPage: React.FC = () => {
                 const medRepOptions = users
                     .filter((u: any) => u.role === 'med_rep')
                     .map((u: any) => ({ id: u.id, name: u.full_name || u.username }))
-                    .filter(u => u.name);
+                    .filter(u => u.name)
+                    .sort((a, b) => a.name.localeCompare(b.name));
                 setFilterMedReps(medRepOptions);
             } catch { /* silently ignore */ }
 
@@ -249,7 +250,11 @@ const HeadOfOrdersPage: React.FC = () => {
                 // Companies (Med Orgs)
                 const orgsRes = await axiosInstance.get('/crm/med-orgs/', { params: { limit: 1000 } });
                 const orgs: any[] = orgsRes.data?.items || orgsRes.data || [];
-                setFilterCompanies(orgs.map((o: any) => ({ id: o.id, name: o.name })).filter(o => o.name));
+                setFilterCompanies(
+                    orgs.map((o: any) => ({ id: o.id, name: o.name }))
+                        .filter(o => o.name)
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                );
             } catch { /* silently ignore */ }
         };
         loadFilterOptions();
@@ -310,9 +315,10 @@ const HeadOfOrdersPage: React.FC = () => {
     const loadWarehouses = async () => {
         try {
             const wh = await getWarehouses();
-            setWarehouses(wh);
+            const sortedWh = wh.sort((a: any, b: any) => a.name.localeCompare(b.name));
+            setWarehouses(sortedWh);
             // Auto-select first warehouse if none selected
-            if (!selectedWarehouse && wh.length > 0) setSelectedWarehouse(wh[0]);
+            if (!selectedWarehouse && sortedWh.length > 0) setSelectedWarehouse(sortedWh[0]);
         } catch { }
     };
 
@@ -881,62 +887,46 @@ const HeadOfOrdersPage: React.FC = () => {
                                 {/* Med Rep */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">МЕД. РЕП</p>
-                                    <Select value={selectedMedRep} onValueChange={setSelectedMedRep}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {resMedReps.map(mr => (
-                                                <SelectItem key={mr.id} value={mr.id.toString()}>{mr.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={resMedReps.map(mr => ({ value: mr.id.toString(), label: mr.name }))}
+                                        value={selectedMedRep}
+                                        onChange={setSelectedMedRep}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Company */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">КОМПАНИЯ</p>
-                                    <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {resCompanies.map(c => (
-                                                <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={resCompanies.map(c => ({ value: c.id.toString(), label: c.name }))}
+                                        value={selectedCompany}
+                                        onChange={setSelectedCompany}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Type */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ТИП</p>
-                                    <Select value={selectedType} onValueChange={setSelectedType}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {FILTER_ORG_TYPES.map(t => (
-                                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={FILTER_ORG_TYPES}
+                                        value={selectedType}
+                                        onChange={setSelectedType}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Invoice Type Filter */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ТИП ФАКТУРЫ</p>
-                                    <Select value={selectedInvoiceType} onValueChange={setSelectedInvoiceType}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            <SelectItem value="regular">Обычная</SelectItem>
-                                            <SelectItem value="tovar_skidka">Товарная скидка</SelectItem>
-                                            <SelectItem value="through_wholesale">Через оптовик</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={[
+                                            { value: 'regular', label: 'Обычная' },
+                                            { value: 'tovar_skidka', label: 'Товарная скидка' },
+                                            { value: 'through_wholesale', label: 'Через оптовик' },
+                                        ]}
+                                        value={selectedInvoiceType}
+                                        onChange={setSelectedInvoiceType}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Invoice number search */}
                                 <div className="flex flex-col">
@@ -951,17 +941,12 @@ const HeadOfOrdersPage: React.FC = () => {
                                 {/* Warehouse Filter */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{getWhLabel(selectedWhFilter)}</p>
-                                    <Select value={selectedWhFilter} onValueChange={setSelectedWhFilter}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {warehouses.map(wh => (
-                                                <SelectItem key={wh.id} value={wh.id.toString()}>{wh.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={warehouses.map(wh => ({ value: wh.id.toString(), label: wh.name }))}
+                                        value={selectedWhFilter}
+                                        onChange={setSelectedWhFilter}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 <div className="flex gap-2 mt-auto">
                                     <Button onClick={loadReservations} className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest flex-1 shadow-sm">ПОИСК</Button>
@@ -1208,62 +1193,46 @@ const HeadOfOrdersPage: React.FC = () => {
                                 {/* Med Rep */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">МЕД. ПРЕДСТАВИТЕЛЬ</p>
-                                    <Select value={selectedMedRep} onValueChange={setSelectedMedRep}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {medReps.map(mr => (
-                                                <SelectItem key={mr.id} value={mr.id.toString()}>{mr.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={medReps.map(mr => ({ value: mr.id.toString(), label: mr.name }))}
+                                        value={selectedMedRep}
+                                        onChange={setSelectedMedRep}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Company */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ВЫБЕРИТЕ КОМПАНИЮ</p>
-                                    <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {companiesList.map(c => (
-                                                <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={companiesList.map(c => ({ value: c.id.toString(), label: c.name }))}
+                                        value={selectedCompany}
+                                        onChange={setSelectedCompany}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Type */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ТИП</p>
-                                    <Select value={selectedType} onValueChange={setSelectedType}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {FILTER_ORG_TYPES.map(t => (
-                                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={FILTER_ORG_TYPES}
+                                        value={selectedType}
+                                        onChange={setSelectedType}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Invoice Type Filter */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ТИП ФАКТУРЫ</p>
-                                    <Select value={selectedInvoiceType} onValueChange={setSelectedInvoiceType}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            <SelectItem value="regular">Обычная</SelectItem>
-                                            <SelectItem value="tovar_skidka">Товарная скидка</SelectItem>
-                                            <SelectItem value="through_wholesale">Через оптовик</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={[
+                                            { value: 'regular', label: 'Обычная' },
+                                            { value: 'tovar_skidka', label: 'Товарная скидка' },
+                                            { value: 'through_wholesale', label: 'Через оптовик' },
+                                        ]}
+                                        value={selectedInvoiceType}
+                                        onChange={setSelectedInvoiceType}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Account Number */}
                                 <div className="flex flex-col">
@@ -1278,17 +1247,12 @@ const HeadOfOrdersPage: React.FC = () => {
                                 {/* Warehouse Filter */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{getWhLabel(selectedWhFilter)}</p>
-                                    <Select value={selectedWhFilter} onValueChange={setSelectedWhFilter}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {warehouses.map(wh => (
-                                                <SelectItem key={wh.id} value={wh.id.toString()}>{wh.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={warehouses.map(wh => ({ value: wh.id.toString(), label: wh.name }))}
+                                        value={selectedWhFilter}
+                                        onChange={setSelectedWhFilter}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 <div className="flex gap-2 mt-auto">
                                     <Button onClick={loadInvoices} className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest flex-1 shadow-sm">ПОИСК</Button>
@@ -1545,62 +1509,46 @@ const HeadOfOrdersPage: React.FC = () => {
                                 {/* Med Rep */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">МЕД. ПРЕДСТАВИТЕЛЬ</p>
-                                    <Select value={selectedMedRep} onValueChange={setSelectedMedRep}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {medReps.map(mr => (
-                                                <SelectItem key={mr.id} value={mr.id.toString()}>{mr.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={medReps.map(mr => ({ value: mr.id.toString(), label: mr.name }))}
+                                        value={selectedMedRep}
+                                        onChange={setSelectedMedRep}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Company */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ВЫБЕРИТЕ КОМПАНИЮ</p>
-                                    <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {companiesList.map(c => (
-                                                <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={companiesList.map(c => ({ value: c.id.toString(), label: c.name }))}
+                                        value={selectedCompany}
+                                        onChange={setSelectedCompany}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Type */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ТИП</p>
-                                    <Select value={selectedType} onValueChange={setSelectedType}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {FILTER_ORG_TYPES.map(t => (
-                                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={FILTER_ORG_TYPES}
+                                        value={selectedType}
+                                        onChange={setSelectedType}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Invoice Type */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ТИП ФАКТУРЫ</p>
-                                    <Select value={selectedInvoiceType} onValueChange={setSelectedInvoiceType}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            <SelectItem value="regular">Обычная</SelectItem>
-                                            <SelectItem value="tovar_skidka">Товарная скидка</SelectItem>
-                                            <SelectItem value="through_wholesale">Через оптовик</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={[
+                                            { value: 'regular', label: 'Обычная' },
+                                            { value: 'tovar_skidka', label: 'Товарная скидка' },
+                                            { value: 'through_wholesale', label: 'Через оптовик' },
+                                        ]}
+                                        value={selectedInvoiceType}
+                                        onChange={setSelectedInvoiceType}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 {/* Account Number */}
                                 <div className="flex flex-col">
@@ -1615,17 +1563,12 @@ const HeadOfOrdersPage: React.FC = () => {
                                 {/* Warehouse Filter */}
                                 <div className="flex flex-col">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{getWhLabel(selectedWhFilter)}</p>
-                                    <Select value={selectedWhFilter} onValueChange={setSelectedWhFilter}>
-                                        <SelectTrigger className="w-full bg-white border-slate-200 rounded-xl font-bold text-slate-700 h-10 shadow-sm">
-                                            <SelectValue placeholder="Все" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Все</SelectItem>
-                                            {warehouses.map(wh => (
-                                                <SelectItem key={wh.id} value={wh.id.toString()}>{wh.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={warehouses.map(wh => ({ value: wh.id.toString(), label: wh.name }))}
+                                        value={selectedWhFilter}
+                                        onChange={setSelectedWhFilter}
+                                        placeholder="Все"
+                                    />
                                 </div>
                                 <div className="flex gap-2 mt-auto">
                                     <Button onClick={loadInvoices} className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest flex-1 shadow-sm">ПОИСК</Button>
