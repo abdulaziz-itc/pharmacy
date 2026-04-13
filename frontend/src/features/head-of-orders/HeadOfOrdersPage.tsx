@@ -24,6 +24,7 @@ import axiosInstance from '@/api/axios';
 import { ModernStatsBar } from '@/components/ui/ModernStatsBar';
 import { formatMoney } from '@/components/ui/MoneyInput';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableProductSelect } from '@/components/SearchableProductSelect';
 
 
 
