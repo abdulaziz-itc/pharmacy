@@ -308,7 +308,7 @@ export default function DebtorsPage() {
                         checked={filterValues.onlyOverdue as boolean}
                         onChange={(e) => setFilterValues(prev => ({ ...prev, onlyOverdue: e.target.checked }))}
                     />
-                    <span className="text-sm font-black text-slate-700 group-hover:text-rose-600 transition-colors uppercase tracking-tight">Только просроченные ( > 30 дней )</span>
+                    <span className="text-sm font-black text-slate-700 group-hover:text-rose-600 transition-colors uppercase tracking-tight">Только просроченные ( &gt; 30 дней )</span>
                 </label>
             </div>
 
