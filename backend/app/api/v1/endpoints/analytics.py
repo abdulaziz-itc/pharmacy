@@ -373,7 +373,7 @@ async def get_comprehensive_stats(
     debt_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount).label("total")).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
     if start_date and end_date: debt_q = debt_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
     if rep_ids or region_id or product_id:
-        debt_q = debt_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+        debt_q = debt_q.outerjoin(Reservation, Invoice.reservation_id == Reservation.id)
         debt_q = apply_filters(debt_q, Reservation)
     debt_sum = (await db.execute(debt_q)).scalar() or 0
 
@@ -458,7 +458,7 @@ async def get_comprehensive_stats(
     invoice_q = select(
         func.coalesce(func.sum(Invoice.total_amount), 0.0).label("total"),
         func.coalesce(func.sum(Invoice.paid_amount), 0.0).label("paid")
-    ).join(Reservation, Invoice.reservation_id == Reservation.id).where(Invoice.status != InvoiceStatus.CANCELLED)
+    ).outerjoin(Reservation, Invoice.reservation_id == Reservation.id).where(Invoice.status != InvoiceStatus.CANCELLED)
     invoice_q = apply_filters(invoice_q, Reservation)
     if start_date and end_date: invoice_q = invoice_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
     
@@ -479,7 +479,7 @@ async def get_comprehensive_stats(
     # 3c. Overdue Receivables (Older than 30 days)
     overdue_date = datetime.utcnow() - timedelta(days=30)
     overdue_q = select(func.coalesce(func.sum(Invoice.total_amount - Invoice.paid_amount), 0.0))\
-        .join(Reservation, Invoice.reservation_id == Reservation.id)\
+        .outerjoin(Reservation, Invoice.reservation_id == Reservation.id)\
         .where(and_(
             (Invoice.total_amount - Invoice.paid_amount) > 1.0,
             func.coalesce(Invoice.realization_date, Invoice.date) < overdue_date
