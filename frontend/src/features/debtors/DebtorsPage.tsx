@@ -83,7 +83,10 @@ export default function DebtorsPage() {
         return {
             totalAmount: total,
             paidAmount: paid,
-            debtAmount: invoices.reduce((acc: number, inv: any) => acc + Math.max(0, (inv.total_amount || 0) - (inv.paid_amount || 0)), 0),
+            debtAmount: invoices.reduce((acc: number, inv: any) => {
+                const debt = (Number(inv.total_amount) || 0) - (Number(inv.paid_amount) || 0);
+                return acc + (debt > 1.0 ? debt : 0);
+            }, 0),
             creditAmount: invoices.reduce((acc: number, inv: any) => acc + Math.max(0, (inv.paid_amount || 0) - (inv.total_amount || 0)), 0),
             resCount: invoices.length,
             promoAmount: totalPromo,
@@ -96,7 +99,7 @@ export default function DebtorsPage() {
                 const days = Math.floor(diff / (1000 * 60 * 60 * 24));
                 if (days > 30) {
                     const debt = (Number(inv.total_amount) || 0) - (Number(inv.paid_amount) || 0);
-                    return sum + Math.max(0, debt);
+                    return sum + (debt > 1.0 ? debt : 0);
                 }
                 return sum;
             }, 0)

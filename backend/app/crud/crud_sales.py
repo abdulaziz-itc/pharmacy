@@ -418,12 +418,12 @@ async def get_invoices(
         query = query.where(Invoice.status == status)
 
     if has_debt:
-        query = query.where(Invoice.total_amount > Invoice.paid_amount)
+        query = query.where((Invoice.total_amount - Invoice.paid_amount) > 1.0)
 
     if only_overdue:
         overdue_date = datetime.utcnow() - timedelta(days=30)
         query = query.where(and_(
-            Invoice.total_amount > Invoice.paid_amount,
+            (Invoice.total_amount - Invoice.paid_amount) > 1.0,
             func.coalesce(Invoice.realization_date, Invoice.date) < overdue_date
         ))
 

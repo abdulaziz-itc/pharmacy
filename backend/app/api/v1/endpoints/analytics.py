@@ -481,7 +481,7 @@ async def get_comprehensive_stats(
     overdue_q = select(func.coalesce(func.sum(Invoice.total_amount - Invoice.paid_amount), 0.0))\
         .join(Reservation, Invoice.reservation_id == Reservation.id)\
         .where(and_(
-            Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]),
+            (Invoice.total_amount - Invoice.paid_amount) > 1.0,
             func.coalesce(Invoice.realization_date, Invoice.date) < overdue_date
         ))
     overdue_q = apply_filters(overdue_q, Reservation)
