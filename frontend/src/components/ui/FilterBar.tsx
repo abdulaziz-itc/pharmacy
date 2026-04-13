@@ -16,6 +16,7 @@ export interface FilterValues {
     selectedType: string;
     selectedInvoiceType: string;
     invNumSearch: string;
+    onlyOverdue?: boolean;
 }
 
 interface FilterBarProps {
