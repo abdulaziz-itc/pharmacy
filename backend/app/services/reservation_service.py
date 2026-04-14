@@ -69,31 +69,14 @@ class ReservationService:
                 if not product:
                     raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
 
-                # Validation: Bonuses and Salary
+                # Validation: Allow any price, but ensure Bonus + Salary < Price
                 if obj_in.is_bonus_eligible:
-                    # 1. Price check removed as per user request (allow any price)
-                    pass
-                    
-                    # 2. Marketing amount check (Promo)
-                    # User requirement: Max 100% of price
-                    max_mkt = item.price * 1.0
-                    if item.marketing_amount > max_mkt:
-                         raise HTTPException(
+                    total_bonus_salary = item.marketing_amount + (item.salary_amount if obj_in.is_salary_enabled else 0)
+                    if total_bonus_salary >= item.price:
+                        raise HTTPException(
                             status_code=400,
-                            detail=f"Промо-сумма товара '{product.name}' ({item.marketing_amount:,.0f}) "
-                                   f"не может превышать 100% от цены ({max_mkt:,.0f} UZS)"
+                            detail=f"Сумма бонуса и зарплаты ({total_bonus_salary:,.0f}) не может превышать или быть равной цене товара ({item.price:,.0f} UZS)"
                         )
-
-                    # 3. Salary amount check
-                    # User requirement: Max 100% of price
-                    if obj_in.is_salary_enabled:
-                        max_salary = item.price * 1.0
-                        if item.salary_amount > max_salary:
-                            raise HTTPException(
-                                status_code=400,
-                                detail=f"Сумма зарплаты товара '{product.name}' ({item.salary_amount:,.0f}) "
-                                       f"не может превышать 100% от цены ({max_salary:,.0f} UZS)"
-                            )
                 
                 # Item amount BEFORE NDS
                 item_total_plain = (item.price * item.quantity) * (1 - item.discount_percent / 100)
