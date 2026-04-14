@@ -69,17 +69,10 @@ class ReservationService:
                 if not product:
                     raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
 
-                # Validation: 30% deviation limit
+                # Validation: Bonuses and Salary
                 if obj_in.is_bonus_eligible:
-                    # 1. Price check
-                    default_price = product.price
-                    min_price = default_price * 0.7
-                    max_price = default_price * 1.3
-                    if item.price < min_price or item.price > max_price:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Цена товара '{product.name}' ({item.price:,.0f}) выходит за пределы допустимого отклонения 30% ([{min_price:,.0f} - {max_price:,.0f}])"
-                        )
+                    # 1. Price check removed as per user request (allow any price)
+                    pass
                     
                     # 2. Marketing amount check (Promo)
                     # User requirement: Max 100% of price
