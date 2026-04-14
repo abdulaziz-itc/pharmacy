@@ -172,6 +172,18 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
             return;
         }
 
+        // Validate Bonus + Salary < Price
+        const hasViolations = items.some(it => {
+            if (!it.product_id) return false;
+            const total = parseFloat(it.marketing_amount || 0) + (isSalaryEnabled ? parseFloat(it.salary_amount || 0) : 0);
+            return total >= parseFloat(it.price || 0);
+        });
+
+        if (hasViolations) {
+            toast.error('Сумма бонуса и зарплаты не может превышать или быть равной цене товара');
+            return;
+        }
+
         // Check if any bonus was modified from default
         const isBonusModified = items.some(it => {
             if (!it.product_id || !isBonusEligible) return false;
@@ -654,7 +666,11 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                                     />
                                                 </div>
                                             )}
-                                            {/* Restrictions removed */}
+                                            {it.product_id && (parseFloat(it.marketing_amount || 0) + (isSalaryEnabled ? parseFloat(it.salary_amount || 0) : 0)) >= parseFloat(it.price || 0) && (
+                                                <div className="mt-1 flex items-center gap-1 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-[9px] font-bold text-rose-600 animate-pulse">
+                                                    🚫 Сумма превышает цену!
+                                                </div>
+                                            )}
                                         </div>
                                         <button
                                             onClick={() => removeItem(idx)}
