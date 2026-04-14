@@ -1,0 +1,1 @@
+ /Users/macbook13/Documents/pharma_new/mobile/.dart_tool/flutter_build/f20176a20bd631fc7b034ce193d2c3f8/dart_build_result.json:  /Users/macbook13/Documents/pharma_new/mobile/.dart_tool/package_config.json /Users/macbook13/Documents/pharma_new/mobile/pubspec.yaml /usr/local/share/flutter/bin/cache/dart-sdk/version

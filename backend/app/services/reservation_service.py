@@ -69,38 +69,14 @@ class ReservationService:
                 if not product:
                     raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
 
-                # Validation: 30% deviation limit
+                # Validation: Allow any price, but ensure Bonus + Salary < Price
                 if obj_in.is_bonus_eligible:
-                    # 1. Price check
-                    default_price = product.price
-                    min_price = default_price * 0.7
-                    max_price = default_price * 1.3
-                    if item.price < min_price or item.price > max_price:
+                    total_bonus_salary = item.marketing_amount + (item.salary_amount if obj_in.is_salary_enabled else 0)
+                    if total_bonus_salary >= item.price:
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Цена товара '{product.name}' ({item.price:,.0f}) выходит за пределы допустимого отклонения 30% ([{min_price:,.0f} - {max_price:,.0f}])"
+                            detail=f"Сумма бонуса и зарплаты ({total_bonus_salary:,.0f}) не может превышать или быть равной цене товара ({item.price:,.0f} UZS)"
                         )
-                    
-                    # 2. Marketing amount check (Promo)
-                    # User requirement: Max 30% of price
-                    max_mkt = item.price * 0.3
-                    if item.marketing_amount > max_mkt:
-                         raise HTTPException(
-                            status_code=400,
-                            detail=f"Промо-сумма товара '{product.name}' ({item.marketing_amount:,.0f}) "
-                                   f"не может превышать 30% от цены ({max_mkt:,.0f} UZS)"
-                        )
-
-                    # 3. Salary amount check
-                    # User requirement: Max 30% of price
-                    if obj_in.is_salary_enabled:
-                        max_salary = item.price * 0.3
-                        if item.salary_amount > max_salary:
-                            raise HTTPException(
-                                status_code=400,
-                                detail=f"Сумма зарплаты товара '{product.name}' ({item.salary_amount:,.0f}) "
-                                       f"не может превышать 30% от цены ({max_salary:,.0f} UZS)"
-                            )
                 
                 # Item amount BEFORE NDS
                 item_total_plain = (item.price * item.quantity) * (1 - item.discount_percent / 100)
