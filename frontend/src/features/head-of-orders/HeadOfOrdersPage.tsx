@@ -1005,6 +1005,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОДОБРЕНО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОМО</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ЗАРПЛАТА</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ВОЗВРАТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕЙСТВИЯ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИСТОРИЯ</th>
@@ -1088,6 +1089,11 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
                                                     <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">{promoVal.toLocaleString()}</td>
+                                                    <td className="px-3 py-4 text-center font-black text-indigo-600">
+                                                        {res.is_salary_enabled !== false
+                                                            ? formatMoney((res.items || []).reduce((s: number, it: any) => s + (it.quantity || 0) * (it.salary_amount || 0), 0))
+                                                            : '—'}
+                                                    </td>
                                                     <td className="px-3 py-4 text-center">
                                                         <button
                                                             onClick={() => { setSelectedResForReturn(res); setReturnQuantities({}); setShowReturnModal(true); }}
@@ -1302,6 +1308,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОДОБРЕНО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОМО</th>
+                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ЗАРПЛАТА</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ВОЗВРАТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕЙСТВИЯ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИСТОРИЯ</th>
@@ -1395,6 +1402,11 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     </td>
                                                     <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
                                                     <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">{promoVal.toLocaleString()}</td>
+                                                    <td className="px-3 py-4 text-center font-black text-indigo-600">
+                                                        {res.is_salary_enabled !== false
+                                                            ? formatMoney((res.items || []).reduce((s: number, it: any) => s + (it.quantity || 0) * (it.salary_amount || 0), 0))
+                                                            : '—'}
+                                                    </td>
                                                     <td className="px-3 py-4 text-center">
                                                         {res.is_return_pending ? (
                                                             <div className="flex items-center justify-center gap-1.5 p-1.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-100/50" title="Ожидает возврата">
