@@ -172,6 +172,23 @@ export default function InvoicesPage() {
             cell: ({ row }: any) => formatMoney(row.original.paid_amount || 0) + ' UZS',
         },
         {
+            id: 'salary_expense',
+            header: 'Зарплата',
+            cell: ({ row }: any) => {
+                const res = row.original.reservation;
+                if (!res || !res.is_salary_enabled) return '—';
+                
+                let totalSalary = 0;
+                (res.items || []).forEach((item: any) => {
+                    const salaryAmt = item.salary_amount || 0;
+                    totalSalary += (item.quantity || 0) * salaryAmt;
+                });
+                
+                if (totalSalary === 0) return '—';
+                return formatMoney(totalSalary) + ' UZS';
+            },
+        },
+        {
             id: 'actions',
             header: '',
             cell: ({ row }: any) => {
