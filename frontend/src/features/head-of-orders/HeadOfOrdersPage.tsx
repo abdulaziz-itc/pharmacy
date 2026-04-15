@@ -303,6 +303,7 @@ const HeadOfOrdersPage: React.FC = () => {
         const matchesSearch = (r.med_org?.name || '').toLowerCase().includes(resSearch.toLowerCase()) ||
             (r.invoice?.invoice_number || '').toLowerCase().includes(resSearch.toLowerCase());
         return matchesSearch;
+    });
     const sortedReservationsPending = React.useMemo(() => sortData(filteredReservationsPending), [filteredReservationsPending, sortConfig]);
 
     // --- Helper: Calculate Promo for a reservation ---
