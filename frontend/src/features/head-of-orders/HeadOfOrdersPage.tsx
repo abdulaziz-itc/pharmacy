@@ -11,7 +11,8 @@ import {
     Plus, RefreshCw, Receipt, CheckCircle, Trash2,
     DollarSign, Factory, CalendarRange, FileText, Building2, PieChart,
     CreditCard, TrendingUp, TrendingDown, Wallet, Warehouse, Search, ChevronLeft, ChevronRight, Package, Pencil,
-    History, List, Download, User as UserIcon, MapPin, Eye, Edit3, AlertTriangle, RotateCcw
+    History, List, Download, User as UserIcon, MapPin, Eye, Edit3, AlertTriangle, RotateCcw,
+    ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { getWarehouses, fulfillStock, setStock, activateReservation, deleteReservation, getReservations, getInvoices, createWarehouse } from '@/api/orders-management';
 import { useProductStore } from '@/store/productStore';
@@ -88,6 +89,27 @@ const statusColor: Record<string, string> = {
 };
 
 const HeadOfOrdersPage: React.FC = () => {
+    const SortHeader = ({ label, sortKey, currentSort, onSort, className = "" }: any) => {
+        const isActive = currentSort?.key === sortKey;
+        return (
+            <th
+                className={`sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors ${className}`}
+                onClick={() => onSort(sortKey)}
+            >
+                <div className={`flex items-center gap-1 ${className.includes('text-center') ? 'justify-center' : ''}`}>
+                    <span>{label}</span>
+                    <div className="flex-shrink-0">
+                        {isActive ? (
+                            currentSort.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                        ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-20 group-hover:opacity-100 transition-opacity" />
+                        )}
+                    </div>
+                </div>
+            </th>
+        );
+    };
+
     const [searchParams, setSearchParams] = useSearchParams();
     const tab = searchParams.get('tab') || 'manufacturers';
     const setTab = (val: string) => setSearchParams({ tab: val });
@@ -180,6 +202,82 @@ const HeadOfOrdersPage: React.FC = () => {
     const [invNumSearch, setInvNumSearch] = useState('');
     const [selectedWhFilter, setSelectedWhFilter] = useState('all');
 
+    // Sort states
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'date', direction: 'desc' });
+
+    const handleSort = (key: string) => {
+        setSortConfig(prev => {
+            if (prev?.key === key) {
+                return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+            }
+            return { key, direction: 'asc' };
+        });
+    };
+
+    const sortData = (data: any[]) => {
+        if (!sortConfig) return data;
+        const { key, direction } = sortConfig;
+
+        return [...data].sort((a, b) => {
+            let valA: any = '';
+            let valB: any = '';
+
+            // Map keys to actual values
+            switch (key) {
+                case 'date':
+                    valA = a.realization_date || a.invoice?.realization_date || a.date || a.created_at;
+                    valB = b.realization_date || b.invoice?.realization_date || b.date || b.created_at;
+                    break;
+                case 'factura':
+                    valA = (a.factura_number || a.invoice?.factura_number || '').toLowerCase();
+                    valB = (b.factura_number || b.invoice?.factura_number || '').toLowerCase();
+                    break;
+                case 'client':
+                    valA = (a.med_org?.name || '').toLowerCase();
+                    valB = (b.med_org?.name || '').toLowerCase();
+                    break;
+                case 'region':
+                    valA = (a.med_org?.region?.name || '').toLowerCase();
+                    valB = (b.med_org?.region?.name || '').toLowerCase();
+                    break;
+                case 'total':
+                    valA = Number(a.total_amount) || 0;
+                    valB = Number(b.total_amount) || 0;
+                    break;
+                case 'paid':
+                    valA = Number(a.paid_amount || a.invoice?.paid_amount) || 0;
+                    valB = Number(b.paid_amount || b.invoice?.paid_amount) || 0;
+                    break;
+                case 'debt':
+                    valA = (Number(a.total_amount) || 0) - (Number(a.paid_amount || a.invoice?.paid_amount) || 0);
+                    valB = (Number(b.total_amount) || 0) - (Number(b.paid_amount || b.invoice?.paid_amount) || 0);
+                    break;
+                case 'salary':
+                    valA = (a.items || []).reduce((s: number, it: any) => s + (it.quantity || 0) * (it.salary_amount || 0), 0);
+                    valB = (b.items || []).reduce((s: number, it: any) => s + (it.quantity || 0) * (it.salary_amount || 0), 0);
+                    break;
+                case 'promo':
+                    valA = calculatePromo(a.reservation || a);
+                    valB = calculatePromo(b.reservation || b);
+                    break;
+                case 'discount':
+                    valA = a.items?.[0]?.discount_percent || 0;
+                    valB = b.items?.[0]?.discount_percent || 0;
+                    break;
+                case 'mp':
+                    valA = (a.med_org?.assigned_reps?.[0]?.full_name || '').toLowerCase();
+                    valB = (b.med_org?.assigned_reps?.[0]?.full_name || '').toLowerCase();
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (valA < valB) return direction === 'asc' ? -1 : 1;
+            if (valA > valB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    };
+
     const resetFilters = () => {
         setDateStart('');
         setDateEnd('');
@@ -205,7 +303,7 @@ const HeadOfOrdersPage: React.FC = () => {
         const matchesSearch = (r.med_org?.name || '').toLowerCase().includes(resSearch.toLowerCase()) ||
             (r.invoice?.invoice_number || '').toLowerCase().includes(resSearch.toLowerCase());
         return matchesSearch;
-    });
+    const sortedReservationsPending = React.useMemo(() => sortData(filteredReservationsPending), [filteredReservationsPending, sortConfig]);
 
     // --- Helper: Calculate Promo for a reservation ---
     const calculatePromo = (res: any) => {
@@ -626,10 +724,14 @@ const HeadOfOrdersPage: React.FC = () => {
         return true;
     });
 
+    const sortedInvoices = React.useMemo(() => sortData(filteredInv), [filteredInv, sortConfig]);
+
     const filteredDebitorka = filteredInv.filter(inv => {
         const debt = (Number(inv.total_amount) || 0) - (Number(inv.paid_amount) || 0);
         return Math.round(debt) > 0;
     });
+
+    const sortedDebitorka = React.useMemo(() => sortData(filteredDebitorka), [filteredDebitorka, sortConfig]);
 
     // --- Stats Calculation ---
     // Use ALL filtered items for global stats, but tab-specific for table view
@@ -992,20 +1094,20 @@ const HeadOfOrdersPage: React.FC = () => {
                                     <thead className="sticky top-0 z-30">
                                         <tr>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
+                                            <SortHeader label="ДАТА РЕАЛИЗАЦИИ" sortKey="date" currentSort={sortConfig} onSort={handleSort} />
+                                            <SortHeader label="НОМЕР С/Ф" sortKey="factura" currentSort={sortConfig} onSort={handleSort} />
+                                            <SortHeader label="КОНТРАГЕНТ" sortKey="client" currentSort={sortConfig} onSort={handleSort} />
+                                            <SortHeader label="РЕГИОН" sortKey="region" currentSort={sortConfig} onSort={handleSort} />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СУММА С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ПОСТУПЛЕНИЕ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ДЕБИТОР</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СКИДКА %</th>
+                                            <SortHeader label="СУММА С/Ф" sortKey="total" currentSort={sortConfig} onSort={handleSort} className="text-center" />
+                                            <SortHeader label="ПОСТУПЛЕНИЕ" sortKey="paid" currentSort={sortConfig} onSort={handleSort} className="text-center" />
+                                            <SortHeader label="ДЕБИТОР" sortKey="debt" currentSort={sortConfig} onSort={handleSort} className="text-center" />
+                                            <SortHeader label="СКИДКА %" sortKey="discount" currentSort={sortConfig} onSort={handleSort} className="text-center" />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ДАТА БРОНИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОДОБРЕНО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОМО</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ЗАРПЛАТА</th>
+                                            <SortHeader label="ПРОМО" sortKey="promo" currentSort={sortConfig} onSort={handleSort} className="text-center" />
+                                            <SortHeader label="ЗАРПЛАТА" sortKey="salary" currentSort={sortConfig} onSort={handleSort} className="text-center" />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ВОЗВРАТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕЙСТВИЯ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИСТОРИЯ</th>
@@ -1018,16 +1120,16 @@ const HeadOfOrdersPage: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredReservationsPending.length === 0 ? (
+                                        {sortedReservationsPending.length === 0 ? (
                                             <tr>
                                                 <td colSpan={23} className="text-center py-20 bg-white">
                                                     <div className="flex flex-col items-center gap-3 opacity-20">
                                                         <Search className="w-8 h-8" />
-                                                        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Брони не найдены</p>
+                                                        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Брони ne naydeni</p>
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ) : filteredReservationsPending.map((res, idx) => {
+                                        ) : sortedReservationsPending.map((res, idx) => {
                                             const discount = res.items?.[0]?.discount_percent || 0;
                                             const manufacturer = res.items?.[0]?.product?.manufacturers?.[0]?.name || '—';
                                             const region = res.med_org?.region?.name || '—';
@@ -1294,21 +1396,21 @@ const HeadOfOrdersPage: React.FC = () => {
                                     <thead className="sticky top-0 z-30">
                                         <tr>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
+                                            <SortHeader label="ДАТА РЕАЛИЗАЦИИ" sortKey="date" currentSort={sortConfig} onSort={handleSort} />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОСРОЧКА</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
+                                            <SortHeader label="НОМЕР С/Ф" sortKey="factura" currentSort={sortConfig} onSort={handleSort} />
+                                            <SortHeader label="КОНТРАГЕНТ" sortKey="client" currentSort={sortConfig} onSort={handleSort} />
+                                            <SortHeader label="РЕГИОН" sortKey="region" currentSort={sortConfig} onSort={handleSort} />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СУММА С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ПОСТУПЛЕНИЕ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ДЕБИТОР</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СКИДКА %</th>
+                                            <SortHeader label="СУММА С/Ф" sortKey="total" currentSort={sortConfig} onSort={handleSort} className="text-center" />
+                                            <SortHeader label="ПОСТУПЛЕНИЕ" sortKey="paid" currentSort={sortConfig} onSort={handleSort} className="text-center" />
+                                            <SortHeader label="ДЕБИТОР" sortKey="debt" currentSort={sortConfig} onSort={handleSort} className="text-center" />
+                                            <SortHeader label="СКИДКА %" sortKey="discount" currentSort={sortConfig} onSort={handleSort} className="text-center" />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ДАТА БРОНИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОДОБРЕНО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОМО</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ЗАРПЛАТА</th>
+                                            <SortHeader label="ПРОМО" sortKey="promo" currentSort={sortConfig} onSort={handleSort} className="text-center" />
+                                            <SortHeader label="ЗАРПЛАТА" sortKey="salary" currentSort={sortConfig} onSort={handleSort} className="text-center" />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ВОЗВРАТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕЙСТВИЯ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИСТОРИЯ</th>
@@ -1321,7 +1423,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredInv.length === 0 ? (
+                                        {sortedInvoices.length === 0 ? (
                                             <tr>
                                                 <td colSpan={24} className="py-20 text-center">
                                                     <div className="flex flex-col items-center gap-3 opacity-20">
@@ -1330,7 +1432,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ) : (filteredInv as any[]).map((inv, idx) => {
+                                        ) : (sortedInvoices as any[]).map((inv, idx) => {
                                             const res = inv.reservation || {};
                                             const paidAmount = inv.paid_amount || 0;
                                             const debt = (inv.total_amount || 0) - paidAmount;
@@ -1652,20 +1754,20 @@ const HeadOfOrdersPage: React.FC = () => {
                                     <thead className="sticky top-0 z-30">
                                         <tr>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 italic">#</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДАТА РЕАЛИЗАЦИИ</th>
+                                            <SortHeader label="ДАТА РЕАЛИЗАЦИИ" sortKey="date" currentSort={sortConfig} onSort={handleSort} />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОСРОЧКА</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">НОМЕР С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">КОНТРАГЕНТ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">РЕГИОН</th>
+                                            <SortHeader label="НОМЕР С/Ф" sortKey="factura" currentSort={sortConfig} onSort={handleSort} />
+                                            <SortHeader label="КОНТРАГЕНТ" sortKey="client" currentSort={sortConfig} onSort={handleSort} />
+                                            <SortHeader label="РЕГИОН" sortKey="region" currentSort={sortConfig} onSort={handleSort} />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИНН</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СУММА С/Ф</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ПОСТУПЛЕНИЕ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center text-rose-500">ДЕБИТОР</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">СКИДКА %</th>
+                                            <SortHeader label="СУММА С/Ф" sortKey="total" currentSort={sortConfig} onSort={handleSort} className="text-center" />
+                                            <SortHeader label="ПОСТУПЛЕНИЕ" sortKey="paid" currentSort={sortConfig} onSort={handleSort} className="text-center" />
+                                            <SortHeader label="ДЕБИТОР" sortKey="debt" currentSort={sortConfig} onSort={handleSort} className="text-center text-rose-500" />
+                                            <SortHeader label="СКИДКА %" sortKey="discount" currentSort={sortConfig} onSort={handleSort} className="text-center" />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">ДАТА БРОНИ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ОДОБРЕНО</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОИЗВОДИТЕЛЬ</th>
-                                            <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ПРОМО</th>
+                                            <SortHeader label="ПРОМО" sortKey="promo" currentSort={sortConfig} onSort={handleSort} className="text-center" />
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 text-slate-300">ВОЗВРАТ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ДЕЙСТВИЯ</th>
                                             <th className="sticky top-0 z-30 bg-white px-3 py-3 text-center font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">ИСТОРИЯ</th>
@@ -1678,7 +1780,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredDebitorka.length === 0 ? (
+                                        {sortedDebitorka.length === 0 ? (
                                             <tr>
                                                 <td colSpan={24} className="py-20 text-center">
                                                     <div className="flex flex-col items-center gap-3 opacity-20">
@@ -1687,7 +1789,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ) : (filteredDebitorka as any[]).map((inv, idx) => {
+                                        ) : (sortedDebitorka as any[]).map((inv, idx) => {
                                             const res = inv.reservation || {};
                                             const paidAmount = inv.paid_amount || 0;
                                             const debt = (inv.total_amount || 0) - paidAmount;
