@@ -176,7 +176,8 @@ export default function InvoicesPage() {
             header: 'Зарплата',
             cell: ({ row }: any) => {
                 const res = row.original.reservation;
-                if (!res || !res.is_salary_enabled) return '—';
+                if (!res) return '—';
+                if (res.is_salary_enabled === false) return '—';
                 
                 let totalSalary = 0;
                 (res.items || []).forEach((item: any) => {
@@ -184,7 +185,6 @@ export default function InvoicesPage() {
                     totalSalary += (item.quantity || 0) * salaryAmt;
                 });
                 
-                if (totalSalary === 0) return '—';
                 return formatMoney(totalSalary) + ' UZS';
             },
         },
