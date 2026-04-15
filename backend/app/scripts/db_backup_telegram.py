@@ -1,7 +1,6 @@
 import os
 import sys
 import subprocess
-import requests
 from datetime import datetime
 
 # Add the parent directory to the path so we can import app
@@ -52,17 +51,19 @@ def backup_to_telegram():
         # Send to Telegram
         print("Sending to Telegram...")
         url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
+        caption = f"📂 Ko'zli zaxira nusxasi (Database Backup)\n📅 Sana: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n🗄 Baza: {db_name}"
         
-        with open(backup_path, 'rb') as f:
-            files = {'document': f}
-            data = {
-                'chat_id': chat_id,
-                'caption': f"📂 Ko'zli zaxira nusxasi (Database Backup)\n📅 Sana: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n🗄 Baza: {db_name}"
-            }
-            response = requests.post(url, data=data, files=files)
-            if response.status_code != 200:
-                print(f"Telegram API Error Details: {response.text}")
-            response.raise_for_status()
+        curl_cmd = [
+            "curl", "-s", "-X", "POST", url,
+            "-F", f"document=@{backup_path}",
+            "-F", f"chat_id={chat_id}",
+            "-F", f"caption={caption}"
+        ]
+        
+        result = subprocess.run(curl_cmd, capture_output=True, text=True)
+        if result.returncode != 0 or '"ok":false' in result.stdout:
+            print(f"Telegram API Error Details: {result.stdout} {result.stderr}")
+            raise Exception("Telegram upload failed")
             
         print("Successfully sent to Telegram.")
         
@@ -70,10 +71,9 @@ def backup_to_telegram():
         print(f"Error during backup: {e}")
         # Notify via telegram even on failure if possible
         try:
-             requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", data={
-                 'chat_id': chat_id,
-                 'text': f"❌ Xatolik: Database backup amalga oshmadi!\nError: {str(e)}"
-             })
+            url_msg = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            msg = f"❌ Xatolik: Database backup amalga oshmadi!\nError: {str(e)}"
+            subprocess.run(["curl", "-s", "-X", "POST", url_msg, "-d", f"chat_id={chat_id}", "-d", f"text={msg}"], check=False)
         except:
             pass
     finally:

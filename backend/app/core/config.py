@@ -1,7 +1,9 @@
 from typing import List, Union
 from pydantic import AnyHttpUrl, validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Pharma ERP+CRM"
     API_V1_STR: str = "/api/v1"
@@ -50,14 +52,16 @@ class Settings(BaseSettings):
     # JWT
     SECRET_KEY: str = "CHANGE_THIS_SECRET_KEY_IN_PRODUCTION"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 12  # 12 hours
     
     # Telegram Backup
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_CHANNEL_ID: str = ""
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file=os.path.join(BASE_DIR, ".env"),
+        case_sensitive=True,
+        extra="ignore"
+    )
 
 settings = Settings()

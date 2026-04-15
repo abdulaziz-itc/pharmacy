@@ -35,9 +35,13 @@ import BalanceManagement from './pages/BalanceManagement';
 import DashboardLayout from './layouts/DashboardLayout';
 import { useAuthStore } from './store/authStore';
 import { Toaster } from 'sonner';
+import { useIdleLogout } from './hooks/useIdleLogout';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state: any) => state.token);
+  
+  useIdleLogout();
+  
   if (!token) {
     return <Navigate to="/login" replace />;
   }
