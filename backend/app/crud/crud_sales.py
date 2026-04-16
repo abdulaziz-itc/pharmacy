@@ -531,10 +531,10 @@ async def get_invoices(
         selectinload(Invoice.payments).selectinload(Payment.processed_by),
         selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
         selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
-        selectinload(Invoice.reservation).selectinload(MedicalOrganization.region),
-        selectinload(Invoice.reservation).selectinload(MedicalOrganization.assigned_reps),
-        selectinload(Invoice.reservation).selectinload(Warehouse.stocks),
-        selectinload(Invoice.reservation).selectinload(User)
+        selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+        selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
+        selectinload(Invoice.reservation).selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
+        selectinload(Invoice.reservation).selectinload(Reservation.created_by)
     ).order_by(Invoice.date.desc())
 
     query = _apply_invoice_filters(
