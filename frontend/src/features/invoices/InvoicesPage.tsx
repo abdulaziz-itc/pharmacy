@@ -59,59 +59,49 @@ export default function InvoicesPage() {
         }
     });
 
-    const stats = useMemo(() => {
-        const total = invoices.reduce((acc: number, inv: any) => acc + (inv.total_amount || 0), 0);
-        const paid = invoices.reduce((acc: number, inv: any) => acc + (inv.paid_amount || 0), 0);
-        
-        const tovarSkidka = invoices.filter((r: any) => r.reservation?.is_tovar_skidka);
-        const tovarSkidkaAmount = tovarSkidka.reduce((acc: number, r: any) => acc + (r.total_amount || 0), 0);
-        const tovarSkidkaCount = tovarSkidka.length;
-
-        // Calculate promo and salary from associated reservations
-        let totalPromo = 0;
-        let totalSalary = 0;
-        let paidSalary = 0;
-
-        invoices.forEach((inv: any) => {
-            const res = inv.reservation;
-            if (res) {
-                // Promo calculation
-                if (res.is_bonus_eligible) {
-                    (res.items || []).forEach((item: any) => {
-                        const marketingExpense = item.marketing_amount !== undefined && item.marketing_amount !== null 
-                            ? item.marketing_amount 
-                            : (item.product?.marketing_expense || 0);
-                        totalPromo += (item.quantity * marketingExpense);
-                    });
-                }
-
-                // Salary calculation
-                if (res.is_salary_enabled !== false) {
-                    let invSalary = 0;
-                    (res.items || []).forEach((item: any) => {
-                        invSalary += (item.quantity || 0) * (item.salary_amount || 0);
-                    });
-                    totalSalary += invSalary;
-                    
-                    const payRatio = (inv.total_amount || 0) > 0 ? ((inv.paid_amount || 0) / (inv.total_amount || 0)) : 0;
-                    paidSalary += invSalary * Math.min(1, Math.max(0, payRatio));
-                }
+    const { data: globalStats, isLoading: isStatsLoading } = useQuery({
+        queryKey: ['invoice-stats', filterValues],
+        queryFn: async () => {
+            const params: any = {};
+            if (filterValues.dateStart) params.date_from = filterValues.dateStart;
+            if (filterValues.dateEnd) params.date_to = filterValues.dateEnd;
+            if (filterValues.selectedMedRep !== 'all') params.med_rep_id = filterValues.selectedMedRep;
+            if (filterValues.selectedRegion !== 'all') params.region_id = filterValues.selectedRegion;
+            if (filterValues.selectedCompany !== 'all') params.med_org_id = filterValues.selectedCompany;
+            if (filterValues.selectedType !== 'all') params.med_org_type = filterValues.selectedType;
+            if (filterValues.selectedInvoiceType !== 'all') {
+                params.is_tovar_skidka = filterValues.selectedInvoiceType === 'tovar_skidka';
             }
-        });
+            if (filterValues.invNumSearch) params.inv_num = filterValues.invNumSearch;
+
+            const response = await api.get('/sales/invoices/stats', { params });
+            return response.data;
+        }
+    });
+
+    const stats = useMemo(() => {
+        if (!globalStats) return {
+            totalAmount: 0,
+            paidAmount: 0,
+            debtAmount: 0,
+            creditAmount: 0,
+            resCount: 0,
+            salaryAmount: 0,
+            paidSalaryAmount: 0,
+            promoAmount: 0
+        };
 
         return {
-            totalAmount: total,
-            paidAmount: paid,
-            debtAmount: invoices.reduce((acc: number, inv: any) => acc + Math.max(0, (inv.total_amount || 0) - (inv.paid_amount || 0)), 0),
-            creditAmount: invoices.reduce((acc: number, inv: any) => acc + Math.max(0, (inv.paid_amount || 0) - (inv.total_amount || 0)), 0),
-            resCount: invoices.length,
-            promoAmount: totalPromo,
-            salaryAmount: totalSalary,
-            paidSalaryAmount: paidSalary,
-            tovarSkidkaAmount,
-            tovarSkidkaCount
+            totalAmount: globalStats.total_amount,
+            paidAmount: globalStats.paid_amount,
+            debtAmount: globalStats.debt_amount,
+            creditAmount: globalStats.credit_amount,
+            resCount: globalStats.count,
+            salaryAmount: globalStats.salary_amount,
+            paidSalaryAmount: globalStats.paid_salary_amount,
+            promoAmount: globalStats.promo_amount
         };
-    }, [invoices]);
+    }, [globalStats]);
 
     const columns: any[] = [
         {
@@ -258,6 +248,7 @@ export default function InvoicesPage() {
                 stats={stats}
                 promoAmount={stats.promoAmount}
                 countLabel="Всего фактур"
+                totalLabel="Реализация (общая)"
             />
 
             <FilterBar 

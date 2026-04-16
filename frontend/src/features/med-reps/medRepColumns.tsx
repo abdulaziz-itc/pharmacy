@@ -55,8 +55,9 @@ export const medRepColumns = (
                 </span>
             ),
             cell: ({ row }) => {
-                const isActive = row.original?.is_active !== false;
-                const roleValue = row.getValue("role") || "—";
+                const medRep = row.original;
+                const isActive = medRep?.is_active !== false;
+                const roleValue = String(row.getValue("role") || "—");
                 return (
                     <span className={`font-medium ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
                         {roleValue} {!isActive && "(Faol emas)"}

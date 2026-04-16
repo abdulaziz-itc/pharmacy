@@ -408,3 +408,13 @@ class UnassignedSale(UnassignedSaleBase):
     class Config:
         orm_mode = True
         from_attributes = True
+
+class InvoiceStats(BaseModel):
+    count: int
+    total_amount: float
+    paid_amount: float
+    debt_amount: float
+    credit_amount: float
+    salary_amount: float
+    paid_salary_amount: float
+    promo_amount: float

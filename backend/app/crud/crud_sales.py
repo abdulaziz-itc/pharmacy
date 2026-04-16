@@ -383,7 +383,124 @@ async def update_reservation_data(db: AsyncSession, reservation_id: int, obj_in:
     )
     return result.scalars().first()
 
-# Invoices
+def _apply_invoice_filters(
+    query,
+    med_rep_id: Optional[int] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    med_rep_name: Optional[str] = None,
+    med_org_name: Optional[str] = None,
+    med_org_type: Optional[str] = None,
+    is_tovar_skidka: Optional[bool] = None,
+    inv_num: Optional[str] = None,
+    med_rep_ids: Optional[List[int]] = None,
+    status: Optional[str] = None,
+    warehouse_id: Optional[int] = None,
+    has_debt: bool = False,
+    med_org_id: Optional[int] = None,
+    region_ids: Optional[List[int]] = None,
+    only_overdue: bool = False
+):
+    if status:
+        query = query.where(Invoice.status == status)
+
+    if has_debt:
+        query = query.where((Invoice.total_amount - Invoice.paid_amount) > 1.0)
+
+    if only_overdue:
+        overdue_date = datetime.utcnow() - timedelta(days=30)
+        query = query.where(and_(
+            (Invoice.total_amount - Invoice.paid_amount) > 1.0,
+            func.coalesce(Invoice.realization_date, Invoice.date) < overdue_date
+        ))
+
+    if warehouse_id:
+        query = query.where(Invoice.reservation.has(warehouse_id=warehouse_id))
+
+    has_joined_res = False
+    has_joined_org = False
+
+    if med_rep_id:
+        query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True)
+        has_joined_res = True
+        has_joined_org = True
+        query = query.where(
+            (Reservation.created_by_id == med_rep_id) |
+            (MedicalOrganization.assigned_reps.any(id=med_rep_id))
+        )
+    elif med_rep_ids:
+        query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True)
+        has_joined_res = True
+        has_joined_org = True
+        query = query.where(
+            (Reservation.created_by_id.in_(med_rep_ids)) |
+            (MedicalOrganization.assigned_reps.any(User.id.in_(med_rep_ids)))
+        )
+    
+    if region_ids:
+        if not has_joined_res:
+            query = query.join(Invoice.reservation)
+            has_joined_res = True
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
+        query = query.where(MedicalOrganization.region_id.in_(region_ids))
+    
+    if med_rep_name and med_rep_name != "all":
+        if not has_joined_res:
+            query = query.join(Invoice.reservation)
+            has_joined_res = True
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
+        query = query.join(Reservation.created_by, isouter=True).where(
+            (User.full_name.ilike(f"%{med_rep_name}%")) |
+            (MedicalOrganization.assigned_reps.any(User.full_name.ilike(f"%{med_rep_name}%")))
+        )
+
+    if med_org_id and med_org_id != "all":
+        if not has_joined_res:
+             query = query.join(Invoice.reservation)
+             has_joined_res = True
+        if not has_joined_org:
+             query = query.join(Reservation.med_org, isouter=True)
+             has_joined_org = True
+        query = query.where(MedicalOrganization.id == med_org_id)
+
+    if med_org_name and med_org_name != "all":
+        if not has_joined_res:
+            query = query.join(Invoice.reservation)
+            has_joined_res = True
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
+        query = query.where(MedicalOrganization.name.ilike(f"%{med_org_name}%"))
+
+    if med_org_type and med_org_type != "all":
+        if not has_joined_res:
+            query = query.join(Invoice.reservation)
+            has_joined_res = True
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
+        query = query.where(MedicalOrganization.org_type == med_org_type)
+
+    if date_from:
+        query = query.where(Invoice.date >= date_from)
+    if date_to:
+        query = query.where(Invoice.date <= date_to)
+
+    if is_tovar_skidka is not None:
+        if not has_joined_res:
+            query = query.join(Invoice.reservation)
+            has_joined_res = True
+        query = query.where(Reservation.is_tovar_skidka == is_tovar_skidka)
+
+    if inv_num:
+        query = query.where(Invoice.factura_number.ilike(f"%{inv_num}%"))
+
+    return query
+
 async def get_invoices(
     db: AsyncSession, 
     skip: int = 0, 
@@ -408,122 +525,118 @@ async def get_invoices(
         selectinload(Invoice.payments).selectinload(Payment.processed_by),
         selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.manufacturers),
         selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product).selectinload(Product.category),
-        selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
-        selectinload(Invoice.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
-        selectinload(Invoice.reservation).selectinload(Reservation.warehouse).selectinload(Warehouse.stocks),
-        selectinload(Invoice.reservation).selectinload(Reservation.created_by)
+        selectinload(Invoice.reservation).selectinload(MedicalOrganization.region),
+        selectinload(Invoice.reservation).selectinload(MedicalOrganization.assigned_reps),
+        selectinload(Invoice.reservation).selectinload(Warehouse.stocks),
+        selectinload(Invoice.reservation).selectinload(User)
     ).order_by(Invoice.date.desc())
 
-    if status:
-        query = query.where(Invoice.status == status)
-
-    if has_debt:
-        query = query.where((Invoice.total_amount - Invoice.paid_amount) > 1.0)
-
-    if only_overdue:
-        overdue_date = datetime.utcnow() - timedelta(days=30)
-        query = query.where(and_(
-            (Invoice.total_amount - Invoice.paid_amount) > 1.0,
-            func.coalesce(Invoice.realization_date, Invoice.date) < overdue_date
-        ))
-
-    if warehouse_id:
-        query = query.where(Invoice.reservation.has(warehouse_id=warehouse_id))
-
-    has_joined_res = False
-    has_joined_org = False
-
-    if med_rep_id:
-        query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True)
-        has_joined_res = True
-        has_joined_org = True
-        # Filter invoices through their associated reservation and medical organization
-        query = query.where(
-            (Reservation.created_by_id == med_rep_id) |
-            (MedicalOrganization.assigned_reps.any(id=med_rep_id))
-        )
-    elif med_rep_ids:
-        query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True)
-        has_joined_res = True
-        has_joined_org = True
-        query = query.where(
-            (Reservation.created_by_id.in_(med_rep_ids)) |
-            (MedicalOrganization.assigned_reps.any(User.id.in_(med_rep_ids)))
-        )
-    
-    # Filter by Region IDs (new multi-region support)
-    if region_ids:
-        if not has_joined_res:
-            query = query.join(Invoice.reservation)
-            has_joined_res = True
-        if not has_joined_org:
-            query = query.join(Reservation.med_org, isouter=True)
-            has_joined_org = True
-        query = query.where(MedicalOrganization.region_id.in_(region_ids))
-    
-    # Filter by Med Rep Name
-    if med_rep_name and med_rep_name != "all":
-        if not has_joined_res:
-            query = query.join(Invoice.reservation)
-            has_joined_res = True
-        if not has_joined_org:
-            query = query.join(Reservation.med_org, isouter=True)
-            has_joined_org = True
-        query = query.join(Reservation.created_by, isouter=True).where(
-            (User.full_name.ilike(f"%{med_rep_name}%")) |
-            (MedicalOrganization.assigned_reps.any(User.full_name.ilike(f"%{med_rep_name}%")))
-        )
-
-    # Filter by Company ID
-    if med_org_id and med_org_id != "all":
-        if not has_joined_res:
-             query = query.join(Invoice.reservation)
-             has_joined_res = True
-        if not has_joined_org:
-             query = query.join(Reservation.med_org, isouter=True)
-             has_joined_org = True
-        query = query.where(MedicalOrganization.id == med_org_id)
-
-    # Filter by Company Name (Legacy/Fallback)
-    if med_org_name and med_org_name != "all":
-        if not has_joined_res:
-            query = query.join(Invoice.reservation)
-            has_joined_res = True
-        if not has_joined_org:
-            query = query.join(Reservation.med_org, isouter=True)
-            has_joined_org = True
-        query = query.where(MedicalOrganization.name.ilike(f"%{med_org_name}%"))
-
-    # Filter by Org Type
-    if med_org_type and med_org_type != "all":
-        if not has_joined_res:
-            query = query.join(Invoice.reservation)
-            has_joined_res = True
-        if not has_joined_org:
-            query = query.join(Reservation.med_org, isouter=True)
-            has_joined_org = True
-        query = query.where(MedicalOrganization.org_type == med_org_type)
-
-    # Filter by Date
-    if date_from:
-        query = query.where(Invoice.date >= date_from)
-    if date_to:
-        query = query.where(Invoice.date <= date_to)
-
-    # Filter by Invoice Type
-    if is_tovar_skidka is not None:
-        if not has_joined_res:
-            query = query.join(Invoice.reservation)
-            has_joined_res = True
-        query = query.where(Reservation.is_tovar_skidka == is_tovar_skidka)
-
-    # Filter by Inv Num
-    if inv_num:
-        query = query.where(Invoice.factura_number.ilike(f"%{inv_num}%"))
+    query = _apply_invoice_filters(
+        query, med_rep_id, date_from, date_to, med_rep_name, med_org_name, med_org_type,
+        is_tovar_skidka, inv_num, med_rep_ids, status, warehouse_id, has_debt, med_org_id,
+        region_ids, only_overdue
+    )
 
     query = query.offset(skip).limit(limit)
     result = await db.execute(query)
     return result.scalars().all()
+
+async def get_invoice_stats(
+    db: AsyncSession,
+    med_rep_id: Optional[int] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    med_rep_name: Optional[str] = None,
+    med_org_name: Optional[str] = None,
+    med_org_type: Optional[str] = None,
+    is_tovar_skidka: Optional[bool] = None,
+    inv_num: Optional[str] = None,
+    med_rep_ids: Optional[List[int]] = None,
+    status: Optional[str] = None,
+    warehouse_id: Optional[int] = None,
+    has_debt: bool = False,
+    med_org_id: Optional[int] = None,
+    region_ids: Optional[List[int]] = None,
+    only_overdue: bool = False
+):
+    # Core sums from Invoice table
+    stmt = select(
+        func.count(Invoice.id).label("count"),
+        func.sum(Invoice.total_amount).label("total_amount"),
+        func.sum(Invoice.paid_amount).label("paid_amount"),
+        func.sum(func.case((Invoice.total_amount > Invoice.paid_amount, Invoice.total_amount - Invoice.paid_amount), else_=0)).label("debt_amount"),
+        func.sum(func.case((Invoice.paid_amount > Invoice.total_amount, Invoice.paid_amount - Invoice.total_amount), else_=0)).label("credit_amount")
+    )
+    
+    stmt = _apply_invoice_filters(
+        stmt, med_rep_id, date_from, date_to, med_rep_name, med_org_name, med_org_type,
+        is_tovar_skidka, inv_num, med_rep_ids, status, warehouse_id, has_debt, med_org_id,
+        region_ids, only_overdue
+    )
+    
+    res = await db.execute(stmt)
+    row = res.first()
+    
+    stats = {
+        "count": row.count or 0,
+        "total_amount": float(row.total_amount or 0),
+        "paid_amount": float(row.paid_amount or 0),
+        "debt_amount": float(row.debt_amount or 0),
+        "credit_amount": float(row.credit_amount or 0),
+        "salary_amount": 0,
+        "paid_salary_amount": 0,
+        "promo_amount": 0
+    }
+
+    # Now we need to calculate Salary and Promo amounts. 
+    # This requires reaching into ReservationItem through Reservation.
+    # To keep it simple and accurate, we'll fetch ID's first or do a join
+    
+    # We'll use a join for salary/promo to avoid fetching thousands of records
+    item_stmt = select(
+        func.sum(ReservationItem.quantity * func.coalesce(ReservationItem.salary_amount, 0)).label("total_salary"),
+        func.sum(ReservationItem.quantity * func.coalesce(ReservationItem.marketing_amount, 0)).label("total_promo")
+    ).join(Reservation, Reservation.id == ReservationItem.reservation_id).join(Invoice, Invoice.reservation_id == Reservation.id)
+    
+    item_stmt = _apply_invoice_filters(
+        item_stmt, med_rep_id, date_from, date_to, med_rep_name, med_org_name, med_org_type,
+        is_tovar_skidka, inv_num, med_rep_ids, status, warehouse_id, has_debt, med_org_id,
+        region_ids, only_overdue
+    )
+    
+    item_res = await db.execute(item_stmt)
+    item_row = item_res.first()
+    
+    stats["salary_amount"] = float(item_row.total_salary or 0)
+    stats["promo_amount"] = float(item_row.total_promo or 0)
+    
+    # Paid salary calculation is tricky because it depends on each invoice's paid ratio.
+    # For a high-performance global stat, we'll estimate it by applying the overall payment ratio 
+    # OR we'll do a slightly more complex query if needed.
+    # Given the user wants accuracy, let's try a more precise query for paid salary.
+    # paid_salary = sum(invSalary * min(1, max(0, payRatio)))
+    # payRatio = paid_amount / total_amount
+    
+    paid_salary_stmt = select(
+        func.sum(
+            (select(func.sum(ReservationItem.quantity * func.coalesce(ReservationItem.salary_amount, 0)))
+             .where(ReservationItem.reservation_id == Invoice.reservation_id)
+             .scalar_subquery()) * 
+            func.least(1.0, func.greatest(0.0, func.coalesce(Invoice.paid_amount, 0) / func.nullif(Invoice.total_amount, 0)))
+        )
+    )
+    
+    paid_salary_stmt = _apply_invoice_filters(
+        paid_salary_stmt, med_rep_id, date_from, date_to, med_rep_name, med_org_name, med_org_type,
+        is_tovar_skidka, inv_num, med_rep_ids, status, warehouse_id, has_debt, med_org_id,
+        region_ids, only_overdue
+    )
+    
+    paid_salary_res = await db.execute(paid_salary_stmt)
+    paid_salary_val = paid_salary_res.scalar_one_or_none()
+    stats["paid_salary_amount"] = float(paid_salary_val or 0)
+
+    return stats
 
 # Payments
 async def create_payment(db: AsyncSession, obj_in: PaymentCreate, user_id: int) -> Payment:
