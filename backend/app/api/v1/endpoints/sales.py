@@ -238,14 +238,19 @@ async def read_reservations(
             med_rep_ids = [-1]
         final_med_rep_id = None
     
-    # Regional Restriction for RM
-    final_region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
+    # Regional Restriction - use explicit query to avoid async lazy-load crash
+    final_region_ids = None
     if current_user.role == UserRole.REGIONAL_MANAGER:
+        from sqlalchemy import select as sa_select
+        from app.models.crm import user_regions
+        region_res = await db.execute(
+            sa_select(user_regions.c.region_id).where(user_regions.c.user_id == current_user.id)
+        )
+        rm_region_ids = [row[0] for row in region_res.fetchall()]
         if region_id:
-            if region_id in (final_region_ids or []):
-                final_region_ids = [region_id]
-            else:
-                final_region_ids = [-1] # No access
+            final_region_ids = [region_id] if region_id in rm_region_ids else [-1]
+        else:
+            final_region_ids = rm_region_ids if rm_region_ids else None
     elif region_id:
         final_region_ids = [region_id]
 
@@ -420,6 +425,7 @@ async def read_invoices(
     med_org_id: Optional[int] = None,
     has_debt: bool = False,
     only_overdue: bool = False,
+    region_id: Optional[int] = None,
 ) -> Any:
     try:
         med_rep_ids = None
@@ -432,7 +438,19 @@ async def read_invoices(
                 med_rep_ids = [-1]
             med_rep_id = None
 
-        region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
+        # Build region_ids from explicit query to avoid async lazy-load crash
+        region_ids = None
+        if region_id:
+            region_ids = [region_id]
+        elif current_user.role == UserRole.REGIONAL_MANAGER:
+            from sqlalchemy import select as sa_select
+            from app.models.crm import user_regions
+            region_res = await db.execute(
+                sa_select(user_regions.c.region_id).where(user_regions.c.user_id == current_user.id)
+            )
+            r_ids = [row[0] for row in region_res.fetchall()]
+            if r_ids:
+                region_ids = r_ids
         
         # Robust date parsing
         dt_from = None
@@ -484,6 +502,7 @@ async def read_invoice_stats(
     med_org_id: Optional[int] = None,
     has_debt: bool = False,
     only_overdue: bool = False,
+    region_id: Optional[int] = None,
 ) -> Any:
     # Permission check: Management roles (Admin, Investor, Director, Deputy Director, Accountant)
     allowed_roles = [UserRole.ADMIN, UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ACCOUNTANT, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HEAD_OF_ORDERS]
@@ -501,7 +520,19 @@ async def read_invoice_stats(
                 med_rep_ids = [-1]
             med_rep_id = None
         
-        region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
+        # Build region_ids from explicit query to avoid async lazy-load crash
+        region_ids = None
+        if region_id:
+            region_ids = [region_id]
+        elif current_user.role == UserRole.REGIONAL_MANAGER:
+            from sqlalchemy import select as sa_select
+            from app.models.crm import user_regions
+            region_res = await db.execute(
+                sa_select(user_regions.c.region_id).where(user_regions.c.user_id == current_user.id)
+            )
+            r_ids = [row[0] for row in region_res.fetchall()]
+            if r_ids:
+                region_ids = r_ids
         
         # Robust date parsing
         dt_from = None

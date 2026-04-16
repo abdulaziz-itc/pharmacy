@@ -98,6 +98,16 @@ export default function MedRepsPage() {
         }
     };
 
+    const filteredMedReps = React.useMemo(() => {
+        const safeMedReps = Array.isArray(medReps) ? medReps : [];
+        if (selectedRegionId === "all") return safeMedReps;
+        const rid = parseInt(selectedRegionId);
+        return safeMedReps.filter(r => Array.isArray(r.region_ids) && r.region_ids.includes(rid));
+    }, [medReps, selectedRegionId]);
+
+    const activeReps = Array.isArray(filteredMedReps) ? filteredMedReps.filter(r => r.is_active) : [];
+    const inactiveReps = Array.isArray(filteredMedReps) ? filteredMedReps.filter(r => !r.is_active) : [];
+
     if (isLoading && medReps.length === 0) {
         return (
             <PageContainer>
@@ -118,15 +128,6 @@ export default function MedRepsPage() {
         )
     }
 
-    const filteredMedReps = React.useMemo(() => {
-        const safeMedReps = Array.isArray(medReps) ? medReps : [];
-        if (selectedRegionId === "all") return safeMedReps;
-        const rid = parseInt(selectedRegionId);
-        return safeMedReps.filter(r => Array.isArray(r.region_ids) && r.region_ids.includes(rid));
-    }, [medReps, selectedRegionId]);
-
-    const activeReps = Array.isArray(filteredMedReps) ? filteredMedReps.filter(r => r.is_active) : [];
-    const inactiveReps = Array.isArray(filteredMedReps) ? filteredMedReps.filter(r => !r.is_active) : [];
 
     return (
         <PageContainer>
