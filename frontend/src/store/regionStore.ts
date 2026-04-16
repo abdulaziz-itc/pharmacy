@@ -19,10 +19,10 @@ export const useRegionStore = create<RegionStore>((set) => ({
         set({ isLoading: true });
         try {
             const response = await axiosInstance.get('/crm/regions/');
-            set({ regions: response.data, isLoading: false });
+            set({ regions: Array.isArray(response.data) ? response.data : [], isLoading: false });
         } catch (error) {
             console.error('Error fetching regions:', error);
-            set({ isLoading: false });
+            set({ regions: [], isLoading: false });
         }
     },
 }));

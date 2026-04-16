@@ -10,7 +10,6 @@ import {
     DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu"
 import type { MedRep } from "../../store/medRepStore"
-import { useAuthStore } from "../../store/authStore"
 
 export const medRepColumns = (
     currentUser: any,

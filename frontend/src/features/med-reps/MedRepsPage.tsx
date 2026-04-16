@@ -40,9 +40,10 @@ export default function MedRepsPage() {
         try {
             const api = (await import('../../api/axios')).default;
             const res = await api.get('/users/med-reps?role=regional_manager');
-            setRmList(res.data);
+            setRmList(Array.isArray(res.data) ? res.data : []);
         } catch (error) {
             console.error("Failed to fetch RM list:", error);
+            setRmList([]);
         }
     }, []);
 
@@ -50,9 +51,10 @@ export default function MedRepsPage() {
         try {
             const api = (await import('../../api/axios')).default;
             const res = await api.get('/crm/regions/');
-            setRegions(res.data);
+            setRegions(Array.isArray(res.data) ? res.data : []);
         } catch (error) {
             console.error("Failed to fetch regions:", error);
+            setRegions([]);
         }
     }, []);
 
@@ -101,6 +103,16 @@ export default function MedRepsPage() {
             <PageContainer>
                 <div className="flex items-center justify-center h-64">
                     <p className="text-slate-400">Загрузка...</p>
+                </div>
+            </PageContainer>
+        )
+    }
+
+    if (!user) {
+        return (
+            <PageContainer>
+                <div className="flex items-center justify-center h-64">
+                    <p className="text-slate-400">Авторизация...</p>
                 </div>
             </PageContainer>
         )

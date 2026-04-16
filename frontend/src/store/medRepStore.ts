@@ -29,9 +29,9 @@ export const useMedRepStore = create<MedRepState>((set) => ({
         try {
             const params = role ? { role } : {};
             const response = await axiosInstance.get('/users/med-reps', { params });
-            set({ medReps: response.data, isLoading: false });
+            set({ medReps: Array.isArray(response.data) ? response.data : [], isLoading: false });
         } catch (err: any) {
-            set({ error: err.message || 'Failed to fetch med reps', isLoading: false });
+            set({ medReps: [], error: err.message || 'Failed to fetch med reps', isLoading: false });
         }
     },
 }));
