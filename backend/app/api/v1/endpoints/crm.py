@@ -318,7 +318,7 @@ async def top_up_med_org_balance(
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Not enough permissions to top up balance")
     
-    updated_org = await crud_sales.top_up_organization_balance(
+    await crud_sales.top_up_organization_balance(
         db, 
         organization_id=org_id, 
         amount=top_up_in.amount, 
@@ -326,8 +326,11 @@ async def top_up_med_org_balance(
         user_id=current_user.id
     )
     
+    # Re-fetch full object with all relationships (region, assigned_reps) eagerly loaded
+    # This prevents the 500 error during serialization in async mode.
+    updated_org = await crud_crm.get_med_org(db, org_id)
     if not updated_org:
-        raise HTTPException(status_code=404, detail="Medical Organization not found")
+        raise HTTPException(status_code=404, detail="Medical Organization not found after top-up")
         
     await log_action(
         db, current_user, "TOPUP", "MedicalOrganization", org_id,

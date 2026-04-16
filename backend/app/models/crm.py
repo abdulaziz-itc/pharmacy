@@ -115,11 +115,13 @@ class BalanceTransaction(Base):
     amount = Column(Float, nullable=False) # Positive for credit, negative for debit
     transaction_type = Column(String, default=BalanceTransactionType.TOPUP)
     related_invoice_id = Column(Integer, ForeignKey("invoice.id"), nullable=True)
+    payment_id = Column(Integer, ForeignKey("payment.id"), nullable=True)
     comment = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     organization = relationship("MedicalOrganization", backref="balance_history")
     related_invoice = relationship("Invoice")
+    payment = relationship("Payment")
 
 class Notification(Base):
     id = Column(Integer, primary_key=True, index=True)
