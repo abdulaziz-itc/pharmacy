@@ -121,6 +121,7 @@ const BalanceManagement = () => {
     setIsSubmitting(true);
     try {
       await axiosInstance.post(`/crm/med-orgs/${selectedOrg.id}/top-up-balance`, {
+        med_org_id: selectedOrg.id,
         amount: parseFloat(topUpAmount),
         comment: topUpComment
       });

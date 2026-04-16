@@ -133,7 +133,7 @@ class Doctor(DoctorBase):
 from datetime import datetime
 
 class OrganizationBalanceTopUp(BaseModel):
-    med_org_id: int
+    med_org_id: Optional[int] = None
     amount: float
     comment: Optional[str] = None
 
