@@ -7,11 +7,11 @@ from app.api import deps
 from app.crud import crud_crm
 from app.models.user import User, UserRole
 from app.schemas.crm import (
-    Region, RegionCreate, RegionUpdate,
-    Doctor, DoctorCreate, DoctorUpdate,
+    Region as RegionSchema, RegionCreate, RegionUpdate,
+    Doctor as DoctorSchema, DoctorCreate, DoctorUpdate,
     MedicalOrganization as MedicalOrganizationSchema, MedicalOrganizationCreate, MedicalOrganizationUpdate,
-    DoctorSpecialty, DoctorSpecialtyCreate,
-    DoctorCategory, DoctorCategoryCreate,
+    DoctorSpecialty as DoctorSpecialtySchema, DoctorSpecialtyCreate,
+    DoctorCategory as DoctorCategorySchema, DoctorCategoryCreate,
     BalanceTransaction, OrganizationBalanceTopUp
 )
 from sqlalchemy import select
@@ -66,7 +66,7 @@ async def update_med_org(
 
 
 # Regions
-@router.get("/regions/", response_model=List[Region])
+@router.get("/regions/", response_model=List[RegionSchema])
 async def read_regions(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -80,7 +80,7 @@ async def read_regions(
         return user_db.assigned_regions if user_db else []
     return await crud_crm.get_regions(db, skip=skip, limit=limit)
 
-@router.post("/regions/", response_model=Region)
+@router.post("/regions/", response_model=RegionSchema)
 async def create_region(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -98,7 +98,7 @@ async def create_region(
     )
     return region
 
-@router.put("/regions/{id}", response_model=Region)
+@router.put("/regions/{id}", response_model=RegionSchema)
 async def update_region(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -123,7 +123,7 @@ async def update_region(
     return updated_region
 
 # Doctor Specialties
-@router.get("/doctor-specialties/", response_model=List[DoctorSpecialty])
+@router.get("/doctor-specialties/", response_model=List[DoctorSpecialtySchema])
 async def read_specialties(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -132,7 +132,7 @@ async def read_specialties(
 ) -> Any:
     return await crud_crm.get_specialties(db, skip=skip, limit=limit)
 
-@router.post("/doctor-specialties/", response_model=DoctorSpecialty)
+@router.post("/doctor-specialties/", response_model=DoctorSpecialtySchema)
 async def create_specialty(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -151,7 +151,7 @@ async def create_specialty(
     return specialty
 
 # Doctor Categories
-@router.get("/doctor-categories/", response_model=List[DoctorCategory])
+@router.get("/doctor-categories/", response_model=List[DoctorCategorySchema])
 async def read_doctor_categories(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -160,7 +160,7 @@ async def read_doctor_categories(
 ) -> Any:
     return await crud_crm.get_doctor_categories(db, skip=skip, limit=limit)
 
-@router.post("/doctor-categories/", response_model=DoctorCategory)
+@router.post("/doctor-categories/", response_model=DoctorCategorySchema)
 async def create_doctor_category(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -179,7 +179,7 @@ async def create_doctor_category(
     return category
 
 # Medical Organizations
-@router.get("/med-orgs", response_model=List[MedicalOrganization])
+@router.get("/med-orgs", response_model=List[MedicalOrganizationSchema])
 async def read_med_orgs(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -380,7 +380,7 @@ async def get_med_org_stock(
     return result
 
 # Doctors
-@router.get("/doctors", response_model=List[Doctor])
+@router.get("/doctors", response_model=List[DoctorSchema])
 async def read_doctors(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
