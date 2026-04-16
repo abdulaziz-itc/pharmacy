@@ -106,13 +106,14 @@ export default function MedRepsPage() {
     }
 
     const filteredMedReps = React.useMemo(() => {
-        if (selectedRegionId === "all") return medReps;
+        const safeMedReps = Array.isArray(medReps) ? medReps : [];
+        if (selectedRegionId === "all") return safeMedReps;
         const rid = parseInt(selectedRegionId);
-        return medReps.filter(r => r.region_ids && r.region_ids.includes(rid));
+        return safeMedReps.filter(r => Array.isArray(r.region_ids) && r.region_ids.includes(rid));
     }, [medReps, selectedRegionId]);
 
-    const activeReps = filteredMedReps.filter(r => r.is_active);
-    const inactiveReps = filteredMedReps.filter(r => !r.is_active);
+    const activeReps = Array.isArray(filteredMedReps) ? filteredMedReps.filter(r => r.is_active) : [];
+    const inactiveReps = Array.isArray(filteredMedReps) ? filteredMedReps.filter(r => !r.is_active) : [];
 
     return (
         <PageContainer>
@@ -155,7 +156,10 @@ export default function MedRepsPage() {
                             onRowClick={(row) => navigate(`/med-reps/${row.id}`)}
                             filters={
                                 <SearchableSelect
-                                    options={regions.map(r => ({ value: r.id.toString(), label: r.name }))}
+                                    options={(Array.isArray(regions) ? regions : []).map(r => ({ 
+                                        value: (r?.id || "").toString(), 
+                                        label: r?.name || "Без названия" 
+                                    }))}
                                     value={selectedRegionId}
                                     onChange={setSelectedRegionId}
                                     placeholder="Все регионы"
@@ -175,7 +179,10 @@ export default function MedRepsPage() {
                             onRowClick={(row) => navigate(`/med-reps/${row.id}`)}
                             filters={
                                 <SearchableSelect
-                                    options={regions.map(r => ({ value: r.id.toString(), label: r.name }))}
+                                    options={(Array.isArray(regions) ? regions : []).map(r => ({ 
+                                        value: (r?.id || "").toString(), 
+                                        label: r?.name || "Без названия" 
+                                    }))}
                                     value={selectedRegionId}
                                     onChange={setSelectedRegionId}
                                     placeholder="Все регионы"

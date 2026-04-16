@@ -55,10 +55,11 @@ export const medRepColumns = (
                 </span>
             ),
             cell: ({ row }) => {
-                const isActive = row.original.is_active !== false;
+                const isActive = row.original?.is_active !== false;
+                const roleValue = row.getValue("role") || "—";
                 return (
                     <span className={`font-medium ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
-                        {row.getValue("role")} {!isActive && "(Faol emas)"}
+                        {roleValue} {!isActive && "(Faol emas)"}
                     </span>
                 );
             }
@@ -70,7 +71,7 @@ export const medRepColumns = (
                     ПРОДУКТ МЕНЕДЖЕР
                 </span>
             ),
-            cell: ({ row }) => <span className="font-bold text-slate-900">{row.getValue("manager_name") || "—"}</span>,
+            cell: ({ row }) => <span className="font-bold text-slate-900">{String(row.getValue("manager_name") || "—")}</span>,
         },
         {
             accessorKey: "region_names",
@@ -79,7 +80,7 @@ export const medRepColumns = (
                     РЕГИОН
                 </span>
             ),
-            cell: ({ row }) => <span className="font-bold text-slate-900">{row.getValue("region_names") || "—"}</span>,
+            cell: ({ row }) => <span className="font-bold text-slate-900">{String(row.getValue("region_names") || "—")}</span>,
         },
         {
             id: "actions",

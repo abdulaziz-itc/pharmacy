@@ -26,13 +26,15 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
 
-    const filteredOptions = options.filter(opt => 
+    const safeOptions = Array.isArray(options) ? options : [];
+
+    const filteredOptions = safeOptions.filter(opt => 
         (opt.label || "").toLowerCase().includes(search.toLowerCase())
     );
 
     const selectedLabel = value === "all" 
         ? (placeholder || "Все") 
-        : (options.find(opt => opt.value === value)?.label || placeholder || "Все");
+        : (safeOptions.find(opt => opt.value === value)?.label || placeholder || "Все");
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
