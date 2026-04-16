@@ -308,11 +308,16 @@ export default function InvoicesPage() {
 
     return (
         <PageContainer>
-            <PageHeader
-                title="Фактура"
-                description="Просмотр записей «Счетов-фактур», цифровых подписей и статуса соответствия налоговым требованиям."
                 buttonLabel={isMedRep ? undefined : "Создать фактуру"}
-            />
+            >
+                <Button 
+                    onClick={exportToExcel}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 px-6 h-12 font-semibold gap-2 border-none"
+                >
+                    <FileDown className="w-4 h-4" />
+                    Excel
+                </Button>
+            </PageHeader>
 
             <ModernStatsBar 
                 stats={stats}
@@ -320,16 +325,6 @@ export default function InvoicesPage() {
                 countLabel="Всего фактур"
                 totalLabel="Реализация (общая)"
             />
-
-            <div className="flex justify-end gap-3 mb-4">
-                 <Button 
-                    onClick={exportToExcel}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 px-6 font-semibold gap-2"
-                >
-                    <FileDown className="w-4 h-4" />
-                    Скачать в Excel
-                </Button>
-            </div>
 
             <FilterBar 
                 values={filterValues}

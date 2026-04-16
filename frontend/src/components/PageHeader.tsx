@@ -8,6 +8,7 @@ interface PageHeaderProps {
     buttonLabel?: string;
     onButtonClick?: () => void;
     className?: string;
+    children?: React.ReactNode;
 }
 
 export function PageHeader({
@@ -15,7 +16,8 @@ export function PageHeader({
     description,
     buttonLabel,
     onButtonClick,
-    className
+    className,
+    children
 }: PageHeaderProps) {
     return (
         <div className={cn("flex flex-col md:flex-row md:items-center justify-between gap-4", className)}>
@@ -27,15 +29,18 @@ export function PageHeader({
                     <p className="text-slate-500 mt-1 font-medium">{description}</p>
                 )}
             </div>
-            {buttonLabel && (
-                <Button
-                    onClick={onButtonClick}
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20 px-6 font-semibold gap-2"
-                >
-                    <Plus className="w-4 h-4" />
-                    {buttonLabel}
-                </Button>
-            )}
+            <div className="flex items-center gap-3">
+                {children}
+                {buttonLabel && (
+                    <Button
+                        onClick={onButtonClick}
+                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20 px-6 h-12 font-semibold gap-2 border-none"
+                    >
+                        <Plus className="w-4 h-4" />
+                        {buttonLabel}
+                    </Button>
+                )}
+            </div>
         </div>
     );
 }
