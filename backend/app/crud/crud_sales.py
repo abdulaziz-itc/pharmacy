@@ -399,7 +399,9 @@ def _apply_invoice_filters(
     has_debt: bool = False,
     med_org_id: Optional[int] = None,
     region_ids: Optional[List[int]] = None,
-    only_overdue: bool = False
+    only_overdue: bool = False,
+    already_joined_res: bool = False,
+    already_joined_org: bool = False
 ):
     if status:
         query = query.where(Invoice.status == status)
@@ -415,17 +417,20 @@ def _apply_invoice_filters(
         ))
 
     if warehouse_id:
-        query = query.where(Invoice.reservation.has(warehouse_id=warehouse_id))
+        if not already_joined_res:
+            query = query.join(Reservation, Invoice.reservation_id == Reservation.id)
+            already_joined_res = True
+        query = query.where(Reservation.warehouse_id == warehouse_id)
 
-    has_joined_res = False
-    has_joined_org = False
+    has_joined_res = already_joined_res
+    has_joined_org = already_joined_org
 
     if med_rep_id:
         if not has_joined_res:
-            query = query.join(Invoice.reservation)
+            query = query.join(Reservation, Invoice.reservation_id == Reservation.id)
             has_joined_res = True
         if not has_joined_org:
-            query = query.join(Reservation.med_org, isouter=True)
+            query = query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id, isouter=True)
             has_joined_org = True
         query = query.where(
             (Reservation.created_by_id == med_rep_id) |
@@ -433,10 +438,10 @@ def _apply_invoice_filters(
         )
     elif med_rep_ids:
         if not has_joined_res:
-            query = query.join(Invoice.reservation)
+            query = query.join(Reservation, Invoice.reservation_id == Reservation.id)
             has_joined_res = True
         if not has_joined_org:
-            query = query.join(Reservation.med_org, isouter=True)
+            query = query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id, isouter=True)
             has_joined_org = True
         query = query.where(
             (Reservation.created_by_id.in_(med_rep_ids)) |
@@ -445,51 +450,54 @@ def _apply_invoice_filters(
     
     if region_ids:
         if not has_joined_res:
-            query = query.join(Invoice.reservation)
+            query = query.join(Reservation, Invoice.reservation_id == Reservation.id)
             has_joined_res = True
         if not has_joined_org:
-            query = query.join(Reservation.med_org, isouter=True)
+            query = query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id, isouter=True)
             has_joined_org = True
         query = query.where(MedicalOrganization.region_id.in_(region_ids))
     
     if med_rep_name and med_rep_name != "all":
         if not has_joined_res:
-            query = query.join(Invoice.reservation)
+            query = query.join(Reservation, Invoice.reservation_id == Reservation.id)
             has_joined_res = True
         if not has_joined_org:
-            query = query.join(Reservation.med_org, isouter=True)
+            query = query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id, isouter=True)
             has_joined_org = True
-        query = query.join(Reservation.created_by, isouter=True).where(
+        query = query.join(User, Reservation.created_by_id == User.id, isouter=True).where(
             (User.full_name.ilike(f"%{med_rep_name}%")) |
             (MedicalOrganization.assigned_reps.any(User.full_name.ilike(f"%{med_rep_name}%")))
         )
 
     if med_org_id and med_org_id != "all":
         if not has_joined_res:
-             query = query.join(Invoice.reservation)
+             query = query.join(Reservation, Invoice.reservation_id == Reservation.id)
              has_joined_res = True
         if not has_joined_org:
-             query = query.join(Reservation.med_org, isouter=True)
+             query = query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id, isouter=True)
              has_joined_org = True
-        query = query.where(MedicalOrganization.id == med_org_id)
+        query = query.where(MedicalOrganization.id == int(med_org_id))
 
     if med_org_name and med_org_name != "all":
         if not has_joined_res:
-            query = query.join(Invoice.reservation)
+            query = query.join(Reservation, Invoice.reservation_id == Reservation.id)
             has_joined_res = True
         if not has_joined_org:
-            query = query.join(Reservation.med_org, isouter=True)
+            query = query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id, isouter=True)
             has_joined_org = True
         query = query.where(MedicalOrganization.name.ilike(f"%{med_org_name}%"))
 
-    if med_org_type and med_org_type != "all":
+    if med_org_type:
         if not has_joined_res:
-            query = query.join(Invoice.reservation)
-            has_joined_res = True
+             query = query.join(Reservation, Invoice.reservation_id == Reservation.id)
+             has_joined_res = True
         if not has_joined_org:
-            query = query.join(Reservation.med_org, isouter=True)
-            has_joined_org = True
+             query = query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id, isouter=True)
+             has_joined_org = True
         query = query.where(MedicalOrganization.org_type == med_org_type)
+
+    if inv_num:
+        query = query.where(Invoice.factura_number.ilike(f"%{inv_num}%"))
 
     if date_from:
         query = query.where(Invoice.date >= date_from)
@@ -498,12 +506,9 @@ def _apply_invoice_filters(
 
     if is_tovar_skidka is not None:
         if not has_joined_res:
-            query = query.join(Invoice.reservation)
+            query = query.join(Reservation, Invoice.reservation_id == Reservation.id)
             has_joined_res = True
         query = query.where(Reservation.is_tovar_skidka == is_tovar_skidka)
-
-    if inv_num:
-        query = query.where(Invoice.factura_number.ilike(f"%{inv_num}%"))
 
     return query
 
@@ -540,7 +545,7 @@ async def get_invoices(
     query = _apply_invoice_filters(
         query, med_rep_id, date_from, date_to, med_rep_name, med_org_name, med_org_type,
         is_tovar_skidka, inv_num, med_rep_ids, status, warehouse_id, has_debt, med_org_id,
-        region_ids, only_overdue
+        region_ids, only_overdue, already_joined_res=False, already_joined_org=False
     )
 
     query = query.offset(skip).limit(limit)
@@ -577,7 +582,7 @@ async def get_invoice_stats(
     stmt = _apply_invoice_filters(
         stmt, med_rep_id, date_from, date_to, med_rep_name, med_org_name, med_org_type,
         is_tovar_skidka, inv_num, med_rep_ids, status, warehouse_id, has_debt, med_org_id,
-        region_ids, only_overdue
+        region_ids, only_overdue, already_joined_res=False, already_joined_org=False
     )
     
     res = await db.execute(stmt)
@@ -607,7 +612,7 @@ async def get_invoice_stats(
     item_stmt = _apply_invoice_filters(
         item_stmt, med_rep_id, date_from, date_to, med_rep_name, med_org_name, med_org_type,
         is_tovar_skidka, inv_num, med_rep_ids, status, warehouse_id, has_debt, med_org_id,
-        region_ids, only_overdue
+        region_ids, only_overdue, already_joined_res=True, already_joined_org=False
     )
     
     item_res = await db.execute(item_stmt)
