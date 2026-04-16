@@ -86,13 +86,13 @@ async def get_med_orgs(
         Reservation.med_org_id,
         func.sum(
             case(
-                (Invoice.total_amount > Invoice.paid_amount, Invoice.total_amount - Invoice.paid_amount),
+                {Invoice.total_amount > Invoice.paid_amount: Invoice.total_amount - Invoice.paid_amount},
                 else_=0.0
             )
         ).label("total_debt"),
         func.sum(
             case(
-                (Invoice.paid_amount > Invoice.total_amount, Invoice.paid_amount - Invoice.total_amount),
+                {Invoice.paid_amount > Invoice.total_amount: Invoice.paid_amount - Invoice.total_amount},
                 else_=0.0
             )
         ).label("total_surplus")
@@ -166,13 +166,13 @@ async def get_med_org(db: AsyncSession, id: int) -> Optional[MedicalOrganization
         debt_q = select(
             func.sum(
                 case(
-                    (Invoice.total_amount > Invoice.paid_amount, Invoice.total_amount - Invoice.paid_amount),
+                    {Invoice.total_amount > Invoice.paid_amount: Invoice.total_amount - Invoice.paid_amount},
                     else_=0.0
                 )
             ).label("debt"),
             func.sum(
                 case(
-                    (Invoice.paid_amount > Invoice.total_amount, Invoice.paid_amount - Invoice.total_amount),
+                    {Invoice.paid_amount > Invoice.total_amount: Invoice.paid_amount - Invoice.total_amount},
                     else_=0.0
                 )
             ).label("surplus")

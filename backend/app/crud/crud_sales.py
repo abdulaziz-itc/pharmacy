@@ -570,8 +570,8 @@ async def get_invoice_stats(
         func.count(Invoice.id).label("count"),
         func.sum(Invoice.total_amount).label("total_amount"),
         func.sum(Invoice.paid_amount).label("paid_amount"),
-        func.sum(case((Invoice.total_amount > Invoice.paid_amount, Invoice.total_amount - Invoice.paid_amount), else_=0)).label("debt_amount"),
-        func.sum(case((Invoice.paid_amount > Invoice.total_amount, Invoice.paid_amount - Invoice.total_amount), else_=0)).label("credit_amount")
+        func.sum(case({Invoice.total_amount > Invoice.paid_amount: Invoice.total_amount - Invoice.paid_amount}, else_=0)).label("debt_amount"),
+        func.sum(case({Invoice.paid_amount > Invoice.total_amount: Invoice.paid_amount - Invoice.total_amount}, else_=0)).label("credit_amount")
     )
     
     stmt = _apply_invoice_filters(
@@ -709,7 +709,7 @@ async def apply_surplus_to_debts(db: AsyncSession, organization_id: int, amount:
     """
     query = (
         select(Invoice)
-        .join(Reservation)
+        .join(Reservation, Invoice.reservation_id == Reservation.id)
         .where(Reservation.med_org_id == organization_id)
         .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.DRAFT]))
         .where(Invoice.total_amount > Invoice.paid_amount)
