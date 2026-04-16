@@ -6,7 +6,8 @@ import {
     Plus, 
     DollarSign,
     PieChart,
-    Trash2
+    Trash2,
+    Landmark
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
@@ -19,7 +20,6 @@ import { DrilldownModal } from '../../components/analytics/DrilldownModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PremiumKpiCard } from '../../components/analytics/PremiumKpiCard';
 import { MoneyInput } from '../../components/ui/MoneyInput';
-import { Landmark } from 'lucide-react';
 
 type Expense = {
     id: number;
@@ -183,12 +183,20 @@ export default function AccountantPage() {
         {
             accessorKey: 'date',
             header: 'Дата',
-            cell: ({ row }) => <span className="font-medium text-slate-600">{format(new Date(row.original.date), 'dd MMMM yyyy', { locale: ru })}</span>
+            cell: ({ row }) => {
+                const d = row.original.date;
+                if (!d) return <span className="text-slate-400">—</span>;
+                try {
+                    return <span className="font-medium text-slate-600">{format(new Date(d), 'dd MMMM yyyy', { locale: ru })}</span>
+                } catch (e) {
+                    return <span className="text-slate-400">{d}</span>;
+                }
+            }
         },
         {
             accessorKey: 'category.name',
             header: 'Категория',
-            cell: ({ row }) => <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">{row.original.category.name}</Badge>
+            cell: ({ row }) => <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">{row.original.category?.name || 'Без категории'}</Badge>
         },
         {
             accessorKey: 'amount',

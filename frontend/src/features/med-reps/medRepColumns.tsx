@@ -31,7 +31,7 @@ export const medRepColumns = (
             ),
             cell: ({ row }) => (
                 <span className="font-bold text-blue-600 hover:underline cursor-pointer">
-                    {row.getValue("username")}
+                    {String(row.getValue("username") || "—")}
                 </span>
             ),
         },
@@ -44,7 +44,7 @@ export const medRepColumns = (
             ),
             cell: ({ row }) => (
                 <span className="font-bold text-blue-600 hover:underline cursor-pointer">
-                    {row.getValue("full_name")}
+                    {String(row.getValue("full_name") || row.getValue("username") || "—")}
                 </span>
             ),
         },

@@ -421,17 +421,23 @@ def _apply_invoice_filters(
     has_joined_org = False
 
     if med_rep_id:
-        query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True)
-        has_joined_res = True
-        has_joined_org = True
+        if not has_joined_res:
+            query = query.join(Invoice.reservation)
+            has_joined_res = True
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
         query = query.where(
             (Reservation.created_by_id == med_rep_id) |
-            (MedicalOrganization.assigned_reps.any(id=med_rep_id))
+            (MedicalOrganization.assigned_reps.any(User.id == med_rep_id))
         )
     elif med_rep_ids:
-        query = query.join(Invoice.reservation).join(Reservation.med_org, isouter=True)
-        has_joined_res = True
-        has_joined_org = True
+        if not has_joined_res:
+            query = query.join(Invoice.reservation)
+            has_joined_res = True
+        if not has_joined_org:
+            query = query.join(Reservation.med_org, isouter=True)
+            has_joined_org = True
         query = query.where(
             (Reservation.created_by_id.in_(med_rep_ids)) |
             (MedicalOrganization.assigned_reps.any(User.id.in_(med_rep_ids)))
