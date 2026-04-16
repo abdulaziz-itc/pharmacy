@@ -10,6 +10,7 @@ import {
     DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu"
 import type { MedRep } from "../../store/medRepStore"
+import { useAuthStore } from "../../store/authStore"
 
 export const medRepColumns = (
     onReassign: (id: number, name: string) => void,
@@ -93,6 +94,10 @@ export const medRepColumns = (
             cell: ({ row }) => {
                 const medRep = row.original
                 const isActive = medRep.is_active !== false
+                const user = useAuthStore.getState().user
+                const isManagement = ['admin', 'investor', 'director', 'deputy_director', 'product_manager', 'regional_manager'].includes(user?.role || '');
+
+                if (!isManagement && user?.id !== medRep.id) return null;
 
                 return (
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>

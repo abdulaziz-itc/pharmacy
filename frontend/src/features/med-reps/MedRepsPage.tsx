@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../api/axios';
 import { useMedRepStore } from '../../store/medRepStore';
 import { medRepColumns } from './medRepColumns';
 import { DataTable } from '../../components/ui/data-table';
@@ -184,7 +185,7 @@ export default function MedRepsPage() {
                                         label: r?.name || "Без названия" 
                                     }))}
                                     value={selectedRegionId}
-                                    onChange={setSelectedRegionId}
+                                    onChange={(val) => setSelectedRegionId(val)}
                                     placeholder="Все регионы"
                                     className="max-w-[180px]"
                                 />

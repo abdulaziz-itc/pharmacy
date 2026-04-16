@@ -485,6 +485,9 @@ async def read_invoice_stats(
     has_debt: bool = False,
     only_overdue: bool = False,
 ) -> Any:
+    # Permission check: Management roles (Admin, Investor, Director, Deputy Director, Accountant)
+    allowed_roles = [UserRole.ADMIN, UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ACCOUNTANT, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
+    
     try:
         med_rep_ids = None
         if current_user.role == UserRole.MED_REP:
@@ -495,7 +498,7 @@ async def read_invoice_stats(
             if not med_rep_ids:
                 med_rep_ids = [-1]
             med_rep_id = None
-
+        
         region_ids = [r.id for r in current_user.assigned_regions] if current_user.assigned_regions else None
         
         # Robust date parsing
@@ -992,8 +995,8 @@ async def get_medrep_bonus_balance(
                         inv_id = int(match.group(1))
                 
                 if inv_id and inv_id in invoice_to_data:
-                    res_id = invoice_to_data[inv_id]["res_id"]
-                    org_name = invoice_to_data[inv_id]["org_name"]
+                    res_id = res_id or invoice_to_data[inv_id]["res_id"]
+                    org_name = org_name or invoice_to_data[inv_id]["org_name"]
 
             history_data.append({
                 "id": h.id,
