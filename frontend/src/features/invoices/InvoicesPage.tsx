@@ -132,9 +132,9 @@ export default function InvoicesPage() {
         });
 
         // Calculate Totals for the Summary Row
-        const totalAmount = dataRows.reduce((sum, row) => sum + row['Сумма по счет фактуре'], 0);
-        const totalPaid = dataRows.reduce((sum, row) => sum + row['Поступление'], 0);
-        const totalDebt = dataRows.reduce((sum, row) => sum + row['Дебиторская задолженность'], 0);
+        const totalAmount = dataRows.reduce((sum: number, row: any) => sum + row['Сумма по счет фактуре'], 0);
+        const totalPaid = dataRows.reduce((sum: number, row: any) => sum + row['Поступление'], 0);
+        const totalDebt = dataRows.reduce((sum: number, row: any) => sum + row['Дебиторская задолженность'], 0);
 
         const summaryRow = {
             'Месяц': dataRows[0]['Месяц'],
