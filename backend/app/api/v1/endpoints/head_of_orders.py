@@ -84,7 +84,7 @@ async def fulfill_stock(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Add stock to a warehouse (Prixod)."""
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # 1. Check if stock record exists
@@ -139,7 +139,7 @@ async def set_stock(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Set absolute stock level for a product in a warehouse."""
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # 1. Fetch current stock
@@ -234,7 +234,7 @@ async def activate_reservation(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Activate a reservation: Lock stock and create Factura."""
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     try:
@@ -313,7 +313,7 @@ async def update_reservation_data(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Update reservation data like invoice number, date, or discount."""
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     reservation = await crud_sales.update_reservation_data(db, id, obj_in)
@@ -337,7 +337,7 @@ async def create_payment(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.HEAD_OF_ORDERS]:
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     payment = await FinancialService.process_payment(db, obj_in, current_user.id)

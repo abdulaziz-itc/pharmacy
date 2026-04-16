@@ -196,7 +196,7 @@ async def get_global_realtime_dashboard(
 
     # Recent activities (last 5 payments/invoices)
     activities = []
-    if current_user.role in [UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN]:
+    if current_user.role in [UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.ACCOUNTANT]:
         # Latest Payments
         recent_payments = (await db.execute(
             select(Payment).order_by(Payment.date.desc()).limit(3)
