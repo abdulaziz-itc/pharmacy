@@ -25,10 +25,12 @@ async def get_comprehensive_reports(
     product_id: Optional[int] = Query(None),
     region_id: Optional[int] = Query(None),
     med_rep_id: Optional[int] = Query(None),
-    product_manager_id: Optional[int] = Query(None)
+    product_manager_id: Optional[int] = Query(None),
+    group_by: str = Query("doctor", pattern="^(doctor|medrep)$")
 ) -> Any:
     """
-    Get comprehensive reports for the dashboard with advanced filtering.
+    Get comprehensive reports for the dashboard with advanced filtering and dynamic grouping.
+    Supports monitoring both Doctor performance and MedRep performance (Plan vs Fact).
     """
     if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.ACCOUNTANT, UserRole.HRD]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
@@ -51,127 +53,127 @@ async def get_comprehensive_reports(
         else:
             target_rep_ids = my_descendants
 
+    report_map = {}
+    is_medrep_view = group_by == "medrep"
+
     # 1. Fetch Plans
-    plans_query = select(
-        Plan.doctor_id,
-        Doctor.full_name.label("doctor_name"),
-        func.sum(Plan.target_quantity).label("plan_quantity"),
-        func.sum(Plan.target_amount).label("plan_amount")
-    ).join(Doctor, Doctor.id == Plan.doctor_id, isouter=True)
+    if is_medrep_view:
+        id_col = Plan.med_rep_id
+        name_col = User.full_name
+        plans_q = select(id_col.label("id"), name_col.label("name"), func.sum(Plan.target_amount).label("p_amount"), func.sum(Plan.target_quantity).label("p_qty"))\
+            .join(User, User.id == Plan.med_rep_id, isouter=True)
+    else:
+        id_col = Plan.doctor_id
+        name_col = Doctor.full_name
+        plans_q = select(id_col.label("id"), name_col.label("name"), func.sum(Plan.target_amount).label("p_amount"), func.sum(Plan.target_quantity).label("p_qty"))\
+            .join(Doctor, Doctor.id == Plan.doctor_id, isouter=True)
 
     if start_date and end_date:
-        plans_query = plans_query.where(Plan.year >= start_date.year, Plan.year <= end_date.year)
+        plans_q = plans_q.where(Plan.year >= start_date.year, Plan.year <= end_date.year)
     if target_rep_ids:
-        plans_query = plans_query.where(Plan.med_rep_id.in_(target_rep_ids))
+        plans_q = plans_q.where(Plan.med_rep_id.in_(target_rep_ids))
     if product_id:
-        plans_query = plans_query.where(Plan.product_id == product_id)
+        plans_q = plans_q.where(Plan.product_id == product_id)
     if region_id:
-        plans_query = plans_query.join(MedicalOrganization, Doctor.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        plans_q = plans_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
 
-    plans_query = plans_query.group_by(Plan.doctor_id, Doctor.full_name)
-    plans_result = await db.execute(plans_query)
-    
-    report_map = {}
-    for row in plans_result.all():
-        doc_id = row.doctor_id
-        if doc_id:
-            report_map[doc_id] = {
-                "doctor_name": row.doctor_name or f"Doctor #{doc_id}",
-                "plan_quantity": row.plan_quantity or 0,
-                "plan_amount": float(row.plan_amount or 0),
-                "fact_quantity": 0,
+    plans_q = plans_q.group_by(id_col, name_col)
+    plans_res = await db.execute(plans_q)
+    for row in plans_res.all():
+        if row.id:
+            report_map[row.id] = {
+                "name": row.name or f"Entity #{row.id}",
+                "plan_amount": float(row.p_amount or 0),
+                "plan_quantity": int(row.p_qty or 0),
                 "fact_amount": 0.0,
+                "fact_quantity": 0,
                 "earned_bonus": 0.0,
                 "predinvest_given": 0.0,
-                "predinvest_paid_off": 0.0,
+                "predinvest_paid_off": 0.0
             }
 
     # 2. Fetch Aggregated Sales (Fact)
-    sales_query = select(
-        DoctorFactAssignment.doctor_id,
-        Doctor.full_name.label("doctor_name"),
-        func.sum(DoctorFactAssignment.quantity).label("fact_quantity"),
-        func.sum(DoctorFactAssignment.amount).label("fact_amount"),
-    ).join(Doctor, Doctor.id == DoctorFactAssignment.doctor_id)
+    if is_medrep_view:
+        id_col = DoctorFactAssignment.med_rep_id
+        name_col = User.full_name
+        sales_q = select(id_col.label("id"), name_col.label("name"), func.sum(DoctorFactAssignment.amount).label("f_amount"), func.sum(DoctorFactAssignment.quantity).label("f_qty"))\
+            .join(User, User.id == DoctorFactAssignment.med_rep_id)
+    else:
+        id_col = DoctorFactAssignment.doctor_id
+        name_col = Doctor.full_name
+        sales_q = select(id_col.label("id"), name_col.label("name"), func.sum(DoctorFactAssignment.amount).label("f_amount"), func.sum(DoctorFactAssignment.quantity).label("f_qty"))\
+            .join(Doctor, Doctor.id == DoctorFactAssignment.doctor_id)
 
     if start_date and end_date:
-        sales_query = sales_query.where(cast(DoctorFactAssignment.created_at, Date) >= start_date, cast(DoctorFactAssignment.created_at, Date) <= end_date)
+        sales_q = sales_q.where(cast(DoctorFactAssignment.created_at, Date) >= start_date, cast(DoctorFactAssignment.created_at, Date) <= end_date)
     if target_rep_ids:
-        sales_query = sales_query.where(DoctorFactAssignment.med_rep_id.in_(target_rep_ids))
+        sales_q = sales_q.where(DoctorFactAssignment.med_rep_id.in_(target_rep_ids))
     if product_id:
-        sales_query = sales_query.where(DoctorFactAssignment.product_id == product_id)
+        sales_q = sales_q.where(DoctorFactAssignment.product_id == product_id)
     if region_id:
-        sales_query = sales_query.join(MedicalOrganization, Doctor.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        # Consistency check for region filtering
+        sales_q = sales_q.join(MedicalOrganization, DoctorFactAssignment.doctor_id == MedicalOrganization.id if is_medrep_view else Doctor.med_org_id == MedicalOrganization.id, isouter=True)\
+                         .where(MedicalOrganization.region_id == region_id)
 
-    sales_query = sales_query.group_by(DoctorFactAssignment.doctor_id, Doctor.full_name)
-    sales_result = await db.execute(sales_query)
-    for row in sales_result.all():
-        doc_id = row.doctor_id
-        if doc_id not in report_map:
-            report_map[doc_id] = {
-                "doctor_name": row.doctor_name,
-                "plan_quantity": 0,
-                "plan_amount": 0.0,
-                "fact_quantity": 0,
-                "fact_amount": 0.0,
-                "earned_bonus": 0.0,
-                "predinvest_given": 0.0,
-                "predinvest_paid_off": 0.0,
-            }
-        report_map[doc_id]["fact_quantity"] += (row.fact_quantity or 0)
-        report_map[doc_id]["fact_amount"] += (row.fact_amount or 0.0)
+    sales_q = sales_q.group_by(id_col, name_col)
+    sales_res = await db.execute(sales_q)
+    for row in sales_res.all():
+        if row.id not in report_map:
+            report_map[row.id] = {"name": row.name or f"Entity #{row.id}", "plan_amount": 0.0, "plan_quantity": 0, "fact_amount": 0.0, "fact_quantity": 0, "earned_bonus": 0.0, "predinvest_given": 0.0, "predinvest_paid_off": 0.0}
+        report_map[row.id]["fact_amount"] += float(row.f_amount or 0)
+        report_map[row.id]["fact_quantity"] += int(row.f_qty or 0)
 
     # 3. Fetch Bonus Ledger
-    bonuses_query = select(
-        BonusLedger.doctor_id,
-        func.sum(case((BonusLedger.ledger_type == "accrual", BonusLedger.amount), else_=0)).label("earned_bonus"),
-        func.sum(case((BonusLedger.ledger_type == "advance", -BonusLedger.amount), else_=0)).label("predinvest_given"),
-        func.sum(case((BonusLedger.ledger_type == "offset", -BonusLedger.amount), else_=0)).label("predinvest_paid_off")
-    ).join(Doctor, Doctor.id == BonusLedger.doctor_id)
+    if is_medrep_view:
+        id_col = BonusLedger.user_id
+        name_col = User.full_name
+        bonus_q = select(id_col.label("id"), name_col.label("name"),
+                         func.sum(case((BonusLedger.ledger_type == "accrual", BonusLedger.amount), else_=0)).label("bonus"),
+                         func.sum(case((BonusLedger.ledger_type == "advance", -BonusLedger.amount), else_=0)).label("advance"),
+                         func.sum(case((BonusLedger.ledger_type == "offset", -BonusLedger.amount), else_=0)).label("offset"))\
+            .join(User, User.id == BonusLedger.user_id)
+    else:
+        id_col = BonusLedger.doctor_id
+        name_col = Doctor.full_name
+        bonus_q = select(id_col.label("id"), name_col.label("name"),
+                         func.sum(case((BonusLedger.ledger_type == "accrual", BonusLedger.amount), else_=0)).label("bonus"),
+                         func.sum(case((BonusLedger.ledger_type == "advance", -BonusLedger.amount), else_=0)).label("advance"),
+                         func.sum(case((BonusLedger.ledger_type == "offset", -BonusLedger.amount), else_=0)).label("offset"))\
+            .join(Doctor, Doctor.id == BonusLedger.doctor_id)
 
     if start_date and end_date:
-        bonuses_query = bonuses_query.where(cast(BonusLedger.created_at, Date) >= start_date, cast(BonusLedger.created_at, Date) <= end_date)
+        bonus_q = bonus_q.where(cast(BonusLedger.created_at, Date) >= start_date, cast(BonusLedger.created_at, Date) <= end_date)
     if target_rep_ids:
-        bonuses_query = bonuses_query.where(BonusLedger.user_id.in_(target_rep_ids))
+        bonus_q = bonus_q.where(BonusLedger.user_id.in_(target_rep_ids))
     if region_id:
-        bonuses_query = bonuses_query.join(MedicalOrganization, Doctor.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
+        bonus_q = bonus_q.join(Doctor, Doctor.id == BonusLedger.doctor_id).join(MedicalOrganization, Doctor.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
 
-    bonuses_query = bonuses_query.where(BonusLedger.doctor_id.isnot(None)).group_by(BonusLedger.doctor_id)
-    bonuses_result = await db.execute(bonuses_query)
-    for row in bonuses_result.all():
-        doc_id = row.doctor_id
-        if doc_id not in report_map:
-            report_map[doc_id] = {
-                "doctor_name": f"Doctor #{doc_id}",
-                "plan_quantity": 0,
-                "plan_amount": 0.0,
-                "fact_quantity": 0,
-                "fact_amount": 0.0,
-                "earned_bonus": 0.0,
-                "predinvest_given": 0.0,
-                "predinvest_paid_off": 0.0,
-            }
-        report_map[doc_id]["earned_bonus"] = float(row.earned_bonus or 0)
-        report_map[doc_id]["predinvest_given"] = float(row.predinvest_given or 0)
-        report_map[doc_id]["predinvest_paid_off"] = float(row.predinvest_paid_off or 0)
+    bonus_q = bonus_q.group_by(id_col, name_col)
+    bonus_res = await db.execute(bonus_q)
+    for row in bonus_res.all():
+        if row.id not in report_map:
+            report_map[row.id] = {"name": row.name or f"Entity #{row.id}", "plan_amount": 0.0, "plan_quantity": 0, "fact_amount": 0.0, "fact_quantity": 0, "earned_bonus": 0.0, "predinvest_given": 0.0, "predinvest_paid_off": 0.0}
+        report_map[row.id]["earned_bonus"] = float(row.bonus or 0)
+        report_map[row.id]["predinvest_given"] = float(row.advance or 0)
+        report_map[row.id]["predinvest_paid_off"] = float(row.offset or 0)
 
     summary = []
-    for doc_id, data in report_map.items():
+    for rid, data in report_map.items():
         summary.append({
-            "doctor_id": doc_id,
-            "doctor_name": data["doctor_name"],
-            "plan_quantity": data.get("plan_quantity", 0),
-            "plan_amount": data.get("plan_amount", 0.0),
-            "fact_quantity": data["fact_quantity"],
+            "id": rid,
+            "name": data["name"],
+            "plan_amount": data["plan_amount"],
+            "plan_quantity": data["plan_quantity"],
             "fact_amount": data["fact_amount"],
+            "fact_quantity": data["fact_quantity"],
             "earned_bonus": data["earned_bonus"],
             "predinvest_given": data["predinvest_given"],
-            "predinvest_paid_off": data["predinvest_paid_off"],
+            "predinvest_paid_off": data["predinvest_paid_off"]
         })
 
     await log_action(
-        db, current_user, "REPORT_DOWNLOAD", "Analytics", 0,
-        f"Загружен комплексный отчет с фильтрами: {start_date} - {end_date}",
+        db, current_user, "REPORT_VIEW", "Analytics", 0,
+        f"Загружен комплексный отчет ({group_by}) с фильтрами: {start_date} - {end_date}",
         request
     )
 
@@ -179,5 +181,6 @@ async def get_comprehensive_reports(
         "period": period,
         "start_date": start_date,
         "end_date": end_date,
+        "group_by": group_by,
         "data": summary
     }
