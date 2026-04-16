@@ -486,7 +486,9 @@ async def read_invoice_stats(
     only_overdue: bool = False,
 ) -> Any:
     # Permission check: Management roles (Admin, Investor, Director, Deputy Director, Accountant)
-    allowed_roles = [UserRole.ADMIN, UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ACCOUNTANT, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
+    allowed_roles = [UserRole.ADMIN, UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ACCOUNTANT, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HEAD_OF_ORDERS]
+    if current_user.role not in allowed_roles and current_user.role != UserRole.MED_REP:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     
     try:
         med_rep_ids = None
@@ -1125,7 +1127,7 @@ async def get_admin_bonus_summary(
     Returns a summary of bonuses for all MedReps.
     Only accessible by Director, Deputy Director, Admin.
     """
-    allowed_roles = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
+    allowed_roles = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.ACCOUNTANT}
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
