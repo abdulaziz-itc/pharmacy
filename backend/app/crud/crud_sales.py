@@ -679,6 +679,17 @@ async def create_payment(db: AsyncSession, obj_in: PaymentCreate, user_id: int) 
     elif invoice.paid_amount > 0:
         invoice.status = InvoiceStatus.PARTIAL
 
+    # Record BalanceTransaction for the payment part
+    # We flush db to get db_obj.id if needed, or just add without payment_id if not strictly required immediately
+    bt_payment = BalanceTransaction(
+        organization_id=organization.id,
+        amount=actual_payment,
+        transaction_type=BalanceTransactionType.APPLICATION,
+        related_invoice_id=invoice.id,
+        comment=obj_in.comment or f"Оплата счета #{invoice.factura_number or invoice.id}"
+    )
+    db.add(bt_payment)
+
     # Handle Surplus (Overpayment)
     if surplus > 0 and organization:
         # 1. Try to apply to other debts
@@ -745,6 +756,16 @@ async def apply_surplus_to_debts(db: AsyncSession, organization_id: int, amount:
             inv.status = InvoiceStatus.PAID
         else:
             inv.status = InvoiceStatus.PARTIAL
+            
+        # Record BalanceTransaction for automatic settlement
+        bt_settle = BalanceTransaction(
+            organization_id=organization_id,
+            amount=payment_to_apply,
+            transaction_type=BalanceTransactionType.APPLICATION,
+            related_invoice_id=inv.id,
+            comment=comment
+        )
+        db.add(bt_settle)
             
         remaining_surplus -= payment_to_apply
         
