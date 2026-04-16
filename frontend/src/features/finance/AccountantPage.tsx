@@ -465,28 +465,18 @@ export default function AccountantPage() {
             >
                 <PremiumKpiCard 
                     label="Поступления (Cash In)" 
-                    value={stats?.sales_fact_received_amount} 
+                    value={stats?.sales_fact_received_amount || 0} 
                     icon={TrendingUp} 
-                    color="emerald" 
-                    subtitle="Всего денег поступило"
-                    onClick={() => setDrilldownMetric({ id: 'cash_in', label: 'Поступления (Cash In)' })}
+                    color="blue"
+                    badge="Реализовано"
+                    onClick={() => {}}
                 />
                 <PremiumKpiCard 
-                    label="Валовая Прибыль" 
-                    value={stats?.gross_profit} 
+                    label="Продажи (Факт)" 
+                    value={stats?.total_amount || 0} 
                     icon={DollarSign} 
-                    color="blue" 
-                    subtitle="Доход минус расходы"
-                    badge="Gross Profit"
-                    onClick={() => setDrilldownMetric({ id: 'gross_profit', label: 'Валовая Прибыль' })}
-                />
-                <PremiumKpiCard 
-                    label="Прочие Расходы" 
-                    value={stats?.total_expenses} 
-                    icon={TrendingDown} 
-                    color="rose" 
-                    subtitle="Аренда, налоги и пр."
-                    onClick={() => setDrilldownMetric({ id: 'expenses', label: 'Прочие Расходы' })}
+                    color="emerald"
+                    badge="Всего"
                 />
                 <PremiumKpiCard 
                     label="Чистая Прибыль" 

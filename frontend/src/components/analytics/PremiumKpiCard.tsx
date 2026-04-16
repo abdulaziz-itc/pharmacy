@@ -23,8 +23,9 @@ const CountUp = ({ value, suffix = 'UZS' }: { value: number, suffix?: string }) 
     const [displayValue, setDisplayValue] = useState(0);
 
     useEffect(() => {
+        const val = Number(value) || 0;
         let start = 0;
-        const end = value;
+        const end = val;
         const duration = 1000;
         const startTime = performance.now();
 
@@ -47,7 +48,7 @@ const CountUp = ({ value, suffix = 'UZS' }: { value: number, suffix?: string }) 
     }, [value]);
 
     return (
-        <span className="tabular-nums" title={value.toLocaleString()}>
+        <span className="tabular-nums" title={(Number(value) || 0).toLocaleString()}>
             {formatMoney(displayValue)}
             <span className="text-[10px] ml-1.5 opacity-40 font-bold uppercase tracking-widest">{suffix}</span>
         </span>
