@@ -12,7 +12,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { ru } from 'date-fns/locale/ru';
 import { Badge } from '../../components/ui/badge';
 import { DataTable } from '../../components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -87,8 +87,8 @@ export default function AccountantPage() {
         }
     });
 
-    const medReps = usersData.filter((u: any) => u.role === 'med_rep');
-    const productManagers = usersData.filter((u: any) => u.role === 'product_manager');
+    const medReps = (usersData || []).filter((u: any) => u.role === 'med_rep');
+    const productManagers = (usersData || []).filter((u: any) => u.role === 'product_manager');
 
     // Fetch Stats
     const { data: stats } = useQuery({
@@ -104,26 +104,27 @@ export default function AccountantPage() {
             if (selectedPM && selectedPM !== 'all') params.product_manager_id = parseInt(selectedPM);
 
             const res = await api.get('/domain/analytics/stats/comprehensive', { params });
-            return res.data.kpis;
+            // Handle both flat and nested responses for robustness
+            return res.data?.kpis || res.data || {};
         }
     });
 
 
     // Fetch Categories
-    const { data: categories } = useQuery<ExpenseCategory[]>({
+    const { data: categories = [] } = useQuery<ExpenseCategory[]>({
         queryKey: ['expense-categories'],
         queryFn: async () => {
             const res = await api.get('/finance/categories');
-            return res.data;
+            return Array.isArray(res.data) ? res.data : (res.data?.items || []);
         }
     });
 
     // Fetch Expenses
-    const { data: expenses, isLoading: expensesLoading } = useQuery<Expense[]>({
+    const { data: expenses = [], isLoading: expensesLoading } = useQuery<Expense[]>({
         queryKey: ['expenses'],
         queryFn: async () => {
             const res = await api.get('/finance/expenses');
-            return res.data;
+            return Array.isArray(res.data) ? res.data : (res.data?.items || []);
         }
     });
 
@@ -263,7 +264,7 @@ export default function AccountantPage() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
                     >
                         <option value="all">Все регионы</option>
-                        {regions.map((r: any) => (<option key={r.id} value={r.id.toString()}>{r.name}</option>))}
+                        {(regions || []).map((r: any) => (<option key={r.id} value={r.id.toString()}>{r.name}</option>))}
                     </select>
                 </div>
                 
@@ -275,7 +276,7 @@ export default function AccountantPage() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
                     >
                         <option value="all">Все продукты</option>
-                        {products.map((p: any) => (<option key={p.id} value={p.id.toString()}>{p.name}</option>))}
+                        {(products || []).map((p: any) => (<option key={p.id} value={p.id.toString()}>{p.name}</option>))}
                     </select>
                 </div>
 
@@ -314,8 +315,6 @@ export default function AccountantPage() {
                     </select>
                 </div>
 
-
-
                 <div className="flex flex-col space-y-1 flex-1 min-w-[140px]">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Год</p>
                     <select 
@@ -336,7 +335,7 @@ export default function AccountantPage() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
                     >
                         <option value="all">Все PM</option>
-                        {productManagers.map((u: any) => (<option key={u.id} value={u.id.toString()}>{u.full_name || u.username}</option>))}
+                        {(productManagers || []).map((u: any) => (<option key={u.id} value={u.id.toString()}>{u.full_name || u.username}</option>))}
                     </select>
                 </div>
 
@@ -348,7 +347,7 @@ export default function AccountantPage() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-violet-100 transition-all cursor-pointer"
                     >
                         <option value="all">Все представители</option>
-                        {medReps.map((u: any) => (<option key={u.id} value={u.id.toString()}>{u.full_name || u.username}</option>))}
+                        {(medReps || []).map((u: any) => (<option key={u.id} value={u.id.toString()}>{u.full_name || u.username}</option>))}
                     </select>
                 </div>
                 
@@ -397,7 +396,7 @@ export default function AccountantPage() {
                                             <label htmlFor="exp_category" className="text-[10px] font-black text-slate-400 uppercase ml-2">Категория</label>
                                             <select id="exp_category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-black outline-none focus:ring-4 focus:ring-violet-100 transition-all">
                                                 <option value="">Выберите...</option>
-                                                {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                {(categories || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                             </select>
                                         </div>
                                     </div>
@@ -461,7 +460,7 @@ export default function AccountantPage() {
                         transition: { staggerChildren: 0.1 }
                     }
                 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8"
             >
                 <PremiumKpiCard 
                     label="Поступления (Cash In)" 
@@ -469,10 +468,9 @@ export default function AccountantPage() {
                     icon={TrendingUp} 
                     color="blue"
                     badge="Реализовано"
-                    onClick={() => {}}
                 />
                 <PremiumKpiCard 
-                    label="Продажи (Факт)" 
+                    label="Проdaжи (Факт)" 
                     value={stats?.total_amount || 0} 
                     icon={DollarSign} 
                     color="emerald"
@@ -480,11 +478,25 @@ export default function AccountantPage() {
                 />
                 <PremiumKpiCard 
                     label="Чистая Прибыль" 
-                    value={stats?.net_profit} 
-                    icon={PieChart} 
-                    color="violet" 
-                    subtitle="Итоговый результат"
-                    badge="NET PROFIT"
+                    value={stats?.net_profit || 0} 
+                    icon={TrendingUp} 
+                    color="violet"
+                    badge="Маржа"
+                    onClick={() => setDrilldownMetric({ id: 'net_profit', label: 'Чистая Прибыль' })}
+                />
+                <PremiumKpiCard 
+                    label="Все Расходы" 
+                    value={stats?.total_expenses || 0} 
+                    icon={TrendingDown} 
+                    color="rose"
+                    badge="За период"
+                />
+                <PremiumKpiCard 
+                    label="Баланс Кассы" 
+                    value={(stats?.sales_fact_received_amount || 0) - (stats?.total_expenses || 0)} 
+                    icon={Landmark} 
+                    color="navy"
+                    badge="Доступно"
                 />
             </motion.div>
 
@@ -518,7 +530,7 @@ export default function AccountantPage() {
                         </div>
                         <div>
                             <h4 className="text-xl font-black text-slate-800">Кредиторка</h4>
-                            <p className="text-sm font-medium text-slate-500">Реестр переплат по счетам-фактурам</p>
+                            <p className="text-sm font-medium text-slate-500">Реестр переплат по счетам-фактураom</p>
                         </div>
                     </div>
                     <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-rose-50 group-hover:text-rose-600">
@@ -567,5 +579,3 @@ export default function AccountantPage() {
         </PageContainer>
     );
 }
-
-// Old KpiCard removed

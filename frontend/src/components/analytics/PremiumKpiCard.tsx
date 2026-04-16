@@ -1,40 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import type { LucideIcon } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { formatMoney } from '../ui/MoneyInput';
-import { cn, getAdaptiveFontSize } from '../../lib/utils';
+import { getAdaptiveFontSize } from '@/lib/utils';
 
 interface PremiumKpiCardProps {
     label: string;
-    value: number;
+    value: any; // Allow anything to prevent crash if backend sends unexpected data
     icon: LucideIcon;
-    color: 'blue' | 'emerald' | 'rose' | 'violet' | 'amber' | 'indigo' | 'cyan' | 'pink' | 'navy' | 'slate';
+    color?: 'blue' | 'emerald' | 'violet' | 'rose' | 'amber' | 'indigo' | 'slate' | 'navy';
+    subtitle?: string;
     badge?: string;
     onClick?: () => void;
-    subtitle?: string;
-    suffix?: string;
-    subValue?: number;
-    subLabel?: string;
-    subSuffix?: string;
-    variant?: 'premium' | 'minimal';
+    variant?: 'default' | 'minimal';
 }
 
-const CountUp = ({ value, suffix = 'UZS' }: { value: number, suffix?: string }) => {
+const CountUp = ({ value, suffix = 'UZS' }: { value: any, suffix?: string }) => {
     const [displayValue, setDisplayValue] = useState(0);
 
     useEffect(() => {
-        const val = Number(value) || 0;
+        // Ultimate safety check
+        const val = parseFloat(String(value || 0)) || 0;
         let start = 0;
         const end = val;
         const duration = 1000;
         const startTime = performance.now();
 
         const animate = (currentTime: number) => {
-            const elapsedTime = currentTime - startTime;
-            const progress = Math.min(elapsedTime / duration, 1);
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
             
-            // Ease-out expo
-            const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+            // Ease out cubic
+            const easeProgress = 1 - Math.pow(1 - progress, 3);
             
             const currentCount = Math.floor(easeProgress * end);
             setDisplayValue(currentCount);
@@ -47,8 +44,10 @@ const CountUp = ({ value, suffix = 'UZS' }: { value: number, suffix?: string }) 
         requestAnimationFrame(animate);
     }, [value]);
 
+    const safeValue = parseFloat(String(value || 0)) || 0;
+
     return (
-        <span className="tabular-nums" title={(Number(value) || 0).toLocaleString()}>
+        <span className="tabular-nums" title={safeValue.toLocaleString()}>
             {formatMoney(displayValue)}
             <span className="text-[10px] ml-1.5 opacity-40 font-bold uppercase tracking-widest">{suffix}</span>
         </span>
@@ -59,202 +58,68 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
     label,
     value,
     icon: Icon,
-    color,
+    color = 'blue',
+    subtitle,
     badge,
     onClick,
-    subtitle,
-    suffix = 'UZS',
-    subValue,
-    subLabel,
-    subSuffix,
-    variant = 'premium'
+    variant = 'default'
 }) => {
-    const colorStyles: Record<string, any> = {
-        blue: {
-            bg: 'bg-blue-50',
-            text: 'text-blue-600',
-            border: 'border-blue-200/50',
-            mesh: 'premium-mesh-blue',
-            glow: 'shadow-blue-500/10'
-        },
-        emerald: {
-            bg: 'bg-emerald-50',
-            text: 'text-emerald-600',
-            border: 'border-emerald-200/50',
-            mesh: 'premium-mesh-emerald',
-            glow: 'shadow-emerald-500/10'
-        },
-        rose: {
-            bg: 'bg-rose-50',
-            text: 'text-rose-600',
-            border: 'border-rose-200/50',
-            mesh: 'premium-mesh-rose',
-            glow: 'shadow-rose-500/10'
-        },
-        violet: {
-            bg: 'bg-violet-50',
-            text: 'text-violet-600',
-            border: 'border-violet-200/50',
-            mesh: 'premium-mesh-violet',
-            glow: 'shadow-violet-500/10'
-        },
-        amber: {
-            bg: 'bg-amber-50',
-            text: 'text-amber-600',
-            border: 'border-amber-200/50',
-            mesh: 'premium-mesh-rose', 
-            glow: 'shadow-amber-500/10'
-        },
-        indigo: {
-            bg: 'bg-indigo-50',
-            text: 'text-indigo-600',
-            border: 'border-indigo-200/50',
-            mesh: 'premium-mesh-blue',
-            glow: 'shadow-indigo-500/10'
-        },
-        navy: {
-            bg: 'bg-slate-100/80',
-            text: 'text-slate-900',
-            border: 'border-slate-300/50',
-            mesh: 'premium-mesh-blue',
-            glow: 'shadow-slate-500/10'
-        },
-        slate: {
-            bg: 'bg-slate-50',
-            text: 'text-slate-600',
-            border: 'border-slate-200',
-            mesh: 'premium-mesh-blue',
-            glow: 'shadow-slate-400/10'
-        }
+    const colorMap = {
+        blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', accent: 'bg-blue-600', shadow: 'shadow-blue-100' },
+        emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', accent: 'bg-emerald-600', shadow: 'shadow-emerald-100' },
+        violet: { bg: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-100', accent: 'bg-violet-600', shadow: 'shadow-violet-100' },
+        rose: { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100', accent: 'bg-rose-600', shadow: 'shadow-rose-100' },
+        amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100', accent: 'bg-amber-600', shadow: 'shadow-amber-100' },
+        indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100', accent: 'bg-indigo-600', shadow: 'shadow-indigo-100' },
+        slate: { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-100', accent: 'bg-slate-900', shadow: 'shadow-slate-100' },
+        navy: { bg: 'bg-indigo-100', text: 'text-indigo-900', border: 'border-indigo-200', accent: 'bg-indigo-900', shadow: 'shadow-indigo-200' },
     };
 
-    const style = colorStyles[color] || colorStyles.blue;
+    const colors = colorMap[color] || colorMap.blue;
+    const safeValue = parseFloat(String(value || 0)) || 0;
 
     return (
         <motion.div
-            layout
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={onClick ? { 
-                y: -8, 
-                scale: 1.02,
-                transition: { type: "spring", stiffness: 400, damping: 25 } 
-            } : {}}
-            whileTap={onClick ? { scale: 0.98 } : {}}
+            variants={{
+                initial: { opacity: 0, scale: 0.95 },
+                show: { opacity: 1, scale: 1 }
+            }}
             onClick={onClick}
             className={`
-                relative p-8 rounded-[2.5rem] bg-white border border-slate-100
-                shadow-2xl shadow-slate-200/50 overflow-hidden group
-                ${style.glow} ${onClick ? 'cursor-pointer active:shadow-none translate-y-0 hover:-translate-y-2' : ''}
-                transition-all duration-500
-                ${variant === 'minimal' ? 'rounded-[3rem] shadow-xl shadow-slate-200/40 bg-gradient-to-b from-white to-slate-50/30 border-white/50' : ''}
+                group relative bg-white p-6 rounded-[2.5rem] border border-slate-100 
+                shadow-2xl ${colors.shadow}/60 transition-all duration-500
+                ${onClick ? 'cursor-pointer hover:-translate-y-2 hover:border-slate-200' : ''}
             `}
         >
-            {/* Mesh Background Overlay (Subtle for minimal, full for premium) */}
-            <div className={`
-                absolute inset-0 transition-opacity duration-700 ${style.mesh}
-                ${variant === 'minimal' ? 'opacity-[0.02] group-hover:opacity-[0.05]' : 'opacity-0 group-hover:opacity-100'}
-            `} />
-            
-            {/* Decorative Pulse Glow (Top Right) */}
-            <div className={`absolute top-0 right-0 w-64 h-64 -mr-16 -mt-16 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-3xl`} />
-            
-            <div className="relative z-10 flex flex-col h-full">
-                {/* Icon & Badge Header */}
-                <div className="flex items-start justify-between mb-8">
-                    <motion.div 
-                        whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
-                        className={`w-16 h-16 rounded-[1.25rem] ${style.bg} ${style.border} border-2 flex items-center justify-center shadow-inner relative group-hover:shadow-lg transition-shadow duration-300`}
-                    >
-                        {/* Floating Glow Aura */}
-                        <div className={`absolute -inset-4 ${style.text} opacity-20 blur-2xl group-hover:opacity-40 transition-opacity duration-500`} />
-                        <Icon strokeWidth={2.5} className={`w-8 h-8 ${style.text} relative z-10`} />
-                    </motion.div>
-    
+            <div className="relative z-10 space-y-4">
+                <div className="flex items-center justify-between">
+                    <div className={`w-12 h-12 rounded-2xl ${colors.bg} flex items-center justify-center ${colors.text} transition-colors group-hover:${colors.accent} group-hover:text-white`}>
+                        <Icon className="w-6 h-6" />
+                    </div>
                     {badge && (
-                        <motion.div 
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className={`
-                                px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm border
-                                ${variant === 'minimal' 
-                                    ? 'bg-emerald-500 text-white border-emerald-400 shadow-emerald-200/50' 
-                                    : `${style.bg} ${style.text} ${style.border}`}
-                            `}
-                        >
+                        <div className={`px-3 py-1 rounded-full ${colors.bg} ${colors.text} text-[10px] font-black uppercase tracking-widest border ${colors.border}`}>
                             {badge}
-                        </motion.div>
+                        </div>
                     )}
                 </div>
-    
-                {/* Text Content */}
-                <div className="mt-auto">
-                    <h3 className={`
-                        text-slate-400 text-[10px] font-black uppercase tracking-[0.25em] mb-3 group-hover:translate-x-1 transition-transform duration-300
-                        ${variant === 'minimal' ? 'text-slate-400 font-extrabold tracking-widest' : ''}
-                    `}>
+
+                <div className="space-y-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
                         {label}
+                    </p>
+                    <h3 className={`font-black tracking-tight text-slate-900 flex items-baseline gap-2 ${getAdaptiveFontSize(formatMoney(safeValue), variant === 'minimal' ? 'text-2xl' : 'text-3xl')}`}>
+                         <CountUp value={value} />
                     </h3>
-                    
-                    <div className="space-y-1">
-                        <div 
-                            title={value.toLocaleString()}
-                            className={cn(
-                                "font-black tracking-tighter leading-none flex items-baseline gap-2 transition-all duration-300",
-                                variant === 'minimal' ? 'text-slate-900' : 'text-slate-800',
-                                getAdaptiveFontSize(formatMoney(value), variant === 'minimal' ? 'text-4xl' : 'text-3xl')
-                            )}
-                        >
-                            <CountUp value={value} suffix={suffix} />
-                        </div>
-                        
-                        <AnimatePresence>
-                            {subtitle && (
-                                <motion.p 
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className="text-slate-400 text-[11px] font-bold italic tracking-tight"
-                                >
-                                    {subtitle}
-                                </motion.p>
-                            )}
-                        </AnimatePresence>
-
-                        {subLabel && subValue !== undefined && (
-                            <motion.div 
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="mt-4 pt-3 border-t border-slate-100 flex flex-col"
-                            >
-                                <span className={`text-[9px] font-black uppercase tracking-widest ${style.text} opacity-70`}>
-                                    {subLabel}:
-                                </span>
-                                <span className="text-sm font-black text-slate-700 tracking-tight">
-                                    {formatMoney(subValue)} {subSuffix || suffix}
-                                </span>
-                            </motion.div>
-                        )}
-                    </div>
+                    {subtitle && (
+                        <p className="text-xs font-bold text-slate-500 ml-1">
+                            {subtitle}
+                        </p>
+                    )}
                 </div>
-
-                {/* Interactive Indicator (Dots/Arrow) */}
-                {onClick && (
-                    <div className="absolute bottom-8 right-8 overflow-hidden">
-                        <motion.div 
-                            initial={{ x: 20, opacity: 0 }}
-                            whileHover={{ x: 0, opacity: 1 }}
-                            className="flex items-center gap-1.5"
-                        >
-                            <div className={`w-1.5 h-1.5 rounded-full ${style.text} opacity-20`} />
-                            <div className={`w-1.5 h-1.5 rounded-full ${style.text} opacity-40`} />
-                            <div className={`w-1.5 h-1.5 rounded-full ${style.text} opacity-80`} />
-                        </motion.div>
-                    </div>
-                )}
             </div>
-            
-            {/* Geometric Accent Decoration */}
-            <div className={`absolute bottom-[-20%] left-[-10%] w-40 h-40 rounded-full border border-slate-500/10 group-hover:scale-150 transition-transform duration-1000`} />
+
+            {/* Subtle Gradient Backdrop */}
+            <div className={`absolute inset-0 bg-gradient-to-br from-white via-white to-slate-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-[2.5rem]`} />
         </motion.div>
     );
 };
