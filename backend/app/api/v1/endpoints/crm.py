@@ -276,20 +276,20 @@ async def get_med_org_balance_history(
     from app.models.crm import BalanceTransaction as BalanceTransactionModel
     from app.models.sales import Invoice
     result = await db.execute(
-        select(
-            BalanceTransactionModel,
-            Invoice.factura_number
-        )
-        .outerjoin(Invoice, BalanceTransactionModel.related_invoice_id == Invoice.id)
+        select(BalanceTransactionModel)
+        .options(selectinload(BalanceTransactionModel.related_invoice))
         .where(BalanceTransactionModel.organization_id == org_id)
         .order_by(BalanceTransactionModel.created_at.desc())
     )
     
-    transactions = []
-    for row in result.all():
-        tx = row[0]
-        tx.factura_number = row[1]
-        transactions.append(tx)
+    transactions = result.scalars().all()
+    
+    # Manually populate factura_number for the schema
+    for tx in transactions:
+        if tx.related_invoice:
+            tx.factura_number = tx.related_invoice.factura_number
+        else:
+            tx.factura_number = None
     
     return transactions
 
