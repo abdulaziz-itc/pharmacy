@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PageContainer } from '../../components/PageContainer';
 import { PageHeader } from '../../components/PageHeader';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, FileDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale/ru';
 import { DataTable } from '../../components/ui/data-table';
 import { Button } from '../../components/ui/button';
 import { useAuthStore } from '../../store/authStore';
@@ -102,6 +105,73 @@ export default function InvoicesPage() {
             promoAmount: globalStats.promo_amount
         };
     }, [globalStats]);
+
+    const exportToExcel = () => {
+        if (!invoices || invoices.length === 0) return;
+
+        const dataRows = invoices.map((inv: any) => {
+            const date = inv.realization_date || inv.date;
+            const res = inv.reservation;
+            const medOrg = res?.med_org;
+            const amount = Number(inv.total_amount) || 0;
+            const paid = Number(inv.paid_amount) || 0;
+            const debt = amount - paid;
+
+            return {
+                'Месяц': date ? format(new Date(date), 'MMMM', { locale: ru }) : '—',
+                'ДАТА отгрузки': date ? format(new Date(date), 'dd.MM.yyyy') : '—',
+                'Контрагент': medOrg?.name || res?.customer_name || '—',
+                'ИНН': medOrg?.inn || '—',
+                'ЭСФ': inv.factura_number || inv.id,
+                'РЕГИОН': medOrg?.region?.name || '—',
+                'Ответственный': medOrg?.assigned_reps?.[0]?.full_name || '—',
+                'Сумма по счет фактуре': amount,
+                'Поступление': paid,
+                'Дебиторская задолженность': debt
+            };
+        });
+
+        // Calculate Totals for the Summary Row
+        const totalAmount = dataRows.reduce((sum, row) => sum + row['Сумма по счет фактуре'], 0);
+        const totalPaid = dataRows.reduce((sum, row) => sum + row['Поступление'], 0);
+        const totalDebt = dataRows.reduce((sum, row) => sum + row['Дебиторская задолженность'], 0);
+
+        const summaryRow = {
+            'Месяц': dataRows[0]['Месяц'],
+            'ДАТА отгрузки': format(new Date(), 'yyyy'),
+            'Контрагент': '',
+            'ИНН': '',
+            'ЭСФ': '',
+            'РЕГИОН': '',
+            'Ответственный': '',
+            'Сумма по счет фактуре': totalAmount,
+            'Поступление': totalPaid,
+            'Дебиторская задолженность': totalDebt
+        };
+
+        // Create worksheet
+        const worksheet = XLSX.utils.json_to_sheet([summaryRow, ...dataRows]);
+        
+        // Adjust column widths
+        const wscols = [
+            { wch: 15 }, // Месяц
+            { wch: 15 }, // Дата
+            { wch: 35 }, // Контрагент
+            { wch: 12 }, // ИНН
+            { wch: 15 }, // ЭСФ
+            { wch: 15 }, // Регион
+            { wch: 25 }, // Ответственный
+            { wch: 20 }, // Сумма
+            { wch: 20 }, // Поступление
+            { wch: 20 }  // Задолженность
+        ];
+        worksheet['!cols'] = wscols;
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Фактуры");
+        
+        XLSX.writeFile(workbook, `Vedomost_Faktur_${format(new Date(), 'dd.MM.yyyy')}.xlsx`);
+    };
 
     const columns: any[] = [
         {
@@ -242,7 +312,7 @@ export default function InvoicesPage() {
                 title="Фактура"
                 description="Просмотр записей «Счетов-фактур», цифровых подписей и статуса соответствия налоговым требованиям."
                 buttonLabel={isMedRep ? undefined : "Создать фактуру"}
-            />
+// ... (rest of the component code)
 
             <ModernStatsBar 
                 stats={stats}
@@ -250,6 +320,16 @@ export default function InvoicesPage() {
                 countLabel="Всего фактур"
                 totalLabel="Реализация (общая)"
             />
+
+            <div className="flex justify-end gap-3 mb-4">
+                 <Button 
+                    onClick={exportToExcel}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 px-6 font-semibold gap-2"
+                >
+                    <FileDown className="w-4 h-4" />
+                    Скачать в Excel
+                </Button>
+            </div>
 
             <FilterBar 
                 values={filterValues}
