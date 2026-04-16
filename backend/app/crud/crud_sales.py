@@ -14,7 +14,7 @@ from app.schemas.sales import (
     ReservationReturnCreate, BonusPaymentUpdate
 )
 from app.models.product import Product
-from app.models.crm import Doctor, MedicalOrganization, BalanceTransaction, BalanceTransactionType
+from app.models.crm import Doctor, MedicalOrganization, BalanceTransaction, BalanceTransactionType, Region
 from app.models.warehouse import Warehouse
 from app.models.user import User
 from app.models.sales import ReservationItem
@@ -610,31 +610,24 @@ async def get_invoice_stats(
     stats["salary_amount"] = float(item_row.total_salary or 0)
     stats["promo_amount"] = float(item_row.total_promo or 0)
     
-    # Paid salary calculation is tricky because it depends on each invoice's paid ratio.
-    # For a high-performance global stat, we'll estimate it by applying the overall payment ratio 
-    # OR we'll do a slightly more complex query if needed.
-    # Given the user wants accuracy, let's try a more precise query for paid salary.
-    # paid_salary = sum(invSalary * min(1, max(0, payRatio)))
-    # payRatio = paid_amount / total_amount
+    # Paid salary calculation: Sum actual disbursements from BonusPayment table
+    bonus_stmt = select(func.sum(BonusPayment.amount))
     
-    paid_salary_stmt = select(
-        func.sum(
-            (select(func.sum(ReservationItem.quantity * func.coalesce(ReservationItem.salary_amount, 0)))
-             .where(ReservationItem.reservation_id == Invoice.reservation_id)
-             .scalar_subquery()) * 
-            func.least(1.0, func.greatest(0.0, func.coalesce(Invoice.paid_amount, 0) / func.nullif(Invoice.total_amount, 0)))
-        )
-    )
-    
-    paid_salary_stmt = _apply_invoice_filters(
-        paid_salary_stmt, med_rep_id, date_from, date_to, med_rep_name, med_org_name, med_org_type,
-        is_tovar_skidka, inv_num, med_rep_ids, status, warehouse_id, has_debt, med_org_id,
-        region_ids, only_overdue
-    )
-    
-    paid_salary_res = await db.execute(paid_salary_stmt)
-    paid_salary_val = paid_salary_res.scalar_one_or_none()
-    stats["paid_salary_amount"] = float(paid_salary_val or 0)
+    if med_rep_id:
+        bonus_stmt = bonus_stmt.where(BonusPayment.med_rep_id == med_rep_id)
+    if med_rep_ids:
+        bonus_stmt = bonus_stmt.where(BonusPayment.med_rep_id.in_(med_rep_ids))
+    if date_from:
+        bonus_stmt = bonus_stmt.where(BonusPayment.paid_date >= date_from.date())
+    if date_to:
+        bonus_stmt = bonus_stmt.where(BonusPayment.paid_date <= date_to.date())
+        
+    if region_ids:
+        bonus_stmt = bonus_stmt.join(User, BonusPayment.med_rep_id == User.id)\
+                               .where(User.assigned_regions.any(Region.id.in_(region_ids)))
+
+    bonus_res = await db.execute(bonus_stmt)
+    stats["paid_salary_amount"] = float(bonus_res.scalar() or 0)
 
     return stats
 
