@@ -151,7 +151,7 @@ export default function MedRepsPage() {
                 <TabsContent value="active" className="mt-0 outline-none">
                     <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border overflow-hidden hover-lift transition-all duration-500">
                         <DataTable
-                            columns={medRepColumns(handleReassignOpen, handleEdit, handleToggleActive)}
+                            columns={medRepColumns(user, handleReassignOpen, handleEdit, handleToggleActive)}
                             data={activeReps}
                             searchColumn="username"
                             onRowClick={(row) => navigate(`/med-reps/${row.id}`)}

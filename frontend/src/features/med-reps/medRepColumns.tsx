@@ -13,6 +13,7 @@ import type { MedRep } from "../../store/medRepStore"
 import { useAuthStore } from "../../store/authStore"
 
 export const medRepColumns = (
+    currentUser: any,
     onReassign: (id: number, name: string) => void,
     onEdit?: (medRep: MedRep) => void,
     onToggleActive?: (medRep: MedRep) => void
@@ -94,7 +95,7 @@ export const medRepColumns = (
             cell: ({ row }) => {
                 const medRep = row.original
                 const isActive = medRep.is_active !== false
-                const user = useAuthStore.getState().user
+                const user = currentUser
                 const isManagement = ['admin', 'investor', 'director', 'deputy_director', 'product_manager', 'regional_manager'].includes(user?.role || '');
 
                 if (!isManagement && user?.id !== medRep.id) return null;
