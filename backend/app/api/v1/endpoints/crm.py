@@ -306,7 +306,12 @@ async def top_up_med_org_balance(
     Manually top up organization balance (Accountant logic).
     Settles debts first if any.
     """
-    # Only allow certain roles
+    # 1. Check if organization exists first (prevents 500 error if missing)
+    org_check = await db.execute(select(MedicalOrganization).where(MedicalOrganization.id == org_id))
+    if not org_check.scalars().first():
+        raise HTTPException(status_code=404, detail=f"Medical Organization with ID {org_id} not found")
+
+    # 2. Only allow certain roles
     allowed_roles = {
         UserRole.ADMIN, 
         UserRole.DIRECTOR, 

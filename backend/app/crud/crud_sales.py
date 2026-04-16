@@ -723,7 +723,7 @@ async def apply_surplus_to_debts(db: AsyncSession, organization_id: int, amount:
         if remaining_surplus <= 0:
             break
         
-        debt = inv.total_amount - inv.paid_amount
+        debt = (inv.total_amount or 0.0) - (inv.paid_amount or 0.0)
         payment_to_apply = min(remaining_surplus, debt)
         
         # Create payment record
@@ -740,7 +740,7 @@ async def apply_surplus_to_debts(db: AsyncSession, organization_id: int, amount:
         )
         db.add(p)
         
-        inv.paid_amount += payment_to_apply
+        inv.paid_amount = (inv.paid_amount or 0.0) + payment_to_apply
         if inv.paid_amount >= inv.total_amount:
             inv.status = InvoiceStatus.PAID
         else:
@@ -758,7 +758,7 @@ async def apply_balance_to_invoice(db: AsyncSession, invoice: Invoice, organizat
         return
     
     available_balance = organization.credit_balance
-    debt = invoice.total_amount - invoice.paid_amount
+    debt = (invoice.total_amount or 0.0) - (invoice.paid_amount or 0.0)
     
     if debt <= 0:
         return
@@ -776,7 +776,7 @@ async def apply_balance_to_invoice(db: AsyncSession, invoice: Invoice, organizat
     db.add(p)
     
     # Update Invoice
-    invoice.paid_amount += amount_to_apply
+    invoice.paid_amount = (invoice.paid_amount or 0.0) + amount_to_apply
     if invoice.paid_amount >= invoice.total_amount:
         invoice.status = InvoiceStatus.PAID
     else:
