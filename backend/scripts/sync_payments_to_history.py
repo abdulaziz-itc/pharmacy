@@ -5,7 +5,7 @@ import sys
 # Add the parent directory to sys.path so we can import app modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.db.session import SessionLocal
+from app.db.session import AsyncSessionLocal
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models.sales import Payment, Invoice, Reservation
@@ -13,7 +13,7 @@ from app.models.crm import BalanceTransaction, BalanceTransactionType
 
 async def sync_payments():
     print("Starting payment synchronization to balance history...")
-    async with SessionLocal() as db:
+    async with AsyncSessionLocal() as db:
         # 1. Fetch all payments with related invoice/org data
         stmt = select(Payment).options(
             selectinload(Payment.invoice).selectinload(Invoice.reservation)
