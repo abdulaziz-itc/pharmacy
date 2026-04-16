@@ -868,7 +868,8 @@ async def get_medrep_bonus_balance(
             selectinload(BonusLedger.doctor),
             selectinload(BonusLedger.product),
             selectinload(BonusLedger.payment),
-            selectinload(BonusLedger.invoice_item).selectinload(ReservationItem.reservation).selectinload(Reservation.invoice)
+            selectinload(BonusLedger.invoice_item).selectinload(ReservationItem.reservation).selectinload(Reservation.invoice),
+            selectinload(BonusLedger.invoice_item).selectinload(ReservationItem.reservation).selectinload(Reservation.med_org)
         ).where(BonusLedger.user_id == target_id)
         
         # Filter by month/year if provided
@@ -896,21 +897,25 @@ async def get_medrep_bonus_balance(
                 if match:
                     invoice_ids.add(int(match.group(1)))
                     
-        invoice_to_reservation = {}
+        invoice_to_data = {}
         if invoice_ids:
-            inv_query = select(Invoice.id, Invoice.reservation_id).where(Invoice.id.in_(invoice_ids))
+            inv_query = select(Invoice.id, Invoice.reservation_id, MedicalOrganization.name)\
+                .join(Reservation, Invoice.reservation_id == Reservation.id)\
+                .outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)\
+                .where(Invoice.id.in_(invoice_ids))
             inv_result = await db.execute(inv_query)
-            for inv_id, res_id in inv_result.all():
-                invoice_to_reservation[inv_id] = res_id
+            for inv_id, res_id, org_name in inv_result.all():
+                invoice_to_data[inv_id] = {"res_id": res_id, "org_name": org_name}
         
         # Map to dictionaries to avoid JSON serialization errors
         history_data = []
         for h in history:
-            inv_id = None
-            res_id = None
+            org_name = None
             
             if getattr(h, 'invoice_item', None) and getattr(h.invoice_item, 'reservation', None):
                 res_id = h.invoice_item.reservation.id
+                if getattr(h.invoice_item.reservation, 'med_org', None):
+                    org_name = h.invoice_item.reservation.med_org.name
                 if getattr(h.invoice_item.reservation, 'invoice', None):
                     inv_id = h.invoice_item.reservation.invoice.id
                     
@@ -922,8 +927,9 @@ async def get_medrep_bonus_balance(
                     if match:
                         inv_id = int(match.group(1))
                 
-                if inv_id and inv_id in invoice_to_reservation:
-                    res_id = invoice_to_reservation[inv_id]
+                if inv_id and inv_id in invoice_to_data:
+                    res_id = invoice_to_data[inv_id]["res_id"]
+                    org_name = invoice_to_data[inv_id]["org_name"]
 
             history_data.append({
                 "id": h.id,
@@ -933,6 +939,7 @@ async def get_medrep_bonus_balance(
                 "notes": h.notes,
                 "invoice_id": inv_id,
                 "reservation_id": res_id,
+                "counterparty": org_name,
                 "target_month": h.target_month,
                 "target_year": h.target_year,
                 "is_paid": h.is_paid,
