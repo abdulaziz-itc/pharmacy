@@ -308,6 +308,9 @@ export default function InvoicesPage() {
 
     return (
         <PageContainer>
+            <PageHeader
+                title="Фактура"
+                description="Просмотр записей «Счетов-фактур», цифровых подписей и статуса соответствия налоговым требованиям."
                 buttonLabel={isMedRep ? undefined : "Создать фактуру"}
             >
                 <Button 
