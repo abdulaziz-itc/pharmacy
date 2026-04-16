@@ -16,6 +16,7 @@ from app.schemas.crm import (
 )
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from app.models.crm import Doctor, MedicalOrganization as MedicalOrganizationModel, BalanceTransaction as BalanceTransactionModel, BalanceTransactionType, Region
 from app.models.warehouse import Warehouse, Stock
 from app.models.product import Product
 from app.crud import crud_sales
@@ -307,7 +308,7 @@ async def top_up_med_org_balance(
     Settles debts first if any.
     """
     # 1. Check if organization exists first (prevents 500 error if missing)
-    org_check = await db.execute(select(MedicalOrganization).where(MedicalOrganization.id == org_id))
+    org_check = await db.execute(select(MedicalOrganizationModel).where(MedicalOrganizationModel.id == org_id))
     if not org_check.scalars().first():
         raise HTTPException(status_code=404, detail=f"Medical Organization with ID {org_id} not found")
 
