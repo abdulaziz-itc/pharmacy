@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatMoney } from '../ui/MoneyInput';
 import { getAdaptiveFontSize } from '@/lib/utils';
@@ -7,6 +7,10 @@ import { getAdaptiveFontSize } from '@/lib/utils';
 interface PremiumKpiCardProps {
     label: string;
     value: any; // Allow anything to prevent crash if backend sends unexpected data
+    subValue?: any;
+    subLabel?: string;
+    subSuffix?: string;
+    suffix?: string;
     icon: LucideIcon;
     color?: 'blue' | 'emerald' | 'violet' | 'rose' | 'amber' | 'indigo' | 'slate' | 'navy';
     subtitle?: string;
@@ -49,7 +53,7 @@ const CountUp = ({ value, suffix = 'UZS' }: { value: any, suffix?: string }) => 
     return (
         <span className="tabular-nums" title={safeValue.toLocaleString()}>
             {formatMoney(displayValue)}
-            <span className="text-[10px] ml-1.5 opacity-40 font-bold uppercase tracking-widest">{suffix}</span>
+            {suffix && <span className="text-[10px] ml-1.5 opacity-40 font-bold uppercase tracking-widest">{suffix}</span>}
         </span>
     );
 };
@@ -57,6 +61,10 @@ const CountUp = ({ value, suffix = 'UZS' }: { value: any, suffix?: string }) => 
 export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
     label,
     value,
+    subValue,
+    subLabel,
+    subSuffix,
+    suffix,
     icon: Icon,
     color = 'blue',
     subtitle,
@@ -77,6 +85,7 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
 
     const colors = colorMap[color] || colorMap.blue;
     const safeValue = parseFloat(String(value || 0)) || 0;
+    const hasSubValue = subValue !== undefined;
 
     return (
         <motion.div
@@ -108,9 +117,19 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
                         {label}
                     </p>
                     <h3 className={`font-black tracking-tight text-slate-900 flex items-baseline gap-2 ${getAdaptiveFontSize(formatMoney(safeValue), variant === 'minimal' ? 'text-2xl' : 'text-3xl')}`}>
-                         <CountUp value={value} />
+                         <CountUp value={value} suffix={suffix === undefined ? 'UZS' : suffix} />
                     </h3>
-                    {subtitle && (
+                    
+                    {hasSubValue && (
+                        <div className="flex items-center gap-2 mt-2 ml-1">
+                            <span className="text-sm font-black text-slate-700">
+                                {Number(subValue).toLocaleString()} {subSuffix}
+                            </span>
+                            {subLabel && <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{subLabel}</span>}
+                        </div>
+                    )}
+
+                    {subtitle && !hasSubValue && (
                         <p className="text-xs font-bold text-slate-500 ml-1">
                             {subtitle}
                         </p>
