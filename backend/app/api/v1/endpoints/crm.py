@@ -307,7 +307,14 @@ async def top_up_med_org_balance(
     Settles debts first if any.
     """
     # Only allow certain roles
-    allowed_roles = {UserRole.ADMIN, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HEAD_OF_ORDERS}
+    allowed_roles = {
+        UserRole.ADMIN, 
+        UserRole.DIRECTOR, 
+        UserRole.DEPUTY_DIRECTOR, 
+        UserRole.HEAD_OF_ORDERS,
+        UserRole.ACCOUNTANT,
+        UserRole.INVESTOR
+    }
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Not enough permissions to top up balance")
     
