@@ -26,6 +26,8 @@ import { ModernStatsBar } from '@/components/ui/ModernStatsBar';
 import { formatMoney } from '@/components/ui/MoneyInput';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { SearchableProductSelect } from '@/components/SearchableProductSelect';
+import * as XLSX from 'xlsx';
+import { ru } from 'date-fns/locale';
 
 
 
@@ -212,6 +214,64 @@ const HeadOfOrdersPage: React.FC = () => {
             }
             return { key, direction: 'asc' };
         });
+    };
+
+    const exportToExcel = (data: any[], filename: string) => {
+        if (!data || data.length === 0) {
+            toast.error("Нет данных для экспорта");
+            return;
+        }
+
+        const dataRows = data.map((inv: any) => {
+            const date = inv.realization_date || inv.date || inv.created_at;
+            const res = inv.reservation || {};
+            const medOrg = res.med_org;
+            const amount = Number(inv.total_amount) || 0;
+            const paid = Number(inv.paid_amount) || 0;
+            const debt = amount - paid;
+
+            return {
+                'Месяц': date ? format(new Date(date), 'MMMM', { locale: ru }) : '—',
+                'ДАТА отгрузки': date ? format(new Date(date), 'dd.MM.yyyy') : '—',
+                'Контрагент': medOrg?.name || res.customer_name || '—',
+                'ИНН': medOrg?.inn || '—',
+                'ЭСФ': inv.factura_number || inv.id,
+                'РЕГИОН': medOrg?.region?.name || '—',
+                'Ответственный': medOrg?.assigned_reps?.[0]?.full_name || '—',
+                'Сумма по счет фактуре': amount,
+                'Поступление': paid,
+                'Дебиторская задолженность': debt
+            };
+        });
+
+        // Calculate Totals for the Summary Row
+        const totalAmount = dataRows.reduce((sum: number, row: any) => sum + row['Сумма по счет фактуре'], 0);
+        const totalPaid = dataRows.reduce((sum: number, row: any) => sum + row['Поступление'], 0);
+        const totalDebt = dataRows.reduce((sum: number, row: any) => sum + row['Дебиторская задолженность'], 0);
+
+        const summaryRow = {
+            'Месяц': dataRows[0]['Месяц'],
+            'ДАТА отгрузки': format(new Date(), 'yyyy'),
+            'Контрагент': '',
+            'ИНН': '',
+            'ЭСФ': '',
+            'РЕГИОН': '',
+            'Ответственный': '',
+            'Сумма по счет фактуре': totalAmount,
+            'Поступление': totalPaid,
+            'Дебиторская задолженность': totalDebt
+        };
+
+        const worksheet = XLSX.utils.json_to_sheet([summaryRow, ...dataRows]);
+        const wscols = [
+            { wch: 15 }, { wch: 15 }, { wch: 35 }, { wch: 12 }, { wch: 15 },
+            { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 20 }
+        ];
+        worksheet['!cols'] = wscols;
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Данные");
+        XLSX.writeFile(workbook, `${filename}_${format(new Date(), 'dd.MM.yyyy')}.xlsx`);
     };
 
     const sortData = (data: any[]) => {
@@ -1270,10 +1330,19 @@ const HeadOfOrdersPage: React.FC = () => {
                 tab === 'invoices' && (
                     <div className="bg-slate-50/50">
                         <div className="flex items-center justify-between mb-4 px-2">
-                            <h2 className="text-xl font-bold text-slate-800">Фактуры (Одобрено)</h2>
+                            <h2 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                                <Receipt className="w-5 h-5 text-blue-500" />
+                                Фактуры (Одобрено)
+                            </h2>
                             <div className="flex items-center gap-3">
-                                <Button onClick={loadInvoices} variant="outline" size="sm" className="rounded-xl border-slate-200">
-                                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Обновить
+                                <Button 
+                                    onClick={() => exportToExcel(sortedInvoices, 'Vedomost_Faktur')} 
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 px-4 h-10 font-black uppercase text-[10px] tracking-widest gap-2"
+                                >
+                                    <Download className="w-4 h-4" /> Excel
+                                </Button>
+                                <Button onClick={loadInvoices} variant="outline" size="sm" className="rounded-xl border-slate-200 h-10 px-4">
+                                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> ОБНОВИТЬ
                                 </Button>
                                 <div className="relative w-64">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -1281,7 +1350,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         value={invSearch}
                                         onChange={e => setInvSearch(e.target.value)}
                                         placeholder="Поиск..."
-                                        className="pl-9 rounded-xl border-slate-200 bg-white shadow-sm h-10"
+                                        className="pl-9 rounded-xl border-slate-200 bg-white shadow-sm h-10 font-bold"
                                     />
                                 </div>
                             </div>
@@ -1592,10 +1661,19 @@ const HeadOfOrdersPage: React.FC = () => {
                 tab === 'debitorka' && (
                     <div className="bg-slate-50/50">
                         <div className="flex items-center justify-between mb-4 px-2">
-                            <h2 className="text-xl font-bold text-slate-800">Дебиторка</h2>
+                            <h2 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                                <Wallet className="w-5 h-5 text-rose-500" />
+                                Дебиторка
+                            </h2>
                             <div className="flex items-center gap-3">
-                                <Button onClick={loadInvoices} variant="outline" size="sm" className="rounded-xl border-slate-200">
-                                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Обновить
+                                <Button 
+                                    onClick={() => exportToExcel(sortedDebitorka, 'Debitorka')} 
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 px-4 h-10 font-black uppercase text-[10px] tracking-widest gap-2"
+                                >
+                                    <Download className="w-4 h-4" /> Excel
+                                </Button>
+                                <Button onClick={loadInvoices} variant="outline" size="sm" className="rounded-xl border-slate-200 h-10 px-4">
+                                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> ОБНОВИТЬ
                                 </Button>
                                 <div className="relative w-64">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -1603,7 +1681,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         value={invSearch}
                                         onChange={e => setInvSearch(e.target.value)}
                                         placeholder="Поиск..."
-                                        className="pl-9 rounded-xl border-slate-200 bg-white shadow-sm h-10"
+                                        className="pl-9 rounded-xl border-slate-200 bg-white shadow-sm h-10 font-bold"
                                     />
                                 </div>
                             </div>
