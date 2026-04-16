@@ -1,7 +1,7 @@
 from typing import List, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, case
 from sqlalchemy.orm import selectinload
 
 from app.models.sales import (
@@ -564,8 +564,8 @@ async def get_invoice_stats(
         func.count(Invoice.id).label("count"),
         func.sum(Invoice.total_amount).label("total_amount"),
         func.sum(Invoice.paid_amount).label("paid_amount"),
-        func.sum(func.case((Invoice.total_amount > Invoice.paid_amount, Invoice.total_amount - Invoice.paid_amount), else_=0)).label("debt_amount"),
-        func.sum(func.case((Invoice.paid_amount > Invoice.total_amount, Invoice.paid_amount - Invoice.total_amount), else_=0)).label("credit_amount")
+        func.sum(case((Invoice.total_amount > Invoice.paid_amount, Invoice.total_amount - Invoice.paid_amount), else_=0)).label("debt_amount"),
+        func.sum(case((Invoice.paid_amount > Invoice.total_amount, Invoice.paid_amount - Invoice.total_amount), else_=0)).label("credit_amount")
     )
     
     stmt = _apply_invoice_filters(
