@@ -9,14 +9,14 @@ from app.models.user import User, UserRole
 from app.schemas.crm import (
     Region, RegionCreate, RegionUpdate,
     Doctor, DoctorCreate, DoctorUpdate,
-    MedicalOrganization, MedicalOrganizationCreate, MedicalOrganizationUpdate,
+    MedicalOrganization as MedicalOrganizationSchema, MedicalOrganizationCreate, MedicalOrganizationUpdate,
     DoctorSpecialty, DoctorSpecialtyCreate,
     DoctorCategory, DoctorCategoryCreate,
     BalanceTransaction, OrganizationBalanceTopUp
 )
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from app.models.crm import Doctor, MedicalOrganization as MedicalOrganizationModel, BalanceTransaction as BalanceTransactionModel, BalanceTransactionType, Region
+from app.models.crm import Doctor, MedicalOrganization, BalanceTransaction as BalanceTransactionModel, BalanceTransactionType, Region
 from app.models.warehouse import Warehouse, Stock
 from app.models.product import Product
 from app.crud import crud_sales
@@ -26,8 +26,8 @@ from app.services.audit_service import log_action
 
 router = APIRouter()
 
-@router.get("/med-orgs/{org_id}", response_model=MedicalOrganization)
-@router.get("/med-orgs/{org_id}/", response_model=MedicalOrganization, include_in_schema=False)
+@router.get("/med-orgs/{org_id}", response_model=MedicalOrganizationSchema)
+@router.get("/med-orgs/{org_id}/", response_model=MedicalOrganizationSchema, include_in_schema=False)
 async def read_med_org(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -39,8 +39,8 @@ async def read_med_org(
         raise HTTPException(status_code=404, detail="Medical Organization not found")
     return med_org
 
-@router.put("/med-orgs/{org_id}", response_model=MedicalOrganization)
-@router.put("/med-orgs/{org_id}/", response_model=MedicalOrganization, include_in_schema=False)
+@router.put("/med-orgs/{org_id}", response_model=MedicalOrganizationSchema)
+@router.put("/med-orgs/{org_id}/", response_model=MedicalOrganizationSchema, include_in_schema=False)
 async def update_med_org(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -215,7 +215,7 @@ async def read_med_orgs(
         error_msg = traceback.format_exc()
         raise HTTPException(status_code=500, detail=str(error_msg))
 
-@router.post("/med-orgs", response_model=MedicalOrganization)
+@router.post("/med-orgs", response_model=MedicalOrganizationSchema)
 async def create_med_org(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -294,7 +294,7 @@ async def get_med_org_balance_history(
     return transactions
 
 
-@router.post("/med-orgs/{org_id}/top-up-balance", response_model=MedicalOrganization)
+@router.post("/med-orgs/{org_id}/top-up-balance", response_model=MedicalOrganizationSchema)
 async def top_up_med_org_balance(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -308,7 +308,7 @@ async def top_up_med_org_balance(
     Settles debts first if any.
     """
     # 1. Check if organization exists first (prevents 500 error if missing)
-    org_check = await db.execute(select(MedicalOrganizationModel).where(MedicalOrganizationModel.id == org_id))
+    org_check = await db.execute(select(MedicalOrganization).where(MedicalOrganization.id == org_id))
     if not org_check.scalars().first():
         raise HTTPException(status_code=404, detail=f"Medical Organization with ID {org_id} not found")
 
