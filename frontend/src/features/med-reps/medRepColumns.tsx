@@ -1,5 +1,5 @@
 import { type ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Pencil, Trash2, Bell, Briefcase, Syringe, UserMinus, UserPlus, Users } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Bell, Briefcase, Syringe, UserMinus, UserPlus, Users, ArrowUpDown } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import {
     DropdownMenu,
