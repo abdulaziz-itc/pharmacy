@@ -629,7 +629,7 @@ export const CreateReservationModal: React.FC<CreateReservationModalProps> = ({
                                         </div>
                                         <Input
                                             type="number" min={1}
-                                            className="h-8 w-16 text-xs border-slate-200 text-center"
+                                            className="h-8 w-24 text-xs border-slate-200 text-center"
                                             value={it.quantity}
                                             onChange={e => updateItem(idx, 'quantity', e.target.value)}
                                             placeholder="Кол."
