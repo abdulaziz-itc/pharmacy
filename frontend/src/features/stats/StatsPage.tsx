@@ -448,6 +448,7 @@ export default function StatsPage() {
                                 value={kpis.net_profit}
                                 icon={BarChart3}
                                 color="emerald"
+                                onClick={() => setDrilldownMetric({ id: 'net_profit', label: 'Чистая Прибыль — Детализация' })}
                             />
                         </div>
 

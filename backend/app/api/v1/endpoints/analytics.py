@@ -877,6 +877,57 @@ async def get_comprehensive_drilldown(
                 })
         return res_payload
 
+    elif metric == "net_profit":
+        # Net profit = gross profit per invoice item - total other expenses
+        # Show breakdown: gross profit by invoice item, then expenses as a footer row
+        gross_q = select(ReservationItem).options(
+            selectinload(ReservationItem.product),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.invoice).selectinload(Invoice.payments),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.created_by)
+        ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+         .join(Invoice, Invoice.reservation_id == Reservation.id)\
+         .join(Product, ReservationItem.product_id == Product.id)\
+         .where(and_(Invoice.total_amount > 0, Invoice.status != InvoiceStatus.CANCELLED))
+        if start_date and end_date: gross_q = gross_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        if rep_ids or region_id: gross_q = gross_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+        if rep_ids: gross_q = gross_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
+        if region_id: gross_q = gross_q.where(MedicalOrganization.region_id == region_id)
+        if product_id: gross_q = gross_q.where(ReservationItem.product_id == product_id)
+
+        rows = (await db.execute(gross_q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
+        res_payload = []
+        for r in rows:
+            inv = r.reservation.invoice if r.reservation else None
+            if not inv or not inv.total_amount: continue
+            paid_ratio = (inv.paid_amount or 0) / inv.total_amount
+            sale_price = r.price * (1 - (r.discount_percent or 0) / 100.0)
+            prod_price = r.product.production_price or 0
+            salary = r.salary_amount if (r.salary_amount or 0) > 0 else (r.product.salary_expense or 0)
+            marketing = r.marketing_amount if (r.marketing_amount or 0) > 0 else (r.product.marketing_expense or 0)
+            other_per_unit = r.product.other_expenses or 0
+            unit_profit = sale_price - prod_price - salary - marketing - other_per_unit
+            total_profit_realized = (unit_profit * r.quantity) * paid_ratio
+            region_name = (r.reservation.med_org.region.name if r.reservation and r.reservation.med_org and r.reservation.med_org.region else "-") if r.reservation else "-"
+            med_rep_name = (r.reservation.created_by.full_name if r.reservation and r.reservation.created_by else "-")
+            res_payload.append({
+                "id": r.id,
+                "invoice_num": inv.factura_number if inv else "-",
+                "date": inv.date.isoformat() if inv else "-",
+                "product": r.product.name if r.product else "-",
+                "region": region_name,
+                "med_rep": med_rep_name,
+                "qty": r.quantity,
+                "paid_ratio": round(paid_ratio * 100, 1),
+                "gross_profit": round(float((unit_profit * r.quantity) * paid_ratio), 2),
+                # For context: show formula breakdown
+                "sale_price": round(float(sale_price), 2),
+                "prod_price": round(float(prod_price), 2),
+                "salary": round(float(salary), 2),
+                "marketing": round(float(marketing), 2),
+            })
+        return res_payload
+
     return []
 
 @router.get("/dashboard/director-report-excel")

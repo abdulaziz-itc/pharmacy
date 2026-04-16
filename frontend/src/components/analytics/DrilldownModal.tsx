@@ -178,13 +178,18 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
             doctor: 'Врач',
             paid_ratio: 'Оплата %',
             profit: 'Прибыль',
+            gross_profit: 'Валовая прибыль',
             region: 'Регион',
             realization_date: 'Дата реализации',
             delay_days: 'Просрочка (дни)',
             salary_earned: 'Заработанная з/п',
             accrued: 'Начислено',
             paid: 'Выплачено',
-            balance: 'Остаток'
+            balance: 'Остаток',
+            sale_price: 'Цена продажи',
+            prod_price: 'Себестоимость',
+            salary: 'Зарплата МП',
+            marketing: 'Маркетинг',
         };
 
         // Determine columns from first row + potential delay_days
@@ -296,6 +301,24 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
 
                         {/* Content */}
                         <div className="flex-1 overflow-hidden flex flex-col p-8">
+                            {/* Net Profit Formula Banner */}
+                            {metric === 'net_profit' && (
+                                <div className="mb-4 px-6 py-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 flex flex-wrap items-center gap-3">
+                                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Формула:</span>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+                                        <span className="px-3 py-1 bg-white rounded-lg border border-emerald-100 text-emerald-700">Цена продажи</span>
+                                        <span className="text-slate-400">−</span>
+                                        <span className="px-3 py-1 bg-white rounded-lg border border-red-100 text-red-600">Себестоимость</span>
+                                        <span className="text-slate-400">−</span>
+                                        <span className="px-3 py-1 bg-white rounded-lg border border-orange-100 text-orange-600">Зарплата МП</span>
+                                        <span className="text-slate-400">−</span>
+                                        <span className="px-3 py-1 bg-white rounded-lg border border-violet-100 text-violet-600">Маркетинг</span>
+                                        <span className="text-slate-400">×</span>
+                                        <span className="px-3 py-1 bg-white rounded-lg border border-blue-100 text-blue-600">Кол-во × Оплата%</span>
+                                        <span className="text-slate-400 font-black">= Чистая прибыль</span>
+                                    </div>
+                                </div>
+                            )}
                             <div className="flex-1 bg-white rounded-[3rem] border border-slate-100 shadow-inner overflow-hidden flex flex-col">
                                 <div className="flex-1 overflow-y-auto sleek-scrollbar">
                                     {renderTable()}
