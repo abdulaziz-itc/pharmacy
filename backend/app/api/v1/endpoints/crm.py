@@ -415,7 +415,7 @@ async def read_doctors(
         rep_ids=rep_ids
     )
     
-@router.get("/doctors/{id}", response_model=Doctor)
+@router.get("/doctors/{id}", response_model=DoctorSchema)
 async def read_doctor(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -449,7 +449,7 @@ async def read_doctor_plans(
         
     return await crud_sales.get_plans(db, doctor_id=id, month=month, year=year)
 
-@router.post("/doctors", response_model=Doctor)
+@router.post("/doctors", response_model=DoctorSchema)
 async def create_doctor(
     *,
     request: Request,
@@ -471,7 +471,7 @@ async def create_doctor(
                      f"Добавлен новый врач: {doctor.full_name}", request)
     return doctor
 
-@router.put("/doctors/{id}", response_model=Doctor)
+@router.put("/doctors/{id}", response_model=DoctorSchema)
 async def update_doctor(
     *,
     request: Request,
