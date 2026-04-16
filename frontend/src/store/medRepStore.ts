@@ -9,6 +9,8 @@ export interface MedRep {
     is_active: boolean;
     manager_id: number | null;
     manager_name: string | null;
+    region_ids: number[];
+    region_names: string;
 }
 
 interface MedRepState {

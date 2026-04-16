@@ -951,8 +951,25 @@ async def get_medrep_bonus_balance(
         }
     except Exception as e:
         import traceback
-        logger.error(f"Error in get_medrep_bonus_balance: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        import sys
+        
+        # Get detailed traceback
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        tb_str = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        
+        logger.error(f"CRITICAL ERROR in get_medrep_bonus_balance for med_rep_id={med_rep_id}: {str(e)}")
+        logger.error(f"TRACEBACK:\n{tb_str}")
+        
+        # Also log to error_log.txt explicitly for easier access
+        with open("error_log.txt", "a") as f:
+            from datetime import datetime
+            f.write(f"\n--- BONUS HISTORY ERROR AT {datetime.utcnow()} (med_rep_id: {med_rep_id}) ---\n")
+            f.write(tb_str)
+            
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Internal Server Error: {str(e)}. Please check backend logs."
+        )
 @router.post("/allocate-bonus/")
 async def allocate_bonus(
     *,

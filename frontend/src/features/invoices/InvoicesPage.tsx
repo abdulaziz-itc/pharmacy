@@ -67,17 +67,35 @@ export default function InvoicesPage() {
         const tovarSkidkaAmount = tovarSkidka.reduce((acc: number, r: any) => acc + (r.total_amount || 0), 0);
         const tovarSkidkaCount = tovarSkidka.length;
 
-        // Calculate promo from associated reservations
+        // Calculate promo and salary from associated reservations
         let totalPromo = 0;
+        let totalSalary = 0;
+        let paidSalary = 0;
+
         invoices.forEach((inv: any) => {
             const res = inv.reservation;
-            if (res && res.is_bonus_eligible) {
-                (res.items || []).forEach((item: any) => {
-                    const marketingExpense = item.marketing_amount !== undefined && item.marketing_amount !== null 
-                        ? item.marketing_amount 
-                        : (item.product?.marketing_expense || 0);
-                    totalPromo += (item.quantity * marketingExpense);
-                });
+            if (res) {
+                // Promo calculation
+                if (res.is_bonus_eligible) {
+                    (res.items || []).forEach((item: any) => {
+                        const marketingExpense = item.marketing_amount !== undefined && item.marketing_amount !== null 
+                            ? item.marketing_amount 
+                            : (item.product?.marketing_expense || 0);
+                        totalPromo += (item.quantity * marketingExpense);
+                    });
+                }
+
+                // Salary calculation
+                if (res.is_salary_enabled !== false) {
+                    let invSalary = 0;
+                    (res.items || []).forEach((item: any) => {
+                        invSalary += (item.quantity || 0) * (item.salary_amount || 0);
+                    });
+                    totalSalary += invSalary;
+                    
+                    const payRatio = (inv.total_amount || 0) > 0 ? ((inv.paid_amount || 0) / (inv.total_amount || 0)) : 0;
+                    paidSalary += invSalary * Math.min(1, Math.max(0, payRatio));
+                }
             }
         });
 
@@ -88,6 +106,8 @@ export default function InvoicesPage() {
             creditAmount: invoices.reduce((acc: number, inv: any) => acc + Math.max(0, (inv.paid_amount || 0) - (inv.total_amount || 0)), 0),
             resCount: invoices.length,
             promoAmount: totalPromo,
+            salaryAmount: totalSalary,
+            paidSalaryAmount: paidSalary,
             tovarSkidkaAmount,
             tovarSkidkaCount
         };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, CheckCircle, DollarSign, PieChart, Package, Plus } from 'lucide-react';
+import { TrendingUp, CheckCircle, DollarSign, PieChart, Package, Plus, Wallet, CheckSquare } from 'lucide-react';
 
 interface ModernStatsBarProps {
     stats: {
@@ -10,6 +10,8 @@ interface ModernStatsBarProps {
         resCount: number;
         tovarSkidkaCount?: number;
         tovarSkidkaAmount?: number;
+        salaryAmount?: number;
+        paidSalaryAmount?: number;
     };
     promoAmount: number;
     countLabel?: string;
@@ -29,7 +31,7 @@ export const ModernStatsBar: React.FC<ModernStatsBarProps> = ({
     onCreditClick
 }) => {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3 mb-6">
             {/* Total Realization */}
             <div className="relative overflow-hidden bg-white rounded-2xl p-3 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
                 <div className="absolute -right-4 -top-4 w-20 h-20 bg-slate-50 rounded-full transition-transform group-hover:scale-110 duration-500" />
@@ -79,6 +81,44 @@ export const ModernStatsBar: React.FC<ModernStatsBarProps> = ({
                         </div>
                         <div className="flex items-baseline gap-1">
                             <span className="text-xl font-black text-rose-600 font-inter">{stats.debtAmount.toLocaleString()}</span>
+                            <span className="text-[9px] font-bold text-slate-400 font-inter">СУМ</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Salary Amount */}
+            {showFinancials && stats.salaryAmount !== undefined && (
+                <div className="relative overflow-hidden bg-white rounded-2xl p-3 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
+                    <div className="absolute -right-4 -top-4 w-20 h-20 bg-blue-50/50 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
+                                <Wallet className="w-4 h-4 text-white" />
+                            </div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-inter">Зарплата</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-black text-blue-700 font-inter">{(stats.salaryAmount || 0).toLocaleString()}</span>
+                            <span className="text-[9px] font-bold text-slate-400 font-inter">СУМ</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Paid Salary Amount */}
+            {showFinancials && stats.paidSalaryAmount !== undefined && (
+                <div className="relative overflow-hidden bg-white rounded-2xl p-3 border border-slate-100 shadow-sm group hover:shadow-md transition-all duration-300">
+                    <div className="absolute -right-4 -top-4 w-20 h-20 bg-cyan-50/50 rounded-full transition-transform group-hover:scale-110 duration-500" />
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                                <CheckSquare className="w-4 h-4 text-white" />
+                            </div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-inter">Опл. Зарплата</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-black text-cyan-600 font-inter">{(stats.paidSalaryAmount || 0).toLocaleString()}</span>
                             <span className="text-[9px] font-bold text-slate-400 font-inter">СУМ</span>
                         </div>
                     </div>

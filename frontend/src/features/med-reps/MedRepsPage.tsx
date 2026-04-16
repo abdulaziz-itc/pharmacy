@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
 import { CreateMedRepModal } from '../product-managers/components/CreateMedRepModal';
 import { EditSubordinateModal } from '../product-managers/components/EditSubordinateModal';
+import { SearchableSelect } from '../../components/ui/searchable-select';
 
 export default function MedRepsPage() {
     const navigate = useNavigate();
@@ -30,6 +31,10 @@ export default function MedRepsPage() {
     const [activeTab, setActiveTab] = useState("active");
     const [isSubmitting, setIsSubmitting] = useState(false);
     
+    // Region filter state
+    const [regions, setRegions] = useState<any[]>([]);
+    const [selectedRegionId, setSelectedRegionId] = useState<string>("all");
+    
     const fetchRMList = React.useCallback(async () => {
         try {
             const api = (await import('../../api/axios')).default;
@@ -40,12 +45,23 @@ export default function MedRepsPage() {
         }
     }, []);
 
+    const fetchRegions = React.useCallback(async () => {
+        try {
+            const api = (await import('../../api/axios')).default;
+            const res = await api.get('/crm/regions/');
+            setRegions(res.data);
+        } catch (error) {
+            console.error("Failed to fetch regions:", error);
+        }
+    }, []);
+
     React.useEffect(() => {
         fetchMedReps("med_rep");
+        fetchRegions();
         if (user?.role !== 'regional_manager') {
             fetchRMList();
         }
-    }, [fetchMedReps, fetchRMList, user?.role]);
+    }, [fetchMedReps, fetchRMList, fetchRegions, user?.role]);
 
     const handleReassignOpen = (id: number, name: string) => {
         setReassignUserId(id);
@@ -89,8 +105,14 @@ export default function MedRepsPage() {
         )
     }
 
-    const activeReps = medReps.filter(r => r.is_active);
-    const inactiveReps = medReps.filter(r => !r.is_active);
+    const filteredMedReps = React.useMemo(() => {
+        if (selectedRegionId === "all") return medReps;
+        const rid = parseInt(selectedRegionId);
+        return medReps.filter(r => r.region_ids && r.region_ids.includes(rid));
+    }, [medReps, selectedRegionId]);
+
+    const activeReps = filteredMedReps.filter(r => r.is_active);
+    const inactiveReps = filteredMedReps.filter(r => !r.is_active);
 
     return (
         <PageContainer>
@@ -131,6 +153,15 @@ export default function MedRepsPage() {
                             data={activeReps}
                             searchColumn="username"
                             onRowClick={(row) => navigate(`/med-reps/${row.id}`)}
+                            filters={
+                                <SearchableSelect
+                                    options={regions.map(r => ({ value: r.id.toString(), label: r.name }))}
+                                    value={selectedRegionId}
+                                    onChange={setSelectedRegionId}
+                                    placeholder="Все регионы"
+                                    className="max-w-[180px]"
+                                />
+                            }
                         />
                     </div>
                 </TabsContent>
@@ -142,6 +173,15 @@ export default function MedRepsPage() {
                             data={inactiveReps}
                             searchColumn="username"
                             onRowClick={(row) => navigate(`/med-reps/${row.id}`)}
+                            filters={
+                                <SearchableSelect
+                                    options={regions.map(r => ({ value: r.id.toString(), label: r.name }))}
+                                    value={selectedRegionId}
+                                    onChange={setSelectedRegionId}
+                                    placeholder="Все регионы"
+                                    className="max-w-[180px]"
+                                />
+                            }
                         />
                     </div>
                 </TabsContent>

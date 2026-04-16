@@ -73,6 +73,15 @@ export const medRepColumns = (
             cell: ({ row }) => <span className="font-bold text-slate-900">{row.getValue("manager_name") || "—"}</span>,
         },
         {
+            accessorKey: "region_names",
+            header: () => (
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
+                    РЕГИОН
+                </span>
+            ),
+            cell: ({ row }) => <span className="font-bold text-slate-900">{row.getValue("region_names") || "—"}</span>,
+        },
+        {
             id: "actions",
             header: () => (
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
