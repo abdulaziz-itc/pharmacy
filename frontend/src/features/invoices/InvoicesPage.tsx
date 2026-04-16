@@ -312,7 +312,7 @@ export default function InvoicesPage() {
                 title="Фактура"
                 description="Просмотр записей «Счетов-фактур», цифровых подписей и статуса соответствия налоговым требованиям."
                 buttonLabel={isMedRep ? undefined : "Создать фактуру"}
-// ... (rest of the component code)
+            />
 
             <ModernStatsBar 
                 stats={stats}
