@@ -233,15 +233,23 @@ async def get_my_permissions(
             if key not in enabled_keys:
                 enabled_keys.append(key)
 
+    if user_role in [UserRole.DIRECTOR.value, "director"]:
+        essential = ["salaries", "bonuses", "reports", "stats", "hrd", "login_history"]
+        for key in essential:
+            if key not in enabled_keys:
+                enabled_keys.append(key)
+
+    if user_role in [UserRole.DEPUTY_DIRECTOR.value, "deputy_director"]:
+        essential = ["salaries", "bonuses", "reports", "stats"]
+        for key in essential:
+            if key not in enabled_keys:
+                enabled_keys.append(key)
+
     # Manager fallbacks for reports/stats
     if user_role in [UserRole.REGIONAL_MANAGER.value, UserRole.FIELD_FORCE_MANAGER.value, UserRole.PRODUCT_MANAGER.value, "regional_manager", "field_force_manager", "product_manager"]:
         essential = ["reports", "stats", "regions", "med_orgs", "doctors", "products", "kreditorka", "counterparty_balance"]
         for key in essential:
             if key not in enabled_keys:
                 enabled_keys.append(key)
-
-    if user_role in [UserRole.DEPUTY_DIRECTOR.value, "deputy_director"]:
-        if "reports" not in enabled_keys:
-            enabled_keys.append("reports")
 
     return {"sections": list(set(enabled_keys))}

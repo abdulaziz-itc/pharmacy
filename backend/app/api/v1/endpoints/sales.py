@@ -904,13 +904,14 @@ async def export_reservation_excel(
 @router.get("/bonuses/history/{med_rep_id}")
 async def get_bonus_history(
     med_rep_id: int,
+    category: str = "bonus", # "bonus" or "salary"
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Alias for get_medrep_bonus_balance to match frontend expectations.
     """
-    return await get_medrep_bonus_balance(med_rep_id=med_rep_id, db=db, current_user=current_user)
+    return await get_medrep_bonus_balance(med_rep_id=med_rep_id, category=category, db=db, current_user=current_user)
 
 @router.get("/bonus-balance/")
 async def get_medrep_bonus_balance(
@@ -935,15 +936,15 @@ async def get_medrep_bonus_balance(
             raise HTTPException(status_code=403, detail="You can only view your own balance")
         
         # Non-MedReps must be managers/directors to view balances
-        allowed_roles = [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.ADMIN]
+        allowed_roles = [UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.ADMIN, UserRole.INVESTOR, UserRole.HRD]
         if current_user.role not in allowed_roles and current_user.role != UserRole.MED_REP:
             raise HTTPException(status_code=403, detail="Access denied")
         
         from app.services.finance_service import FinancialService
         from app.models.ledger import BonusLedger, LedgerType
         from app.models.sales import Reservation, ReservationItem, Invoice
-        # Calculate usable balance (Paid accruals - offsets)
-        balance = await FinancialService.get_medrep_bonus_balance(db, target_id)
+        # Calculate usable balance (Paid accruals - offsets) for the specific category
+        balance = await FinancialService.get_medrep_bonus_balance(db, target_id, category=category)
         
 
         

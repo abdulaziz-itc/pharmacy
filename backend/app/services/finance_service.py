@@ -334,9 +334,9 @@ class FinancialService:
                 raise HTTPException(status_code=500, detail=f"Assignment failed: {str(e)}")
 
     @staticmethod
-    async def get_medrep_bonus_balance(db: AsyncSession, med_rep_id: int) -> float:
+    async def get_medrep_bonus_balance(db: AsyncSession, med_rep_id: int, category: str = "bonus") -> float:
         """
-        Calculate total usable bonus balance for a med rep.
+        Calculate total usable bonus balance for a med rep by category.
         = Sum of PAID Accruals (is_paid=True) - Sum of Offsets
         """
         from app.models.ledger import BonusLedger, LedgerType
@@ -344,7 +344,8 @@ class FinancialService:
         # Get all credits (earned bonuses that are PAID) and debits (spending)
         query = select(BonusLedger).where(
             BonusLedger.user_id == med_rep_id,
-            BonusLedger.ledger_type.in_([LedgerType.ACCRUAL, LedgerType.OFFSET])
+            BonusLedger.ledger_type.in_([LedgerType.ACCRUAL, LedgerType.OFFSET]),
+            BonusLedger.ledger_category == category
         )
         
         result = await db.execute(query)
