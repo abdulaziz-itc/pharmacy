@@ -108,7 +108,7 @@ async def get_med_orgs(
      .options(
         selectinload(MedicalOrganization.region),
         selectinload(MedicalOrganization.assigned_reps)
-    )
+    ).distinct()
     
     if name:
         query = query.where(MedicalOrganization.name.ilike(f"%{name}%"))
@@ -136,6 +136,19 @@ async def create_med_org(db: AsyncSession, obj_in: MedicalOrganizationCreate) ->
     obj_data = obj_in.dict()
     assigned_rep_ids = obj_data.pop("assigned_rep_ids", [])
     
+    # Check for duplicates by name and INN
+    existing_q = select(MedicalOrganization).where(
+        (MedicalOrganization.name == obj_data.get("name")) &
+        (MedicalOrganization.inn == obj_data.get("inn"))
+    )
+    existing_res = await db.execute(existing_q)
+    if existing_res.scalars().first():
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Организация с названием '{obj_data.get('name')}' и ИНН '{obj_data.get('inn')}' уже существует."
+        )
+
     db_obj = MedicalOrganization(**obj_data)
     
     if assigned_rep_ids:

@@ -88,7 +88,12 @@ export default function LoginPage() {
             } else {
                 navigate('/dashboard');
             }
-        } catch (err) {
+        } catch (err: any) {
+            console.error('Login failed:', {
+                status: err.response?.status,
+                detail: err.response?.data?.detail,
+                error: err.message
+            });
             setError('Неверное имя пользователя или пароль');
         } finally {
             setIsLoading(false);

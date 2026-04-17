@@ -11,7 +11,11 @@ const api = axios.create({
 
 api.interceptors.request.use(
     (config) => {
-        // Get token from Zustand persist storage
+        // Skip adding Authorization header for login requests to avoid CORS preflight issues
+        if (config.url?.includes('/login/access-token')) {
+            return config;
+        }
+
         // Get token from Zustand persist storage
         const authStorage = localStorage.getItem('auth-storage');
         if (authStorage) {
