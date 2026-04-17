@@ -25,7 +25,17 @@ def upgrade() -> None:
                existing_type=sa.TEXT(),
                type_=sa.String(),
                existing_nullable=True)
-    op.add_column('bonus_ledger', sa.Column('ledger_category', sa.String(), nullable=False))
+    
+    # 1. Add column as nullable first
+    op.add_column('bonus_ledger', sa.Column('ledger_category', sa.String(), nullable=True))
+    
+    # 2. Update existing rows with 'salary' if notes contain "Зарплата", else 'bonus'
+    op.execute("UPDATE bonus_ledger SET ledger_category = 'salary' WHERE notes LIKE '%Зарплата%'")
+    op.execute("UPDATE bonus_ledger SET ledger_category = 'bonus' WHERE ledger_category IS NULL")
+    
+    # 3. Set NOT NULL constraint
+    op.alter_column('bonus_ledger', 'ledger_category', nullable=False)
+    
     op.create_index(op.f('ix_bonus_ledger_ledger_category'), 'bonus_ledger', ['ledger_category'], unique=False)
     # ### end Alembic commands ###
 
