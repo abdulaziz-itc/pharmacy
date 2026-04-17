@@ -12,8 +12,10 @@ import { ModernStatsBar } from '../../components/ui/ModernStatsBar';
 import { FilterBar } from '../../components/ui/FilterBar';
 import type { FilterValues } from '../../components/ui/FilterBar';
 import { ReservationDetailsModal } from './ReservationDetailsModal';
+import { useSearchParams } from 'react-router-dom';
 
 export default function ReservationsPage() {
+    const [searchParams] = useSearchParams();
     const user = useAuthStore((state) => state.user);
     const isMedRep = user?.role === 'med_rep';
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,8 +29,15 @@ export default function ReservationsPage() {
         selectedCompany: 'all',
         selectedType: 'all',
         selectedInvoiceType: 'all',
-        invNumSearch: '',
+        invNumSearch: searchParams.get('inv_num') || '',
     });
+
+    useEffect(() => {
+        const invNum = searchParams.get('inv_num');
+        if (invNum) {
+            setFilterValues(prev => ({ ...prev, invNumSearch: invNum }));
+        }
+    }, [searchParams]);
 
     const { data: reservations = [], isLoading, refetch } = useQuery({
         queryKey: ['reservations', filterValues],

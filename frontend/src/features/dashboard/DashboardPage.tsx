@@ -396,11 +396,11 @@ function ActivityItem({ title, desc, amount, time, color, type, id, reference }:
         if (!type || !reference) return;
 
         if (type === 'invoice') {
-            navigate(`/invoices?search=${reference}`);
+            navigate(`/invoices?inv_num=${reference}`);
         } else if (type === 'payment') {
             navigate(`/payments?search=${reference}`);
         } else if (type === 'reservation') {
-            navigate(`/reservations?search=${reference}`);
+            navigate(`/reservations?inv_num=${reference}`);
         } else if (type === 'login') {
             navigate(`/hrd/login-history`);
         }

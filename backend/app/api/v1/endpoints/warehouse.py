@@ -31,7 +31,8 @@ async def get_warehouses(
         UserRole.MED_REP,
         UserRole.PRODUCT_MANAGER,
         UserRole.FIELD_FORCE_MANAGER,
-        UserRole.REGIONAL_MANAGER
+        UserRole.REGIONAL_MANAGER,
+        UserRole.INVESTOR
     }
     if current_user.role not in allowed:
         raise HTTPException(status_code=403, detail="Not enough permissions")
