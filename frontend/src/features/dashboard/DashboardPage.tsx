@@ -392,6 +392,7 @@ function ActivityItem({ title, desc, amount, time, color, type, id, reference }:
     };
 
     const handleClick = () => {
+        console.log("Activity Clicked:", { type, id, reference });
         if (!type || !reference) return;
 
         if (type === 'invoice') {
