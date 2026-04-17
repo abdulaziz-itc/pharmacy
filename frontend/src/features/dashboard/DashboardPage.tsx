@@ -38,6 +38,9 @@ interface DashboardStats {
         amount: string;
         time: string;
         color: string;
+        type?: string;
+        id?: number;
+        reference?: string;
     }>;
     growth_peak: string;
 }
