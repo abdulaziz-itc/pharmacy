@@ -98,15 +98,22 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
             const m = month ?? get().selectedMonth;
             const y = year ?? get().selectedYear;
 
-            const [rawDoctors, allBonusPayments, allPlans, products] = await Promise.all([
+            const [rawDoctorsData, allBonusPaymentsData, allPlansData, productsData] = await Promise.all([
                 getDoctors({ limit: 10000 }),
                 getBonusPayments(undefined, 0, 10000),
                 getPlans(m, y, undefined, undefined, 0, 10000),
                 axiosInstance.get('/products/').then(res => res.data)
             ]);
 
+            const rawDoctors = Array.isArray(rawDoctorsData) ? rawDoctorsData : [];
+            const allBonusPayments = Array.isArray(allBonusPaymentsData) ? allBonusPaymentsData : [];
+            const allPlans = Array.isArray(allPlansData) ? allPlansData : [];
+            const products = Array.isArray(productsData) ? productsData : [];
+
             // Fetch doctor facts with a large limit to avoid missing data
-            const doctorFacts = await getDoctorFacts(undefined, undefined, 0, 10000);
+            const doctorFactsData = await getDoctorFacts(undefined, undefined, 0, 10000);
+            const doctorFacts = Array.isArray(doctorFactsData) ? doctorFactsData : [];
+
             const filteredFacts = doctorFacts.filter((f: any) => {
                 // Support both (month, year) and (date) formats as in DoctorRowExpanded
                 if (f.month !== undefined && f.year !== undefined) {
@@ -219,48 +226,54 @@ export const useDoctorStore = create<DoctorStore>((set, get) => ({
                 earnedBonusByDoctor[did] = (earnedBonusByDoctor[did] ?? 0) + qty * (productExpense[pid] ?? 0);
             }
 
-            const mapped: Doctor[] = rawDoctors.map((d: any) => {
-                const paid = paidByDoctor[d.id] ?? 0;
-                const earned = accruedByDoctor[d.id] ?? 0;
-                const fact = factByDoctor[d.id] ?? 0;
-                const revenue = revenueByDoctor[d.id] ?? 0;
+            const mapped: Doctor[] = [];
+            
+            for (const d of rawDoctors) {
+                try {
+                    const paid = paidByDoctor[d.id] ?? 0;
+                    const earned = accruedByDoctor[d.id] ?? 0;
+                    const fact = factByDoctor[d.id] ?? 0;
+                    const revenue = revenueByDoctor[d.id] ?? 0;
 
-                const bonusFact = Math.min(paid, earned);
-                const preInvest = Math.max(0, paid - earned);
-                const balance = Math.max(0, earned - paid);
-                const profit = profitByDoctor[d.id] ?? 0;
+                    const bonusFact = Math.min(paid, earned);
+                    const preInvest = Math.max(0, paid - earned);
+                    const balance = Math.max(0, earned - paid);
+                    const profit = profitByDoctor[d.id] ?? 0;
 
-                return {
-                    id: d.id,
-                    name: d.full_name ?? '',
-                    full_name: d.full_name,
-                    medReps: d.assigned_rep
-                        ? (d.assigned_rep.full_name ?? d.assigned_rep.username ?? '')
-                        : '',
-                    region: d.med_org?.region?.name ?? d.region?.name ?? '',
-                    specialty: d.specialty?.name ?? '',
-                    organization: d.med_org?.name ?? '',
-                    totalPlan: planByDoctor[d.id] ?? 0,
-                    totalPlanSum: planSumByDoctor[d.id] ?? 0,
-                    fact: fact,
-                    factReceived: revenue,
-                    factPercent: 0, // Calculated in columns
-                    bonus: earned,
-                    bonusPaid: paid,
-                    bonusBalance: balance,
-                    preInvest: preInvest,
-                    netProfit: profit,
-                    region_id: d.region_id,
-                    specialty_id: d.specialty_id,
-                    category_id: d.category_id,
-                    med_org_id: d.med_org_id,
-                    med_org: d.med_org,
-                    specialty_obj: d.specialty,
-                    category: d.category,
-                    assigned_rep: d.assigned_rep,
-                    is_active: d.is_active ?? true,
-                };
-            });
+                    mapped.push({
+                        id: d.id,
+                        name: d.full_name ?? '',
+                        full_name: d.full_name,
+                        medReps: d.assigned_rep
+                            ? (d.assigned_rep.full_name ?? d.assigned_rep.username ?? '')
+                            : '',
+                        region: d.med_org?.region?.name ?? d.region?.name ?? '',
+                        specialty: d.specialty?.name ?? '',
+                        organization: d.med_org?.name ?? '',
+                        totalPlan: planByDoctor[d.id] ?? 0,
+                        totalPlanSum: planSumByDoctor[d.id] ?? 0,
+                        fact: fact,
+                        factReceived: revenue,
+                        factPercent: 0, // Calculated in columns
+                        bonus: earned,
+                        bonusPaid: paid,
+                        bonusBalance: balance,
+                        preInvest: preInvest,
+                        netProfit: profit,
+                        region_id: d.region_id,
+                        specialty_id: d.specialty_id,
+                        category_id: d.category_id,
+                        med_org_id: d.med_org_id,
+                        med_org: d.med_org,
+                        specialty_obj: d.specialty,
+                        category: d.category,
+                        assigned_rep: d.assigned_rep,
+                        is_active: d.is_active ?? true,
+                    });
+                } catch (err) {
+                    console.error(`Failed to map doctor with ID ${d.id}:`, err, d);
+                }
+            }
 
             set({ doctors: mapped, globalAccrued, globalPaid });
         } catch (e) {

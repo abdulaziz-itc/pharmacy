@@ -28,7 +28,12 @@ interface BonusSummary {
     region: string;
 }
 
-export default function AdminBonusApprovalPage() {
+interface AdminBonusApprovalPageProps {
+    category?: "bonus" | "salary";
+}
+
+export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonusApprovalPageProps) {
+    const isSalary = category === "salary";
     const [summaries, setSummaries] = useState<BonusSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -104,8 +109,10 @@ export default function AdminBonusApprovalPage() {
 
         setExpandedRepId(medRepId);
         setIsHistoryLoading(true);
+        setExpandedRepId(medRepId);
+        setIsHistoryLoading(true);
         try {
-            const response = await axiosInstance.get(`/sales/bonuses/history/${medRepId}`);
+            const response = await axiosInstance.get(`/sales/bonuses/history/${medRepId}?category=${category}`);
             setHistoryData(response.data.history || []);
         } catch (error) {
             console.error("Failed to fetch history:", error);
@@ -124,6 +131,7 @@ export default function AdminBonusApprovalPage() {
             if (year !== "all") params.append("year", year);
             if (productId !== "all") params.append("product_id", productId);
             if (regionId !== "all") params.append("region_id", regionId);
+            params.append("category", category);
             
             const response = await axiosInstance.get(`/sales/admin/bonuses/summary?${params.toString()}`);
             setSummaries(response.data.summaries || []);
@@ -158,7 +166,8 @@ export default function AdminBonusApprovalPage() {
         try {
             const response = await axiosInstance.post('/sales/admin/bonuses/pay', {
                 med_rep_id: selectedRep.med_rep_id,
-                amount_to_pay: amount
+                amount_to_pay: amount,
+                category: category
             });
 
             toast.success(`Успешно выплачено: ${formatMoney(response.data.paid_amount || 0)} UZS`);
@@ -190,10 +199,10 @@ export default function AdminBonusApprovalPage() {
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
                         <Wallet className="w-8 h-8 text-blue-600 p-1.5 bg-blue-100/50 rounded-xl" />
-                        Бонусы МП (Утверждение)
+                        {isSalary ? "Зарплата МП" : "Бонусы МП (Утверждение)"}
                     </h1>
                     <p className="text-slate-500 mt-1.5 ml-11 text-sm font-medium">
-                        Управление начисленными и выплаченными бонусами медпредставителей
+                        {isSalary ? "Управление начисленной и выплаченной зарплатой медпредставителей" : "Управление начисленными и выплаченными бонусами медпредставителей"}
                     </p>
                 </div>
             </div>
@@ -264,7 +273,9 @@ export default function AdminBonusApprovalPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-black">{formatMoney(totalPaid)} UZS</div>
-                        <p className="text-xs text-emerald-100/80 mt-1 font-medium">Сумма переведенная на баланс МП</p>
+                        <p className="text-xs text-emerald-100/80 mt-1 font-medium">
+                            {isSalary ? "Сумма переведенная на зарплатный баланс МП" : "Сумма переведенная на бонусный баланс МП"}
+                        </p>
                     </CardContent>
                 </Card>
 
@@ -534,10 +545,10 @@ export default function AdminBonusApprovalPage() {
                         <DialogHeader>
                             <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3 text-white">
                                 <Wallet className="w-6 h-6 opacity-80" />
-                                Выплата бонуса
+                                {isSalary ? "Выплата зарплаты" : "Выплата бонуса"}
                             </DialogTitle>
                             <DialogDescription className="text-blue-100/90 text-[15px] mt-2 font-medium">
-                                Разрешить МП использовать бонусные средства.
+                                {isSalary ? "Разрешить МП использовать зарплатные средства." : "Разрешить МП использовать бонусные средства."}
                             </DialogDescription>
                         </DialogHeader>
                     </div>

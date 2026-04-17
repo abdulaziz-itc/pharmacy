@@ -13,6 +13,7 @@ router = APIRouter()
 AVAILABLE_SECTIONS = [
     {"key": "dashboard", "label": "Дашборд"},
     {"key": "bonuses", "label": "Бонусы МП"},
+    {"key": "salaries", "label": "Зарплата МП"},
     {"key": "reports", "label": "Расширенные отчеты"},
     {"key": "deputy_directors", "label": "Зам. Директора"},
     {"key": "head_of_orders_mgmt", "label": "Менеджеры по закупкам"},
@@ -51,6 +52,7 @@ AVAILABLE_SECTIONS = [
 DEFAULT_PERMISSIONS: Dict[str, List[str]] = {
     "dashboard": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "med_rep", "head_of_orders", "head_of_warehouse", "hrd"],
     "bonuses": ["admin", "investor", "director", "deputy_director"],
+    "salaries": ["admin", "investor", "director", "deputy_director", "hrd"],
     "reports": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "hrd", "accountant"],
     "deputy_directors": ["admin", "investor", "director"],
     "head_of_orders_mgmt": ["admin", "investor", "director"],
@@ -226,7 +228,7 @@ async def get_my_permissions(
                 enabled_keys.append(key)
     
     if user_role in [UserRole.HRD.value, "hrd"]:
-        essential = ["hrd", "login_history", "dashboard", "reports", "stats", "doctors", "reservations", "invoices", "debtors", "med_reps", "products", "regions", "med_orgs"]
+        essential = ["hrd", "login_history", "dashboard", "reports", "stats", "doctors", "reservations", "invoices", "debtors", "med_reps", "products", "regions", "med_orgs", "salaries"]
         for key in essential:
             if key not in enabled_keys:
                 enabled_keys.append(key)

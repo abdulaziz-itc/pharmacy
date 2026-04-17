@@ -917,6 +917,7 @@ async def get_medrep_bonus_balance(
     med_rep_id: Optional[int] = None,
     month: Optional[int] = None,
     year: Optional[int] = None,
+    category: str = "bonus", # "bonus" or "salary"
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
@@ -946,7 +947,13 @@ async def get_medrep_bonus_balance(
         
 
         
-        all_entries_res = await db.execute(select(BonusLedger).where(BonusLedger.user_id == target_id))
+        # Calculate totals by category
+        all_entries_res = await db.execute(
+            select(BonusLedger).where(
+                BonusLedger.user_id == target_id,
+                BonusLedger.ledger_category == category
+            )
+        )
         all_entries = all_entries_res.scalars().all()
         
         total_accrued = 0.0
@@ -968,7 +975,10 @@ async def get_medrep_bonus_balance(
             selectinload(BonusLedger.payment),
             selectinload(BonusLedger.invoice_item).selectinload(ReservationItem.reservation).selectinload(Reservation.invoice),
             selectinload(BonusLedger.invoice_item).selectinload(ReservationItem.reservation).selectinload(Reservation.med_org)
-        ).where(BonusLedger.user_id == target_id)
+        ).where(
+            BonusLedger.user_id == target_id,
+            BonusLedger.ledger_category == category
+        )
         
         # Filter by month/year if provided
         if month and year:
@@ -1144,6 +1154,7 @@ class AdminBonusSummaryResponse(BaseModel):
 class BonusPayRequest(BaseModel):
     med_rep_id: int
     amount_to_pay: float # How much of the remainder to pay now
+    category: str = "bonus" # "bonus" or "salary"
 
 @router.get("/admin/bonuses/summary", response_model=AdminBonusSummaryResponse)
 async def get_admin_bonus_summary(
@@ -1151,6 +1162,7 @@ async def get_admin_bonus_summary(
     year: int = None,
     product_id: int = None,
     region_id: int = None, # Added region_id parameter
+    category: str = "bonus", # "bonus" or "salary"
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
@@ -1297,7 +1309,10 @@ async def get_admin_bonus_summary(
 
     summaries = []
     for rep in medreps:
-        q = select(BonusLedger).where(BonusLedger.user_id == rep.id)
+        q = select(BonusLedger).where(
+            BonusLedger.user_id == rep.id,
+            BonusLedger.ledger_category == category
+        )
         if start_date and end_date: q = q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
         if product_id: q = q.where(BonusLedger.product_id == product_id)
         
@@ -1328,6 +1343,7 @@ async def get_admin_bonus_summary(
             and_(
                 BonusLedger.user_id == rep.id,
                 BonusLedger.ledger_type == LedgerType.ACCRUAL,
+                BonusLedger.ledger_category == category,
                 BonusLedger.is_paid == False,
                 or_(BonusLedger.notes != "Аванс (Предынвест)", BonusLedger.notes.is_(None)),
                 BonusLedger.created_at < datetime.utcnow() - timedelta(days=15)
@@ -1382,6 +1398,7 @@ async def pay_medrep_bonus(
     query = select(BonusLedger).where(
         BonusLedger.user_id == request_data.med_rep_id,
         BonusLedger.ledger_type == LedgerType.ACCRUAL,
+        BonusLedger.ledger_category == request_data.category,
         BonusLedger.is_paid == False
     ).order_by(BonusLedger.id.asc())
     
@@ -1409,13 +1426,15 @@ async def pay_medrep_bonus(
             
     # If there is STILL remaining money to pay, it's an advance payment (Predinvest). 
     # Create a new BonusLedger entry for this excess.
-    if amount_remaining_to_pay > 0:
+    # ONLY for 'bonus' category (Salaries don't have predinvest)
+    if amount_remaining_to_pay > 0 and request_data.category == "bonus":
         from datetime import datetime
         now = datetime.utcnow()
         predinvest_entry = BonusLedger(
             user_id=request_data.med_rep_id,
             amount=amount_remaining_to_pay,
             ledger_type=LedgerType.ACCRUAL,
+            ledger_category="bonus",
             is_paid=True, # It is immediately paid out
             target_month=now.month,
             target_year=now.year,

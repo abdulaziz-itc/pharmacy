@@ -196,7 +196,7 @@ async def read_med_orgs(
             rep_ids = await get_descendant_ids(db, current_user.id)
             if not rep_ids:
                 rep_ids = [-1]
-        elif current_user.role in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR]:
+        elif current_user.role in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.HRD, UserRole.INVESTOR, UserRole.ACCOUNTANT]:
             rep_ids = None # Full access
         elif current_user.role == UserRole.MED_REP:
             rep_ids = [current_user.id]
@@ -402,6 +402,8 @@ async def read_doctors(
         rep_ids = await get_descendant_ids(db, current_user.id)
         if not rep_ids:
             rep_ids = [-1]
+    elif role_name in [UserRole.ADMIN.value, UserRole.DIRECTOR.value, UserRole.DEPUTY_DIRECTOR.value, UserRole.HRD.value, UserRole.INVESTOR.value, UserRole.ACCOUNTANT.value]:
+        rep_ids = None # Full access
     
     return await crud_crm.get_doctors(
         db, 

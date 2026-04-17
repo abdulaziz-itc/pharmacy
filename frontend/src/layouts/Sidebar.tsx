@@ -32,6 +32,7 @@ const ALL_SIDEBAR_ITEMS = [
     { icon: UserCheck, label: 'Директор отдела кадров (HRD)', href: '/director/hrd', sectionKey: 'hrd' },
     { icon: Activity, label: 'История входов', href: '/hrd/login-history', sectionKey: 'login_history' },
     { icon: Wallet, label: 'Бонусы МП', href: '/bonuses', sectionKey: 'bonuses' },
+    { icon: Wallet, label: 'Зарплата МП', href: '/salaries', sectionKey: 'salaries' },
     { icon: PieChart, label: 'Расширенные отчеты', href: '/reports', sectionKey: 'reports' },
     { icon: UserCheck, label: 'Зам. Директора', href: '/deputy-directors', sectionKey: 'deputy_directors' },
     { icon: UserCheck, label: 'Менеджеры по закупкам', href: '/head-of-orders-management', sectionKey: 'head_of_orders_mgmt' },

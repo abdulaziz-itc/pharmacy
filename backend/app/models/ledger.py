@@ -39,6 +39,7 @@ class BonusLedger(Base):
     target_year = Column(Integer, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    ledger_category = Column(String, nullable=False, default="bonus", index=True) # "bonus" or "salary"
     notes = Column(String, nullable=True)
 
     user = relationship("User")
