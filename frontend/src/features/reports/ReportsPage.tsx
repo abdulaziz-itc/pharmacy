@@ -245,7 +245,7 @@ export default function ReportsPage() {
     const filteredTableData = useMemo(() => {
         if (!reportData?.data) return [];
         return reportData.data.filter(item => 
-            item.doctor_name.toLowerCase().includes(searchQuery.toLowerCase())
+            (item.doctor_name || '').toLowerCase().includes((searchQuery || '').toLowerCase())
         );
     }, [reportData, searchQuery]);
 

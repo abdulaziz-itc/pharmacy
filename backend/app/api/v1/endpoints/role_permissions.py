@@ -43,6 +43,8 @@ AVAILABLE_SECTIONS = [
     {"key": "head_of_orders_reports", "label": "Отчеты (ЗЗ)"},
     {"key": "accountant", "label": "Бухгалтерия"},
     {"key": "finance", "label": "Финансы"},
+    {"key": "kreditorka", "label": "Кредиторка"},
+    {"key": "counterparty_balance", "label": "Баланс контрагентов"},
 ]
 
 # Default permissions (based on current hardcoded sidebar)
@@ -79,6 +81,8 @@ DEFAULT_PERMISSIONS: Dict[str, List[str]] = {
     "head_of_orders_reports": ["head_of_orders"],
     "accountant": ["admin", "investor", "director", "accountant"],
     "finance": ["admin", "investor", "director", "accountant"],
+    "kreditorka": ["admin", "investor", "director", "accountant"],
+    "counterparty_balance": ["admin", "investor", "director", "accountant"],
 }
 
 # Roles that can be managed (investor excluded)
@@ -229,7 +233,7 @@ async def get_my_permissions(
 
     # Manager fallbacks for reports/stats
     if user_role in [UserRole.REGIONAL_MANAGER.value, UserRole.FIELD_FORCE_MANAGER.value, UserRole.PRODUCT_MANAGER.value, "regional_manager", "field_force_manager", "product_manager"]:
-        essential = ["reports", "stats", "regions", "med_orgs", "doctors", "products"]
+        essential = ["reports", "stats", "regions", "med_orgs", "doctors", "products", "kreditorka", "counterparty_balance"]
         for key in essential:
             if key not in enabled_keys:
                 enabled_keys.append(key)
