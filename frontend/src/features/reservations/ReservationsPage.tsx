@@ -3,7 +3,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { CalendarCheck } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { DataTable } from '../../components/ui/data-table';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { ReservationModal } from './ReservationModal';
