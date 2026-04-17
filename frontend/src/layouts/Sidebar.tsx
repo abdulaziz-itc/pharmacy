@@ -94,12 +94,17 @@ export function Sidebar() {
         }
         // Then fetch fresh from API
         permissionsApi.getMy().then(res => {
-            setEnabledSections(res.sections);
+            const sections = Array.isArray(res?.sections) ? res.sections : [];
+            setEnabledSections(sections);
             setPermissionsLoaded(true);
-            localStorage.setItem(`permissions_${user.role}`, JSON.stringify(res.sections));
-        }).catch(() => {
+            localStorage.setItem(`permissions_${user.role}`, JSON.stringify(sections));
+        }).catch((err) => {
+            console.error("Permissions fetch error:", err);
             // If API fails and no cache, show nothing
-            if (!cached) setPermissionsLoaded(true);
+            if (!cached) {
+                setEnabledSections([]);
+                setPermissionsLoaded(true);
+            }
         });
     }, [user?.id, user?.role]);
 
@@ -132,7 +137,8 @@ export function Sidebar() {
                         const accountantSections = ['dashboard', 'accountant', 'reports', 'stats', 'invoices', 'payments', 'debtors', 'kreditorka', 'counterparty_balance'];
                         if (accountantSections.includes(item.sectionKey)) return true;
                     }
-                    return enabledSections.includes(item.sectionKey);
+                    const sections = Array.isArray(enabledSections) ? enabledSections : [];
+                    return sections.includes(item.sectionKey);
                 })
                 .map(item => ({
                     ...item,

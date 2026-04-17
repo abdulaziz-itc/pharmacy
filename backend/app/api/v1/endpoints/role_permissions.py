@@ -49,7 +49,7 @@ AVAILABLE_SECTIONS = [
 DEFAULT_PERMISSIONS: Dict[str, List[str]] = {
     "dashboard": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "med_rep", "head_of_orders", "head_of_warehouse", "hrd"],
     "bonuses": ["admin", "investor", "director", "deputy_director"],
-    "reports": ["admin", "investor", "director"],
+    "reports": ["admin", "investor", "director", "hrd"],
     "deputy_directors": ["admin", "investor", "director"],
     "head_of_orders_mgmt": ["admin", "investor", "director"],
     "warehouse_users": ["admin", "investor", "director"],
@@ -60,16 +60,16 @@ DEFAULT_PERMISSIONS: Dict[str, List[str]] = {
     "regions": ["admin", "investor", "director", "deputy_director", "product_manager", "hrd"],
     "med_orgs": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "hrd"],
     "manufacturers": ["admin", "investor", "director", "deputy_director"],
-    "doctors": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "med_rep"],
-    "reservations": ["admin", "investor", "director", "deputy_director", "med_rep", "product_manager", "field_force_manager", "regional_manager"],
-    "invoices": ["admin", "investor", "director", "deputy_director", "med_rep", "product_manager", "field_force_manager", "regional_manager"],
-    "debtors": ["admin", "investor", "director", "deputy_director", "med_rep", "product_manager", "field_force_manager", "regional_manager"],
+    "doctors": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "med_rep", "hrd"],
+    "reservations": ["admin", "investor", "director", "deputy_director", "med_rep", "product_manager", "field_force_manager", "regional_manager", "hrd"],
+    "invoices": ["admin", "investor", "director", "deputy_director", "med_rep", "product_manager", "field_force_manager", "regional_manager", "hrd"],
+    "debtors": ["admin", "investor", "director", "deputy_director", "med_rep", "product_manager", "field_force_manager", "regional_manager", "hrd"],
     "payments": ["admin", "investor", "director", "deputy_director"],
-    "stats": ["admin", "investor", "director", "deputy_director"],
+    "stats": ["admin", "investor", "director", "deputy_director", "hrd"],
     "audit": ["admin", "investor", "director", "deputy_director"],
     "warehouse": ["admin", "investor", "director", "deputy_director", "head_of_warehouse"],
     "deletion_approval": ["admin", "investor", "director", "head_of_warehouse"],
-    "hrd": ["director", "investor"],
+    "hrd": ["director", "investor", "hrd"],
     "login_history": ["investor", "director", "hrd"],
     "head_of_orders_manufacturers": ["head_of_orders"],
     "head_of_orders_reservations": ["head_of_orders"],
@@ -191,7 +191,7 @@ async def get_my_permissions(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Get enabled section keys for the current user's role."""
-    user_role = current_user.role
+    user_role = str(current_user.role) if current_user.role else ""
 
     # Investor always sees everything
     if user_role == UserRole.INVESTOR.value or user_role == UserRole.INVESTOR:
@@ -201,18 +201,30 @@ async def get_my_permissions(
 
     result = await db.execute(
         select(RolePermission).where(
-            RolePermission.role == (user_role.value if hasattr(user_role, 'value') else user_role),
+            RolePermission.role == user_role,
             RolePermission.is_enabled == True,
         )
     )
     perms = result.scalars().all()
     enabled_keys = [p.section_key for p in perms]
 
-    # Temporary hardcoded fallback for accountant to ensure it works on production immediately
-    if user_role in [UserRole.ACCOUNTANT, "accountant"]:
-        essential = ["accountant", "finance", "dashboard", "reports", "stats", "invoices", "payments", "debtors"]
+    # If DB has no permissions for this role, use hardcoded defaults as a second-level fallback
+    if not enabled_keys:
+        for section_key, roles in DEFAULT_PERMISSIONS.items():
+            if user_role in roles:
+                enabled_keys.append(section_key)
+
+    # Temporary hardcoded fallback for accountant and hrd to ensure it works on production immediately
+    if user_role in [UserRole.ACCOUNTANT.value, "accountant"]:
+        essential = ["accountant", "finance", "dashboard", "reports", "stats", "invoices", "payments", "debtors", "kreditorka", "counterparty_balance"]
+        for key in essential:
+            if key not in enabled_keys:
+                enabled_keys.append(key)
+    
+    if user_role in [UserRole.HRD.value, "hrd"]:
+        essential = ["hrd", "login_history", "dashboard", "reports", "stats", "doctors", "reservations", "invoices", "debtors", "med_reps", "products", "regions", "med_orgs"]
         for key in essential:
             if key not in enabled_keys:
                 enabled_keys.append(key)
 
-    return {"sections": enabled_keys}
+    return {"sections": list(set(enabled_keys))}

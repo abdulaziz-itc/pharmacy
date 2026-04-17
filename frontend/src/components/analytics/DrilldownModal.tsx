@@ -62,17 +62,39 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
         enabled: isOpen && !!metric
     });
 
+    const [isExporting, setIsExporting] = useState(false);
+
     const handleExport = async () => {
         try {
+            setIsExporting(true);
             const queryParams = new URLSearchParams({
                 metric,
                 ...Object.fromEntries(
                     Object.entries(activeFilters).filter(([_, v]) => v !== undefined)
                 ) as any
             });
-            window.open(`${api.defaults.baseURL}/domain/analytics/stats/comprehensive/drilldown/export?${queryParams.toString()}`, '_blank');
+
+            const response = await api.get(`/domain/analytics/stats/comprehensive/drilldown/export?${queryParams.toString()}`, {
+                responseType: 'blob'
+            });
+
+            // Create a URL for the blob and trigger download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Export_${metricLabel}_${new Date().toISOString().split('T')[0]}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
         } catch (err) {
             console.error("Export error:", err);
+            // Fallback for simple errors
+            alert("Ошибка при экспорте. Пожалуйста, попробуйте позже.");
+        } finally {
+            setIsExporting(false);
         }
     };
 
@@ -351,10 +373,15 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                                 {metric === 'cash_in' && (
                                     <button 
                                         onClick={handleExport}
-                                        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-200 active:scale-95"
+                                        disabled={isExporting}
+                                        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <Download className="w-4 h-4" />
-                                        Excel
+                                        {isExporting ? (
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <Download className="w-4 h-4" />
+                                        )}
+                                        {isExporting ? 'Загрузка...' : 'Excel'}
                                     </button>
                                 )}
                                 <button 
