@@ -205,51 +205,22 @@ async def get_my_permissions(
 
     await seed_defaults_if_empty(db)
 
+    # Check if ANY records exist for this role
     result = await db.execute(
         select(RolePermission).where(
-            RolePermission.role == user_role,
-            RolePermission.is_enabled == True,
+            RolePermission.role == user_role
         )
     )
-    perms = result.scalars().all()
-    enabled_keys = [p.section_key for p in perms]
+    all_role_perms = result.scalars().all()
 
-    # If DB has no permissions for this role, use hardcoded defaults as a second-level fallback
-    if not enabled_keys:
+    if not all_role_perms:
+        # No records at all in DB for this role, use hardcoded defaults
+        enabled_keys = []
         for section_key, roles in DEFAULT_PERMISSIONS.items():
             if user_role in roles:
                 enabled_keys.append(section_key)
-
-    # Temporary hardcoded fallback for accountant and hrd to ensure it works on production immediately
-    if user_role in [UserRole.ACCOUNTANT.value, "accountant"]:
-        essential = ["accountant", "finance", "dashboard", "reports", "stats", "invoices", "payments", "debtors", "kreditorka", "counterparty_balance"]
-        for key in essential:
-            if key not in enabled_keys:
-                enabled_keys.append(key)
-    
-    if user_role in [UserRole.HRD.value, "hrd"]:
-        essential = ["hrd", "login_history", "dashboard", "reports", "stats", "doctors", "reservations", "invoices", "debtors", "med_reps", "products", "regions", "med_orgs", "salaries"]
-        for key in essential:
-            if key not in enabled_keys:
-                enabled_keys.append(key)
-
-    if user_role in [UserRole.DIRECTOR.value, "director"]:
-        essential = ["salaries", "bonuses", "reports", "stats", "hrd", "login_history"]
-        for key in essential:
-            if key not in enabled_keys:
-                enabled_keys.append(key)
-
-    if user_role in [UserRole.DEPUTY_DIRECTOR.value, "deputy_director"]:
-        essential = ["salaries", "bonuses", "reports", "stats"]
-        for key in essential:
-            if key not in enabled_keys:
-                enabled_keys.append(key)
-
-    # Manager fallbacks for reports/stats
-    if user_role in [UserRole.REGIONAL_MANAGER.value, UserRole.FIELD_FORCE_MANAGER.value, UserRole.PRODUCT_MANAGER.value, "regional_manager", "field_force_manager", "product_manager"]:
-        essential = ["reports", "stats", "regions", "med_orgs", "doctors", "products", "kreditorka", "counterparty_balance"]
-        for key in essential:
-            if key not in enabled_keys:
-                enabled_keys.append(key)
+    else:
+        # Records exist, strictly follow them
+        enabled_keys = [p.section_key for p in all_role_perms if p.is_enabled]
 
     return {"sections": list(set(enabled_keys))}
