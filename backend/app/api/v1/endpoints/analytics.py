@@ -1,8 +1,13 @@
-from typing import Any
+from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from sqlalchemy import Date, cast, select, func, and_, or_, case
+import calendar
+import io
+import openpyxl
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from fastapi.responses import StreamingResponse
 from app.api import deps
 from app.models.user import User, UserRole
 from app.models.ledger import DoctorMonthlyStat
@@ -665,6 +670,115 @@ async def get_comprehensive_stats(
         "view_mode": "accountant" if current_user.role == UserRole.ACCOUNTANT else "standard"
     }
 
+@router.get("/stats/comprehensive/drilldown/export")
+async def export_drilldown_excel(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    metric: str = Query(...),
+    month: Optional[int] = Query(None),
+    year: Optional[int] = Query(None),
+    quarter: Optional[int] = Query(None),
+    region_id: Optional[int] = Query(None),
+    product_id: Optional[int] = Query(None),
+    med_rep_id: Optional[int] = Query(None),
+    product_manager_id: Optional[int] = Query(None)
+) -> Any:
+    """
+    Export drilldown data to Excel. Currently specialized for 'cash_in'.
+    """
+    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.ACCOUNTANT, UserRole.HRD]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    from app.models.sales import Payment, Invoice, Reservation
+    from app.models.crm import MedicalOrganization
+    from sqlalchemy.orm import selectinload
+
+    # Reuse date logic
+    start_date = None
+    end_date = None
+    if year:
+        if month:
+            start_date = date(year, month, 1)
+            last_day = calendar.monthrange(year, month)[1]
+            end_date = start_date + timedelta(days=last_day)
+        elif quarter:
+            start_month = (quarter - 1) * 3 + 1
+            start_date = date(year, start_month, 1)
+            end_date = date(year + (1 if quarter == 4 else 0), (start_month + 3) % 12 or 12, 1)
+        else:
+            start_date = date(year, 1, 1)
+            end_date = date(year + 1, 1, 1)
+
+    # 1. Fetch Data (specialized for cash_in for now)
+    if metric == "cash_in":
+        fact_q = select(Payment).options(
+            selectinload(Payment.invoice).selectinload(Invoice.reservation).selectinload(Reservation.med_org)
+        ).join(Invoice, Payment.invoice_id == Invoice.id)
+        
+        if start_date and end_date:
+            fact_q = fact_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+            
+        # Hierarchy filters
+        from app.crud.crud_user import get_descendant_ids
+        rep_ids = None
+        if med_rep_id: rep_ids = [med_rep_id]
+        elif product_manager_id: rep_ids = await get_descendant_ids(db, product_manager_id)
+
+        if rep_ids or region_id or product_id:
+            fact_q = fact_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+            if rep_ids: fact_q = fact_q.where(Reservation.created_by_id.in_(rep_ids))
+            if region_id:
+                from app.models.crm import Doctor
+                fact_q = fact_q.join(Doctor, Reservation.med_org_id == Doctor.med_org_id).where(Doctor.region_id == region_id)
+            if product_id:
+                from app.models.sales import ReservationItem
+                fact_q = fact_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
+
+        rows = (await db.execute(fact_q.order_by(Payment.date.desc()))).scalars().all()
+        
+        # 2. Create Excel
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Postupleniya"
+        
+        headers = ["тушган пул санаси", "ИНН", "Контрагент", "Сumma"]
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal='center')
+            cell.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+            
+        for row_idx, r in enumerate(rows, 2):
+            ws.cell(row=row_idx, column=1, value=r.date.strftime('%d.%m.%Y'))
+            ws.cell(row=row_idx, column=2, value=r.invoice.reservation.med_org.inn if r.invoice and r.invoice.reservation and r.invoice.reservation.med_org else "-")
+            ws.cell(row=row_idx, column=3, value=r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-")
+            ws.cell(row=row_idx, column=4, value=r.amount)
+
+        # Autofit columns
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except: pass
+            ws.column_dimensions[column_letter].width = max_length + 2
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        filename = f"Postupleniya_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    
+    raise HTTPException(status_code=400, detail="Export not implemented for this metric")
+
+
 @router.get("/stats/comprehensive/drilldown")
 async def get_comprehensive_drilldown(
     metric: str = Query(...),
@@ -763,13 +877,28 @@ async def get_comprehensive_drilldown(
         return [{"id": r.id, "date": r.date.isoformat(), "invoice_num": r.factura_number, "total_amount": r.total_amount, "customer": r.reservation.customer_name if r.reservation else "-"} for r in rows]
 
     elif metric == "cash_in":
-        fact_q = select(Payment).options(selectinload(Payment.invoice).selectinload(Invoice.reservation)).join(Invoice, Payment.invoice_id == Invoice.id)
-        if start_date and end_date: fact_q = fact_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+        from app.models.crm import MedicalOrganization
+        fact_q = select(Payment).options(
+            selectinload(Payment.invoice).selectinload(Invoice.reservation).selectinload(Reservation.med_org)
+        ).join(Invoice, Payment.invoice_id == Invoice.id)
+        
+        if start_date and end_date: 
+            fact_q = fact_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+        
         if rep_ids or region_id or product_id:
             fact_q = fact_q.join(Reservation, Invoice.reservation_id == Reservation.id)
             fact_q = apply_filters(fact_q, Reservation)
+            
         rows = (await db.execute(fact_q.order_by(Payment.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "type": r.payment_type, "invoice_num": r.invoice.factura_number if r.invoice else "-", "customer": r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-"} for r in rows]
+        return [{
+            "id": r.id, 
+            "date": r.date.isoformat(), 
+            "amount": r.amount, 
+            "type": r.payment_type, 
+            "invoice_num": r.invoice.factura_number if r.invoice else "-", 
+            "customer": r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-",
+            "inn": r.invoice.reservation.med_org.inn if r.invoice and r.invoice.reservation and r.invoice.reservation.med_org else "-"
+        } for r in rows]
 
     elif metric == "receivables":
         debt_q = select(Invoice).options(selectinload(Invoice.reservation)).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
