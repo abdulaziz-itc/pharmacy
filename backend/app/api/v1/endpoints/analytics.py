@@ -203,17 +203,22 @@ async def get_global_realtime_dashboard(
     # Recent activities (last 5 payments/invoices)
     activities = []
     if current_user.role in [UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.ACCOUNTANT]:
-        # Latest Payments
+        # Latest Payments (linking to invoice if possible)
         recent_payments = (await db.execute(
-            select(Payment).order_by(Payment.date.desc()).limit(3)
+            select(Payment).options(selectinload(Payment.invoice)).order_by(Payment.date.desc()).limit(3)
         )).scalars().all()
         for p in recent_payments:
+            invoice_num = p.invoice.factura_number if p.invoice else None
             activities.append({
+                "type": "payment",
+                "id": p.id,
+                "invoice_id": p.invoice_id,
                 "title": "Оплата фактуры",
-                "desc": p.comment or "Поступление средств",
+                "desc": f"{p.comment or 'Поступление средств'} ({p.invoice.customer_name if p.invoice else ''})",
                 "amount": f"+{p.amount:,.0f} UZS",
                 "time": p.date.strftime("%d.%m.%Y %H:%M"),
                 "color": "green",
+                "reference": invoice_num or str(p.id),
                 "dt": p.date
             })
             
@@ -223,11 +228,14 @@ async def get_global_realtime_dashboard(
         )).scalars().all()
         for i in recent_invoices:
             activities.append({
+                "type": "invoice",
+                "id": i.id,
                 "title": "Новая фактура",
-                "desc": f"Фактура №{i.factura_number or i.id}",
+                "desc": f"Фактура №{i.factura_number or i.id} ({i.customer_name})",
                 "amount": f"{i.total_amount:,.0f} UZS",
                 "time": i.date.strftime("%d.%m.%Y %H:%M"),
                 "color": "blue",
+                "reference": i.factura_number or str(i.id),
                 "dt": i.date
             })
             

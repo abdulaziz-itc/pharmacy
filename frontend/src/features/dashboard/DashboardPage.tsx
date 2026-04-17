@@ -296,6 +296,9 @@ export default function DashboardPage() {
                                     amount={activity.amount}
                                     time={activity.time}
                                     color={activity.color}
+                                    type={activity.type}
+                                    id={activity.id}
+                                    reference={activity.reference}
                                 />
                             ))}
                         </div>
@@ -375,7 +378,8 @@ function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, o
     );
 }
 
-function ActivityItem({ title, desc, amount, time, color }: any) {
+function ActivityItem({ title, desc, amount, time, color, type, id, reference }: any) {
+    const navigate = useNavigate();
     const statusColors: any = {
         blue: "bg-blue-500",
         indigo: "bg-indigo-500",
@@ -384,8 +388,24 @@ function ActivityItem({ title, desc, amount, time, color }: any) {
         orange: "bg-orange-500",
     };
 
+    const handleClick = () => {
+        if (!type || !reference) return;
+
+        if (type === 'invoice') {
+            navigate(`/invoices?search=${reference}`);
+        } else if (type === 'payment') {
+            navigate(`/payments?search=${reference}`);
+        }
+    };
+
     return (
-        <div className="flex items-center gap-4 group/item">
+        <div 
+            onClick={handleClick}
+            className={cn(
+                "flex items-center gap-4 group/item transition-all duration-200 rounded-xl p-2 -mx-2",
+                (type && reference) ? "cursor-pointer hover:bg-slate-50 active:scale-[0.98]" : ""
+            )}
+        >
             <div className="relative">
                 <div className={cn("w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-600 transition-colors group-hover/item:bg-slate-200")}>
                     {title.charAt(0)}
@@ -394,7 +414,7 @@ function ActivityItem({ title, desc, amount, time, color }: any) {
             </div>
             <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline gap-2">
-                    <p className="text-sm font-bold text-slate-900 truncate tracking-tight">{title}</p>
+                    <p className="text-sm font-bold text-slate-900 truncate tracking-tight group-hover/item:text-blue-600 transition-colors">{title}</p>
                     <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">{time}</span>
                 </div>
                 <p className="text-xs text-slate-500 truncate mt-0.5">{desc}</p>
