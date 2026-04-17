@@ -398,6 +398,10 @@ function ActivityItem({ title, desc, amount, time, color, type, id, reference }:
             navigate(`/invoices?search=${reference}`);
         } else if (type === 'payment') {
             navigate(`/payments?search=${reference}`);
+        } else if (type === 'reservation') {
+            navigate(`/reservations?search=${reference}`);
+        } else if (type === 'login') {
+            navigate(`/hrd/login-history`);
         }
     };
 

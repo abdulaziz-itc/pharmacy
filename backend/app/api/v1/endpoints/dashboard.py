@@ -120,7 +120,10 @@ async def get_dashboard_stats(
                 desc=f"Вход в систему ({l.ip_address or 'Unknown IP'})",
                 amount="Вход",
                 time=l.login_at.strftime("%d.%m %H:%M"),
-                color="blue"
+                color="blue",
+                type="login",
+                id=l.id,
+                reference=l.user.full_name if l.user else None
             ))
 
         return {
@@ -269,7 +272,10 @@ async def get_dashboard_stats(
             desc=n.message or "",
             amount="Обзор",
             time=n.created_at.strftime("%d.%m %H:%M"),
-            color="rose" if n.message and "запаc" in n.message.lower() else "blue"
+            color="rose" if n.message and "запаc" in n.message.lower() else "blue",
+            type="notification",
+            id=n.id,
+            reference=n.topic or str(n.id)
         ))
 
     # Reservations
@@ -299,7 +305,10 @@ async def get_dashboard_stats(
             desc=f"Заказ на сумму {r.total_amount:,.0f} сум",
             amount=f"+{r.total_amount:,.0f} сум",
             time=r.date.strftime("%d.%m"),
-            color="green" if r.status == ReservationStatus.APPROVED else "orange"
+            color="green" if r.status == ReservationStatus.APPROVED else "orange",
+            type="reservation",
+            id=r.id,
+            reference=str(r.reservation_number) if hasattr(r, 'reservation_number') else str(r.id)
         ))
 
     recent_activities = recent_activities[:5] if recent_activities else [

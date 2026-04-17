@@ -8,6 +8,9 @@ class ActivityItem(BaseModel):
     amount: str
     time: str
     color: str
+    type: Optional[str] = None
+    id: Optional[int] = None
+    reference: Optional[str] = None
 
 class RevenueForecastPoint(BaseModel):
     month: str
