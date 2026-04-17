@@ -49,7 +49,7 @@ AVAILABLE_SECTIONS = [
 DEFAULT_PERMISSIONS: Dict[str, List[str]] = {
     "dashboard": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "med_rep", "head_of_orders", "head_of_warehouse", "hrd"],
     "bonuses": ["admin", "investor", "director", "deputy_director"],
-    "reports": ["admin", "investor", "director", "hrd"],
+    "reports": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "hrd", "accountant"],
     "deputy_directors": ["admin", "investor", "director"],
     "head_of_orders_mgmt": ["admin", "investor", "director"],
     "warehouse_users": ["admin", "investor", "director"],
@@ -57,7 +57,7 @@ DEFAULT_PERMISSIONS: Dict[str, List[str]] = {
     "product_managers": ["admin", "investor", "director", "deputy_director"],
     "med_reps": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "hrd"],
     "products": ["admin", "investor", "director", "deputy_director", "product_manager", "med_rep", "hrd"],
-    "regions": ["admin", "investor", "director", "deputy_director", "product_manager", "hrd"],
+    "regions": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "hrd"],
     "med_orgs": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "hrd"],
     "manufacturers": ["admin", "investor", "director", "deputy_director"],
     "doctors": ["admin", "investor", "director", "deputy_director", "product_manager", "field_force_manager", "regional_manager", "med_rep", "hrd"],
@@ -65,7 +65,7 @@ DEFAULT_PERMISSIONS: Dict[str, List[str]] = {
     "invoices": ["admin", "investor", "director", "deputy_director", "med_rep", "product_manager", "field_force_manager", "regional_manager", "hrd"],
     "debtors": ["admin", "investor", "director", "deputy_director", "med_rep", "product_manager", "field_force_manager", "regional_manager", "hrd"],
     "payments": ["admin", "investor", "director", "deputy_director"],
-    "stats": ["admin", "investor", "director", "deputy_director", "hrd"],
+    "stats": ["admin", "investor", "director", "deputy_director", "hrd", "product_manager", "field_force_manager", "regional_manager", "accountant"],
     "audit": ["admin", "investor", "director", "deputy_director"],
     "warehouse": ["admin", "investor", "director", "deputy_director", "head_of_warehouse"],
     "deletion_approval": ["admin", "investor", "director", "head_of_warehouse"],
@@ -226,5 +226,16 @@ async def get_my_permissions(
         for key in essential:
             if key not in enabled_keys:
                 enabled_keys.append(key)
+
+    # Manager fallbacks for reports/stats
+    if user_role in [UserRole.REGIONAL_MANAGER.value, UserRole.FIELD_FORCE_MANAGER.value, UserRole.PRODUCT_MANAGER.value, "regional_manager", "field_force_manager", "product_manager"]:
+        essential = ["reports", "stats", "regions", "med_orgs", "doctors", "products"]
+        for key in essential:
+            if key not in enabled_keys:
+                enabled_keys.append(key)
+
+    if user_role in [UserRole.DEPUTY_DIRECTOR.value, "deputy_director"]:
+        if "reports" not in enabled_keys:
+            enabled_keys.append("reports")
 
     return {"sections": list(set(enabled_keys))}
