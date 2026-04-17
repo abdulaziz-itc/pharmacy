@@ -11,3 +11,4 @@ build/
 out.json
 *.pyc
 __pycache__/
+backend/error_log.txt
