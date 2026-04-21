@@ -14,34 +14,67 @@ import {
     Layers, 
     FileText,
     Receipt,
-    ExternalLink
+    ExternalLink,
+    Trash2,
+    CheckCircle2,
+    RefreshCw
 } from 'lucide-react';
 import { cn } from "../../lib/utils";
 import { MedOrgDetailModal } from "../med-orgs/MedOrgDetailModal";
 import { DoctorDetailModal } from "../med-reps/components/DoctorDetailModal";
+import { deletePayment } from '../../api/sales';
+import { useAuthStore } from '../../store/authStore';
+import { toast } from 'sonner';
 
 interface ReservationDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
     reservation: any | null;
+    onRefresh?: () => void;
 }
 
 export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = ({
     isOpen,
     onClose,
-    reservation
+    reservation,
+    onRefresh
 }) => {
     const [isMedOrgModalOpen, setIsMedOrgModalOpen] = React.useState(false);
     const [isDoctorModalOpen, setIsDoctorModalOpen] = React.useState(false);
+    const [isDeleting, setIsDeleting] = React.useState<number | null>(null);
+    const user = useAuthStore(state => state.user);
 
     if (!reservation) return null;
 
     const items = reservation.items || [];
-    // Subtotal based on base price sent from frontend/stored in backend
     const subtotal = items.reduce((acc: number, item: any) => acc + ((item.price || 0) * item.quantity), 0);
     const ndsPercent = reservation.nds_percent || 12;
     const ndsAmount = subtotal * (ndsPercent / 100);
     const totalAmount = subtotal + ndsAmount;
+
+    // Determine if the user can delete payments
+    const canDeletePayments = ['admin', 'director', 'accountant', 'deputy_director', 'investor'].includes(user?.role?.toLowerCase() || '');
+
+    const handleDeletePayment = async (paymentId: number) => {
+        if (!window.confirm('Haqiqatan ham ushbu toʻlovni bekor qilmoqchimisiz? Bu amalni orqaga qaytarib boʻlmaydi.')) return;
+        
+        setIsDeleting(paymentId);
+        try {
+            await deletePayment(paymentId);
+            toast.success("To'lov muvaffaqiyatli bekor qilindi");
+            if (onRefresh) onRefresh();
+            onClose(); // Close modal to reflect changes in the parent list
+        } catch (error: any) {
+            console.error("Failed to delete payment", error);
+            const detail = error.response?.data?.detail || "To'lovni o'chirishda xatolik yuz berdi";
+            toast.error(detail);
+        } finally {
+            setIsDeleting(null);
+        }
+    };
+
+    const invoice = reservation.invoice;
+    const payments = invoice?.payments || [];
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -137,6 +170,69 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
                         </div>
                     </div>
 
+                    {/* Financial Summary */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-900 rounded-[28px] p-6 text-white shadow-2xl relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-700">
+                                <Receipt className="w-24 h-24" />
+                            </div>
+                            
+                            <div className="relative z-10 space-y-3">
+                                <div className="flex justify-between items-center text-slate-400">
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Итого</span>
+                                    <span className="font-bold text-xs">{totalAmount.toLocaleString()} UZS</span>
+                                </div>
+                                <div className="flex justify-between items-center text-blue-400">
+                                    <span className="text-[8px] font-black uppercase tracking-widest">Оплачено</span>
+                                    <span className="font-bold text-xs">{(invoice?.paid_amount || 0).toLocaleString()} UZS</span>
+                                </div>
+                                <div className="h-px bg-white/10 my-2" />
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Долг</span>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-xl font-black text-rose-400">{(totalAmount - (invoice?.paid_amount || 0)).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Payments History */}
+                        <div className="bg-slate-50 rounded-[28px] p-6 border border-slate-100 flex flex-col">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
+                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">To'lovlar tarixi</h3>
+                                </div>
+                                <span className="text-[10px] font-black px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full">{payments.length}</span>
+                            </div>
+                            
+                            <div className="space-y-2 max-h-[120px] overflow-y-auto pr-1 custom-scrollbar">
+                                {payments.length > 0 ? payments.map((p: any) => (
+                                    <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-100 group">
+                                        <div>
+                                            <p className="text-xs font-black text-slate-800">{p.amount.toLocaleString()} UZS</p>
+                                            <p className="text-[9px] font-bold text-slate-400">{new Date(p.date).toLocaleDateString('ru-RU')} • PM #{p.id}</p>
+                                        </div>
+                                        {canDeletePayments && (
+                                            <button 
+                                                onClick={() => handleDeletePayment(p.id)}
+                                                disabled={isDeleting === p.id}
+                                                className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"
+                                                title="To'lovni bekor qilish"
+                                            >
+                                                {isDeleting === p.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                            </button>
+                                        )}
+                                    </div>
+                                )) : (
+                                    <div className="flex flex-col items-center justify-center py-4 text-slate-300 italic">
+                                        <p className="text-[10px] font-bold">To'lovlar mavjud emas</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Products Table */}
                     <div className="space-y-4">
                         <div className="flex items-center gap-2">
@@ -196,31 +292,39 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
                         </div>
                     </div>
 
-                    {/* Financial Summary */}
-                    <div className="bg-slate-900 rounded-[28px] p-6 text-white shadow-2xl relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-700">
-                            <Receipt className="w-24 h-24" />
-                        </div>
-                        
-                        <div className="relative z-10 space-y-3">
-                            <div className="flex justify-between items-center text-slate-400">
-                                <span className="text-xs font-black uppercase tracking-widest">Промежуточный итог</span>
-                                <span className="font-bold">{subtotal.toLocaleString()} UZS</span>
-                            </div>
-                            <div className="flex justify-between items-center text-blue-400">
-                                <span className="text-xs font-black uppercase tracking-widest">НДС ({ndsPercent}%)</span>
-                                <span className="font-bold">{ndsAmount.toLocaleString()} UZS</span>
-                            </div>
-                            <div className="h-px bg-white/10 my-2" />
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm font-black uppercase tracking-[0.2em] text-white/60">К оплате</span>
-                                <div className="flex items-baseline gap-1">
-                                    <span className="text-3xl font-black">{totalAmount.toLocaleString()}</span>
-                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">СУМ</span>
-                                </div>
+                    {reservation.description && (
+                        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
+                            <FileText className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Примечание</p>
+                                <p className="text-sm text-amber-900 font-medium leading-relaxed mt-1">
+                                    {reservation.description}
+                                </p>
                             </div>
                         </div>
-                    </div>
+                    )}
+                </div>
+            </DialogContent>
+
+            {/* Recipient Detail Modals */}
+            <MedOrgDetailModal 
+                isOpen={isMedOrgModalOpen}
+                onClose={() => setIsMedOrgModalOpen(false)}
+                org={reservation.med_org}
+                readOnly={true}
+            />
+
+            <DoctorDetailModal 
+                isOpen={isDoctorModalOpen}
+                onClose={() => setIsDoctorModalOpen(false)}
+                doctor={reservation.doctor}
+                salesPlans={[]}
+                salesFacts={[]}
+                readOnly={true}
+            />
+        </Dialog>
+    );
+};
 
                     {reservation.description && (
                         <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">

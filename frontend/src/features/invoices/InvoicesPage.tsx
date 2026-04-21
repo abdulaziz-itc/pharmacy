@@ -392,6 +392,7 @@ export default function InvoicesPage() {
                 isOpen={!!selectedInvoiceForView}
                 onClose={() => setSelectedInvoiceForView(null)}
                 reservation={selectedInvoiceForView?.reservation}
+                onRefresh={refetch}
             />
         </PageContainer>
     );

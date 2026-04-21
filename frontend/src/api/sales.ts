@@ -136,3 +136,8 @@ export const getComprehensiveStats = async (params: {
     const response = await axiosInstance.get('/domain/analytics/stats/comprehensive', { params });
     return response.data;
 };
+
+export const deletePayment = async (id: number) => {
+    const response = await axiosInstance.delete(`/sales/payments/${id}`);
+    return response.data;
+};
