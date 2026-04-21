@@ -25,7 +25,7 @@ interface OrganizationFinancialCardProps {
 export function OrganizationFinancialCard({ isOpen, onClose, organizationId, organizationName, currentBalance, onRefresh }: OrganizationFinancialCardProps) {
     const user = useAuthStore(state => state.user);
     const [isDeleting, setIsDeleting] = React.useState<number | null>(null);
-    const canDelete = user?.role && ['accountant', 'investor', 'admin', 'director'].includes(user.role);
+    const canDelete = user?.role && ['accountant', 'investor', 'admin', 'director'].includes(user.role.toLowerCase());
 
     const { data: history = [], isLoading, refetch } = useQuery({
         queryKey: ['org-finance-history', organizationId],

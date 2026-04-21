@@ -52,7 +52,7 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
     const totalAmount = subtotal + ndsAmount;
 
     const [isDeleting, setIsDeleting] = React.useState<number | null>(null);
-    const canDelete = user?.role && ['accountant', 'investor', 'admin', 'director'].includes(user.role);
+    const canDelete = user?.role && ['accountant', 'investor', 'admin', 'director'].includes(user.role.toLowerCase());
 
     const handleDeletePayment = async (paymentId: number) => {
         if (!window.confirm('Haqiqatan ham ushbu to\'lovni bekor qilmoqchimisiz? Bu moliyaviy hisobotlarga ta’sir qiladi.')) return;
