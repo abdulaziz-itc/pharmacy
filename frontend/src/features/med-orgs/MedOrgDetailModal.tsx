@@ -16,6 +16,7 @@ import { DoctorDetailModal } from "../med-reps/components/DoctorDetailModal";
 import { getPlans, getSaleFacts, getBonusPayments } from "../../api/sales";
 import { CreateReservationModal } from "../head-of-orders/CreateReservationModal";
 import { useAuthStore } from "../../store/authStore";
+import { toast } from 'sonner';
 
 // Fix Leaflet icon issue
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -160,8 +161,6 @@ export function MedOrgDetailModal({ org, isOpen, onClose, readOnly = false }: Me
     };
 
     if (!org) return null;
-
-import { toast } from 'sonner';
 
     const handleSave = async () => {
         setIsSaving(true);
