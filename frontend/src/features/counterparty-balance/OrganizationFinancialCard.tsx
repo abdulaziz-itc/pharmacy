@@ -25,7 +25,7 @@ interface OrganizationFinancialCardProps {
 export function OrganizationFinancialCard({ isOpen, onClose, organizationId, organizationName, currentBalance, onRefresh }: OrganizationFinancialCardProps) {
     const user = useAuthStore(state => state.user);
     const [isDeleting, setIsDeleting] = React.useState<number | null>(null);
-    const isAccountant = user?.role === 'accountant';
+    const canDelete = user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'director';
 
     const { data: history = [], isLoading, refetch } = useQuery({
         queryKey: ['org-finance-history', organizationId],
@@ -179,7 +179,7 @@ export function OrganizationFinancialCard({ isOpen, onClose, organizationId, org
                                         </div>
 
                                         <div className="flex items-center gap-2 self-center">
-                                            {isAccountant && (
+                                            {canDelete && (
                                                 <button 
                                                     onClick={(e) => handleDelete(e, item.id)}
                                                     disabled={isDeleting === item.id}
