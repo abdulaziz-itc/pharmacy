@@ -14,8 +14,13 @@ import {
   ArrowDownRight,
   FilterX,
   ArrowUpDown,
-  ChevronRight
+  ArrowUpDown,
+  ChevronRight,
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import { deleteBalanceTransaction } from '@/api/sales';
 import { toast } from 'sonner';
 import { formatMoney } from '@/components/ui/MoneyInput';
 import { PageContainer } from '@/components/PageContainer';
@@ -60,7 +65,30 @@ const BalanceManagement = () => {
   // New state for reservation details
   const [selectedResDetails, setSelectedResDetails] = useState<any | null>(null);
   const [showResDetail, setShowResDetail] = useState(false);
-  const [isFetchingRes, setIsFetchingRes] = useState(false);
+   const [isFetchingRes, setIsFetchingRes] = useState(false);
+   
+   const user = useAuthStore(state => state.user);
+   const [isDeleting, setIsDeleting] = useState<number | null>(null);
+   const canManage = user?.role && ['accountant', 'investor', 'admin', 'director'].includes(user.role.toLowerCase());
+
+   const handleDeleteHistory = async (e: React.MouseEvent, txId: number) => {
+     e.stopPropagation();
+     if (!window.confirm('Haqiqatan ham ushbu amalni bekor qilmoqchimisiz? Bu moliyaviy hisobotlarga ta’sir qiladi.')) return;
+
+     setIsDeleting(txId);
+     try {
+       await deleteBalanceTransaction(txId);
+       toast.success("Amal muvaffaqiyatli bekor qilindi");
+       if (selectedOrg) fetchHistory(selectedOrg.id);
+       fetchOrgs(); // Refresh main list balance
+     } catch (error: any) {
+       console.error("Failed to delete transaction", error);
+       const detail = error.response?.data?.detail || "Xatolik yuz berdi";
+       toast.error(detail);
+     } finally {
+       setIsDeleting(null);
+     }
+   };
 
   useEffect(() => {
     fetchOrgs();
@@ -517,17 +545,33 @@ const BalanceManagement = () => {
                                     <ChevronRight className="w-3 h-3 group-hover/card:translate-x-0.5 transition-transform" />
                                   </button>
 
-                                  <button 
-                                    onClick={() => navigate(`/invoices?inv_num=${tx.factura_number}`)}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-600 transition-colors group/link border border-slate-100"
-                                  >
-                                    <span className="text-[10px] font-black uppercase tracking-widest">
-                                      Счёт: {tx.factura_number}
-                                    </span>
-                                    <ArrowUpRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-all -translate-x-1 group-hover/link:translate-x-0" />
-                                  </button>
-                                </div>
-                             )}
+                                   <button 
+                                     onClick={() => navigate(`/invoices?inv_num=${tx.factura_number}`)}
+                                     className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-600 transition-colors group/link border border-slate-100"
+                                   >
+                                     <span className="text-[10px] font-black uppercase tracking-widest">
+                                       Счёт: {tx.factura_number}
+                                     </span>
+                                     <ArrowUpRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-all -translate-x-1 group-hover/link:translate-x-0" />
+                                   </button>
+                                 </div>
+                              )}
+
+                              {canManage && (
+                                <button 
+                                  onClick={(e) => handleDeleteHistory(e, tx.id)}
+                                  disabled={isDeleting === tx.id}
+                                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-rose-500 bg-rose-50 hover:bg-rose-100 border border-rose-100 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                                  title="Bekor qilish"
+                                >
+                                  {isDeleting === tx.id ? (
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-3 h-3" />
+                                  )}
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Bekor qilish</span>
+                                </button>
+                              )}
                           </div>
                         </div>
                       </div>
