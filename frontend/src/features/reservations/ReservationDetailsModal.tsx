@@ -15,12 +15,15 @@ import {
     FileText,
     Receipt,
     ExternalLink,
-    CheckCircle2
+    CheckCircle2,
+    RefreshCw,
+    Trash2
 } from 'lucide-react';
 import { cn } from "../../lib/utils";
 import { MedOrgDetailModal } from "../med-orgs/MedOrgDetailModal";
 import { DoctorDetailModal } from "../med-reps/components/DoctorDetailModal";
 import { useAuthStore } from '../../store/authStore';
+import { deletePayment } from '../../api/sales';
 import { toast } from 'sonner';
 
 interface ReservationDetailsModalProps {
@@ -47,6 +50,26 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
     const ndsPercent = reservation.nds_percent || 12;
     const ndsAmount = subtotal * (ndsPercent / 100);
     const totalAmount = subtotal + ndsAmount;
+
+    const [isDeleting, setIsDeleting] = React.useState<number | null>(null);
+    const canDelete = user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'director';
+
+    const handleDeletePayment = async (paymentId: number) => {
+        if (!window.confirm('Haqiqatan ham ushbu to\'lovni bekor qilmoqchimisiz? Bu moliyaviy hisobotlarga ta’sir qiladi.')) return;
+
+        setIsDeleting(paymentId);
+        try {
+            await deletePayment(paymentId);
+            toast.success("To'lov muvaffaqiyatli bekor qilindi");
+            if (onRefresh) onRefresh();
+        } catch (error: any) {
+            console.error("Failed to delete payment", error);
+            const detail = error.response?.data?.detail || "Xatolik yuz berdi";
+            toast.error(detail);
+        } finally {
+            setIsDeleting(null);
+        }
+    };
 
     const invoice = reservation.invoice;
     const payments = invoice?.payments || [];
@@ -188,6 +211,20 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
                                             <p className="text-xs font-black text-slate-800">{p.amount.toLocaleString()} UZS</p>
                                             <p className="text-[9px] font-bold text-slate-400">{new Date(p.date).toLocaleDateString('ru-RU')} • PM #{p.id}</p>
                                         </div>
+                                        {canDelete && (
+                                            <button 
+                                                onClick={() => handleDeletePayment(p.id)}
+                                                disabled={isDeleting === p.id}
+                                                className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"
+                                                title="Bekor qilish"
+                                            >
+                                                {isDeleting === p.id ? (
+                                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="w-3 h-3" />
+                                                )}
+                                            </button>
+                                        )}
                                     </div>
                                 )) : (
                                     <div className="flex flex-col items-center justify-center py-4 text-slate-300 italic">
