@@ -619,6 +619,29 @@ async def create_payment(
     )
     return payment
 
+@router.delete("/payments/{id}")
+async def delete_payment(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request,
+) -> Any:
+    allowed_roles = [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.ACCOUNTANT, UserRole.DEPUTY_DIRECTOR, UserRole.INVESTOR]
+    if current_user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Not enough permissions to delete payments.")
+    
+    from app.services.finance_service import FinancialService
+    result = await FinancialService.reverse_payment(db, payment_id=id)
+    
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "DELETE", "Payment", id,
+        f"Оплата отменена (реверс): ID {id}",
+        request
+    )
+    return result
+
 # Facts & Doctor Assignments
 @router.get("/facts/", response_model=List[SaleFact])
 async def read_facts(

@@ -574,3 +574,105 @@ class FinancialService:
         await db.commit()
         return {"status": "success", "message": "Фakt o'chirildi"}
 
+    @staticmethod
+    async def reverse_payment(db: AsyncSession, payment_id: int):
+        """
+        Reverses a payment:
+        1. Deducts amount from Invoice.paid_amount
+        2. Updates Invoice status
+        3. Deletes related BonusLedger accruals
+        4. Adjusts UnassignedSale quantities
+        5. Reverses stock decrement (Ostatki Aptek) if fully paid -> partial/unpaid
+        6. Reverses overpayments (BalanceTransaction & credit_balance)
+        7. Deletes the Payment record
+        """
+        async with db.begin_nested() as transaction:
+            try:
+                from app.models.sales import Payment, Invoice, InvoiceStatus, Reservation, ReservationItem, UnassignedSale
+                from sqlalchemy.orm import selectinload
+                from app.models.ledger import BonusLedger
+                from app.models.crm import MedicalOrganization, BalanceTransaction, MedicalOrganizationStock
+                
+                # 1. Fetch Payment (with Invoice join)
+                stmt = select(Payment).options(
+                    selectinload(Payment.invoice).selectinload(Invoice.reservation).selectinload(Reservation.items)
+                ).where(Payment.id == payment_id).with_for_update()
+                
+                res = await db.execute(stmt)
+                payment = res.scalar_one_or_none()
+                
+                if not payment:
+                    raise HTTPException(status_code=404, detail="Payment not found")
+                
+                invoice = payment.invoice
+                if not invoice:
+                    # In case of orphaned payment, just delete it
+                    await db.delete(payment)
+                    await db.commit()
+                    return {"status": "success", "message": "Orphaned payment deleted"}
+
+                previous_invoice_status = invoice.status
+                
+                # 2. Reverse BonusLedger accruals (Linked to this payment)
+                ledger_stmt = select(BonusLedger).where(BonusLedger.payment_id == payment_id)
+                ledger_res = await db.execute(ledger_stmt)
+                ledger_entries = ledger_res.scalars().all()
+                for entry in ledger_entries:
+                    await db.delete(entry)
+
+                # 3. Update Invoice
+                invoice.paid_amount = max(0.0, float(invoice.paid_amount) - float(payment.amount))
+                
+                if invoice.paid_amount <= 0:
+                    invoice.status = InvoiceStatus.UNPAID
+                elif invoice.paid_amount < invoice.total_amount:
+                    invoice.status = InvoiceStatus.PARTIAL
+                else:
+                    invoice.status = InvoiceStatus.PAID
+                
+                # 4. Reverse Stock Decrement if transition from PAID to NOT PAID
+                if previous_invoice_status == InvoiceStatus.PAID and invoice.status != InvoiceStatus.PAID:
+                    reservation = invoice.reservation
+                    if reservation:
+                        for item in reservation.items:
+                            stk_query = select(MedicalOrganizationStock).where(
+                                (MedicalOrganizationStock.med_org_id == reservation.med_org_id) &
+                                (MedicalOrganizationStock.product_id == item.product_id)
+                            ).with_for_update()
+                            stk_res = await db.execute(stk_query)
+                            pharm_stock = stk_res.scalar_one_or_none()
+                            if pharm_stock:
+                                pharm_stock.quantity += item.quantity
+                        
+                        # Reset promo balance
+                        invoice.promo_balance = 0.0
+
+                # 5. Update UnassignedSale paid quantities (New ratio)
+                total_paid_ratio = min(1.0, invoice.paid_amount / invoice.total_amount) if invoice.total_amount > 0 else 0
+                unassigned_query = select(UnassignedSale).where(UnassignedSale.invoice_id == invoice.id)
+                unassigned_res = await db.execute(unassigned_query)
+                for rec in unassigned_res.scalars().all():
+                    rec.paid_quantity = int(rec.total_quantity * total_paid_ratio)
+
+                # 6. Reverse Overpayments & BalanceTransactions
+                bt_query = select(BalanceTransaction).where(BalanceTransaction.payment_id == payment_id)
+                bt_res = await db.execute(bt_query)
+                bt_entries = bt_res.scalars().all()
+                for bt in bt_entries:
+                    org_q = select(MedicalOrganization).where(MedicalOrganization.id == bt.organization_id).with_for_update()
+                    org_res = await db.execute(org_q)
+                    org = org_res.scalar_one_or_none()
+                    if org:
+                        org.credit_balance = max(0.0, (org.credit_balance or 0.0) - bt.amount)
+                    await db.delete(bt)
+
+                # 7. Delete the Payment record itself
+                await db.delete(payment)
+                
+                await db.commit()
+                return {"status": "success", "message": f"Payment #{payment_id} reversed successfully"}
+                
+            except Exception as e:
+                await transaction.rollback()
+                raise HTTPException(status_code=500, detail=f"Reversal failed: {str(e)}")
+
