@@ -35,6 +35,10 @@ export default function MedRepsPage() {
     // Region filter state
     const [regions, setRegions] = useState<any[]>([]);
     const [selectedRegionId, setSelectedRegionId] = useState<string>("all");
+
+    // Product Manager filter state
+    const [pmList, setPmList] = useState<any[]>([]);
+    const [selectedPmId, setSelectedPmId] = useState<string>("all");
     
     const fetchRMList = React.useCallback(async () => {
         try {
@@ -44,6 +48,17 @@ export default function MedRepsPage() {
         } catch (error) {
             console.error("Failed to fetch RM list:", error);
             setRmList([]);
+        }
+    }, []);
+
+    const fetchPmList = React.useCallback(async () => {
+        try {
+            const api = (await import('../../api/axios')).default;
+            const res = await api.get('/users/med-reps?role=product_manager');
+            setPmList(Array.isArray(res.data) ? res.data : []);
+        } catch (error) {
+            console.error("Failed to fetch PM list:", error);
+            setPmList([]);
         }
     }, []);
 
@@ -61,10 +76,11 @@ export default function MedRepsPage() {
     React.useEffect(() => {
         fetchMedReps("med_rep");
         fetchRegions();
+        fetchPmList();
         if (user?.role !== 'regional_manager') {
             fetchRMList();
         }
-    }, [fetchMedReps, fetchRMList, fetchRegions, user?.role]);
+    }, [fetchMedReps, fetchRMList, fetchRegions, fetchPmList, user?.role]);
 
     const handleReassignOpen = (id: number, name: string) => {
         setReassignUserId(id);
@@ -99,11 +115,20 @@ export default function MedRepsPage() {
     };
 
     const filteredMedReps = React.useMemo(() => {
-        const safeMedReps = Array.isArray(medReps) ? medReps : [];
-        if (selectedRegionId === "all") return safeMedReps;
-        const rid = parseInt(selectedRegionId);
-        return safeMedReps.filter(r => Array.isArray(r.region_ids) && r.region_ids.includes(rid));
-    }, [medReps, selectedRegionId]);
+        let filtered = Array.isArray(medReps) ? medReps : [];
+        
+        if (selectedRegionId !== "all") {
+            const rid = parseInt(selectedRegionId);
+            filtered = filtered.filter(r => Array.isArray(r.region_ids) && r.region_ids.includes(rid));
+        }
+
+        if (selectedPmId !== "all") {
+            const pmid = parseInt(selectedPmId);
+            filtered = filtered.filter(r => r.manager_id === pmid);
+        }
+
+        return filtered;
+    }, [medReps, selectedRegionId, selectedPmId]);
 
     const activeReps = Array.isArray(filteredMedReps) ? filteredMedReps.filter(r => r.is_active) : [];
     const inactiveReps = Array.isArray(filteredMedReps) ? filteredMedReps.filter(r => !r.is_active) : [];
@@ -169,16 +194,28 @@ export default function MedRepsPage() {
                             searchColumn="username"
                             onRowClick={(row) => navigate(`/med-reps/${row.id}`)}
                             filters={
-                                <SearchableSelect
-                                    options={(Array.isArray(regions) ? regions : []).map(r => ({ 
-                                        value: (r?.id || "").toString(), 
-                                        label: r?.name || "Без названия" 
-                                    }))}
-                                    value={selectedRegionId}
-                                    onChange={setSelectedRegionId}
-                                    placeholder="Все регионы"
-                                    className="max-w-[180px]"
-                                />
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <SearchableSelect
+                                        options={(Array.isArray(pmList) ? pmList : []).map(pm => ({ 
+                                            value: (pm?.id || "").toString(), 
+                                            label: pm?.full_name || pm?.username || "Без названия" 
+                                        }))}
+                                        value={selectedPmId}
+                                        onChange={setSelectedPmId}
+                                        placeholder="Все ПМ"
+                                        className="min-w-[180px]"
+                                    />
+                                    <SearchableSelect
+                                        options={(Array.isArray(regions) ? regions : []).map(r => ({ 
+                                            value: (r?.id || "").toString(), 
+                                            label: r?.name || "Без названия" 
+                                        }))}
+                                        value={selectedRegionId}
+                                        onChange={setSelectedRegionId}
+                                        placeholder="Все регионы"
+                                        className="min-w-[150px]"
+                                    />
+                                </div>
                             }
                         />
                     </div>
@@ -192,16 +229,28 @@ export default function MedRepsPage() {
                             searchColumn="username"
                             onRowClick={(row) => navigate(`/med-reps/${row.id}`)}
                             filters={
-                                <SearchableSelect
-                                    options={(Array.isArray(regions) ? regions : []).map(r => ({ 
-                                        value: (r?.id || "").toString(), 
-                                        label: r?.name || "Без названия" 
-                                    }))}
-                                    value={selectedRegionId}
-                                    onChange={(val) => setSelectedRegionId(val)}
-                                    placeholder="Все регионы"
-                                    className="max-w-[180px]"
-                                />
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <SearchableSelect
+                                        options={(Array.isArray(pmList) ? pmList : []).map(pm => ({ 
+                                            value: (pm?.id || "").toString(), 
+                                            label: pm?.full_name || pm?.username || "Без названия" 
+                                        }))}
+                                        value={selectedPmId}
+                                        onChange={setSelectedPmId}
+                                        placeholder="Все ПМ"
+                                        className="min-w-[180px]"
+                                    />
+                                    <SearchableSelect
+                                        options={(Array.isArray(regions) ? regions : []).map(r => ({ 
+                                            value: (r?.id || "").toString(), 
+                                            label: r?.name || "Без названия" 
+                                        }))}
+                                        value={selectedRegionId}
+                                        onChange={(val) => setSelectedRegionId(val)}
+                                        placeholder="Все регионы"
+                                        className="min-w-[150px]"
+                                    />
+                                </div>
                             }
                         />
                     </div>

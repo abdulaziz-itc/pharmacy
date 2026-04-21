@@ -161,14 +161,19 @@ export function MedOrgDetailModal({ org, isOpen, onClose, readOnly = false }: Me
 
     if (!org) return null;
 
+import { toast } from 'sonner';
+
     const handleSave = async () => {
         setIsSaving(true);
         try {
             await updateMedOrg(org.id, editData);
             setIsEditing(false);
+            toast.success("Данные успешно обновлены");
             // Optionally onClose() if we want to close it, but usually just turning off edit mode is better.
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to update organization", error);
+            const detail = error.response?.data?.detail || "Ошибка при обновлении организации";
+            toast.error(detail);
         } finally {
             setIsSaving(false);
         }

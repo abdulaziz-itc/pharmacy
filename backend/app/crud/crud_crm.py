@@ -136,18 +136,17 @@ async def create_med_org(db: AsyncSession, obj_in: MedicalOrganizationCreate) ->
     obj_data = obj_in.dict()
     assigned_rep_ids = obj_data.pop("assigned_rep_ids", [])
     
-    # Check for duplicates by name and INN
-    existing_q = select(MedicalOrganization).where(
-        (MedicalOrganization.name == obj_data.get("name")) &
-        (MedicalOrganization.inn == obj_data.get("inn"))
-    )
-    existing_res = await db.execute(existing_q)
-    if existing_res.scalars().first():
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Организация с названием '{obj_data.get('name')}' и ИНН '{obj_data.get('inn')}' уже существует."
-        )
+    # Check for duplicates by INN
+    inn = obj_data.get("inn")
+    if inn:
+        existing_q = select(MedicalOrganization).where(MedicalOrganization.inn == inn)
+        existing_res = await db.execute(existing_q)
+        if existing_res.scalars().first():
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Организация с ИНН '{inn}' уже существует в системе."
+            )
 
     db_obj = MedicalOrganization(**obj_data)
     
@@ -207,6 +206,21 @@ async def update_med_org(db: AsyncSession, db_obj: MedicalOrganization, obj_in: 
     
     for field in update_data:
         setattr(db_obj, field, update_data[field])
+        
+    # Check for duplicates by INN if it's being changed
+    inn = update_data.get("inn")
+    if inn and inn != db_obj.inn:
+        existing_q = select(MedicalOrganization).where(
+            (MedicalOrganization.inn == inn) &
+            (MedicalOrganization.id != db_obj.id)
+        )
+        existing_res = await db.execute(existing_q)
+        if existing_res.scalars().first():
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Невозможно обновить: организация с ИНН '{inn}' уже существует."
+            )
         
     if assigned_rep_ids is not None:
         from app.models.user import User

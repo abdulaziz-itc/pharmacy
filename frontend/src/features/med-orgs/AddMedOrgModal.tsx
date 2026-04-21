@@ -45,6 +45,8 @@ function LocationMarker({ setPosition, position }: { setPosition: (pos: [number,
     );
 }
 
+import { toast } from 'sonner';
+
 export function AddMedOrgModal({ isOpen, onClose, defaultRepId, defaultOrgType }: AddMedOrgModalProps) {
     const { regions, fetchRegions } = useRegionStore();
     const { medReps, fetchMedReps } = useMedRepStore();
@@ -72,7 +74,7 @@ export function AddMedOrgModal({ isOpen, onClose, defaultRepId, defaultOrgType }
 
     const handleSubmit = async () => {
         if (!name || !regionId || !inn) {
-            alert("Пожалуйста, заполните обязательные поля: Название, ИНН и Регион");
+            toast.error("Пожалуйста, заполните обязательные поля: Название, ИНН и Регион");
             return;
         }
 
@@ -89,6 +91,7 @@ export function AddMedOrgModal({ isOpen, onClose, defaultRepId, defaultOrgType }
                 address,
             });
 
+            toast.success("Организация успешно создана");
             onClose();
             // Reset form
             setName("");
@@ -100,8 +103,10 @@ export function AddMedOrgModal({ isOpen, onClose, defaultRepId, defaultOrgType }
             setRegionId("");
             setAddress("");
             setPosition(null);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create medical organization", error);
+            const detail = error.response?.data?.detail || "Ошибка при создании организации";
+            toast.error(detail);
         } finally {
             setIsSubmitting(false);
         }
