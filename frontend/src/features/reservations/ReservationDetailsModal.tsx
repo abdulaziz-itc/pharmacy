@@ -290,37 +290,3 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
         </Dialog>
     );
 };
-
-                    {reservation.description && (
-                        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
-                            <FileText className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                            <div>
-                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Примечание</p>
-                                <p className="text-sm text-amber-900 font-medium leading-relaxed mt-1">
-                                    {reservation.description}
-                                </p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </DialogContent>
-
-            {/* Recipient Detail Modals */}
-            <MedOrgDetailModal 
-                isOpen={isMedOrgModalOpen}
-                onClose={() => setIsMedOrgModalOpen(false)}
-                org={reservation.med_org}
-                readOnly={true}
-            />
-
-            <DoctorDetailModal 
-                isOpen={isDoctorModalOpen}
-                onClose={() => setIsDoctorModalOpen(false)}
-                doctor={reservation.doctor}
-                salesPlans={[]}
-                salesFacts={[]}
-                readOnly={true}
-            />
-        </Dialog>
-    );
-};
