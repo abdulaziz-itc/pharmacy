@@ -196,7 +196,7 @@ const HeadOfOrdersPage: React.FC = () => {
     const [showOverpaidModal, setShowOverpaidModal] = useState(false);
     const user = useAuthStore(state => state.user);
     const [isDeletingPayment, setIsDeletingPayment] = useState<number | null>(null);
-    const canDelete = user?.role && ['accountant', 'admin', 'director', 'investor', 'head_of_orders', 'deputy_director', 'wholesale_manager', 'hrd', 'owner', 'manager'].includes(user.role);
+    const canManagePayments = user?.role && ['accountant', 'investor', 'admin', 'director'].includes(user.role);
 
     const handleDeletePayment = async (paymentId: number) => {
         if (!window.confirm('Haqiqatan ham ushbu to\'lovni bekor qilmoqchimisiz? Bu moliyaviy hisobotlarga ta’sir qiladi.')) return;

@@ -627,8 +627,8 @@ async def delete_payment(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    # Per user request: Only accountant can delete, but we also allow Admin/Director for management
-    if current_user.role not in [UserRole.ACCOUNTANT, UserRole.ADMIN, UserRole.DIRECTOR]:
+    # Per user request: Only accountant and owner (Investor/Admin/Director) can delete
+    if current_user.role not in [UserRole.ACCOUNTANT, UserRole.INVESTOR, UserRole.ADMIN, UserRole.DIRECTOR]:
         raise HTTPException(status_code=403, detail="Только бухгалтер или администрация может отменять платежи.")
     
     from app.services.finance_service import FinancialService
@@ -669,8 +669,8 @@ async def delete_balance_transaction(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    # Per user request: Only accountant can delete, but we also allow Admin/Director for management
-    if current_user.role not in [UserRole.ACCOUNTANT, UserRole.ADMIN, UserRole.DIRECTOR]:
+    # Per user request: Only accountant and owner (Investor/Admin/Director) can delete
+    if current_user.role not in [UserRole.ACCOUNTANT, UserRole.INVESTOR, UserRole.ADMIN, UserRole.DIRECTOR]:
         raise HTTPException(status_code=403, detail="Только бухгалтер или администрация может отменять транзакции.")
     
     from app.services.finance_service import FinancialService
