@@ -15,14 +15,11 @@ import {
     FileText,
     Receipt,
     ExternalLink,
-    Trash2,
-    CheckCircle2,
-    RefreshCw
+    CheckCircle2
 } from 'lucide-react';
 import { cn } from "../../lib/utils";
 import { MedOrgDetailModal } from "../med-orgs/MedOrgDetailModal";
 import { DoctorDetailModal } from "../med-reps/components/DoctorDetailModal";
-import { deletePayment } from '../../api/sales';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 
@@ -41,7 +38,6 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
 }) => {
     const [isMedOrgModalOpen, setIsMedOrgModalOpen] = React.useState(false);
     const [isDoctorModalOpen, setIsDoctorModalOpen] = React.useState(false);
-    const [isDeleting, setIsDeleting] = React.useState<number | null>(null);
     const user = useAuthStore(state => state.user);
 
     if (!reservation) return null;
@@ -51,27 +47,6 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
     const ndsPercent = reservation.nds_percent || 12;
     const ndsAmount = subtotal * (ndsPercent / 100);
     const totalAmount = subtotal + ndsAmount;
-
-    // Determine if the user can delete payments
-    const canDeletePayments = ['admin', 'director', 'accountant', 'deputy_director', 'investor'].includes(user?.role?.toLowerCase() || '');
-
-    const handleDeletePayment = async (paymentId: number) => {
-        if (!window.confirm('Haqiqatan ham ushbu toʻlovni bekor qilmoqchimisiz? Bu amalni orqaga qaytarib boʻlmaydi.')) return;
-        
-        setIsDeleting(paymentId);
-        try {
-            await deletePayment(paymentId);
-            toast.success("To'lov muvaffaqiyatli bekor qilindi");
-            if (onRefresh) onRefresh();
-            onClose(); // Close modal to reflect changes in the parent list
-        } catch (error: any) {
-            console.error("Failed to delete payment", error);
-            const detail = error.response?.data?.detail || "To'lovni o'chirishda xatolik yuz berdi";
-            toast.error(detail);
-        } finally {
-            setIsDeleting(null);
-        }
-    };
 
     const invoice = reservation.invoice;
     const payments = invoice?.payments || [];
@@ -213,16 +188,6 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
                                             <p className="text-xs font-black text-slate-800">{p.amount.toLocaleString()} UZS</p>
                                             <p className="text-[9px] font-bold text-slate-400">{new Date(p.date).toLocaleDateString('ru-RU')} • PM #{p.id}</p>
                                         </div>
-                                        {canDeletePayments && (
-                                            <button 
-                                                onClick={() => handleDeletePayment(p.id)}
-                                                disabled={isDeleting === p.id}
-                                                className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"
-                                                title="To'lovni bekor qilish"
-                                            >
-                                                {isDeleting === p.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                            </button>
-                                        )}
                                     </div>
                                 )) : (
                                     <div className="flex flex-col items-center justify-center py-4 text-slate-300 italic">

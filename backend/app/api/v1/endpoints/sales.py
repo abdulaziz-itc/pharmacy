@@ -627,9 +627,9 @@ async def delete_payment(
     current_user: User = Depends(deps.get_current_user),
     request: Request,
 ) -> Any:
-    allowed_roles = [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.ACCOUNTANT, UserRole.DEPUTY_DIRECTOR, UserRole.INVESTOR]
-    if current_user.role not in allowed_roles:
-        raise HTTPException(status_code=403, detail="Not enough permissions to delete payments.")
+    # Per user request: Only accountant can delete
+    if current_user.role != UserRole.ACCOUNTANT:
+        raise HTTPException(status_code=403, detail="Только бухгалтер может отменять платежи.")
     
     from app.services.finance_service import FinancialService
     result = await FinancialService.reverse_payment(db, payment_id=id)
@@ -640,6 +640,67 @@ async def delete_payment(
         f"Оплата отменена (реверс): ID {id}",
         request
     )
+    
+    # Notify Admins/Directors
+    try:
+        from app.models.crm import Notification
+        stmt = select(User).where(User.role.in_([UserRole.ADMIN, UserRole.DIRECTOR]))
+        res = await db.execute(stmt)
+        admins = res.scalars().all()
+        for admin in admins:
+            n = Notification(
+                topic="Платеж отменен",
+                message=f"Бухгалтер {current_user.full_name} отменил платеж #{id}.",
+                recipient_id=admin.id,
+                related_entity_type="Payment"
+            )
+            db.add(n)
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to send notification: {e}")
+
+    return result
+
+@router.delete("/balance-transactions/{id}")
+async def delete_balance_transaction(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    current_user: User = Depends(deps.get_current_user),
+    request: Request,
+) -> Any:
+    # Per user request: Only accountant can delete
+    if current_user.role != UserRole.ACCOUNTANT:
+        raise HTTPException(status_code=403, detail="Только бухгалтер может отменять транзакции.")
+    
+    from app.services.finance_service import FinancialService
+    result = await FinancialService.reverse_balance_transaction(db, transaction_id=id)
+    
+    from app.services.audit_service import log_action
+    await log_action(
+        db, current_user, "DELETE", "BalanceTransaction", id,
+        f"Транзакция баланса отменена: ID {id}",
+        request
+    )
+
+    # Notify Admins/Directors
+    try:
+        from app.models.crm import Notification
+        stmt = select(User).where(User.role.in_([UserRole.ADMIN, UserRole.DIRECTOR]))
+        res = await db.execute(stmt)
+        admins = res.scalars().all()
+        for admin in admins:
+            n = Notification(
+                topic="Транзакция отменена",
+                message=f"Бухгалтер {current_user.full_name} отменил транзакцию #{id}.",
+                recipient_id=admin.id,
+                related_entity_type="BalanceTransaction"
+            )
+            db.add(n)
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to send notification: {e}")
+
     return result
 
 # Facts & Doctor Assignments

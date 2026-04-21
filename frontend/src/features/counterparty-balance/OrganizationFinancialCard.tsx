@@ -8,7 +8,10 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { formatMoney } from '../../components/ui/MoneyInput';
-import { FileText, Banknote, Calendar, ChevronRight, Landmark } from 'lucide-react';
+import { FileText, Banknote, Calendar, ChevronRight, Landmark, Trash2, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
+import { deleteBalanceTransaction } from '../../api/sales';
+import { toast } from 'sonner';
 
 interface OrganizationFinancialCardProps {
     isOpen: boolean;
@@ -16,10 +19,15 @@ interface OrganizationFinancialCardProps {
     organizationId: number;
     organizationName: string;
     currentBalance: number;
+    onRefresh?: () => void;
 }
 
-export function OrganizationFinancialCard({ isOpen, onClose, organizationId, organizationName, currentBalance }: OrganizationFinancialCardProps) {
-    const { data: history = [], isLoading } = useQuery({
+export function OrganizationFinancialCard({ isOpen, onClose, organizationId, organizationName, currentBalance, onRefresh }: OrganizationFinancialCardProps) {
+    const user = useAuthStore(state => state.user);
+    const [isDeleting, setIsDeleting] = React.useState<number | null>(null);
+    const isAccountant = user?.role === 'accountant';
+
+    const { data: history = [], isLoading, refetch } = useQuery({
         queryKey: ['org-finance-history', organizationId],
         queryFn: async () => {
             const response = await api.get(`/sales/organizations/${organizationId}/finance-history`);
@@ -27,6 +35,25 @@ export function OrganizationFinancialCard({ isOpen, onClose, organizationId, org
         },
         enabled: isOpen
     });
+
+    const handleDelete = async (e: React.MouseEvent, transactionId: number) => {
+        e.stopPropagation();
+        if (!window.confirm('Haqiqatan ham ushbu amalni bekor qilmoqchimisiz? Bu moliyaviy hisobotlarga ta’sir qiladi.')) return;
+
+        setIsDeleting(transactionId);
+        try {
+            await deleteBalanceTransaction(transactionId);
+            toast.success("Amal muvaffaqiyatli bekor qilindi");
+            refetch();
+            if (onRefresh) onRefresh();
+        } catch (error: any) {
+            console.error("Failed to delete transaction", error);
+            const detail = error.response?.data?.detail || "Xatolik yuz berdi";
+            toast.error(detail);
+        } finally {
+            setIsDeleting(null);
+        }
+    };
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -43,7 +70,6 @@ export function OrganizationFinancialCard({ isOpen, onClose, organizationId, org
                 <div className="flex flex-col h-[70vh]">
                     {/* Header Stats */}
                     <div className="p-8 grid grid-cols-2 gap-6 bg-slate-50/50 border-b border-slate-100">
-                        {/* ... (rest of the content) ... */}
                         <div className="bg-white p-6 rounded-[24px] border border-slate-200/60 shadow-sm transition-all hover:shadow-md">
                             <p className="text-[10px] uppercase font-bold text-slate-400 tracking-[0.2em] mb-2">Текущее сальдо</p>
                             <p className={`text-3xl font-black ${
@@ -152,8 +178,20 @@ export function OrganizationFinancialCard({ isOpen, onClose, organizationId, org
                                             )}
                                         </div>
 
-                                        <div className="self-center opacity-0 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0">
-                                            <ChevronRight className="w-6 h-6 text-slate-300" />
+                                        <div className="flex items-center gap-2 self-center">
+                                            {isAccountant && (
+                                                <button 
+                                                    onClick={(e) => handleDelete(e, item.id)}
+                                                    disabled={isDeleting === item.id}
+                                                    className="p-2.5 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-rose-100"
+                                                    title="Bekor qilish"
+                                                >
+                                                    {isDeleting === item.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                </button>
+                                            )}
+                                            <div className="opacity-40 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0">
+                                                <ChevronRight className="w-6 h-6 text-slate-300" />
+                                            </div>
                                         </div>
                                     </div>
                                 );

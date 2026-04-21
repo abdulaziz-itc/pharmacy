@@ -676,3 +676,59 @@ class FinancialService:
                 await transaction.rollback()
                 raise HTTPException(status_code=500, detail=f"Reversal failed: {str(e)}")
 
+    @staticmethod
+    async def reverse_balance_transaction(db: AsyncSession, transaction_id: int):
+        """
+        Reverses a balance transaction (e.g. manual top-up, overpayment, or application).
+        If the transaction is tied to a Payment, it reverses the parent Payment.
+        Otherwise, it adjusts the MedicalOrganization.credit_balance directly.
+        """
+        from app.models.crm import BalanceTransaction, MedicalOrganization, BalanceTransactionType
+        from app.models.sales import Payment
+        from sqlalchemy import select
+
+        async with db.begin_nested() as transaction:
+            try:
+                # 1. Fetch the transaction
+                stmt = select(BalanceTransaction).where(BalanceTransaction.id == transaction_id).with_for_update()
+                res = await db.execute(stmt)
+                bt = res.scalar_one_or_none()
+                
+                if not bt:
+                    raise HTTPException(status_code=404, detail="Transaction not found")
+                
+                # 2. Handle based on type
+                if bt.transaction_type in [BalanceTransactionType.APPLICATION, BalanceTransactionType.OVERPAYMENT]:
+                    # These are tied to a Payment. Reversing the Payment handles everything.
+                    if bt.payment_id:
+                        # Recursively call reverse_payment (but within this transaction boundary if possible, 
+                        # though reverse_payment also has its own transaction management).
+                        # To keep it simple, we'll call it and it will commit/rollback on its own.
+                        return await FinancialService.reverse_payment(db, bt.payment_id)
+                    else:
+                        # Fallback for orphaned application (should not happen)
+                        await db.delete(bt)
+                
+                elif bt.transaction_type == BalanceTransactionType.TOPUP or bt.transaction_type == BalanceTransactionType.MANUAL_ADJUSTMENT:
+                    # Manual balance adjustment: Just reverse the credit_balance update
+                    org_stmt = select(MedicalOrganization).where(MedicalOrganization.id == bt.organization_id).with_for_update()
+                    org_res = await db.execute(org_stmt)
+                    org = org_res.scalar_one_or_none()
+                    
+                    if org:
+                        # Since bt.amount for TOPUP is positive, we subtract it.
+                        org.credit_balance = (org.credit_balance or 0.0) - bt.amount
+                    
+                    await db.delete(bt)
+                
+                else:
+                    # Unhandled types or INVOICE debt type (which usually shouldn't be reversed this way)
+                    await db.delete(bt)
+                
+                await db.commit()
+                return {"status": "success", "message": f"Transaction #{transaction_id} reversed successfully"}
+
+            except Exception as e:
+                await transaction.rollback()
+                raise HTTPException(status_code=500, detail=f"Reversal failed: {str(e)}")
+

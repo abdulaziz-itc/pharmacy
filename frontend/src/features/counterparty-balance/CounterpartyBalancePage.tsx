@@ -156,6 +156,7 @@ export default function CounterpartyBalancePage() {
                     organizationId={selectedOrgForHistory.id}
                     organizationName={selectedOrgForHistory.name}
                     currentBalance={selectedOrgForHistory.total_balance}
+                    onRefresh={refetch}
                 />
             )}
         </PageContainer>

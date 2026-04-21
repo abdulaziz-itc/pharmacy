@@ -141,3 +141,8 @@ export const deletePayment = async (id: number) => {
     const response = await axiosInstance.delete(`/sales/payments/${id}`);
     return response.data;
 };
+
+export const deleteBalanceTransaction = async (id: number) => {
+    const response = await axiosInstance.delete(`/sales/balance-transactions/${id}`);
+    return response.data;
+};
