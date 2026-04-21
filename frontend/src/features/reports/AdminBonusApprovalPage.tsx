@@ -11,6 +11,7 @@ import { Wallet, CheckCircle2, AlertCircle, Banknote, Search, ArrowRight } from 
 import axiosInstance from "@/api/axios";
 import { DrilldownModal } from "@/components/analytics/DrilldownModal";
 import { MoneyInput, formatMoney } from "@/components/ui/MoneyInput";
+import { ReservationDetailsModal } from "../reservations/ReservationDetailsModal";
 
 // TypeScript Interfaces
 interface BonusSummary {
@@ -98,6 +99,13 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
             setIsDetailModalOpen(false);
         } finally {
             setIsDetailLoading(false);
+        }
+    };
+
+    const handleDetailRefresh = () => {
+        fetchSummaries();
+        if (selectedResDetails?.id) {
+            handleInvoiceClick(selectedResDetails.id);
         }
     };
 
@@ -610,141 +618,12 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
             </Dialog>
 
             {/* Reservation Detail Modal */}
-            <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-                <DialogContent className="max-w-3xl rounded-3xl p-0 overflow-hidden border-0 shadow-2xl">
-                    <DialogTitle className="sr-only">Детали брони</DialogTitle>
-                    <DialogDescription className="sr-only">Просмотр состава и деталей брони.</DialogDescription>
-
-                    {isDetailLoading ? (
-                        <div className="p-20 text-center text-slate-500 font-bold uppercase tracking-widest">
-                            Загрузка...
-                        </div>
-                    ) : selectedResDetails ? (
-                        <>
-                            <div className="bg-slate-900 px-6 py-5 text-white flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                                        <Wallet className="w-5 h-5 text-blue-400" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-lg font-bold">Бронь №{selectedResDetails.id}</h2>
-                                        <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
-                                            {selectedResDetails.med_org?.name || 'Прямой клиент'}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Статус</p>
-                                    <span className={`px-3 py-1 rounded-lg text-xs font-black ${selectedResDetails.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400' :
-                                        selectedResDetails.status === 'CANCELLED' ? 'bg-rose-500/20 text-rose-400' :
-                                            'bg-blue-500/20 text-blue-400'
-                                        }`}>
-                                        {selectedResDetails.status}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="p-6 space-y-6">
-                                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Дата</p>
-                                        <p className="text-sm font-bold text-slate-700">
-                                            {selectedResDetails.date ? new Date(selectedResDetails.date).toLocaleDateString('ru-RU') : '-'}
-                                        </p>
-                                    </div>
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Сумма</p>
-                                        <p className="text-sm font-black text-blue-600">
-                                            {formatMoney(selectedResDetails.total_amount || 0)} UZS
-                                        </p>
-                                    </div>
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Оплачено</p>
-                                        <p className="text-sm font-black text-emerald-600">
-                                            {formatMoney(selectedResDetails.invoice?.paid_amount || 0)} UZS
-                                        </p>
-                                    </div>
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Создал</p>
-                                        <p className="text-sm font-bold text-slate-700 truncate">
-                                            {selectedResDetails.created_by?.full_name || '-'}
-                                        </p>
-                                    </div>
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase font-black mb-1">ИНН</p>
-                                        <p className="text-sm font-bold text-slate-700">
-                                            {selectedResDetails.med_org?.inn || '-'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="rounded-2xl border border-slate-100 overflow-hidden">
-                                    <table className="w-full text-xs">
-                                        <thead className="bg-slate-50 border-b border-slate-100">
-                                            <tr>
-                                                <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-widest">Товар</th>
-                                                <th className="px-4 py-3 text-center font-black text-slate-400 uppercase tracking-widest">Кол-во</th>
-                                                <th className="px-4 py-3 text-right font-black text-slate-400 uppercase tracking-widest">Цена</th>
-                                                <th className="px-4 py-3 text-right font-black text-slate-400 uppercase tracking-widest">Итого</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-50">
-                                            {(selectedResDetails.items || []).map((item: any, idx: number) => (
-                                                <tr key={idx} className="hover:bg-slate-50/50">
-                                                    <td className="px-4 py-3 font-bold text-slate-700">{item.product?.name}</td>
-                                                    <td className="px-4 py-3 text-center font-bold text-slate-600">{item.quantity}</td>
-                                                    <td className="px-4 py-3 text-right font-medium text-slate-500">{formatMoney(item.price || 0)}</td>
-                                                    <td className="px-4 py-3 text-right font-bold text-slate-900">{formatMoney(item.total_price || 0)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                        <tfoot className="bg-slate-50/50 border-t border-slate-100">
-                                            {selectedResDetails.nds_percent > 0 && (() => {
-                                                const totalWithNds = selectedResDetails.total_amount || 0;
-                                                const subtotal = totalWithNds / (1 + selectedResDetails.nds_percent / 100);
-                                                const ndsAmount = totalWithNds - subtotal;
-                                                return (
-                                                    <>
-                                                        <tr>
-                                                            <td colSpan={3} className="px-4 py-2 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px]">Сумма без НДС</td>
-                                                            <td className="px-4 py-2 text-right font-bold text-slate-700">
-                                                                {formatMoney(Math.round(subtotal))} UZS
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td colSpan={3} className="px-4 py-2 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px]">НДС {selectedResDetails.nds_percent}%</td>
-                                                            <td className="px-4 py-2 text-right font-bold text-slate-700">
-                                                                {formatMoney(Math.round(ndsAmount))} UZS
-                                                            </td>
-                                                        </tr>
-                                                    </>
-                                                );
-                                            })()}
-                                            <tr>
-                                                <td colSpan={3} className="px-4 py-3 text-right font-black text-slate-500 uppercase tracking-widest">Итого к оплате</td>
-                                                <td className="px-4 py-3 text-right font-black text-blue-600 text-sm">
-                                                    {formatMoney(selectedResDetails.total_amount || 0)} UZS
-                                                </td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="p-20 text-center text-slate-500">Данные не найдены</div>
-                    )}
-
-                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
-                        <Button
-                            onClick={() => setIsDetailModalOpen(false)}
-                            className="bg-white border text-slate-600 hover:bg-slate-50 font-bold rounded-xl"
-                        >
-                            Закрыть
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <ReservationDetailsModal 
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                reservation={selectedResDetails}
+                onRefresh={handleDetailRefresh}
+            />
 
             {drilldownMetric && (
                 <DrilldownModal

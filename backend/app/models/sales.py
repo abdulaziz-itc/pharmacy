@@ -132,10 +132,12 @@ class Payment(Base): # Postupleniya
     comment = Column(Text, nullable=True)
     processed_by_id = Column(Integer, ForeignKey("user.id")) 
     allocated_doctor_id = Column(Integer, ForeignKey("doctor.id"), nullable=True) 
+    source_payment_id = Column(Integer, ForeignKey("payment.id"), nullable=True)
     
     invoice = relationship("Invoice", back_populates="payments")
     processed_by = relationship("User")
     allocated_doctor = relationship("Doctor")
+    source_payment = relationship("Payment", remote_side=[id], backref="child_payments")
 
 class DoctorFactAssignment(Base):
     """

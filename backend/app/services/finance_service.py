@@ -44,11 +44,11 @@ class FinancialService:
                 else:
                     invoice.status = InvoiceStatus.PARTIAL
                 
-                # 2. Create Payment Record (Postupleniya) for THIS invoice
-                # We record the WHOLE amount here as the payment event, but we'll distribute logic below
+                # 2. Create Payment Record (Postupleniya) for THIS invoice portion only
+                # The remaining portion will create other Payment records linked via source_payment_id
                 payment = Payment(
                     invoice_id=invoice.id,
-                    amount=initial_payment_amount,
+                    amount=to_apply_this,
                     payment_type=obj_in.payment_type,
                     processed_by_id=processor_id,
                     comment=obj_in.comment
@@ -202,13 +202,14 @@ class FinancialService:
                         else:
                             other_inv.status = InvoiceStatus.PARTIAL
                             
-                        # Create payment record for other invoice
+                        # Create payment record for other invoice, linked to the source payment
                         other_payment = Payment(
                             invoice_id=other_inv.id,
                             amount=apply_other,
                             payment_type=obj_in.payment_type,
                             processed_by_id=processor_id,
-                            comment=f"Автоматическое погашение за счет переплаты по счёту №{invoice.factura_number or invoice.id}"
+                            comment=f"Автоматическое погашение за счет переплаты по счёту №{invoice.factura_number or invoice.id}",
+                            source_payment_id=payment.id
                         )
                         db.add(other_payment)
                     
@@ -227,6 +228,7 @@ class FinancialService:
                                 amount=remaining_payment,
                                 transaction_type=BalanceTransactionType.OVERPAYMENT,
                                 related_invoice_id=invoice.id,
+                                payment_id=payment.id,
                                 comment=f"Переплата по счёту №{invoice.factura_number or invoice.id}"
                             )
                             db.add(bt)
@@ -593,84 +595,95 @@ class FinancialService:
                 from app.models.ledger import BonusLedger
                 from app.models.crm import MedicalOrganization, BalanceTransaction, MedicalOrganizationStock
                 
-                # 1. Fetch Payment (with Invoice join)
+                # 1. Fetch main Payment
                 stmt = select(Payment).options(
                     selectinload(Payment.invoice).selectinload(Invoice.reservation).selectinload(Reservation.items)
                 ).where(Payment.id == payment_id).with_for_update()
                 
                 res = await db.execute(stmt)
-                payment = res.scalar_one_or_none()
+                main_payment = res.scalar_one_or_none()
                 
-                if not payment:
+                if not main_payment:
                     raise HTTPException(status_code=404, detail="Payment not found")
                 
-                invoice = payment.invoice
-                if not invoice:
-                    # In case of orphaned payment, just delete it
-                    await db.delete(payment)
-                    await db.commit()
-                    return {"status": "success", "message": "Orphaned payment deleted"}
+                # RECURSIVE REVERSAL LOGIC
+                # A. Find and reverse all CHILD payments (automatic settlements from overpayment)
+                child_stmt = select(Payment).options(
+                    selectinload(Payment.invoice)
+                ).where(Payment.source_payment_id == payment_id)
+                child_res = await db.execute(child_stmt)
+                child_payments = child_res.scalars().all()
+                
+                all_payments_to_reverse = [main_payment] + list(child_payments)
 
-                previous_invoice_status = invoice.status
-                
-                # 2. Reverse BonusLedger accruals (Linked to this payment)
-                ledger_stmt = select(BonusLedger).where(BonusLedger.payment_id == payment_id)
-                ledger_res = await db.execute(ledger_stmt)
-                ledger_entries = ledger_res.scalars().all()
-                for entry in ledger_entries:
-                    await db.delete(entry)
-
-                # 3. Update Invoice
-                invoice.paid_amount = max(0.0, float(invoice.paid_amount) - float(payment.amount))
-                
-                if invoice.paid_amount <= 0:
-                    invoice.status = InvoiceStatus.UNPAID
-                elif invoice.paid_amount < invoice.total_amount:
-                    invoice.status = InvoiceStatus.PARTIAL
-                else:
-                    invoice.status = InvoiceStatus.PAID
-                
-                # 4. Reverse Stock Decrement if transition from PAID to NOT PAID
-                if previous_invoice_status == InvoiceStatus.PAID and invoice.status != InvoiceStatus.PAID:
-                    reservation = invoice.reservation
-                    if reservation:
-                        for item in reservation.items:
-                            stk_query = select(MedicalOrganizationStock).where(
-                                (MedicalOrganizationStock.med_org_id == reservation.med_org_id) &
-                                (MedicalOrganizationStock.product_id == item.product_id)
-                            ).with_for_update()
-                            stk_res = await db.execute(stk_query)
-                            pharm_stock = stk_res.scalar_one_or_none()
-                            if pharm_stock:
-                                pharm_stock.quantity += item.quantity
+                for pmt in all_payments_to_reverse:
+                    inv = pmt.invoice
+                    if inv:
+                        prev_status = inv.status
+                        # 1. Deduct amount
+                        inv.paid_amount = max(0.0, float(inv.paid_amount) - float(pmt.amount))
                         
-                        # Reset promo balance
-                        invoice.promo_balance = 0.0
+                        # 2. Update status
+                        if inv.paid_amount <= 0:
+                            inv.status = InvoiceStatus.UNPAID
+                        elif inv.paid_amount < inv.total_amount:
+                            inv.status = InvoiceStatus.PARTIAL
+                        else:
+                            inv.status = InvoiceStatus.PAID
+                        
+                        # 3. Reverse Stock if needed
+                        if prev_status == InvoiceStatus.PAID and inv.status != InvoiceStatus.PAID:
+                            reservation = inv.reservation # Loaded in main_payment, but might need load for children
+                            # For child payments, usually reservation is NOT loaded in this query. 
+                            # Let's ensure it for safety if we want full reversal including stock.
+                            # BUT child payments usually don't trigger stock decrement unless they complete a 100% payment.
+                            # If they do, we handle it:
+                            await db.refresh(inv, ["reservation"])
+                            if inv.reservation:
+                                for item in inv.reservation.items:
+                                    stk_q = select(MedicalOrganizationStock).where(
+                                        (MedicalOrganizationStock.med_org_id == inv.reservation.med_org_id) &
+                                        (MedicalOrganizationStock.product_id == item.product_id)
+                                    ).with_for_update()
+                                    stk_r = await db.execute(stk_q)
+                                    stk = stk_r.scalar_one_or_none()
+                                    if stk:
+                                        stk.quantity += item.quantity
+                                inv.promo_balance = 0.0
 
-                # 5. Update UnassignedSale paid quantities (New ratio)
-                total_paid_ratio = min(1.0, invoice.paid_amount / invoice.total_amount) if invoice.total_amount > 0 else 0
-                unassigned_query = select(UnassignedSale).where(UnassignedSale.invoice_id == invoice.id)
-                unassigned_res = await db.execute(unassigned_query)
-                for rec in unassigned_res.scalars().all():
-                    rec.paid_quantity = int(rec.total_quantity * total_paid_ratio)
+                        # 4. Update UnassignedSale
+                        ratio = min(1.0, inv.paid_amount / inv.total_amount) if inv.total_amount > 0 else 0
+                        u_query = select(UnassignedSale).where(UnassignedSale.invoice_id == inv.id)
+                        u_res = await db.execute(u_query)
+                        for u_rec in u_res.scalars().all():
+                            u_rec.paid_quantity = int(u_rec.total_quantity * ratio)
 
-                # 6. Reverse Overpayments & BalanceTransactions
+                    # 5. Reverse BonusLedger for this specific payment record
+                    l_stmt = select(BonusLedger).where(BonusLedger.payment_id == pmt.id)
+                    l_res = await db.execute(l_stmt)
+                    for entry in l_res.scalars().all():
+                        await db.delete(entry)
+
+                    # 6. Delete the payment record (Child or Main)
+                    if pmt.id != main_payment.id:
+                        await db.delete(pmt)
+
+                # B. Find and reverse all related BalanceTransactions (Overpayments)
                 bt_query = select(BalanceTransaction).where(BalanceTransaction.payment_id == payment_id)
                 bt_res = await db.execute(bt_query)
-                bt_entries = bt_res.scalars().all()
-                for bt in bt_entries:
+                for bt in bt_res.scalars().all():
                     org_q = select(MedicalOrganization).where(MedicalOrganization.id == bt.organization_id).with_for_update()
-                    org_res = await db.execute(org_q)
-                    org = org_res.scalar_one_or_none()
+                    org_r = await db.execute(org_q)
+                    org = org_r.scalar_one_or_none()
                     if org:
                         org.credit_balance = max(0.0, (org.credit_balance or 0.0) - bt.amount)
                     await db.delete(bt)
 
-                # 7. Delete the Payment record itself
-                await db.delete(payment)
+                # C. Finally delete the main payment
+                await db.delete(main_payment)
                 
                 await db.commit()
-                return {"status": "success", "message": f"Payment #{payment_id} reversed successfully"}
+                return {"status": "success", "message": f"Payment #{payment_id} and all linked transactions reversed successfully"}
                 
             except Exception as e:
                 await transaction.rollback()

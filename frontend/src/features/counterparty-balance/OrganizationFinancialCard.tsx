@@ -42,8 +42,8 @@ export function OrganizationFinancialCard({ isOpen, onClose, organizationId, org
 
         setIsDeleting(transactionId);
         try {
-            await deleteBalanceTransaction(transactionId);
-            toast.success("Amal muvaffaqiyatli bekor qilindi");
+            const result = await deleteBalanceTransaction(transactionId);
+            toast.success(result.message || "Amal muvaffaqiyatli bekor qilindi");
             refetch();
             if (onRefresh) onRefresh();
         } catch (error: any) {

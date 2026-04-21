@@ -203,14 +203,15 @@ const HeadOfOrdersPage: React.FC = () => {
 
         setIsDeletingPayment(paymentId);
         try {
-            await deletePayment(paymentId);
-            toast.success("To'lov muvaffaqiyatli bekor qilindi");
-            // Refresh data based on where we are
-            if (tab === 'invoices') loadInvoices();
-            if (tab === 'reservations') loadReservations();
+            const result = await deletePayment(paymentId);
+            toast.success(result.message || "To'lov muvaffaqiyatli bekor qilindi");
             
-            // Also refresh selectedResForHistory to update its payments list if needed
-            // But since payments are nested, we might need to reload the whole list
+            // Refresh ALL data sources since a reversal can affect multiple entities
+            loadInvoices();
+            loadReservations();
+            
+            // If the history modal is open for a reservation, the data inside it 
+            // should also be updated on the next open or via re-fetching.
         } catch (error: any) {
             console.error("Failed to delete payment", error);
             const detail = error.response?.data?.detail || "Xatolik yuz berdi";

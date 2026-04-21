@@ -59,8 +59,8 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
 
         setIsDeleting(paymentId);
         try {
-            await deletePayment(paymentId);
-            toast.success("To'lov muvaffaqiyatli bekor qilindi");
+            const result = await deletePayment(paymentId);
+            toast.success(result.message || "To'lov muvaffaqiyatli bekor qilindi");
             if (onRefresh) onRefresh();
         } catch (error: any) {
             console.error("Failed to delete payment", error);
