@@ -14,7 +14,6 @@ import {
   ArrowDownRight,
   FilterX,
   ArrowUpDown,
-  ArrowUpDown,
   ChevronRight,
   Trash2,
   RefreshCw
