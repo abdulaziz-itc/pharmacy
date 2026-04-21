@@ -257,15 +257,25 @@ export default function InvoicesPage() {
             cell: ({ row }: any) => {
                 const res = row.original.reservation;
                 if (!res) return '—';
-                if (res.is_salary_enabled === false) return '—';
                 
                 let totalSalary = 0;
                 (res.items || []).forEach((item: any) => {
                     const salaryAmt = item.salary_amount || 0;
                     totalSalary += (item.quantity || 0) * salaryAmt;
                 });
+
+                if (totalSalary === 0) return '—';
                 
-                return formatMoney(totalSalary) + ' UZS';
+                if (res.is_salary_enabled === false) {
+                    return (
+                        <div className="flex flex-col items-center opacity-50" title="Начисление зарплаты отключено для этой брони">
+                            <span className="text-[8px] font-bold text-rose-500 uppercase leading-none mb-0.5">Отключена</span>
+                            <span className="text-slate-500 line-through decoration-rose-300 decoration-1">{formatMoney(totalSalary)} UZS</span>
+                        </div>
+                    );
+                }
+                
+                return <span className="font-black text-indigo-600">{formatMoney(totalSalary)} UZS</span>;
             },
         },
         {

@@ -605,7 +605,7 @@ async def get_invoice_stats(
     
     # We'll use a join for salary/promo to avoid fetching thousands of records
     item_stmt = select(
-        func.sum(ReservationItem.quantity * func.coalesce(ReservationItem.salary_amount, 0)).label("total_salary"),
+        func.sum(case((Reservation.is_salary_enabled == True, ReservationItem.quantity * func.coalesce(ReservationItem.salary_amount, 0)), else_=0)).label("total_salary"),
         func.sum(ReservationItem.quantity * func.coalesce(ReservationItem.marketing_amount, 0)).label("total_promo")
     ).join(Reservation, Reservation.id == ReservationItem.reservation_id).join(Invoice, Invoice.reservation_id == Reservation.id)
     

@@ -1253,9 +1253,19 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
                                                     <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">{promoVal.toLocaleString()}</td>
                                                     <td className="px-3 py-4 text-center font-black text-indigo-600">
-                                                        {res.is_salary_enabled !== false
-                                                            ? formatMoney((res.items || []).reduce((s: number, it: any) => s + (it.quantity || 0) * (it.salary_amount || 0), 0))
-                                                            : '—'}
+                                                        {(() => {
+                                                            const totalSal = (res.items || []).reduce((s: number, it: any) => s + (it.quantity || 0) * (it.salary_amount || 0), 0);
+                                                            if (totalSal === 0) return '—';
+                                                            if (res.is_salary_enabled === false) {
+                                                                return (
+                                                                    <div className="flex flex-col items-center opacity-40" title="Начисление зарплаты отключено">
+                                                                        <span className="text-[7px] text-rose-500 uppercase leading-none mb-0.5">Off</span>
+                                                                        <span className="line-through decoration-rose-300 decoration-1 text-slate-500">{formatMoney(totalSal)}</span>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return formatMoney(totalSal);
+                                                        })()}
                                                     </td>
                                                     <td className="px-3 py-4 text-center">
                                                         <button
@@ -1575,9 +1585,19 @@ const HeadOfOrdersPage: React.FC = () => {
                                                     <td className="px-3 py-4 font-black text-slate-700 uppercase">{manufacturer}</td>
                                                     <td className="px-3 py-4 text-center font-black text-slate-700 italic opacity-50">{promoVal.toLocaleString()}</td>
                                                     <td className="px-3 py-4 text-center font-black text-indigo-600">
-                                                        {res.is_salary_enabled !== false
-                                                            ? formatMoney((res.items || []).reduce((s: number, it: any) => s + (it.quantity || 0) * (it.salary_amount || 0), 0))
-                                                            : '—'}
+                                                        {(() => {
+                                                            const totalSal = (res.items || []).reduce((s: number, it: any) => s + (it.quantity || 0) * (it.salary_amount || 0), 0);
+                                                            if (totalSal === 0) return '—';
+                                                            if (res.is_salary_enabled === false) {
+                                                                return (
+                                                                    <div className="flex flex-col items-center opacity-40" title="Начисление зарплаты отключено">
+                                                                        <span className="text-[7px] text-rose-500 uppercase leading-none mb-0.5">Off</span>
+                                                                        <span className="line-through decoration-rose-300 decoration-1 text-slate-500">{formatMoney(totalSal)}</span>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return formatMoney(totalSal);
+                                                        })()}
                                                     </td>
                                                     <td className="px-3 py-4 text-center">
                                                         {res.is_return_pending ? (
