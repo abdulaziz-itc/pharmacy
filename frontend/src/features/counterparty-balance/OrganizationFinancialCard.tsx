@@ -183,14 +183,21 @@ export function OrganizationFinancialCard({ isOpen, onClose, organizationId, org
                                                 <button 
                                                     onClick={(e) => handleDelete(e, item.id)}
                                                     disabled={isDeleting === item.id}
-                                                    className="p-2.5 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-rose-100"
+                                                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-rose-500 bg-rose-50 hover:bg-rose-100 border border-rose-100 transition-all shadow-sm hover:shadow-md active:scale-95"
                                                     title="Bekor qilish"
                                                 >
-                                                    {isDeleting === item.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                    {isDeleting === item.id ? (
+                                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <>
+                                                            <Trash2 className="w-4 h-4" />
+                                                            <span className="text-[10px] font-black uppercase tracking-widest transition-all">Bekor qilish</span>
+                                                        </>
+                                                    )}
                                                 </button>
                                             )}
-                                            <div className="opacity-40 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0">
-                                                <ChevronRight className="w-6 h-6 text-slate-300" />
+                                            <div className="text-slate-300">
+                                                <ChevronRight className="w-6 h-6" />
                                             </div>
                                         </div>
                                     </div>
