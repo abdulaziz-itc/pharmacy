@@ -28,6 +28,8 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { SearchableProductSelect } from '@/components/SearchableProductSelect';
 import * as XLSX from 'xlsx';
 import { ru } from 'date-fns/locale';
+import { useAuthStore } from '@/store/authStore';
+import { deletePayment } from '@/api/sales';
 
 
 
@@ -192,6 +194,31 @@ const HeadOfOrdersPage: React.FC = () => {
     const [showActivateConfirm, setShowActivateConfirm] = useState<number | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
     const [showOverpaidModal, setShowOverpaidModal] = useState(false);
+    const user = useAuthStore(state => state.user);
+    const [isDeletingPayment, setIsDeletingPayment] = useState<number | null>(null);
+    const canManagePayments = user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'director';
+
+    const handleDeletePayment = async (paymentId: number) => {
+        if (!window.confirm('Haqiqatan ham ushbu to\'lovni bekor qilmoqchimisiz? Bu moliyaviy hisobotlarga ta’sir qiladi.')) return;
+
+        setIsDeletingPayment(paymentId);
+        try {
+            await deletePayment(paymentId);
+            toast.success("To'lov muvaffaqiyatli bekor qilindi");
+            // Refresh data based on where we are
+            if (tab === 'invoices') loadInvoices();
+            if (tab === 'reservations') loadReservations();
+            
+            // Also refresh selectedResForHistory to update its payments list if needed
+            // But since payments are nested, we might need to reload the whole list
+        } catch (error: any) {
+            console.error("Failed to delete payment", error);
+            const detail = error.response?.data?.detail || "Xatolik yuz berdi";
+            toast.error(detail);
+        } finally {
+            setIsDeletingPayment(null);
+        }
+    };
 
 
     // Filter states
@@ -2639,6 +2666,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Метод</th>
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Дата</th>
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Кто принимал</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amallar</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
@@ -2660,6 +2688,22 @@ const HeadOfOrdersPage: React.FC = () => {
                                                 </td>
                                                 <td className="px-6 py-4 text-xs font-bold text-slate-700">
                                                     {p.processed_by?.full_name || '—'}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    {canManagePayments && (
+                                                        <button 
+                                                            onClick={() => handleDeletePayment(p.id)}
+                                                            disabled={isDeletingPayment === p.id}
+                                                            className="p-2 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
+                                                            title="Bekor qilish"
+                                                        >
+                                                            {isDeletingPayment === p.id ? (
+                                                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="w-4 h-4" />
+                                                            )}
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))
