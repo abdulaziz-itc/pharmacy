@@ -196,7 +196,7 @@ const HeadOfOrdersPage: React.FC = () => {
     const [showOverpaidModal, setShowOverpaidModal] = useState(false);
     const user = useAuthStore(state => state.user);
     const [isDeletingPayment, setIsDeletingPayment] = useState<number | null>(null);
-    const canManagePayments = user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'director';
+    const canManagePayments = user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'director' || user?.role === 'investor' || user?.role === 'head_of_orders';
 
     const handleDeletePayment = async (paymentId: number) => {
         if (!window.confirm('Haqiqatan ham ushbu to\'lovni bekor qilmoqchimisiz? Bu moliyaviy hisobotlarga ta’sir qiladi.')) return;
@@ -2666,7 +2666,9 @@ const HeadOfOrdersPage: React.FC = () => {
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Метод</th>
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Дата</th>
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Кто принимал</th>
-                                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amallar</th>
+                                        {canManagePayments && (
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amallar</th>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
