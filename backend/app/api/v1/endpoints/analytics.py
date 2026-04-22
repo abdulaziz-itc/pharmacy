@@ -25,16 +25,18 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
     Unified private helper to get Receipt totals (Payments + Topups) consistently.
     Called by Dashboard and Stats endpoints.
     """
-    pay_q, top_q = await get_receipt_queries(db, start_date, end_date, rep_ids, region_ids, product_id)
-    
     # 1. Sum Invoice-linked payments
-    # Re-build sum query explicitly to be safe
-    pay_sum_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).select_from(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
-    if start_date and end_date:
-        pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
-    
-    pay_sum_q = pay_sum_q.join(Reservation, Invoice.reservation_id == Reservation.id)
-    if rep_ids or region_ids or product_id:
+    # IF no filters are present (Director Global View), we use a bare sum to avoid any JOIN-related data loss
+    if not rep_ids and not region_ids and not product_id:
+        pay_sum_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).select_from(Payment)
+        if start_date and end_date:
+            pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+    else:
+        # Filtered View - Join everything
+        pay_sum_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).select_from(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
+        if start_date and end_date:
+            pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+        pay_sum_q = pay_sum_q.join(Reservation, Invoice.reservation_id == Reservation.id)
         pay_sum_q = pay_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
         if rep_ids:
             c_rep_ids = [int(i) for i in rep_ids if i is not None]
@@ -49,10 +51,11 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
     
     # 2. Sum Standalone refills (Balance Transactions)
     top_sum = 0.0
-    if top_q is not None:
+    if not product_id:
         top_sum_q = select(func.coalesce(func.sum(BalanceTransaction.amount), 0.0)).select_from(BalanceTransaction)
         top_sum_q = top_sum_q.where(or_(
             func.lower(BalanceTransaction.transaction_type) == "topup",
+            func.lower(BalanceTransaction.transaction_type) == "refill",
             and_(func.lower(BalanceTransaction.transaction_type) == "adjustment", BalanceTransaction.amount > 0)
         ))
         if start_date and end_date:
@@ -383,6 +386,8 @@ async def get_global_realtime_dashboard(
         "month": month,
         "year": year,
         "total_revenue": c_rev,
+        "revenue_payments": c_pmt_sum,
+        "revenue_topups": c_tp_sum,
         "total_bonus_accrued": c_bon,
         "total_items_sold": c_qty,
         "total_debt": c_debt,
@@ -797,6 +802,8 @@ async def get_comprehensive_stats(
     kpis = {
         "sales_plan_amount": float(plan_sum),
         "sales_fact_received_amount": float(fact_sum),
+        "fact_from_invoices": float(fact_invoice_sum),
+        "fact_from_topups": float(fact_topup_sum),
         "total_invoice_sum": float(total_invoice_sum),
         "total_items_sold": int(total_items_sold),
         "bonus_accrued": float(accrued_sum),
