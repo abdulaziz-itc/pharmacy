@@ -1,26 +1,38 @@
-import asyncio
+from sqlalchemy import select, func
 from app.db.session import SessionLocal
-from sqlalchemy import text
+from app.models.crm import MedicalOrganization, BalanceTransaction, BalanceTransactionType
+from app.models.sales import Invoice, InvoiceStatus, Reservation
+import asyncio
 
-async def check_data():
+async def check():
     async with SessionLocal() as db:
-        # Find organization
-        res = await db.execute(text("SELECT id, name FROM med_organization WHERE name ILIKE '%Ажинияз%'"))
-        orgs = res.all()
-        print(f"Found organizations: {orgs}")
+        # Find AJINIYAZ NUKUS
+        q = select(MedicalOrganization).where(MedicalOrganization.name.ilike("%АЖИНИЯЗ НУКУС%"))
+        res = await db.execute(q)
+        org = res.scalars().first()
         
-        if orgs:
-            for org in orgs:
-                org_id = org[0]
-                # Check balance transactions
-                res = await db.execute(text(f"SELECT id, transaction_type, amount, created_at, comment FROM balance_transaction WHERE med_organization_id = {org_id} AND ABS(amount) >= 220000000"))
-                txs = res.all()
-                print(f"Large Transactions for org {org_id} ({org[1]}): {txs}")
+        if not org:
+            print("Org not found")
+            return
             
-        # Check payments for anything large on April 22nd or April 17th
-        res = await db.execute(text(f"SELECT id, invoice_id, amount, date, comment FROM payment WHERE amount >= 220000000"))
-        payments = res.all()
-        print(f"General Large payments: {payments}")
+        print(f"Org: {org.name} (ID: {org.id})")
+        print(f"Credit Balance Column: {org.credit_balance}")
+        
+        # Check Transactions
+        q_tx = select(BalanceTransaction).where(BalanceTransaction.organization_id == org.id)
+        res_tx = await db.execute(q_tx)
+        txs = res_tx.scalars().all()
+        print(f"Transactions found: {len(txs)}")
+        for tx in txs:
+            print(f"  - {tx.transaction_type}: {tx.amount} ({tx.created_at})")
+            
+        # Check Invoices
+        q_inv = select(Invoice).join(Reservation).where(Reservation.med_org_id == org.id)
+        res_inv = await db.execute(q_inv)
+        invs = res_inv.scalars().all()
+        print(f"Invoices found: {len(invs)}")
+        for inv in invs:
+            print(f"  - Invoice {inv.id}: Total {inv.total_amount}, Paid {inv.paid_amount}, Status {inv.status}")
 
 if __name__ == "__main__":
-    asyncio.run(check_data())
+    asyncio.run(check())

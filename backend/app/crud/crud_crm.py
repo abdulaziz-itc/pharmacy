@@ -128,7 +128,7 @@ async def get_med_orgs(
     for org, debt, surplus in rows:
         # These are transient attributes, NOT persisted to DB
         org.current_debt = float(debt)
-        org.current_surplus = float(surplus)
+        org.current_surplus = float(surplus) + (org.credit_balance or 0.0)
         final_orgs.append(org)
     return final_orgs
 
@@ -197,7 +197,7 @@ async def get_med_org(db: AsyncSession, id: int) -> Optional[MedicalOrganization
         surplus_val = float(debt_row.surplus or 0.0) if debt_row else 0.0
         
         org.current_debt = debt_val
-        org.current_surplus = surplus_val
+        org.current_surplus = surplus_val + (org.credit_balance or 0.0)
     return org
 
 async def update_med_org(db: AsyncSession, db_obj: MedicalOrganization, obj_in: MedicalOrganizationUpdate) -> MedicalOrganization:
