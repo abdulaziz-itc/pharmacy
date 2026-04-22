@@ -2,7 +2,7 @@ from typing import Any, List, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, text
 
 from app.api import deps
 from app.models.sales import Invoice, InvoiceStatus, Plan, Reservation, ReservationStatus
@@ -239,4 +239,31 @@ async def delete_expense(
         description=f'O\'chirildi: {expense.amount:,.0f} UZS (Kategoriya: {expense.category.name if expense.category else "Noma\'lum"}). Izoh: {expense.comment or "yo\'q"}'
     )
     
-    return {"message": "Expense deleted successfully"}
+@router.get("/research-tx-427")
+async def research_tx_427(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Temporary diagnostic endpoint for transaction #427.
+    """
+    if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ACCOUNTANT]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+        
+    # 1. Search Audit Log
+    res = await db.execute(text("SELECT * FROM audit_log WHERE target_id = 427 AND target_type = 'BalanceTransaction'"))
+    audit = [dict(r._mapping) for r in res.all()]
+    
+    # 2. Search Orphans (April 21, 17:19:01)
+    # Using a 10-minute window for safety
+    p_res = await db.execute(text("SELECT * FROM payment WHERE created_at >= '2026-04-21 17:15:00' AND created_at <= '2026-04-21 17:25:00'"))
+    payments = [dict(r._mapping) for r in p_res.all()]
+    
+    b_res = await db.execute(text("SELECT * FROM bonusledger WHERE created_at >= '2026-04-21 17:15:00' AND created_at <= '2026-04-21 17:25:00'"))
+    bonuses = [dict(r._mapping) for r in b_res.all()]
+    
+    return {
+        "audit_logs": audit,
+        "orphaned_payments": payments,
+        "orphaned_bonuses": bonuses
+    }
