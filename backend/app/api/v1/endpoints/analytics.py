@@ -452,8 +452,9 @@ async def get_comprehensive_stats(
     sales_total = (await db.execute(sales_q)).scalar() or 0
 
     # Sales Fact (Actual Payments Received)
+    # Using unified helper for absolute consistency
     fact_invoice_sum, fact_topup_sum = await _get_receipt_totals(db, start_date, end_date, rep_ids, [rid] if rid else None, pid)
-    fact_sum = fact_invoice_sum + fact_topup_sum
+    fact_sum = round(float(fact_invoice_sum) + float(fact_topup_sum), 2)
 
     # Bonus Ledger (Earned, Paid, Advances)
     bonus_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
@@ -577,8 +578,9 @@ async def get_comprehensive_stats(
     invoice_q = apply_filters(invoice_q, Reservation)
     if start_date and end_date: invoice_q = invoice_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
     
-    inv_res = (await db.execute(invoice_q)).one()
-    total_invoice_sum = float(inv_res.total)
+    inv_res = (await db.execute(invoice_q)).first()
+    total_invoice_sum = float(inv_res.total) if inv_res and inv_res.total else 0.0
+    paid_invoice_sum = float(inv_res.paid) if inv_res and inv_res.paid else 0.0
     
     # 3b. Items Sold (Count)
     items_sold_q = select(func.coalesce(func.sum(ReservationItem.quantity), 0))\
@@ -589,7 +591,7 @@ async def get_comprehensive_stats(
     if start_date and end_date: items_sold_q = items_sold_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
     if product_id: items_sold_q = items_sold_q.where(ReservationItem.product_id == product_id)
     
-    total_items_sold = (await db.execute(items_sold_q)).scalar() or 0
+    total_items_sold = int((await db.execute(items_sold_q)).scalar() or 0)
 
     # 3c. Overdue Receivables (Older than 30 days)
     overdue_date = datetime.utcnow() - timedelta(days=30)
@@ -600,7 +602,7 @@ async def get_comprehensive_stats(
             func.coalesce(Invoice.realization_date, Invoice.date) < overdue_date
         ))
     overdue_q = apply_filters(overdue_q, Reservation)
-    overdue_receivables = (await db.execute(overdue_q)).scalar() or 0.0
+    overdue_receivables = round(float((await db.execute(overdue_q)).scalar() or 0.0), 2)
 
     # 3d. MedRep Salary Stats
     # Realized salary based on invoice payments
