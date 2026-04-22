@@ -259,14 +259,12 @@ async def research_tx_427(
     except Exception as e:
         print(f"Audit log search error: {e}")
 
-    # 2. Identify orphaned Payments (around Apr 21, 17:15-17:25)
-    # We look for payments that have NO linked BalanceTransaction in the audit log (manually verified)
-    # But for surgical fix, we'll look for payments on that specific date/time.
+    # 2. Identify orphaned Payments (April 21, entire day for timezone safety)
     p_res = await db.execute(text("""
         SELECT p.id, p.invoice_id, p.amount, p.date 
         FROM payment p
-        WHERE p.date >= '2026-04-21 17:15:00' 
-        AND p.date <= '2026-04-21 17:25:00'
+        WHERE p.date >= '2026-04-21 00:00:00' 
+        AND p.date <= '2026-04-21 23:59:59'
     """))
     payments = [dict(r._mapping) for r in p_res.all()]
 
@@ -274,8 +272,8 @@ async def research_tx_427(
     b_res = await db.execute(text("""
         SELECT b.id, b.amount, b.created_at, b.notes
         FROM bonus_ledger b
-        WHERE b.created_at >= '2026-04-21 17:15:00' 
-        AND b.created_at <= '2026-04-21 17:25:00'
+        WHERE b.created_at >= '2026-04-21 00:00:00' 
+        AND b.created_at <= '2026-04-21 23:59:59'
     """))
     bonuses = [dict(r._mapping) for r in b_res.all()]
 
