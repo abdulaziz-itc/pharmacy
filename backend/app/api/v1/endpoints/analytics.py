@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, date
 from sqlalchemy import Date, cast, select, func, and_, or_, case
+from sqlalchemy.orm import selectinload
 import calendar
 import io
 import openpyxl
@@ -10,7 +11,11 @@ from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from fastapi.responses import StreamingResponse
 from app.api import deps
 from app.models.user import User, UserRole
-from app.models.ledger import DoctorMonthlyStat
+from app.models.sales import Payment, Invoice, Reservation, ReservationItem, PaymentStatus, InvoiceStatus, Plan, DoctorFactAssignment
+from app.models.crm import BalanceTransaction, MedicalOrganization, MedicalOrganizationCategory, Doctor
+from app.models.ledger import BonusLedger, LedgerType, DoctorMonthlyStat, OtherExpense
+from app.models.product import Product
+from app.crud.crud_user import get_descendant_ids
 
 router = APIRouter()
 
@@ -46,11 +51,6 @@ async def get_receipt_queries(
     Returns (payment_q, topup_q) for Fact of Receipts.
     Standardizes the logic for both aggregate counts and detailed lists.
     """
-    from sqlalchemy import select, func, and_, or_
-    from app.models.sales import Payment, Invoice, Reservation, ReservationItem
-    from app.models.crm import BalanceTransaction, MedicalOrganization
-    from app.models.user import User
-    
     # 1. Invoiced Payments Query
     pay_q = select(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
     if start_date and end_date:
@@ -109,10 +109,6 @@ async def get_global_realtime_dashboard(
     Returns real-time aggregated global statistics.
     Aggregates from Invoice (Revenue), Payment (Fact), and BonusLedger (Bonuses).
     """
-    from sqlalchemy import and_
-    from app.models.sales import Invoice, Payment, Reservation, ReservationItem
-    from app.models.ledger import BonusLedger, LedgerType
-    from app.models.crm import MedicalOrganization
     
     if current_user.role not in [
         UserRole.INVESTOR,
@@ -184,7 +180,6 @@ async def get_global_realtime_dashboard(
     is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
     rep_ids = None
     if is_team_manager:
-        from app.crud.crud_user import get_descendant_ids
         rep_ids = await get_descendant_ids(db, current_user.id)
         if not rep_ids: rep_ids = [-1]
 
@@ -380,13 +375,6 @@ async def get_comprehensive_stats(
     Stabilized Comprehensive Analytics for Director Dashboard.
     Supports filtering by Date, Region, Product, and Team.
     """
-    from sqlalchemy import and_, or_
-    from app.models.sales import Invoice, Payment, Reservation, ReservationItem, Plan, InvoiceStatus, DoctorFactAssignment
-    from app.models.ledger import BonusLedger, LedgerType
-    from app.models.crm import MedicalOrganization, Doctor
-    from app.models.product import Product
-    from app.crud.crud_user import get_descendant_ids
-
     if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.HRD]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
@@ -816,12 +804,7 @@ async def export_drilldown_excel(
     if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.ACCOUNTANT, UserRole.HRD]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    from app.models.sales import Payment, Invoice, Reservation
-    from app.models.crm import MedicalOrganization
-    from sqlalchemy.orm import selectinload
-
     # 1. TEAM HIERARCHY
-    from app.crud.crud_user import get_descendant_ids
     rep_ids = None
     if med_rep_id:
         rep_ids = [med_rep_id]
@@ -955,15 +938,8 @@ async def get_comprehensive_drilldown(
     skip: int = 0,
     limit: int = 100
 ) -> Any:
-    from sqlalchemy import and_, or_
-    from sqlalchemy.orm import selectinload
-    from app.models.sales import Invoice, Payment, Reservation, ReservationItem, Plan, InvoiceStatus
-    from app.models.ledger import BonusLedger, LedgerType
-    from app.models.crm import MedicalOrganization, Doctor
-    from app.models.product import Product
-    from app.crud.crud_user import get_descendant_ids
-    from app.models.finance import OtherExpense
-
+    if metric == "cash_in": skip, limit = 0, 1000 # Special case for receipts
+    
     if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.HRD]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
