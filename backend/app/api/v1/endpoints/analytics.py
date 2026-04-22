@@ -28,13 +28,45 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
     pay_q, top_q = await get_receipt_queries(db, start_date, end_date, rep_ids, region_ids, product_id)
     
     # 1. Sum Invoice-linked payments
-    pay_sum_q = pay_q.with_entities(func.coalesce(func.sum(Payment.amount), 0.0))
+    # Re-build sum query explicitly to be safe
+    pay_sum_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).select_from(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
+    if start_date and end_date:
+        pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+    
+    pay_sum_q = pay_sum_q.join(Reservation, Invoice.reservation_id == Reservation.id)
+    if rep_ids or region_ids or product_id:
+        pay_sum_q = pay_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+        if rep_ids:
+            c_rep_ids = [int(i) for i in rep_ids if i is not None]
+            pay_sum_q = pay_sum_q.where(or_(Reservation.created_by_id.in_(c_rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(c_rep_ids))))
+        if region_ids:
+            c_reg_ids = [int(i) for i in region_ids if i is not None]
+            pay_sum_q = pay_sum_q.where(MedicalOrganization.region_id.in_(c_reg_ids))
+        if product_id:
+            pay_sum_q = pay_sum_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == int(product_id))
+
     pay_sum = (await db.execute(pay_sum_q)).scalar() or 0.0
     
     # 2. Sum Standalone refills (Balance Transactions)
     top_sum = 0.0
     if top_q is not None:
-        top_sum_q = top_q.with_entities(func.coalesce(func.sum(BalanceTransaction.amount), 0.0))
+        top_sum_q = select(func.coalesce(func.sum(BalanceTransaction.amount), 0.0)).select_from(BalanceTransaction)
+        top_sum_q = top_sum_q.where(or_(
+            func.lower(BalanceTransaction.transaction_type) == "topup",
+            and_(func.lower(BalanceTransaction.transaction_type) == "adjustment", BalanceTransaction.amount > 0)
+        ))
+        if start_date and end_date:
+            top_sum_q = top_sum_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
+            
+        if rep_ids or region_ids:
+            top_sum_q = top_sum_q.outerjoin(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+            if rep_ids:
+                c_rep_ids = [int(i) for i in rep_ids if i is not None]
+                top_sum_q = top_sum_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(c_rep_ids)))
+            if region_ids:
+                c_reg_ids = [int(i) for i in region_ids if i is not None]
+                top_sum_q = top_sum_q.where(MedicalOrganization.region_id.in_(c_reg_ids))
+        
         top_sum = (await db.execute(top_sum_q)).scalar() or 0.0
         
     return float(pay_sum), float(top_sum)
