@@ -1144,20 +1144,6 @@ const HeadOfOrdersPage: React.FC = () => {
                                 </div>
                                 <div className="flex gap-2 mt-auto">
                                     <Button onClick={loadReservations} className="h-10 bg-slate-800 hover:bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest flex-1 shadow-sm">ПОИСК</Button>
-                                    {isAdmin && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-10 gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                            onClick={() => {
-                                                setShowRepairModal(true);
-                                                runDiagnostic(false);
-                                            }}
-                                        >
-                                            <AlertTriangle className="w-4 h-4" />
-                                            <span>Tozalash #427</span>
-                                        </Button>
-                                    )}
                                     <Button onClick={() => { resetFilters(); loadReservations(); }} variant="outline" className="h-10 rounded-xl text-[10px] font-black uppercase tracking-widest border-rose-200 text-rose-500 hover:bg-rose-50 px-3 shadow-sm">Сбросить</Button>
                                 </div>
                             </div>

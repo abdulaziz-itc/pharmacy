@@ -115,14 +115,30 @@ async def read_global_stats(
     total_sales = total_sales_result.scalar() or 0.0
     
     # Total Payments
-    total_payments_query = select(func.sum(Invoice.paid_amount)).join(Reservation, Invoice.reservation_id == Reservation.id)
+    # 1. Invoiced Payments
+    from app.models.crm import BalanceTransaction, BalanceTransactionType
+    total_inv_payments_query = select(func.sum(Invoice.paid_amount)).join(Reservation, Invoice.reservation_id == Reservation.id)
     if is_team_manager:
-        total_payments_query = total_payments_query.where(Reservation.created_by_id.in_(descendant_ids))
+        total_inv_payments_query = total_inv_payments_query.where(Reservation.created_by_id.in_(descendant_ids))
     if final_region_ids:
-        total_payments_query = total_payments_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+        total_inv_payments_query = total_inv_payments_query.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
         
-    total_payments_result = await db.execute(total_payments_query)
-    total_payments = total_payments_result.scalar() or 0.0
+    total_inv_payments = (await db.execute(total_inv_payments_query)).scalar() or 0.0
+    
+    # 2. Standalone Topups
+    total_topups_query = select(func.sum(BalanceTransaction.amount)).where(BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP)
+    if is_team_manager:
+        total_topups_query = total_topups_query.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id).where(
+            MedicalOrganization.assigned_reps.any(User.id.in_(descendant_ids))
+        )
+    if final_region_ids:
+        if not is_team_manager:
+             total_topups_query = total_topups_query.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+        total_topups_query = total_topups_query.where(MedicalOrganization.region_id.in_(final_region_ids))
+        
+    total_topups = (await db.execute(total_topups_query)).scalar() or 0.0
+    
+    total_payments = total_inv_payments + total_topups
     
     total_debt = total_sales - total_payments
     

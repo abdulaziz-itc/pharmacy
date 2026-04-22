@@ -94,10 +94,20 @@ async def get_global_realtime_dashboard(
 
     # Helper to build core queries
     from app.models.sales import InvoiceStatus
+    from app.models.crm import BalanceTransaction, BalanceTransactionType
+    
     def build_queries(start_tgt, end_tgt):
-        _rev = select(func.sum(Payment.amount))
+        # 1. Revenue from Payments (Invoiced)
+        _rev_pmt = select(func.sum(Payment.amount))
         if start_tgt and end_tgt:
-            _rev = _rev.where(and_(Payment.date >= start_tgt, Payment.date < end_tgt))
+            _rev_pmt = _rev_pmt.where(and_(Payment.date >= start_tgt, Payment.date < end_tgt))
+        
+        # 2. Revenue from Balance Topups (Standalone)
+        _rev_topup = select(func.sum(BalanceTransaction.amount)).where(
+            BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP
+        )
+        if start_tgt and end_tgt:
+            _rev_topup = _rev_topup.where(and_(BalanceTransaction.created_at >= start_tgt, BalanceTransaction.created_at < end_tgt))
             
         _bonus = select(func.sum(BonusLedger.amount)).where(
             BonusLedger.ledger_type == LedgerType.ACCRUAL,
@@ -120,10 +130,10 @@ async def get_global_realtime_dashboard(
         if end_tgt:
             _debt = _debt.where(Invoice.date < end_tgt)
             
-        return _rev, _bonus, _qty, _debt
+        return _rev_pmt, _rev_topup, _bonus, _qty, _debt
 
-    curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q = build_queries(start_date, end_date)
-    prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q = build_queries(prev_start_date, prev_end_date)
+    curr_rev_pmt_q, curr_rev_tp_q, curr_bonus_q, curr_qty_q, curr_debt_q = build_queries(start_date, end_date)
+    prev_rev_pmt_q, prev_rev_tp_q, prev_bonus_q, prev_qty_q, prev_debt_q = build_queries(prev_start_date, prev_end_date)
     
     # Apply hierarchy filter if not director/admin
     is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
@@ -134,38 +144,51 @@ async def get_global_realtime_dashboard(
         if not rep_ids:
             rep_ids = [-1]
         
-        def apply_team(_rq, _bq, _qq, _dq):
-            _rq = _rq.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
+        def apply_team(_rpq, _rtq, _bq, _qq, _dq):
+            _rpq = _rpq.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
+            # TOPUPs are filtered by target medrep assigned to organization
+            _rtq = _rtq.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id).where(
+                MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
+            )
             _bq = _bq.where(BonusLedger.user_id.in_(rep_ids))
             _qq = _qq.where(Reservation.created_by_id.in_(rep_ids))
             _dq = _dq.join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.created_by_id.in_(rep_ids))
-            return _rq, _bq, _qq, _dq
+            return _rpq, _rtq, _bq, _qq, _dq
             
-        curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q = apply_team(curr_rev_q, curr_bonus_q, curr_qty_q, curr_debt_q)
-        prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q = apply_team(prev_rev_q, prev_bonus_q, prev_qty_q, prev_debt_q)
+        curr_rev_pmt_q, curr_rev_tp_q, curr_bonus_q, curr_qty_q, curr_debt_q = apply_team(curr_rev_pmt_q, curr_rev_tp_q, curr_bonus_q, curr_qty_q, curr_debt_q)
+        prev_rev_pmt_q, prev_rev_tp_q, prev_bonus_q, prev_qty_q, prev_debt_q = apply_team(prev_rev_pmt_q, prev_rev_tp_q, prev_bonus_q, prev_qty_q, prev_debt_q)
 
     # Apply region filter
     if final_region_ids:
-        def apply_region(_rq, _qq, _dq):
+        def apply_region(_rpq, _rtq, _qq, _dq):
             if not is_team_manager:
-                _rq = _rq.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
+                _rpq = _rpq.join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
                 _dq = _dq.join(Reservation, Invoice.reservation_id == Reservation.id)
-            _rq = _rq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+                _rtq = _rtq.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+                
+            _rpq = _rpq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+            _rtq = _rtq.where(MedicalOrganization.region_id.in_(final_region_ids))
             _qq = _qq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
             _dq = _dq.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
-            return _rq, _qq, _dq
+            return _rpq, _rtq, _qq, _dq
             
-        curr_rev_q, curr_qty_q, curr_debt_q = apply_region(curr_rev_q, curr_qty_q, curr_debt_q)
-        prev_rev_q, prev_qty_q, prev_debt_q = apply_region(prev_rev_q, prev_qty_q, prev_debt_q)
+        curr_rev_pmt_q, curr_rev_tp_q, curr_qty_q, curr_debt_q = apply_region(curr_rev_pmt_q, curr_rev_tp_q, curr_qty_q, curr_debt_q)
+        prev_rev_pmt_q, prev_rev_tp_q, prev_qty_q, prev_debt_q = apply_region(prev_rev_pmt_q, prev_rev_tp_q, prev_qty_q, prev_debt_q)
 
     # Executing Current
-    c_rev = (await db.execute(curr_rev_q)).scalar() or 0.0
+    c_rev_pmt = (await db.execute(curr_rev_pmt_q)).scalar() or 0.0
+    c_rev_tp = (await db.execute(curr_rev_tp_q)).scalar() or 0.0
+    c_rev = c_rev_pmt + c_rev_tp
+    
     c_bon = (await db.execute(curr_bonus_q)).scalar() or 0.0
     c_qty = (await db.execute(curr_qty_q)).scalar() or 0
     c_debt = (await db.execute(curr_debt_q)).scalar() or 0.0
     
     # Executing Previous
-    p_rev = (await db.execute(prev_rev_q)).scalar() or 0.0
+    p_rev_pmt = (await db.execute(prev_rev_pmt_q)).scalar() or 0.0
+    p_rev_tp = (await db.execute(prev_rev_tp_q)).scalar() or 0.0
+    p_rev = p_rev_pmt + p_rev_tp
+    
     p_bon = (await db.execute(prev_bonus_q)).scalar() or 0.0
     p_qty = (await db.execute(prev_qty_q)).scalar() or 0
     p_debt = (await db.execute(prev_debt_q)).scalar() or 0.0
@@ -220,6 +243,25 @@ async def get_global_realtime_dashboard(
                 "color": "green",
                 "reference": invoice_num or str(p.id),
                 "dt": p.date
+            })
+            
+        # Latest Topups
+        recent_topups = (await db.execute(
+            select(BalanceTransaction).options(selectinload(BalanceTransaction.organization))
+            .where(BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP)
+            .order_by(BalanceTransaction.created_at.desc()).limit(2)
+        )).scalars().all()
+        for tp in recent_topups:
+            activities.append({
+                "type": "payment",
+                "id": tp.id,
+                "title": "Пополнение баланса",
+                "desc": f"{tp.comment or 'Прямое пополнение'} ({tp.organization.name if tp.organization else 'N/A'})",
+                "amount": f"+{tp.amount:,.0f} UZS",
+                "time": tp.created_at.strftime("%d.%m.%Y %H:%M"),
+                "color": "indigo",
+                "reference": tp.organization.name if tp.organization else str(tp.id),
+                "dt": tp.created_at
             })
             
         # Latest Invoices
@@ -347,12 +389,29 @@ async def get_comprehensive_stats(
     sales_total = (await db.execute(sales_q)).scalar() or 0
 
     # Sales Fact (Actual Payments Received)
+    # 1. Invoice-linked payments
     fact_q = select(func.sum(Payment.amount).label("total")).join(Invoice, Payment.invoice_id == Invoice.id)
     if start_date and end_date: fact_q = fact_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
     if rep_ids or region_id or product_id:
         fact_q = fact_q.join(Reservation, Invoice.reservation_id == Reservation.id)
         fact_q = apply_filters(fact_q, Reservation)
-    fact_sum = (await db.execute(fact_q)).scalar() or 0
+    fact_invoice_sum = (await db.execute(fact_q)).scalar() or 0
+    
+    # 2. Standalone refills (TOPUPs) - Only included if NO product filter is applied
+    fact_topup_sum = 0
+    if not product_id:
+        topup_q = select(func.sum(BalanceTransaction.amount).label("total")).where(
+            BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP
+        )
+        if start_date and end_date: topup_q = topup_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
+        if region_id or rep_ids:
+            topup_q = topup_q.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+            if region_id: topup_q = topup_q.where(MedicalOrganization.region_id == region_id)
+            if rep_ids: topup_q = topup_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids)))
+        
+        fact_topup_sum = (await db.execute(topup_q)).scalar() or 0
+        
+    fact_sum = float(fact_invoice_sum) + float(fact_topup_sum)
 
     # Bonus Ledger (Earned, Paid, Advances)
     bonus_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
@@ -719,6 +778,7 @@ async def export_drilldown_excel(
 
     # 1. Fetch Data (specialized for cash_in for now)
     if metric == "cash_in":
+        # 1. Fetch Invoiced Payments
         fact_q = select(Payment).options(
             selectinload(Payment.invoice).selectinload(Invoice.reservation).selectinload(Reservation.med_org)
         ).join(Invoice, Payment.invoice_id == Invoice.id)
@@ -736,31 +796,67 @@ async def export_drilldown_excel(
             fact_q = fact_q.join(Reservation, Invoice.reservation_id == Reservation.id)
             if rep_ids: fact_q = fact_q.where(Reservation.created_by_id.in_(rep_ids))
             if region_id:
-                from app.models.crm import Doctor
-                fact_q = fact_q.join(Doctor, Reservation.med_org_id == Doctor.med_org_id).where(Doctor.region_id == region_id)
+                fact_q = fact_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id == region_id)
             if product_id:
                 from app.models.sales import ReservationItem
                 fact_q = fact_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
 
-        rows = (await db.execute(fact_q.order_by(Payment.date.desc()))).scalars().all()
+        payment_rows = (await db.execute(fact_q.order_by(Payment.date.desc()))).scalars().all()
         
-        # 2. Create Excel
+        # 2. Fetch Standalone Refills (TOPUPs) - Only if no product filter
+        topup_rows = []
+        if not product_id:
+            topup_q = select(BalanceTransaction).options(selectinload(BalanceTransaction.organization)).where(
+                BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP
+            )
+            if start_date and end_date:
+                topup_q = topup_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
+            if region_id or rep_ids:
+                topup_q = topup_q.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+                if region_id: topup_q = topup_q.where(MedicalOrganization.region_id == region_id)
+                if rep_ids: topup_q = topup_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids)))
+            
+            topup_rows = (await db.execute(topup_q.order_by(BalanceTransaction.created_at.desc()))).scalars().all()
+
+        # 3. Combine and Format
+        all_data = []
+        for p in payment_rows:
+            all_data.append({
+                "date": p.date,
+                "inn": p.invoice.reservation.med_org.inn if p.invoice and p.invoice.reservation and p.invoice.reservation.med_org else "-",
+                "customer": p.invoice.reservation.customer_name if p.invoice and p.invoice.reservation else "-",
+                "amount": p.amount,
+                "comment": p.comment or ""
+            })
+        for t in topup_rows:
+            all_data.append({
+                "date": t.created_at,
+                "inn": t.organization.inn if t.organization else "-",
+                "customer": t.organization.name if t.organization else "-",
+                "amount": t.amount,
+                "comment": f"ПОПОЛНЕНИE: {t.comment or ''}"
+            })
+        
+        all_data.sort(key=lambda x: x["date"], reverse=True)
+
+        # 4. Create Excel
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Postupleniya"
         
-        headers = ["тушган пул санаси", "ИНН", "Контрагент", "Сumma"]
+        headers = ["тушган пул санаси", "ИНН", "Контрагент", "Сumma", "Izoh"]
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_idx, value=header)
             cell.font = Font(bold=True)
             cell.alignment = Alignment(horizontal='center')
             cell.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
             
-        for row_idx, r in enumerate(rows, 2):
-            ws.cell(row=row_idx, column=1, value=r.date.strftime('%d.%m.%Y'))
-            ws.cell(row=row_idx, column=2, value=r.invoice.reservation.med_org.inn if r.invoice and r.invoice.reservation and r.invoice.reservation.med_org else "-")
-            ws.cell(row=row_idx, column=3, value=r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-")
-            ws.cell(row=row_idx, column=4, value=r.amount)
+        for row_idx, r in enumerate(all_data, 2):
+            ws.cell(row=row_idx, column=1, value=r["date"].strftime('%d.%m.%Y'))
+            ws.cell(row=row_idx, column=2, value=r["inn"])
+            ws.cell(row=row_idx, column=3, value=r["customer"])
+            ws.cell(row=row_idx, column=4, value=r["amount"])
+            ws.cell(row=row_idx, column=5, value=r["comment"])
 
         # Autofit columns
         for column in ws.columns:
@@ -885,28 +981,64 @@ async def get_comprehensive_drilldown(
         return [{"id": r.id, "date": r.date.isoformat(), "invoice_num": r.factura_number, "total_amount": r.total_amount, "customer": r.reservation.customer_name if r.reservation else "-"} for r in rows]
 
     elif metric == "cash_in":
-        from app.models.crm import MedicalOrganization
+        from app.models.crm import BalanceTransaction, BalanceTransactionType
+        # 1. Fetch Invoiced Payments
         fact_q = select(Payment).options(
             selectinload(Payment.invoice).selectinload(Invoice.reservation).selectinload(Reservation.med_org)
         ).join(Invoice, Payment.invoice_id == Invoice.id)
         
-        if start_date and end_date: 
-            fact_q = fact_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
-        
+        if start_date and end_date: fact_q = fact_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
         if rep_ids or region_id or product_id:
             fact_q = fact_q.join(Reservation, Invoice.reservation_id == Reservation.id)
             fact_q = apply_filters(fact_q, Reservation)
+        
+        payment_rows = (await db.execute(fact_q.order_by(Payment.date.desc()))).scalars().all()
+        
+        # 2. Fetch Standalone Refills (TOPUPs) - Only if no product filter
+        topup_rows = []
+        if not product_id:
+            topup_q = select(BalanceTransaction).options(selectinload(BalanceTransaction.organization)).where(
+                BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP
+            )
+            if start_date and end_date:
+                topup_q = topup_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
+            if region_id or rep_ids:
+                topup_q = topup_q.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+                if region_id: topup_q = topup_q.where(MedicalOrganization.region_id == region_id)
+                if rep_ids: topup_q = topup_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids)))
             
-        rows = (await db.execute(fact_q.order_by(Payment.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{
-            "id": r.id, 
-            "date": r.date.isoformat(), 
-            "amount": r.amount, 
-            "type": r.payment_type, 
-            "invoice_num": r.invoice.factura_number if r.invoice else "-", 
-            "customer": r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-",
-            "inn": r.invoice.reservation.med_org.inn if r.invoice and r.invoice.reservation and r.invoice.reservation.med_org else "-"
-        } for r in rows]
+            topup_rows = (await db.execute(topup_q.order_by(BalanceTransaction.created_at.desc()))).scalars().all()
+
+        # 3. Combine and Format
+        all_results = []
+        for r in payment_rows:
+            all_results.append({
+                "id": r.id, 
+                "date": r.date.isoformat(), 
+                "amount": r.amount, 
+                "type": r.payment_type, 
+                "invoice_num": r.invoice.factura_number if r.invoice else "-", 
+                "customer": r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-",
+                "inn": r.invoice.reservation.med_org.inn if r.invoice and r.invoice.reservation and r.invoice.reservation.med_org else "-",
+                "comment": r.comment or "",
+                "is_topup": False
+            })
+        for r in topup_rows:
+            all_results.append({
+                "id": r.id,
+                "date": r.created_at.isoformat(),
+                "amount": r.amount,
+                "type": "BALANCE",
+                "invoice_num": "-",
+                "customer": r.organization.name if r.organization else "-",
+                "inn": r.organization.inn if r.organization else "-",
+                "comment": f"ПОПОЛНЕНИE: {r.comment or ''}",
+                "is_topup": True
+            })
+            
+        all_results.sort(key=lambda x: x["date"], reverse=True)
+        # Apply skip/limit manually to the merged list
+        return all_results[skip : skip + limit]
 
     elif metric == "receivables":
         debt_q = select(Invoice).options(selectinload(Invoice.reservation)).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
