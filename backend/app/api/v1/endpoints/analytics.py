@@ -28,15 +28,14 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
     pay_q, top_q = await get_receipt_queries(db, start_date, end_date, rep_ids, region_ids, product_id)
     
     # 1. Sum Invoice-linked payments
-    from sqlalchemy import select, func
-    pay_sub = pay_q.subquery()
-    pay_sum = (await db.execute(select(func.sum(pay_sub.c.amount)))).scalar() or 0.0
+    pay_sum_q = pay_q.with_entities(func.coalesce(func.sum(Payment.amount), 0.0))
+    pay_sum = (await db.execute(pay_sum_q)).scalar() or 0.0
     
     # 2. Sum Standalone refills (Balance Transactions)
     top_sum = 0.0
     if top_q is not None:
-        top_sub = top_q.subquery()
-        top_sum = (await db.execute(select(func.sum(top_sub.c.amount)))).scalar() or 0.0
+        top_sum_q = top_q.with_entities(func.coalesce(func.sum(BalanceTransaction.amount), 0.0))
+        top_sum = (await db.execute(top_sum_q)).scalar() or 0.0
         
     return float(pay_sum), float(top_sum)
 
@@ -90,10 +89,13 @@ async def get_receipt_queries(
             clean_rep_ids = [int(i) for i in rep_ids if i is not None] if rep_ids else []
             clean_reg_ids = [int(i) for i in region_ids if i is not None] if region_ids else []
             
-            top_q = top_q.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+            # Use OUTER JOIN to ensure top-ups are counted even if org/regions are partially missing
+            top_q = top_q.outerjoin(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
             if clean_rep_ids:
+                # If rep filter is applied, we only show what's assigned to those reps
                 top_q = top_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(clean_rep_ids)))
             if clean_reg_ids:
+                # If region filter is applied, we only show what belongs to that region
                 top_q = top_q.where(MedicalOrganization.region_id.in_(clean_reg_ids))
                 
     return pay_q, top_q
