@@ -14,6 +14,26 @@ from app.models.ledger import DoctorMonthlyStat
 
 router = APIRouter()
 
+async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=None, region_ids=None, product_id=None):
+    """
+    Unified private helper to get Receipt totals (Payments + Topups) consistently.
+    Called by Dashboard and Stats endpoints.
+    """
+    pay_q, top_q = await get_receipt_queries(db, start_date, end_date, rep_ids, region_ids, product_id)
+    
+    # 1. Sum Invoice-linked payments
+    from sqlalchemy import select, func
+    pay_sub = pay_q.subquery()
+    pay_sum = (await db.execute(select(func.sum(pay_sub.c.amount)))).scalar() or 0.0
+    
+    # 2. Sum Standalone refills (Balance Transactions)
+    top_sum = 0.0
+    if top_q is not None:
+        top_sub = top_q.subquery()
+        top_sum = (await db.execute(select(func.sum(top_sub.c.amount)))).scalar() or 0.0
+        
+    return float(pay_sum), float(top_sum)
+
 async def get_receipt_queries(
     db: AsyncSession, 
     start_date: Optional[datetime], 
@@ -29,6 +49,7 @@ async def get_receipt_queries(
     from sqlalchemy import select, func, and_, or_
     from app.models.sales import Payment, Invoice, Reservation, ReservationItem
     from app.models.crm import BalanceTransaction, MedicalOrganization
+    from app.models.user import User
     
     # 1. Invoiced Payments Query
     pay_q = select(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
@@ -40,14 +61,17 @@ async def get_receipt_queries(
     if rep_ids or region_ids or product_id:
         pay_q = pay_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
         if rep_ids:
+            # Type safety: convert to int in case strings were passed
+            clean_rep_ids = [int(i) for i in rep_ids if i is not None]
             pay_q = pay_q.where(or_(
-                Reservation.created_by_id.in_(rep_ids),
-                MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
+                Reservation.created_by_id.in_(clean_rep_ids),
+                MedicalOrganization.assigned_reps.any(User.id.in_(clean_rep_ids))
             ))
         if region_ids:
-            pay_q = pay_q.where(MedicalOrganization.region_id.in_(region_ids))
+            clean_reg_ids = [int(i) for i in region_ids if i is not None]
+            pay_q = pay_q.where(MedicalOrganization.region_id.in_(clean_reg_ids))
         if product_id:
-            pay_q = pay_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
+            pay_q = pay_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == int(product_id))
 
     # 2. Standalone Refills Query (Only if no product filter)
     top_q = None
@@ -62,15 +86,14 @@ async def get_receipt_queries(
             top_q = top_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
             
         if rep_ids or region_ids:
-            # Cast to integers for safety
-            r_ids = [int(i) for i in rep_ids if i is not None] if rep_ids else None
-            rg_ids = [int(i) for i in region_ids if i is not None] if region_ids else None
+            clean_rep_ids = [int(i) for i in rep_ids if i is not None] if rep_ids else []
+            clean_reg_ids = [int(i) for i in region_ids if i is not None] if region_ids else []
             
             top_q = top_q.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
-            if r_ids:
-                top_q = top_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(r_ids)))
-            if rg_ids:
-                top_q = top_q.where(MedicalOrganization.region_id.in_(rg_ids))
+            if clean_rep_ids:
+                top_q = top_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(clean_rep_ids)))
+            if clean_reg_ids:
+                top_q = top_q.where(MedicalOrganization.region_id.in_(clean_reg_ids))
                 
     return pay_q, top_q
 
@@ -167,19 +190,8 @@ async def get_global_realtime_dashboard(
 
     # 2. CALCULATE CURRENT PERIOD
     # 2a. Receipts (Payments + Topups)
-    # Using the centralized get_receipt_queries to ensure consistency with drilldown
-    curr_pmt_q, curr_tp_q = await get_receipt_queries(db, start_date, end_date, rep_ids, final_region_ids)
-    
-    # Robust summation from subqueries to avoid name shadowing
-    pmt_sub = curr_pmt_q.subquery()
-    c_rev_pmt = (await db.execute(select(func.sum(pmt_sub.c.amount)))).scalar() or 0.0
-    
-    c_rev_tp = 0.0
-    if curr_tp_q is not None:
-        tp_sub = curr_tp_q.subquery()
-        c_rev_tp = (await db.execute(select(func.sum(tp_sub.c.amount)))).scalar() or 0.0
-        
-    c_rev = float(c_rev_pmt) + float(c_rev_tp)
+    c_pmt_sum, c_tp_sum = await _get_receipt_totals(db, start_date, end_date, rep_ids, final_region_ids)
+    c_rev = c_pmt_sum + c_tp_sum
 
     # 2b. Invoiced Goal (Revenue Facturas)
     curr_inv_q = select(func.sum(Invoice.total_amount)).where(Invoice.status != InvoiceStatus.CANCELLED)
@@ -451,20 +463,8 @@ async def get_comprehensive_stats(
     sales_total = (await db.execute(sales_q)).scalar() or 0
 
     # Sales Fact (Actual Payments Received)
-    # Using the centralized get_receipt_queries to ensure consistency with drilldown
-    pay_q, top_q = await get_receipt_queries(db, start_date, end_date, rep_ids, [rid] if rid else None, pid)
-    
-    # 1. Invoice-linked payments sum
-    pay_sub = pay_q.subquery()
-    fact_invoice_sum = (await db.execute(select(func.sum(pay_sub.c.amount)))).scalar() or 0
-    
-    # 2. Standalone refills sum
-    fact_topup_sum = 0
-    if top_q is not None:
-        tp_sub = top_q.subquery()
-        fact_topup_sum = (await db.execute(select(func.sum(tp_sub.c.amount)))).scalar() or 0
-        
-    fact_sum = float(fact_invoice_sum) + float(fact_topup_sum)
+    fact_invoice_sum, fact_topup_sum = await _get_receipt_totals(db, start_date, end_date, rep_ids, [rid] if rid else None, pid)
+    fact_sum = fact_invoice_sum + fact_topup_sum
 
     # Bonus Ledger (Earned, Paid, Advances)
     bonus_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
