@@ -753,7 +753,7 @@ async def get_comprehensive_stats(
         # 1. Invoiced Payments Trend
         fact_trend_q, top_trend_q = await get_receipt_queries(db, start_date, end_date, rep_ids, [region_id] if region_id else None, product_id)
         
-        fact_trend_q = fact_trend_q.with_entities(
+        fact_trend_q = fact_trend_q.with_only_columns(
             func.cast(Payment.date, Date).label("d"),
             func.sum(Payment.amount).label("fact")
         ).group_by(func.cast(Payment.date, Date))
@@ -763,7 +763,7 @@ async def get_comprehensive_stats(
 
         # 2. Add Topups to Trend Map
         if top_trend_q is not None:
-            top_trend_q = top_trend_q.with_entities(
+            top_trend_q = top_trend_q.with_only_columns(
                 func.cast(BalanceTransaction.created_at, Date).label("d"),
                 func.sum(BalanceTransaction.amount).label("fact")
             ).group_by(func.cast(BalanceTransaction.created_at, Date))
