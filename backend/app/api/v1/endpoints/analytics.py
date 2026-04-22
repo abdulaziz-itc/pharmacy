@@ -11,9 +11,10 @@ from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from fastapi.responses import StreamingResponse
 from app.api import deps
 from app.models.user import User, UserRole
-from app.models.sales import Payment, Invoice, Reservation, ReservationItem, PaymentStatus, InvoiceStatus, Plan, DoctorFactAssignment
+from app.models.sales import Payment, Invoice, Reservation, ReservationItem, InvoiceStatus, Plan, DoctorFactAssignment
 from app.models.crm import BalanceTransaction, MedicalOrganization, MedicalOrganizationCategory, Doctor
-from app.models.ledger import BonusLedger, LedgerType, DoctorMonthlyStat, OtherExpense
+from app.models.ledger import BonusLedger, LedgerType, DoctorMonthlyStat
+from app.models.finance import OtherExpense
 from app.models.product import Product
 from app.crud.crud_user import get_descendant_ids
 
