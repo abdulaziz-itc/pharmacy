@@ -259,22 +259,35 @@ async def research_tx_427(
     except Exception as e:
         print(f"Audit log search error: {e}")
 
-    # 2. Identify potentially relevant Payments (April 20-22 OR specific amount)
+    # 2. Identify TRUE orphaned Payments
+    # A payment is orphaned if its corresponding BalanceTransaction (type APPLICATION) was deleted.
     p_res = await db.execute(text("""
         SELECT p.id, p.invoice_id, p.amount, p.date 
         FROM payment p
-        WHERE (p.date >= '2026-04-20 00:00:00' AND p.date <= '2026-04-22 23:59:59')
-        OR (p.amount BETWEEN 15000000 AND 17000000)
-        OR (p.id = 427)
+        WHERE p.date >= '2026-04-20 00:00:00' AND p.date <= '2026-04-22 23:59:59'
+        AND NOT EXISTS (
+            SELECT 1 FROM balance_transaction bt 
+            WHERE bt.related_invoice_id = p.invoice_id 
+            AND bt.amount = p.amount
+            AND bt.transaction_type = 'APPLICATION'
+        )
     """))
     payments = [dict(r._mapping) for r in p_res.all()]
 
-    # 3. Identify potentially relevant Bonuses
+    # 3. Identify orphaned Bonuses
+    # A bonus entry is orphaned if its parent BalanceTransaction (type BONUS_ACCRUAL) was deleted.
     b_res = await db.execute(text("""
         SELECT b.id, b.amount, b.created_at, b.notes
         FROM bonus_ledger b
-        WHERE (b.created_at >= '2026-04-20 00:00:00' AND b.created_at <= '2026-04-22 23:59:59')
-        OR (b.amount BETWEEN 15000000 AND 17000000)
+        WHERE b.created_at >= '2026-04-20 00:00:00' AND b.created_at <= '2026-04-22 23:59:59'
+        AND NOT EXISTS (
+            SELECT 1 FROM balance_transaction bt 
+            WHERE bt.amount = b.amount 
+            AND bt.transaction_type = 'BONUS_ACCRUAL'
+            -- Since bonus_ledger might not have a direct BT link, we use amount and time
+            AND bt.created_at >= b.created_at - interval '5 minutes'
+            AND bt.created_at <= b.created_at + interval '5 minutes'
+        )
     """))
     bonuses = [dict(r._mapping) for r in b_res.all()]
 
