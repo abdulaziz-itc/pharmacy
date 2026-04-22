@@ -202,7 +202,7 @@ const HeadOfOrdersPage: React.FC = () => {
     const [showRepairModal, setShowRepairModal] = useState(false);
     const [repairResults, setRepairResults] = useState<any>(null);
     const [repairLoading, setRepairLoading] = useState(false);
-    const isAdmin = user?.role && ['admin', 'director'].includes(user.role.toLowerCase());
+    const isAdmin = user?.role && ['admin', 'director', 'head_of_orders'].includes(user.role.toLowerCase());
 
     const runDiagnostic = async (shouldRepair = false) => {
         setRepairLoading(true);
