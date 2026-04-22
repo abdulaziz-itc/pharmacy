@@ -1,8 +1,7 @@
 import { PageContainer } from '../../components/PageContainer';
 import { PageHeader } from '../../components/PageHeader';
-import { CalendarCheck, AlertTriangle, Receipt, DollarSign, RefreshCw, Trash2 } from 'lucide-react';
+import { CalendarCheck } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { DataTable } from '../../components/ui/data-table';
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -21,33 +20,6 @@ export default function ReservationsPage() {
     const isMedRep = user?.role === 'med_rep';
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedReservationForView, setSelectedReservationForView] = useState<any | null>(null);
-    const isAdmin = user?.role && ['admin', 'director', 'head_of_orders'].includes(user.role.toLowerCase());
-
-    // --- Repair #427 logic ---
-    const [showRepairModal, setShowRepairModal] = useState(false);
-    const [repairResults, setRepairResults] = useState<any>(null);
-    const [repairLoading, setRepairLoading] = useState(false);
-
-    const runDiagnostic = async (shouldRepair = false) => {
-        setRepairLoading(true);
-        try {
-            const res = await api.get('/finance/research-tx-427', {
-                params: {
-                    secret_key: 'AG_RESEARCH_ACCESS_2026',
-                    repair: shouldRepair
-                }
-            });
-            setRepairResults(res.data);
-            if (shouldRepair && res.data.status === 'REPAIRED') {
-                alert(res.data.message);
-                refetch();
-            }
-        } catch (error: any) {
-            alert(error.response?.data?.detail || "Diagnostic error");
-        } finally {
-            setRepairLoading(false);
-        }
-    };
 
     const [filterValues, setFilterValues] = useState<FilterValues>({
         dateStart: '',
@@ -238,23 +210,6 @@ export default function ReservationsPage() {
                 }}
             />
 
-            {isAdmin && (
-                <div className="mb-6 flex justify-end">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-10 gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 shadow-sm rounded-xl"
-                        onClick={() => {
-                            setShowRepairModal(true);
-                            runDiagnostic(false);
-                        }}
-                    >
-                        <AlertTriangle className="w-4 h-4" />
-                        <span>Tozalash #427</span>
-                    </Button>
-                </div>
-            )}
-
             <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border overflow-hidden hover-lift transition-all duration-500 min-h-[500px]">
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center h-[500px] text-slate-400">
@@ -298,108 +253,6 @@ export default function ReservationsPage() {
                 onClose={() => setSelectedReservationForView(null)}
                 reservation={selectedReservationForView}
             />
-
-            {/* Repair #427 Modal */}
-            <Dialog open={showRepairModal} onOpenChange={setShowRepairModal}>
-                <DialogContent className="max-w-2xl border-0 shadow-2xl overflow-hidden p-0 bg-slate-50/95 backdrop-blur-xl">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-500" />
-                    
-                    <DialogHeader className="p-8 pb-4">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center">
-                                <AlertTriangle className="w-6 h-6 text-red-600" />
-                            </div>
-                            <div>
-                                <DialogTitle className="text-2xl font-bold text-slate-900">#427 Balans tozalash</DialogTitle>
-                                <DialogDescription className="text-slate-500">
-                                    O'chirilgan tranzaksiyadan qolgan "yetim" to'lovlarni tozalash vositasi.
-                                </DialogDescription>
-                            </div>
-                        </div>
-                    </DialogHeader>
-
-                    <div className="p-8 pt-0 space-y-6">
-                        {repairLoading ? (
-                            <div className="py-12 flex flex-col items-center justify-center gap-4">
-                                <RefreshCw className="w-10 h-10 text-red-500 animate-spin" />
-                                <p className="text-slate-500 animate-pulse">Ma'lumotlar tekshirilmoqda...</p>
-                            </div>
-                        ) : repairResults ? (
-                            <div className="space-y-4">
-                                <div className="p-4 rounded-xl bg-white border border-slate-200 space-y-3">
-                                    <h4 className="font-semibold text-slate-800 flex items-center gap-2">
-                                        <Receipt className="w-4 h-4 text-blue-500" />
-                                        Topilgan "yetim" to'lovlar
-                                    </h4>
-                                    <div className="max-h-40 overflow-y-auto space-y-2 pr-2">
-                                        {repairResults.found_orphaned_payments?.length > 0 ? (
-                                            repairResults.found_orphaned_payments.map((p: any) => (
-                                                <div key={p.id} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 text-sm border border-slate-100">
-                                                    <span className="font-mono text-slate-500">ID: {p.id} (Faktura: #{p.invoice_id})</span>
-                                                    <span className="font-bold text-red-600">-{p.amount.toLocaleString()} UZS</span>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-slate-400 italic">To'lovlar topilmadi.</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="p-4 rounded-xl bg-white border border-slate-200 space-y-3">
-                                    <h4 className="font-semibold text-slate-800 flex items-center gap-2">
-                                        <DollarSign className="w-4 h-4 text-emerald-500" />
-                                        Topilgan "yetim" bonuslar
-                                    </h4>
-                                    <div className="max-h-40 overflow-y-auto space-y-2 pr-2">
-                                        {repairResults.found_orphaned_bonuses?.length > 0 ? (
-                                            repairResults.found_orphaned_bonuses.map((b: any) => (
-                                                <div key={b.id} className="p-2 rounded-lg bg-slate-50 text-sm border border-slate-100">
-                                                    <div className="flex justify-between">
-                                                        <span className="font-mono text-slate-500">ID: {b.id}</span>
-                                                        <span className="font-bold text-red-600">-{b.amount.toLocaleString()} UZS</span>
-                                                    </div>
-                                                    {b.notes && <p className="text-xs text-slate-400 mt-1">{b.notes}</p>}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-slate-400 italic">Bonuslar topilmadi.</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {repairResults.status === "REPAIRED" ? (
-                                    <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-medium animate-in fade-in slide-in-from-top-1">
-                                        ✅ Muvaffaqiyatli tozalandi! Balanslar qayta hisoblandi.
-                                    </div>
-                                ) : (
-                                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 text-xs flex gap-3">
-                                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                                        <p>
-                                            Diqqat! "Tozalashni boshlash" tugmasini bossangiz, yuqoridagi to'lovlar o'chiriladi va faktura qarzdorligi mos ravishda ko'payadi.
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        ) : null}
-                    </div>
-
-                    <DialogFooter className="p-6 bg-white border-t border-slate-100 gap-3">
-                        <Button variant="ghost" className="rounded-xl h-12 px-6" onClick={() => setShowRepairModal(false)}>
-                            Yopish
-                        </Button>
-                        {!repairResults?.deleted_payments?.length && repairResults?.found_orphaned_payments?.length > 0 && (
-                            <Button 
-                                className="rounded-xl h-12 px-8 bg-red-600 hover:bg-red-700 shadow-lg shadow-red-200 text-white"
-                                onClick={() => runDiagnostic(true)}
-                                disabled={repairLoading}
-                            >
-                                {repairLoading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                                Tozalashni boshlash
-                            </Button>
-                        )}
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </PageContainer>
     );
 }
