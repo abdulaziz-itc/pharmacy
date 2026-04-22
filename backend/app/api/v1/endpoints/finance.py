@@ -259,21 +259,22 @@ async def research_tx_427(
     except Exception as e:
         print(f"Audit log search error: {e}")
 
-    # 2. Identify orphaned Payments (April 21, entire day for timezone safety)
+    # 2. Identify potentially relevant Payments (April 20-22 OR specific amount)
     p_res = await db.execute(text("""
         SELECT p.id, p.invoice_id, p.amount, p.date 
         FROM payment p
-        WHERE p.date >= '2026-04-21 00:00:00' 
-        AND p.date <= '2026-04-21 23:59:59'
+        WHERE (p.date >= '2026-04-20 00:00:00' AND p.date <= '2026-04-22 23:59:59')
+        OR (p.amount BETWEEN 15000000 AND 17000000)
+        OR (p.id = 427)
     """))
     payments = [dict(r._mapping) for r in p_res.all()]
 
-    # 3. Identify orphaned Bonuses
+    # 3. Identify potentially relevant Bonuses
     b_res = await db.execute(text("""
         SELECT b.id, b.amount, b.created_at, b.notes
         FROM bonus_ledger b
-        WHERE b.created_at >= '2026-04-21 00:00:00' 
-        AND b.created_at <= '2026-04-21 23:59:59'
+        WHERE (b.created_at >= '2026-04-20 00:00:00' AND b.created_at <= '2026-04-22 23:59:59')
+        OR (b.amount BETWEEN 15000000 AND 17000000)
     """))
     bonuses = [dict(r._mapping) for r in b_res.all()]
 
