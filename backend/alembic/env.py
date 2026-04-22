@@ -88,23 +88,6 @@ async def run_migrations_online() -> None:
     connectable = create_async_engine(url)
 
     async with connectable.connect() as connection:
-        # --- RESEARCH TX #427 ---
-        from sqlalchemy import text
-        res = await connection.execute(text("SELECT id, state_before, state_after FROM audit_log WHERE target_id = 427 AND target_type = 'BalanceTransaction'"))
-        rows = res.mappings().all()
-        print("\n=== RESEARCH TX #427 RESULTS ===")
-        for r in rows:
-            print(f"ID: {r['id']}, BEFORE: {r['state_before']}, AFTER: {r['state_after']}")
-        
-        p_res = await connection.execute(text("SELECT * FROM payment WHERE created_at >= '2026-04-21 17:10:00' AND created_at <= '2026-04-21 17:30:00'"))
-        for p in p_res.mappings().all():
-            print(f"POTENTIAL PAYMENT: {dict(p)}")
-            
-        b_res = await connection.execute(text("SELECT * FROM bonusledger WHERE created_at >= '2026-04-21 17:10:00' AND created_at <= '2026-04-21 17:30:00'"))
-        for b in b_res.mappings().all():
-            print(f"POTENTIAL BONUS: {dict(b)}")
-        print("=== END RESEARCH ===\n")
-        # ------------------------
         await connection.run_sync(do_run_migrations)
 
     await connectable.dispose()

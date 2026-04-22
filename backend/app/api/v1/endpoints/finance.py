@@ -242,17 +242,80 @@ async def delete_expense(
 @router.get("/research-tx-427")
 async def research_tx_427(
     secret_key: str = None,
+    repair: bool = False,
     db: AsyncSession = Depends(deps.get_db),
 ) -> Any:
     """
-    Temporary diagnostic endpoint for transaction #427.
+    Temporary diagnostic and repair endpoint for transaction #427.
     """
     if secret_key != "AG_RESEARCH_ACCESS_2026":
         raise HTTPException(status_code=403, detail="Access denied")
         
-    # 1. Search Audit Log
-    res = await db.execute(text("SELECT * FROM audit_log WHERE target_id = 427 AND target_type = 'BalanceTransaction'"))
-    audit = [dict(r._mapping) for r in res.all()]
+    # 1. Search Audit Log (if available)
+    audit = []
+    try:
+        res = await db.execute(text("SELECT * FROM auditlog WHERE entity_id = 427 OR description LIKE '%427%'"))
+        audit = [dict(r._mapping) for r in res.all()]
+    except Exception as e:
+        print(f"Audit log search error: {e}")
+
+    # 2. Identify orphaned Payments (around Apr 21, 17:15-17:25)
+    # We look for payments that have NO linked BalanceTransaction in the audit log (manually verified)
+    # But for surgical fix, we'll look for payments on that specific date/time.
+    p_res = await db.execute(text("""
+        SELECT p.id, p.invoice_id, p.amount, p.date 
+        FROM payment p
+        WHERE p.date >= '2026-04-21 17:15:00' 
+        AND p.date <= '2026-04-21 17:25:00'
+    """))
+    payments = [dict(r._mapping) for r in p_res.all()]
+
+    # 3. Identify orphaned Bonuses
+    b_res = await db.execute(text("""
+        SELECT b.id, b.amount, b.created_at, b.notes
+        FROM bonus_ledger b
+        WHERE b.created_at >= '2026-04-21 17:15:00' 
+        AND b.created_at <= '2026-04-21 17:25:00'
+    """))
+    bonuses = [dict(r._mapping) for r in b_res.all()]
+
+    if not repair:
+        return {
+            "found_audit_logs": audit,
+            "found_orphaned_payments": payments,
+            "found_orphaned_bonuses": bonuses,
+            "status": "Ready for repair. Use repair=true to execute."
+        }
+
+    # --- EXECUTE REPAIR ---
+    repaired_payments = []
+    repaired_bonuses = []
+    
+    # Revert Invoice balances and delete payments
+    for p in payments:
+        if p['invoice_id']:
+            await db.execute(text("UPDATE invoice SET paid_amount = paid_amount - :amt WHERE id = :id"), 
+                           {"amt": p['amount'], "id": p['invoice_id']})
+            # Also reset status if it was 'paid' (very cautious)
+            await db.execute(text("UPDATE invoice SET status = 'partial' WHERE id = :id AND paid_amount < total_amount"), 
+                           {"id": p['invoice_id']})
+        
+        await db.execute(text("DELETE FROM payment WHERE id = :id"), {"id": p['id']})
+        repaired_payments.append(p['id'])
+
+    # Delete bonus entries
+    for b in bonuses:
+        await db.execute(text("DELETE FROM bonus_ledger WHERE id = :id"), {"id": b['id']})
+        repaired_bonuses.append(b['id'])
+
+    await db.commit()
+
+    return {
+        "status": "REPAIRED",
+        "deleted_payments": repaired_payments,
+        "deleted_bonuses": repaired_bonuses,
+        "message": f"Successfully deleted {len(repaired_payments)} payments and {len(repaired_bonuses)} bonuses."
+    }
     
     # 2. Search Orphans (April 21, 17:19:01)
     # Using a 10-minute window for safety
