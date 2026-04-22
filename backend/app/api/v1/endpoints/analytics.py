@@ -103,8 +103,12 @@ async def get_global_realtime_dashboard(
             _rev_pmt = _rev_pmt.where(and_(Payment.date >= start_tgt, Payment.date < end_tgt))
         
         # 2. Revenue from Balance Topups (Standalone)
+        # We include both manual 'topup' and positive 'adjustment' transactions.
         _rev_topup = select(func.sum(BalanceTransaction.amount)).where(
-            BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP
+            or_(
+                BalanceTransaction.transaction_type == "topup",
+                and_(BalanceTransaction.transaction_type == "adjustment", BalanceTransaction.amount > 0)
+            )
         )
         if start_tgt and end_tgt:
             _rev_topup = _rev_topup.where(and_(BalanceTransaction.created_at >= start_tgt, BalanceTransaction.created_at < end_tgt))
@@ -401,7 +405,10 @@ async def get_comprehensive_stats(
     fact_topup_sum = 0
     if not product_id:
         topup_q = select(func.sum(BalanceTransaction.amount).label("total")).where(
-            BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP
+            or_(
+                BalanceTransaction.transaction_type == "topup",
+                and_(BalanceTransaction.transaction_type == "adjustment", BalanceTransaction.amount > 0)
+            )
         )
         if start_date and end_date: topup_q = topup_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
         if region_id or rep_ids:
@@ -807,7 +814,10 @@ async def export_drilldown_excel(
         topup_rows = []
         if not product_id:
             topup_q = select(BalanceTransaction).options(selectinload(BalanceTransaction.organization)).where(
-                BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP
+                or_(
+                    BalanceTransaction.transaction_type == "topup",
+                    and_(BalanceTransaction.transaction_type == "adjustment", BalanceTransaction.amount > 0)
+                )
             )
             if start_date and end_date:
                 topup_q = topup_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
@@ -998,8 +1008,12 @@ async def get_comprehensive_drilldown(
         topup_rows = []
         if not product_id:
             topup_q = select(BalanceTransaction).options(selectinload(BalanceTransaction.organization)).where(
-                BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP
+                or_(
+                    BalanceTransaction.transaction_type == "topup",
+                    and_(BalanceTransaction.transaction_type == "adjustment", BalanceTransaction.amount > 0)
+                )
             )
+
             if start_date and end_date:
                 topup_q = topup_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
             if region_id or rep_ids:
