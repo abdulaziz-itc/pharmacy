@@ -840,9 +840,12 @@ async def export_drilldown_excel(
 
         # 3. Combine and Format
         all_data = []
+        from datetime import time
         for p in payment_rows:
+            # Standardize to datetime for sorting (midnight)
+            sort_dt = datetime.combine(p.date, time.min) if isinstance(p.date, date) and not isinstance(p.date, datetime) else p.date
             all_data.append({
-                "date": p.date,
+                "date": sort_dt,
                 "inn": p.invoice.reservation.med_org.inn if p.invoice and p.invoice.reservation and p.invoice.reservation.med_org else "-",
                 "customer": p.invoice.reservation.customer_name if p.invoice and p.invoice.reservation else "-",
                 "amount": p.amount,
@@ -1016,10 +1019,14 @@ async def get_comprehensive_drilldown(
 
         # 3. Combine and Format
         all_results = []
+        from datetime import time
         for r in payment_rows:
+            # We must use isoformat or similar for the return JSON, 
+            # but ensure we handle both date and datetime types.
+            dt_str = r.date.isoformat() if hasattr(r.date, "isoformat") else str(r.date)
             all_results.append({
                 "id": r.id, 
-                "date": r.date.isoformat(), 
+                "date": dt_str, 
                 "amount": r.amount, 
                 "type": r.payment_type, 
                 "invoice_num": r.invoice.factura_number if r.invoice else "-", 
@@ -1041,6 +1048,7 @@ async def get_comprehensive_drilldown(
                 "is_topup": True
             })
             
+        # Since these are ISO strings, reverse sorting works correctly for chronology
         all_results.sort(key=lambda x: x["date"], reverse=True)
         # Apply skip/limit manually to the merged list
         return all_results[skip : skip + limit]
