@@ -54,8 +54,8 @@ async def get_receipt_queries(
     if not product_id:
         top_q = select(BalanceTransaction).where(
             or_(
-                BalanceTransaction.transaction_type == "topup",
-                and_(BalanceTransaction.transaction_type == "adjustment", BalanceTransaction.amount > 0)
+                func.lower(BalanceTransaction.transaction_type) == "topup",
+                and_(func.lower(BalanceTransaction.transaction_type) == "adjustment", BalanceTransaction.amount > 0)
             )
         )
         if start_date and end_date:
@@ -156,12 +156,36 @@ async def get_global_realtime_dashboard(
         rep_ids = await get_descendant_ids(db, current_user.id)
         if not rep_ids: rep_ids = [-1]
 
-    # 2. CALCULATE CURRENT PERIOD
     # 2a. Receipts (Payments + Topups)
-    curr_pmt_q, curr_tp_q = await get_receipt_queries(db, start_date, end_date, rep_ids, final_region_ids)
-    c_rev_pmt = (await db.execute(select(func.sum(Payment.amount)).select_from(curr_pmt_q.subquery()))).scalar() or 0.0
-    c_rev_tp = (await db.execute(select(func.sum(BalanceTransaction.amount)).select_from(curr_tp_q.subquery()))).scalar() or 0.0 if curr_tp_q is not None else 0.0
-    c_rev = c_rev_pmt + c_rev_tp
+    # Direct Summing is safer than subqueries for these aggregate counts
+    pay_sum_q = select(func.sum(Payment.amount)).join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
+    if start_date and end_date: pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+    
+    topup_sum_q = select(func.sum(BalanceTransaction.amount)).where(
+        or_(
+            func.lower(BalanceTransaction.transaction_type) == "topup",
+            and_(func.lower(BalanceTransaction.transaction_type) == "adjustment", BalanceTransaction.amount > 0)
+        )
+    )
+    if start_date and end_date: topup_sum_q = topup_sum_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
+
+    # Apply same hierarchy/region as get_receipt_queries would
+    if rep_ids:
+        pay_sum_q = pay_sum_q.where(Reservation.created_by_id.in_(rep_ids))
+        topup_sum_q = topup_sum_q.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id).where(
+            MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
+        )
+    
+    if final_region_ids:
+        if not rep_ids:
+            pay_sum_q = pay_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+            topup_sum_q = topup_sum_q.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+        pay_sum_q = pay_sum_q.where(MedicalOrganization.region_id.in_(final_region_ids))
+        topup_sum_q = topup_sum_q.where(MedicalOrganization.region_id.in_(final_region_ids))
+
+    c_rev_pmt = (await db.execute(pay_sum_q)).scalar() or 0.0
+    c_rev_tp = (await db.execute(topup_sum_q)).scalar() or 0.0
+    c_rev = float(c_rev_pmt) + float(c_rev_tp)
 
     # 2b. Invoiced Goal (Revenue Facturas)
     curr_inv_q = select(func.sum(Invoice.total_amount)).where(Invoice.status != InvoiceStatus.CANCELLED)
@@ -207,9 +231,16 @@ async def get_global_realtime_dashboard(
     
     if not is_global_mode:
         prev_pmt_q, prev_tp_q = await get_receipt_queries(db, prev_start_date, prev_end_date, rep_ids, final_region_ids)
-        p_rev_pmt = (await db.execute(select(func.sum(Payment.amount)).select_from(prev_pmt_q.subquery()))).scalar() or 0.0
-        p_rev_tp = (await db.execute(select(func.sum(BalanceTransaction.amount)).select_from(prev_tp_q.subquery()))).scalar() or 0.0 if prev_tp_q is not None else 0.0
-        p_rev = p_rev_pmt + p_rev_tp
+        
+        prev_pmt_subq = prev_pmt_q.subquery()
+        p_rev_pmt = (await db.execute(select(func.sum(prev_pmt_subq.c.amount)))).scalar() or 0.0
+        
+        p_rev_tp = 0.0
+        if prev_tp_q is not None:
+            prev_tp_subq = prev_tp_q.subquery()
+            p_rev_tp = (await db.execute(select(func.sum(prev_tp_subq.c.amount)))).scalar() or 0.0
+            
+        p_rev = float(p_rev_pmt) + float(p_rev_tp)
         
         # We skip full previous calc for bon/qty/debt if performance is an issue, but let's be thorough
         # [Simplified previous calc for brevity, but keeping revenue for trends]
@@ -417,19 +448,39 @@ async def get_comprehensive_stats(
         sales_q = apply_filters(sales_q, Reservation)
     sales_total = (await db.execute(sales_q)).scalar() or 0
 
-    # Sales Fact (Actual Payments Received)
-    pay_q, top_q = await get_receipt_queries(db, start_date, end_date, rep_ids, [region_id] if region_id else None, product_id)
-    
     # 1. Invoice-linked payments sum
-    fact_invoice_sum_q = select(func.sum(Payment.amount)).select_from(pay_q.subquery())
-    fact_invoice_sum = (await db.execute(fact_invoice_sum_q)).scalar() or 0
+    # Re-build simple sum query to avoid subquery issues
+    pay_sum_q = select(func.sum(Payment.amount)).join(Invoice, Payment.invoice_id == Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
+    if start_date and end_date: pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
     
-    # 2. Standalone refills sum
-    fact_topup_sum = 0
-    if top_q is not None:
-        fact_topup_sum_q = select(func.sum(BalanceTransaction.amount)).select_from(top_q.subquery())
-        fact_topup_sum = (await db.execute(fact_topup_sum_q)).scalar() or 0
+    topup_sum_q = select(func.sum(BalanceTransaction.amount)).where(
+        or_(
+            func.lower(BalanceTransaction.transaction_type) == "topup",
+            and_(func.lower(BalanceTransaction.transaction_type) == "adjustment", BalanceTransaction.amount > 0)
+        )
+    )
+    if start_date and end_date: topup_sum_q = topup_sum_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
+    
+    if rep_ids:
+        pay_sum_q = pay_sum_q.where(Reservation.created_by_id.in_(rep_ids))
+        topup_sum_q = topup_sum_q.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id).where(
+            MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
+        )
+    if region_id:
+        if not rep_ids:
+            pay_sum_q = pay_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+            topup_sum_q = topup_sum_q.join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+        pay_sum_q = pay_sum_q.where(MedicalOrganization.region_id == region_id)
+        topup_sum_q = topup_sum_q.where(MedicalOrganization.region_id == region_id)
         
+    if product_id:
+        pay_sum_q = pay_sum_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == product_id)
+        # topup_sum_q remains same (skipped of product_id is passed usually)
+        if product_id: fact_topup_sum = 0
+    else:
+        fact_topup_sum = (await db.execute(topup_sum_q)).scalar() or 0
+
+    fact_invoice_sum = (await db.execute(pay_sum_q)).scalar() or 0
     fact_sum = float(fact_invoice_sum) + float(fact_topup_sum)
 
     # Bonus Ledger (Earned, Paid, Advances)
