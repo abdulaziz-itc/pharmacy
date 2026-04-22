@@ -198,6 +198,8 @@ const HeadOfOrdersPage: React.FC = () => {
     const [isDeletingPayment, setIsDeletingPayment] = useState<number | null>(null);
     const canManagePayments = user?.role && ['accountant', 'investor', 'admin', 'director'].includes(user.role.toLowerCase());
 
+
+
     const handleDeletePayment = async (paymentId: number) => {
         if (!window.confirm('Haqiqatan ham ushbu to\'lovni bekor qilmoqchimisiz? Bu moliyaviy hisobotlarga ta’sir qiladi.')) return;
 
@@ -1378,10 +1380,11 @@ const HeadOfOrdersPage: React.FC = () => {
                 )
             }
 
-            {/* Dialogs end */}
-        </div>
-    );
-};
+
+
+            {/* ============================================================
+                TAB 3: ИНВОЙСЫ
+            ============================================================ */}
             {
                 tab === 'invoices' && (
                     <div className="bg-slate-50/50">
