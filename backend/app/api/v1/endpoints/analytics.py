@@ -37,10 +37,12 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
     if not has_rep and not has_reg and not has_prod:
         # Bare sum for absolute reliability in Global/Director view
         pay_sum_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).select_from(Payment)
+        pay_sum_q = pay_sum_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%Автоматическое погашение%')))
         if start_date and end_date:
             pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
     else:
         pay_sum_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).select_from(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
+        pay_sum_q = pay_sum_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%Автоматическое погашение%')))
         if start_date and end_date:
             pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
         pay_sum_q = pay_sum_q.join(Reservation, Invoice.reservation_id == Reservation.id)
@@ -93,6 +95,7 @@ async def get_receipt_queries(
     """
     # 1. Invoiced Payments Query
     pay_q = select(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
+    pay_q = pay_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%Автоматическое погашение%')))
     if start_date and end_date:
         pay_q = pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
     
