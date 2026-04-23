@@ -58,7 +58,7 @@ export default function DebtorsPage() {
             if (filterValues.selectedMedRep !== 'all') params.med_rep_id = filterValues.selectedMedRep;
             if (filterValues.selectedRegion !== 'all') params.region_id = filterValues.selectedRegion;
             
-            const response = await api.get('/analytics/stats/comprehensive', { params });
+            const response = await api.get('/domain/analytics/stats/comprehensive', { params });
             return response.data;
         }
     });
