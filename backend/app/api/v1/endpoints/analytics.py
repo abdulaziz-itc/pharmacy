@@ -1149,7 +1149,13 @@ async def get_comprehensive_drilldown(
         if metric == "bonus_accrued":
             bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, or_(BonusLedger.notes != "Аванс (Предынвест)", BonusLedger.notes.is_(None))))
         elif metric == "bonus_paid":
-            bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.is_paid == True))
+            bonus_q = bonus_q.where(
+                or_(
+                    and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.is_paid == True),
+                    BonusLedger.ledger_type == LedgerType.ADVANCE,
+                    BonusLedger.ledger_type == LedgerType.PAYOUT
+                )
+            )
         elif metric == "preinvest":
             bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.notes == "Аванс (Предынвест)"))
         if start_date and end_date: bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
