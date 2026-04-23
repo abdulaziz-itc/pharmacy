@@ -46,6 +46,8 @@ import {
 type ReportItem = {
     doctor_id: number;
     doctor_name: string;
+    med_rep_name: string;
+    region: string;
     plan_quantity: number;
     plan_amount: number;
     fact_quantity: number;
@@ -183,26 +185,159 @@ export default function ReportsPage() {
     };
 
     const exportToExcel = () => {
-        if (!reportData?.data) return;
-        const worksheet = XLSX.utils.json_to_sheet(reportData.data.map(item => ({
-            'Врач': item.doctor_name,
-            'План (сум)': item.plan_amount,
-            'Факт (сум)': item.fact_amount,
-            'Выполнение (%)': Number(item.plan_amount) > 0 ? ((Number(item.fact_amount) / Number(item.plan_amount)) * 100).toFixed(1) + '%' : '0%',
-            'Бонусы': item.earned_bonus,
-            'Прединвест (выдано)': item.predinvest_given,
-            'Прединвест (погашено)': item.predinvest_paid_off
-        })));
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Отчет");
-        XLSX.writeFile(workbook, `Report_Full_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+        const wb = XLSX.utils.book_new();
+        const fmt = (n: any) => Number(n) || 0;
+        const fmtPct = (fact: any, plan: any) =>
+            fmt(plan) > 0 ? ((fmt(fact) / fmt(plan)) * 100).toFixed(1) + '%' : '0%';
+
+        // Period label
+        let periodLabel = 'Все время';
+        if (selectedPeriod === 'month') {
+            const mn = new Date(currentYear, currentMonth - 1).toLocaleString('ru-RU', { month: 'long' });
+            periodLabel = `${mn} ${currentYear}`;
+        } else if (selectedPeriod === 'quarter') {
+            periodLabel = `${currentQuarter}-й квартал ${currentYear}`;
+        } else if (selectedPeriod === 'year') {
+            periodLabel = `${currentYear} год`;
+        }
+
+        // SHEET 1 — KPI Summary
+        const kpiRows: any[][] = [
+            ['РАСШИРЕННЫЙ ФИНАНСОВЫЙ ОТЧЕТ'],
+            [`Период: ${periodLabel}`],
+            [`Сформирован: ${new Date().toLocaleString('ru-RU')}`],
+            [],
+            ['ПОКАЗАТЕЛЬ', 'ЗНАЧЕНИЕ (UZS)', 'ПРИМЕЧАНИЕ'],
+            ['ПРОДАЖИ И ВЫРУЧКА', '', ''],
+            ['План продаж', fmt(kpis.sales_plan_amount), ''],
+            ['Факт поступлений', fmt(kpis.sales_fact_received_amount), ''],
+            ['Выполнение плана', fmtPct(kpis.sales_fact_received_amount, kpis.sales_plan_amount), ''],
+            ['Остаток плана', Math.max(0, fmt(kpis.sales_plan_amount) - fmt(kpis.sales_fact_received_amount)), ''],
+            [],
+            ['ПРИБЫЛЬ', '', ''],
+            ['Валовая прибыль', fmt(kpis.gross_profit), 'Выручка - Себестоимость'],
+            ['Прочие расходы', fmt(kpis.total_expenses), ''],
+            ['Чистая прибыль', fmt(kpis.net_profit), 'Вал. прибыль - Прочие расходы'],
+            [],
+            ['ДЕБИТОРСКАЯ ЗАДОЛЖЕННОСТЬ', '', ''],
+            ['Дебиторка (общая)', fmt(kpis.receivables), ''],
+            [],
+            ['БОНУСЫ МП', '', ''],
+            ['Начислено бонусов', fmt(kpis.bonus_accrued), ''],
+            ['Всего выплачено (бонус)', fmt(kpis.bonus_paid), ''],
+            ['Остаток бонуса', Math.max(0, fmt(kpis.bonus_accrued) - fmt(kpis.bonus_paid)), ''],
+            ['Прединвест (аванс)', fmt(kpis.total_predinvest), ''],
+        ];
+        const ws1 = XLSX.utils.aoa_to_sheet(kpiRows);
+        ws1['!cols'] = [{ wch: 40 }, { wch: 25 }, { wch: 35 }];
+        ws1['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+        XLSX.utils.book_append_sheet(wb, ws1, 'Общая сводка');
+
+        // SHEET 2 — By Doctors
+        const doctorsData = reportData?.data || [];
+        const doctorRows: any[][] = [
+            [`Детализация по врачам — ${periodLabel}`],
+            [],
+            ['№', 'Врач', 'МП', 'Регион', 'План (сум)', 'Факт (сум)', 'Выполнение %', 'Кол-во план', 'Кол-во факт', 'Бонус начислен', 'Прединвест выдан', 'Прединвест погашен'],
+        ];
+        doctorsData.forEach((d: ReportItem, i: number) => {
+            doctorRows.push([
+                i + 1,
+                d.doctor_name || '—',
+                (d as any).med_rep_name || '—',
+                (d as any).region || '—',
+                fmt(d.plan_amount),
+                fmt(d.fact_amount),
+                fmtPct(d.fact_amount, d.plan_amount),
+                fmt(d.plan_quantity),
+                fmt(d.fact_quantity),
+                fmt(d.earned_bonus),
+                fmt(d.predinvest_given),
+                fmt(d.predinvest_paid_off),
+            ]);
+        });
+        const sumCol = (key: keyof ReportItem) =>
+            doctorsData.reduce((s: number, d: ReportItem) => s + fmt(d[key]), 0);
+        doctorRows.push([
+            '', 'ИТОГО', '', '',
+            sumCol('plan_amount'), sumCol('fact_amount'),
+            fmtPct(sumCol('fact_amount'), sumCol('plan_amount')),
+            sumCol('plan_quantity'), sumCol('fact_quantity'),
+            sumCol('earned_bonus'), sumCol('predinvest_given'), sumCol('predinvest_paid_off'),
+        ]);
+        const ws2 = XLSX.utils.aoa_to_sheet(doctorRows);
+        ws2['!cols'] = [
+            { wch: 4 }, { wch: 32 }, { wch: 22 }, { wch: 18 },
+            { wch: 18 }, { wch: 18 }, { wch: 14 },
+            { wch: 14 }, { wch: 14 },
+            { wch: 18 }, { wch: 18 }, { wch: 18 },
+        ];
+        ws2['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+        XLSX.utils.book_append_sheet(wb, ws2, 'По врачам');
+
+        // SHEET 3 — By Products
+        const productStats: any[] = stats?.product_stats || [];
+        const prodRows: any[][] = [
+            [`Детализация по препаратам — ${periodLabel}`],
+            [],
+            ['№', 'Препарат', 'План (сум)', 'Факт (сум)', 'Выполнение %', 'План (шт)', 'Факт (шт)'],
+        ];
+        productStats.forEach((p: any, i: number) => {
+            prodRows.push([
+                i + 1,
+                p.product_name || '—',
+                fmt(p.plan_uzs),
+                fmt(p.fact_uzs),
+                fmtPct(p.fact_uzs, p.plan_uzs),
+                fmt(p.plan_qty),
+                fmt(p.fact_qty),
+            ]);
+        });
+        if (productStats.length === 0) prodRows.push(['', 'Нет данных', '', '', '', '', '']);
+        const ws3 = XLSX.utils.aoa_to_sheet(prodRows);
+        ws3['!cols'] = [{ wch: 4 }, { wch: 35 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+        ws3['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+        XLSX.utils.book_append_sheet(wb, ws3, 'По препаратам');
+
+        // SHEET 4 — Trends / Dynamics
+        const trends: any[] = stats?.trends || [];
+        const trendRows: any[][] = [
+            [`Динамика продаж — ${periodLabel}`],
+            [],
+            ['Период', 'План (UZS)', 'Факт (UZS)', 'Выполнение %'],
+        ];
+        trends.forEach((t: any) => {
+            trendRows.push([t.label || '—', fmt(t.plan), fmt(t.fact), fmtPct(t.fact, t.plan)]);
+        });
+        if (trends.length === 0) trendRows.push(['Нет данных', '', '', '']);
+        const ws4 = XLSX.utils.aoa_to_sheet(trendRows);
+        ws4['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 14 }];
+        ws4['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+        XLSX.utils.book_append_sheet(wb, ws4, 'Динамика');
+
+        XLSX.writeFile(wb, `Расширенный_Отчет_${periodLabel.replace(/ /g, '_')}_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`);
     };
+
 
     const columns: ColumnDef<ReportItem>[] = [
         {
             accessorKey: 'doctor_name',
             header: 'Врач',
-            cell: ({ row }) => <span className="font-semibold text-slate-900">{row.original.doctor_name}</span>
+            cell: ({ row }) => <span className="font-semibold text-slate-900">{row.original.doctor_name || '—'}</span>
+        },
+        {
+            accessorKey: 'med_rep_name',
+            header: 'МП',
+            cell: ({ row }) => <span className="text-slate-600 text-sm">{row.original.med_rep_name || '—'}</span>
+        },
+        {
+            accessorKey: 'region',
+            header: 'Регион',
+            cell: ({ row }) => (
+                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
+                    {row.original.region || '—'}
+                </span>
+            )
         },
         {
             accessorKey: 'plan_amount',
@@ -221,9 +356,22 @@ export default function ReportsPage() {
                             <div className={`h-full rounded-full transition-all duration-500 ${percent >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
                                  style={{ width: `${Math.min(percent, 100)}%` }} />
                         </div>
+                        <div className={`text-[10px] font-black text-right ${percent >= 100 ? 'text-emerald-600' : 'text-blue-500'}`}>
+                            {percent.toFixed(1)}%
+                        </div>
                     </div>
                 );
             }
+        },
+        {
+            id: 'qty',
+            header: 'Кол-во (план/факт)',
+            cell: ({ row }) => (
+                <div className="text-xs font-bold space-y-0.5">
+                    <div className="text-slate-400">П: {(Number(row.original.plan_quantity) || 0).toLocaleString()} шт</div>
+                    <div className="text-blue-600">Ф: {(Number(row.original.fact_quantity) || 0).toLocaleString()} шт</div>
+                </div>
+            )
         },
         {
             accessorKey: 'earned_bonus',
@@ -235,7 +383,7 @@ export default function ReportsPage() {
             header: 'Прединвест',
             cell: ({ row }) => (
                 <div className="text-[10px] font-black">
-                    <div className="text-rose-500">-{(Number(row.original.predinvest_given) || 0).toLocaleString()}</div>
+                    <div className="text-rose-500">−{(Number(row.original.predinvest_given) || 0).toLocaleString()}</div>
                     <div className="text-emerald-500">+{(Number(row.original.predinvest_paid_off) || 0).toLocaleString()}</div>
                 </div>
             )
@@ -244,10 +392,14 @@ export default function ReportsPage() {
 
     const filteredTableData = useMemo(() => {
         if (!reportData?.data) return [];
-        return reportData.data.filter(item => 
-            (item.doctor_name || '').toLowerCase().includes((searchQuery || '').toLowerCase())
+        const q = (searchQuery || '').toLowerCase();
+        return reportData.data.filter(item =>
+            (item.doctor_name || '').toLowerCase().includes(q) ||
+            (item.med_rep_name || '').toLowerCase().includes(q) ||
+            (item.region || '').toLowerCase().includes(q)
         );
     }, [reportData, searchQuery]);
+
 
     const isLoading = statsLoading || reportLoading;
 

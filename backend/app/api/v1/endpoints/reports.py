@@ -157,19 +157,58 @@ async def get_comprehensive_reports(
         report_map[row.id]["predinvest_given"] = float(row.advance or 0)
         report_map[row.id]["predinvest_paid_off"] = float(row.offset or 0)
 
+    # ── Enrich doctor entries with their MedRep and Region ──────────────────
+    doctor_to_medrep: dict = {}
+    doctor_to_region: dict = {}
+    if not is_medrep_view and report_map:
+        from app.models.crm import MedicalOrganization, Region
+        from app.models.sales import Plan as PlanM
+        from sqlalchemy.orm import aliased
+
+        doctor_ids = list(report_map.keys())
+        enrich_q = (
+            select(
+                Doctor.id.label("doctor_id"),
+                User.full_name.label("medrep_name"),
+                Doctor.region_id.label("region_id"),
+            )
+            .join(PlanM, PlanM.doctor_id == Doctor.id, isouter=True)
+            .join(User, User.id == PlanM.med_rep_id, isouter=True)
+            .where(Doctor.id.in_(doctor_ids))
+            .group_by(Doctor.id, User.full_name, Doctor.region_id)
+        )
+        enrich_res = await db.execute(enrich_q)
+        for row in enrich_res.all():
+            doctor_to_medrep[row.doctor_id] = row.medrep_name or "—"
+            doctor_to_region[row.doctor_id] = row.region_id
+
+        # Resolve region names
+        if doctor_to_region:
+            region_ids = list(set(v for v in doctor_to_region.values() if v))
+            if region_ids:
+                from app.models.crm import Region
+                reg_res = await db.execute(select(Region.id, Region.name).where(Region.id.in_(region_ids)))
+                region_name_map = {r.id: r.name for r in reg_res.all()}
+                doctor_to_region = {k: region_name_map.get(v, "—") for k, v in doctor_to_region.items()}
+
     summary = []
     for rid, data in report_map.items():
-        summary.append({
+        entry = {
             "id": rid,
-            "name": data["name"],
+            "doctor_name": data["name"] if not is_medrep_view else "—",
+            "med_rep_name": doctor_to_medrep.get(rid, "—") if not is_medrep_view else data["name"],
+            "region": doctor_to_region.get(rid, "—") if not is_medrep_view else "—",
             "plan_amount": data["plan_amount"],
             "plan_quantity": data["plan_quantity"],
             "fact_amount": data["fact_amount"],
             "fact_quantity": data["fact_quantity"],
             "earned_bonus": data["earned_bonus"],
             "predinvest_given": data["predinvest_given"],
-            "predinvest_paid_off": data["predinvest_paid_off"]
-        })
+            "predinvest_paid_off": data["predinvest_paid_off"],
+        }
+        summary.append(entry)
+
+    summary.sort(key=lambda x: x["plan_amount"], reverse=True)
 
     await log_action(
         db, current_user, "REPORT_VIEW", "Analytics", 0,
