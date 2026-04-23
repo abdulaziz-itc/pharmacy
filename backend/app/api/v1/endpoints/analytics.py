@@ -734,15 +734,17 @@ async def get_comprehensive_stats(
         prods = (await db.execute(select(Product.id, Product.name).where(Product.id.in_(prod_ids)))).all()
         prod_name_map = {p.id: p.name for p in prods}
         
-        for pid, stats in product_stats_map.items():
+        for pid, stats_item in product_stats_map.items():
             product_stats.append({
                 "id": pid,
                 "name": prod_name_map.get(pid, f"Product {pid}"),
-                "plan_uzs": stats["plan_uzs"],
-                "plan_qty": stats["plan_qty"],
-                "fact_uzs": stats["fact_uzs"],
-                "fact_qty": stats["fact_qty"]
+                "product_name": prod_name_map.get(pid, f"Product {pid}"),  # alias for frontend
+                "plan_uzs": round(stats_item["plan_uzs"] or 0, 0),
+                "plan_qty": int(stats_item["plan_qty"] or 0),
+                "fact_uzs": round(stats_item["fact_uzs"] or 0, 0),
+                "fact_qty": int(stats_item["fact_qty"] or 0),
             })
+        product_stats.sort(key=lambda x: x["plan_uzs"], reverse=True)
 
     # 5. TRENDS (Charts)
     trends = []

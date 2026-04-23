@@ -285,7 +285,7 @@ export default function ReportsPage() {
         productStats.forEach((p: any, i: number) => {
             prodRows.push([
                 i + 1,
-                p.product_name || '—',
+                p.name || p.product_name || '—',
                 fmt(p.plan_uzs),
                 fmt(p.fact_uzs),
                 fmtPct(p.fact_uzs, p.plan_uzs),
@@ -300,19 +300,32 @@ export default function ReportsPage() {
         XLSX.utils.book_append_sheet(wb, ws3, 'По препаратам');
 
         // SHEET 4 — Trends / Dynamics
+        // For monthly view: show cumulative fact vs total monthly plan
         const trends: any[] = stats?.trends || [];
+        const totalPlan = fmt(kpis.sales_plan_amount);
         const trendRows: any[][] = [
             [`Динамика продаж — ${periodLabel}`],
+            [`Общий план: ${totalPlan.toLocaleString('ru-RU')} UZS | Итого факт: ${fmt(kpis.sales_fact_received_amount).toLocaleString('ru-RU')} UZS`],
             [],
-            ['Период', 'План (UZS)', 'Факт (UZS)', 'Выполнение %'],
+            ['Период', 'Факт (UZS)', 'Кумулятивный факт (UZS)', 'Кум. выполнение %'],
         ];
+        let cumFact = 0;
         trends.forEach((t: any) => {
-            trendRows.push([t.label || '—', fmt(t.plan), fmt(t.fact), fmtPct(t.fact, t.plan)]);
+            cumFact += fmt(t.fact);
+            trendRows.push([
+                t.label || '—',
+                fmt(t.fact),
+                cumFact,
+                totalPlan > 0 ? ((cumFact / totalPlan) * 100).toFixed(1) + '%' : '0%',
+            ]);
         });
         if (trends.length === 0) trendRows.push(['Нет данных', '', '', '']);
         const ws4 = XLSX.utils.aoa_to_sheet(trendRows);
-        ws4['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 14 }];
-        ws4['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+        ws4['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 26 }, { wch: 20 }];
+        ws4['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+        ];
         XLSX.utils.book_append_sheet(wb, ws4, 'Динамика');
 
         XLSX.writeFile(wb, `Расширенный_Отчет_${periodLabel.replace(/ /g, '_')}_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`);
