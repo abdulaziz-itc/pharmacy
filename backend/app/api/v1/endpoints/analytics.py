@@ -1276,6 +1276,43 @@ async def get_comprehensive_drilldown(
             })
         return res_payload
 
+    elif metric == "sold_items":
+        items_sold_q = select(ReservationItem).options(
+            selectinload(ReservationItem.product),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.invoice),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.created_by)
+        ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
+         .join(Invoice, Invoice.reservation_id == Reservation.id)\
+         .where(Invoice.status != InvoiceStatus.CANCELLED)
+         
+        items_sold_q = apply_filters(items_sold_q, Reservation)
+        if start_date and end_date: 
+            items_sold_q = items_sold_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
+        if product_id: 
+            items_sold_q = items_sold_q.where(ReservationItem.product_id == int(product_id))
+            
+        rows = (await db.execute(items_sold_q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
+        
+        res_payload = []
+        for r in rows:
+            inv = r.reservation.invoice if r.reservation else None
+            region_name = (r.reservation.med_org.region.name if r.reservation and r.reservation.med_org and r.reservation.med_org.region else "-") if r.reservation else "-"
+            med_rep_name = (r.reservation.created_by.full_name if r.reservation and r.reservation.created_by else "-")
+            
+            res_payload.append({
+                "id": r.id,
+                "invoice_num": inv.factura_number if inv else "-",
+                "date": inv.date.isoformat() if inv and inv.date else "-",
+                "product": r.product.name if r.product else "-",
+                "region": region_name,
+                "med_rep": med_rep_name,
+                "qty": r.quantity,
+                "sale_price": r.price,
+                "total_amount": (r.price or 0) * (r.quantity or 0)
+            })
+        return res_payload
+
     return []
 
 @router.get("/dashboard/director-report-excel")
