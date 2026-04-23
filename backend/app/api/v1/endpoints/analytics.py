@@ -292,10 +292,6 @@ async def get_global_realtime_dashboard(
         # We skip full previous calc for bon/qty/debt if performance is an issue, but let's be thorough
         # [Simplified previous calc for brevity, but keeping revenue for trends]
     
-    p_bon = (await db.execute(prev_bonus_q)).scalar() or 0.0
-    p_qty = (await db.execute(prev_qty_q)).scalar() or 0
-    p_debt = (await db.execute(prev_debt_q)).scalar() or 0.0
-
     # Trend calculation
     def calc_trend(current, prev):
         if prev == 0 and current == 0:
@@ -351,7 +347,7 @@ async def get_global_realtime_dashboard(
         # Latest Topups
         recent_topups = (await db.execute(
             select(BalanceTransaction).options(selectinload(BalanceTransaction.organization))
-            .where(BalanceTransaction.transaction_type == BalanceTransactionType.TOPUP)
+            .where(func.lower(BalanceTransaction.transaction_type) == 'topup')
             .order_by(BalanceTransaction.created_at.desc()).limit(2)
         )).scalars().all()
         for tp in recent_topups:
