@@ -327,7 +327,9 @@ async def get_global_realtime_dashboard(
     if current_user.role in [UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.ACCOUNTANT]:
         # Latest Payments (linking to invoice if possible)
         recent_payments = (await db.execute(
-            select(Payment).options(selectinload(Payment.invoice)).order_by(Payment.date.desc()).limit(3)
+            select(Payment).options(
+                selectinload(Payment.invoice).selectinload(Invoice.reservation)
+            ).order_by(Payment.date.desc()).limit(3)
         )).scalars().all()
         for p in recent_payments:
             invoice_num = p.invoice.factura_number if p.invoice else None
@@ -336,7 +338,7 @@ async def get_global_realtime_dashboard(
                 "id": p.id,
                 "invoice_id": p.invoice_id,
                 "title": "Оплата фактуры",
-                "desc": f"{p.comment or 'Поступление средств'} ({p.invoice.customer_name if p.invoice else ''})",
+                "desc": f"{p.comment or 'Поступление средств'} ({p.invoice.reservation.customer_name if p.invoice and p.invoice.reservation else ''})",
                 "amount": f"+{p.amount:,.0f} UZS",
                 "time": p.date.strftime("%d.%m.%Y %H:%M"),
                 "color": "green",
@@ -365,14 +367,14 @@ async def get_global_realtime_dashboard(
             
         # Latest Invoices
         recent_invoices = (await db.execute(
-            select(Invoice).order_by(Invoice.date.desc()).limit(3)
+            select(Invoice).options(selectinload(Invoice.reservation)).order_by(Invoice.date.desc()).limit(3)
         )).scalars().all()
         for i in recent_invoices:
             activities.append({
                 "type": "invoice",
                 "id": i.id,
                 "title": "Новая фактура",
-                "desc": f"Фактура №{i.factura_number or i.id} ({i.customer_name})",
+                "desc": f"Фактура №{i.factura_number or i.id} ({i.reservation.customer_name if i.reservation else ''})",
                 "amount": f"{i.total_amount:,.0f} UZS",
                 "time": i.date.strftime("%d.%m.%Y %H:%M"),
                 "color": "blue",
