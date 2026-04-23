@@ -1064,7 +1064,7 @@ async def get_comprehensive_drilldown(
             real_q = real_q.join(Reservation, Invoice.reservation_id == Reservation.id)
             real_q = apply_filters(real_q, Reservation)
         rows = (await db.execute(real_q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.date.isoformat(), "invoice_num": r.factura_number, "total_amount": r.total_amount, "customer": r.reservation.customer_name if r.reservation else "-"} for r in rows]
+        return [{"id": r.id, "date": r.date.isoformat() if r.date else "-", "invoice_num": r.factura_number, "total_amount": r.total_amount, "customer": r.reservation.customer_name if r.reservation else "-"} for r in rows]
 
     elif metric == "cash_in":
         # Using unified receipt queries
@@ -1101,7 +1101,7 @@ async def get_comprehensive_drilldown(
         for r in topup_rows:
             all_results.append({
                 "id": r.id,
-                "date": r.created_at.isoformat(),
+                "date": r.created_at.isoformat() if r.created_at else "-",
                 "amount": r.amount,
                 "type": "BALANCE",
                 "invoice_num": "-",
@@ -1122,9 +1122,9 @@ async def get_comprehensive_drilldown(
         if rep_ids or region_id or product_id:
             debt_q = debt_q.join(Reservation, Invoice.reservation_id == Reservation.id)
             debt_q = apply_filters(debt_q, Reservation)
-        debt_q = debt_q.where(Invoice.total_amount > Invoice.paid_amount)
+        debt_q = debt_q.where(func.coalesce(Invoice.total_amount, 0) > func.coalesce(Invoice.paid_amount, 0))
         rows = (await db.execute(debt_q.order_by(Invoice.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.date.isoformat(), "invoice_num": r.factura_number, "total_amount": r.total_amount, "paid_amount": r.paid_amount, "debt_amount": r.total_amount - r.paid_amount, "customer": r.reservation.customer_name if r.reservation else "-"} for r in rows]
+        return [{"id": r.id, "date": r.date.isoformat() if r.date else "-", "invoice_num": r.factura_number, "total_amount": r.total_amount or 0, "paid_amount": r.paid_amount or 0, "debt_amount": (r.total_amount or 0) - (r.paid_amount or 0), "customer": r.reservation.customer_name if r.reservation else "-"} for r in rows]
 
     elif metric == "expenses":
         expense_q = select(OtherExpense).options(selectinload(OtherExpense.category), selectinload(OtherExpense.created_by))
@@ -1132,7 +1132,7 @@ async def get_comprehensive_drilldown(
         if rep_ids: expense_q = expense_q.where(OtherExpense.created_by_id.in_(rep_ids))
         if region_id: expense_q = expense_q.where(OtherExpense.region_id == region_id)
         rows = (await db.execute(expense_q.order_by(OtherExpense.date.desc()).offset(skip).limit(limit))).scalars().all()
-        return [{"id": r.id, "date": r.date.isoformat(), "amount": r.amount, "category": r.category.name if r.category else "-", "description": r.comment or "-", "author": r.created_by.full_name if r.created_by else "-"} for r in rows]
+        return [{"id": r.id, "date": r.date.isoformat() if r.date else "-", "amount": r.amount, "category": r.category.name if r.category else "-", "description": r.comment or "-", "author": r.created_by.full_name if r.created_by else "-"} for r in rows]
 
     elif metric in ["bonus_accrued", "bonus_paid", "preinvest"]:
         from app.models.sales import Payment, Invoice, Reservation
@@ -1181,7 +1181,7 @@ async def get_comprehensive_drilldown(
 
             result.append({
                 "id": r.id,
-                "date": r.created_at.isoformat(),
+                "date": r.created_at.isoformat() if r.created_at else "-",
                 "amount": r.amount,
                 "doctor": r.doctor.full_name if r.doctor else "-",
                 "med_rep": r.user.full_name if r.user else "-",

@@ -362,7 +362,7 @@ export default function StatsPage() {
                                 subSuffix="шт"
                                 icon={Receipt}
                                 color="indigo"
-                                onClick={() => setDrilldownMetric({ id: 'receivables', label: 'Факт Отгрузки' })}
+                                onClick={() => setDrilldownMetric({ id: 'realization', label: 'Факт Отгрузки' })}
                             />
                             <PremiumKpiCard
                                 variant="minimal"
