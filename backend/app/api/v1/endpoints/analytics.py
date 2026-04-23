@@ -1135,7 +1135,6 @@ async def get_comprehensive_drilldown(
         return [{"id": r.id, "date": r.date.isoformat() if r.date else "-", "amount": r.amount, "category": r.category.name if r.category else "-", "description": r.comment or "-", "author": r.created_by.full_name if r.created_by else "-"} for r in rows]
 
     elif metric in ["bonus_accrued", "bonus_paid", "preinvest"]:
-        from app.models.sales import Payment, Invoice, Reservation
         from sqlalchemy.orm import selectinload as sil
         bonus_q = select(BonusLedger).options(
             sil(BonusLedger.doctor),
