@@ -1255,7 +1255,7 @@ async def get_admin_bonus_summary(
     Returns a summary of bonuses for all MedReps.
     Only accessible by Director, Deputy Director, Admin.
     """
-    allowed_roles = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.ACCOUNTANT}
+    allowed_roles = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.HRD}
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
@@ -1473,7 +1473,7 @@ async def pay_medrep_bonus(
     """
     Marks unpaid ACCRUAL records as paid up to the requested amount.
     """
-    allowed_roles = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN}
+    allowed_roles = {UserRole.INVESTOR, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.HRD}
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
         
