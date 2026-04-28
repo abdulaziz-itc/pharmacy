@@ -120,6 +120,7 @@ export function AuditLogTable() {
     const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
     const [logs, setLogs] = React.useState<AuditLog[]>([]);
     const [loading, setLoading] = React.useState(true);
+    const [total, setTotal] = React.useState(0);
     const [actions, setActions] = React.useState<string[]>([]);
 
     // Filter state
@@ -137,13 +138,21 @@ export function AuditLogTable() {
                 skip,
                 limit
             });
-            setLogs(data);
+            // Handle both old array response and new { items, total } response
+            if (data && typeof data === 'object' && 'items' in data) {
+                setLogs(data.items);
+                setTotal(data.total);
+            } else {
+                setLogs(data);
+                setTotal(data.length);
+            }
         } catch (error) {
             console.error("Failed to fetch logs:", error);
         } finally {
             setLoading(false);
         }
     }, [username, selectedAction, skip]);
+
 
     const fetchActions = React.useCallback(async () => {
         try {
@@ -231,7 +240,9 @@ export function AuditLogTable() {
                     </Select>
 
                     <div className="flex items-center justify-end gap-2">
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-tighter">Страница: {Math.floor(skip / limit) + 1}</span>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-tighter">
+                            Записи: {skip + 1}-{Math.min(skip + limit, total)} из {total}
+                        </span>
                         <div className="flex gap-1">
                             <Button
                                 variant="outline"
@@ -247,7 +258,7 @@ export function AuditLogTable() {
                                 size="icon"
                                 className="h-8 w-8 rounded-lg border-slate-200 disabled:opacity-30"
                                 onClick={() => setSkip(skip + limit)}
-                                disabled={logs.length < limit}
+                                disabled={skip + limit >= total}
                             >
                                 <ChevronRight className="w-4 h-4" />
                             </Button>
