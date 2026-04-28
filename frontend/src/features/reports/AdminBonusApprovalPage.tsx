@@ -493,11 +493,11 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
                                                                             <TableRow key={h.id} className="hover:bg-slate-50/50">
                                                                                 <TableCell className="text-xs py-2">{new Date(h.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</TableCell>
                                                                                 <TableCell className="text-xs py-2">
-                                                                                    <span className={`px-2 py-0.5 rounded-full font-medium ${h.ledger_type === 'ACCRUAL' ? 'bg-emerald-100 text-emerald-700' :
-                                                                                        h.ledger_type === 'OFFSET' ? 'bg-rose-100 text-rose-700' :
+                                                                                    <span className={`px-2 py-0.5 rounded-full font-medium ${h.ledger_type === 'accrual' ? 'bg-emerald-100 text-emerald-700' :
+                                                                                        h.ledger_type === 'offset' ? 'bg-rose-100 text-rose-700' :
                                                                                             'bg-slate-100 text-slate-700'
                                                                                         }`}>
-                                                                                        {h.ledger_type === 'ACCRUAL' ? 'Начисление' : h.ledger_type === 'OFFSET' ? 'Списание' : h.ledger_type}
+                                                                                        {h.ledger_type === 'accrual' ? 'Начисление' : h.ledger_type === 'offset' ? 'Списание' : h.ledger_type === 'advance' ? 'Аванс' : h.ledger_type}
                                                                                     </span>
                                                                                 </TableCell>
                                                                                 <TableCell className="text-xs py-2 font-medium">
@@ -525,8 +525,8 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
                                                                                         </>
                                                                                     ) : '-'}
                                                                                 </TableCell>
-                                                                                <TableCell className={`text-xs py-2 text-right font-bold ${h.ledger_type === 'ACCRUAL' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                                                    {h.ledger_type === 'ACCRUAL' ? '+' : '-'}{formatMoney(h.amount)}
+                                                                                <TableCell className={`text-xs py-2 text-right font-bold ${h.ledger_type === 'accrual' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                                                    {h.ledger_type === 'accrual' ? '+' : '-'}{formatMoney(h.amount)}
                                                                                 </TableCell>
                                                                             </TableRow>
                                                                         ))}

@@ -1492,25 +1492,50 @@ async def pay_medrep_bonus(
     
     amount_remaining_to_pay = request_data.amount_to_pay
     actual_paid = 0.0
+    entries_to_add = []
     
     for entry in unpaid_entries:
         if amount_remaining_to_pay <= 0:
             break
             
-        # We pay the entry as long as it's <= our remaining amount to pay
         if entry.amount <= amount_remaining_to_pay:
+            # Full entry can be paid
             entry.is_paid = True
             amount_remaining_to_pay -= entry.amount
             actual_paid += entry.amount
         else:
-            # We pay a portion of it by splitting it? 
-            # Actually, standard behavior here is to just mark it as paid if amount covers it.
-            # If the admin wants to pay partial, usually we don't handle partial invoice payments this way.
-            # But the original code just skipped partials. We'll leave it as is to avoid breaking existing logic.
-            pass
+            # Partial payment: split this entry into paid + unpaid portions
+            paid_portion = amount_remaining_to_pay
+            unpaid_portion = entry.amount - paid_portion
             
-    # If there is STILL remaining money to pay, it's an advance payment (Predinvest). 
-    # Create a new BonusLedger entry for this excess.
+            # Shrink this entry to the paid portion and mark it paid
+            entry.amount = paid_portion
+            entry.is_paid = True
+            actual_paid += paid_portion
+            
+            # Create a new entry for the leftover unpaid portion
+            leftover = BonusLedger(
+                user_id=entry.user_id,
+                amount=unpaid_portion,
+                ledger_type=LedgerType.ACCRUAL,
+                ledger_category=entry.ledger_category,
+                is_paid=False,
+                target_month=entry.target_month,
+                target_year=entry.target_year,
+                invoice_item_id=entry.invoice_item_id,
+                payment_id=entry.payment_id,
+                product_id=entry.product_id,
+                notes=entry.notes,
+            )
+            entries_to_add.append(leftover)
+            amount_remaining_to_pay = 0
+            break
+    
+    for new_entry in entries_to_add:
+        db.add(new_entry)
+        
+    # If there is STILL remaining money to pay after exhausting all accruals,
+    # it's an advance payment (Predinvest).
     # ONLY for 'bonus' category (Salaries don't have predinvest)
     if amount_remaining_to_pay > 0 and request_data.category == "bonus":
         from datetime import datetime
@@ -1527,6 +1552,7 @@ async def pay_medrep_bonus(
         )
         db.add(predinvest_entry)
         actual_paid += amount_remaining_to_pay
+
 
     await db.commit()
     
