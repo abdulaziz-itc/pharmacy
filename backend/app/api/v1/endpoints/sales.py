@@ -1404,25 +1404,42 @@ async def get_admin_bonus_summary(
         ledger_res = await db.execute(q)
         entries = ledger_res.scalars().all()
         
+        # 1. PERIOD SPECIFIC (for current month reporting)
         accrued = 0.0
         paid = 0.0
         allocated = 0.0
-        predinvest = 0.0
         
         for e in entries:
             if e.ledger_type == LedgerType.ACCRUAL:
                 accrued += e.amount
-                if e.is_paid:
-                    paid += e.amount
-            elif e.ledger_type == LedgerType.ADVANCE:
-                paid += e.amount
-            elif e.ledger_type == LedgerType.PAYOUT:
+                if e.is_paid: paid += e.amount
+            elif e.ledger_type in [LedgerType.ADVANCE, LedgerType.PAYOUT]:
                 paid += e.amount
             elif e.ledger_type == LedgerType.OFFSET:
                 allocated += abs(e.amount)
+
+        # 2. GLOBAL (for true balance/remainder/predinvest)
+        global_q = select(BonusLedger).where(
+            BonusLedger.user_id == rep.id,
+            BonusLedger.ledger_category == category
+        )
+        if product_id: global_q = global_q.where(BonusLedger.product_id == product_id)
+        
+        global_entries_res = await db.execute(global_q)
+        global_entries = global_entries_res.scalars().all()
+        
+        g_accrued = 0.0
+        g_paid = 0.0
+        for ge in global_entries:
+            if ge.ledger_type == LedgerType.ACCRUAL:
+                g_accrued += ge.amount
+                if ge.is_paid: g_paid += ge.amount
+            elif ge.ledger_type in [LedgerType.ADVANCE, LedgerType.PAYOUT, LedgerType.OFFSET]:
+                g_paid += ge.amount
                 
-        remainder = max(0.0, accrued - paid)
-        predinvest = max(0.0, paid - accrued)
+        remainder = max(0.0, g_accrued - g_paid)
+        predinvest = max(0.0, g_paid - g_accrued)
+
         
         overdue_q = select(BonusLedger.id).where(
             and_(
