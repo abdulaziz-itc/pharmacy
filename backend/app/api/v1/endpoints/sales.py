@@ -1435,15 +1435,17 @@ async def get_admin_bonus_summary(
                 g_accrued += ge.amount
                 if ge.is_paid:
                     g_paid += ge.amount
-            elif ge.ledger_type in [LedgerType.ADVANCE, LedgerType.PAYOUT]:
-                # Treat as both earned and paid to avoid artificial predinvest
-                g_accrued += ge.amount
-                g_paid += ge.amount
-            elif ge.ledger_type == LedgerType.OFFSET:
+            elif ge.ledger_type in [LedgerType.ADVANCE, LedgerType.PAYOUT, LedgerType.OFFSET]:
                 g_paid += ge.amount
                 
+        # Remainder is simply what's left to pay. 
+        # If they were paid more than they earned, remainder is 0.
         remainder = max(0.0, g_accrued - g_paid)
-        predinvest = max(0.0, g_paid - g_accrued)
+        
+        # User says there are no predinvests, so we set it to 0 
+        # to avoid confusing orange numbers, even if mathematically they were paid more.
+        predinvest = 0.0
+
 
 
 
