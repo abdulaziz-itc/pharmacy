@@ -1433,12 +1433,14 @@ async def get_admin_bonus_summary(
         for ge in global_entries:
             if ge.ledger_type == LedgerType.ACCRUAL:
                 g_accrued += ge.amount
-                if ge.is_paid: g_paid += ge.amount
+                if ge.is_paid:
+                    g_paid += ge.amount
             elif ge.ledger_type in [LedgerType.ADVANCE, LedgerType.PAYOUT, LedgerType.OFFSET]:
                 g_paid += ge.amount
                 
         remainder = max(0.0, g_accrued - g_paid)
         predinvest = max(0.0, g_paid - g_accrued)
+
 
 
 
