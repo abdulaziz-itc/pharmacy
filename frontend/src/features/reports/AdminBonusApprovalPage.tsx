@@ -388,7 +388,7 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
                                 <TableHead className="font-semibold text-slate-700 h-11 whitespace-nowrap">Медпредставитель</TableHead>
                                 <TableHead className="font-semibold text-slate-700 h-11 whitespace-nowrap">Регион</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Начислено (Факт)</TableHead>
-                                <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Аванс</TableHead>
+                                <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Выплата (Доп)</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11 bg-slate-100/50 whitespace-nowrap">Выплачено</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11 whitespace-nowrap">Остаток</TableHead>
                                 <TableHead className="font-semibold text-slate-700 text-right h-11 whitespace-nowrap">Распределено врачам</TableHead>
@@ -497,7 +497,7 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
                                                                                         h.ledger_type === 'offset' ? 'bg-rose-100 text-rose-700' :
                                                                                             'bg-slate-100 text-slate-700'
                                                                                         }`}>
-                                                                                        {h.ledger_type === 'accrual' ? 'Начисление' : h.ledger_type === 'offset' ? 'Списание' : h.ledger_type === 'advance' ? 'Аванс' : h.ledger_type}
+                                                                                        {h.ledger_type === 'accrual' ? 'Начисление' : h.ledger_type === 'offset' ? 'Списание' : (h.ledger_type === 'advance' || h.ledger_type === 'payout') ? 'Выплата' : h.ledger_type}
                                                                                     </span>
                                                                                 </TableCell>
                                                                                 <TableCell className="text-xs py-2 font-medium">

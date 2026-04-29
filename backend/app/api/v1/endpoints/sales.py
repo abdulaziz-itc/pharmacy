@@ -1571,12 +1571,12 @@ async def pay_medrep_bonus(
         predinvest_entry = BonusLedger(
             user_id=request_data.med_rep_id,
             amount=amount_remaining_to_pay,
-            ledger_type=LedgerType.ACCRUAL,
+            ledger_type=LedgerType.PAYOUT,
             ledger_category="bonus",
             is_paid=True, # It is immediately paid out
             target_month=now.month,
             target_year=now.year,
-            notes=f"Аванс (Предынвест)"
+            notes=f"Выплачено (доп. сумма)"
         )
         db.add(predinvest_entry)
         actual_paid += amount_remaining_to_pay
