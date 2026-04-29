@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from app.db.session import AsyncSessionLocal
-from app.models.sales import BonusLedger
+from app.models.ledger import BonusLedger
 from app.models.user import User
 from app.models.audit import AuditLog
 from sqlalchemy import select
