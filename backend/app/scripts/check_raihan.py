@@ -31,7 +31,7 @@ async def main():
         print("-" * 80)
         for e in entries:
             dt = e.created_at.strftime('%Y-%m-%d %H:%M')
-            print(f"{e.id:<5} | {dt:<20} | {e.ledger_type.value:<10} | {e.ledger_category:<6} | {e.amount:<15.0f} | {e.is_paid} | {e.notes}")
+            print(f"{e.id:<5} | {dt:<20} | {e.ledger_type:<10} | {e.ledger_category:<6} | {e.amount:<15.0f} | {e.is_paid} | {e.notes}")
 
 if __name__ == "__main__":
     asyncio.run(main())
