@@ -5,7 +5,7 @@ import sys
 # Backend yo'lini qo'shish
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from app.db.session import SessionLocal
+from app.db.session import AsyncSessionLocal
 from app.models.sales import BonusLedger
 from app.models.user import User
 from app.models.audit import AuditLog
@@ -14,7 +14,7 @@ from datetime import timedelta
 
 async def prove_overpayments():
     print("Шерматов Ойбек bo'yicha to'lovlar tarixini tekshiryapmiz...\n")
-    async with SessionLocal() as db:
+    async with AsyncSessionLocal() as db:
         # Medrepni topish
         user_res = await db.execute(select(User).where(User.full_name.ilike('%Шерматов Ойбек%')))
         medrep = user_res.scalars().first()
