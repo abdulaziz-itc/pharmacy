@@ -1,6 +1,6 @@
 """
-Faqat Payment #436 va #437 ni o'chiradi (o'chirilgan ~15M topup dan kelgan).
-Invoice #361 va #373 ning paid_amount qayta hisoblanadi.
+Payment #386 (15,762,409.42) ni o'chiradi — BT#481 dan kelgan va hozir yetim.
+Invoice #361 paid_amount qayta hisoblanadi.
 """
 import asyncio
 import os
@@ -12,8 +12,7 @@ from app.db.session import AsyncSessionLocal
 from app.models.sales import Invoice, Payment, InvoiceStatus
 from sqlalchemy import select, func
 
-# Faqat shu ikki payment o'chiriladi
-TARGET_PAYMENT_IDS = [436, 437]
+TARGET_PAYMENT_IDS = [386]
 
 async def main():
     async with AsyncSessionLocal() as db:
@@ -27,7 +26,7 @@ async def main():
                 print(f"Payment #{pid} - TOPILMADI (allaqachon o'chirilgan)")
 
         if not payments:
-            print("O'chiriladigan narsa yo'q.")
+            print("\n✅ O'chiriladigan narsa yo'q.")
             return
 
         total = sum(p.amount for p in payments)
@@ -60,7 +59,7 @@ async def main():
                 print(f"  Invoice #{inv_id}: {old:,.2f} → {real_paid:,.2f} ({inv_obj.status.value})")
 
         await db.commit()
-        print(f"\n✅ {len(payments)} ta to'lov o'chirildi. Debitorka yangilandi.")
+        print(f"\n✅ Tuzatildi! Debitorka ~{total:,.0f} ga ko'tarilishi kerak.")
 
 if __name__ == "__main__":
     asyncio.run(main())
