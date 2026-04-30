@@ -741,17 +741,67 @@ class FinancialService:
                         await db.delete(bt)
                 
                 elif bt.transaction_type == BalanceTransactionType.TOPUP or bt.transaction_type == BalanceTransactionType.MANUAL_ADJUSTMENT:
-                    # Manual balance adjustment: Just reverse the credit_balance update
+                    # Find all APPLICATION child transactions linked to this TOPUP's payment
+                    # These are Payments auto-generated when the topup was applied to invoices
+                    from app.models.sales import Invoice, InvoiceStatus
+                    
+                    # Find child APPLICATION balance transactions that came from this topup's payment
+                    child_bt_stmt = select(BalanceTransaction).where(
+                        (BalanceTransaction.organization_id == bt.organization_id) &
+                        (BalanceTransaction.transaction_type == BalanceTransactionType.APPLICATION) &
+                        (BalanceTransaction.payment_id.isnot(None))
+                    ).order_by(BalanceTransaction.id.desc())
+                    child_bts = (await db.execute(child_bt_stmt)).scalars().all()
+                    
+                    # Collect unique payment_ids to reverse from child applications
+                    payment_ids_to_reverse = set()
+                    for child_bt in child_bts:
+                        if child_bt.payment_id:
+                            # Check if this payment was created as part of this topup (same date window)
+                            pay_stmt = select(Payment).where(Payment.id == child_bt.payment_id)
+                            pay = (await db.execute(pay_stmt)).scalar_one_or_none()
+                            if pay and pay.source_payment_id is None:
+                                # Only direct payments (not already child payments)
+                                payment_ids_to_reverse.add(child_bt.payment_id)
+
+                    # Reverse each application payment: reduce invoice paid_amount
+                    affected_invoice_ids = set()
+                    for pay_id in payment_ids_to_reverse:
+                        pay_stmt = select(Payment).where(Payment.id == pay_id)
+                        pay = (await db.execute(pay_stmt)).scalar_one_or_none()
+                        if pay and pay.invoice_id:
+                            affected_invoice_ids.add(pay.invoice_id)
+                            # Delete child balance transactions for this payment
+                            child_del_stmt = select(BalanceTransaction).where(BalanceTransaction.payment_id == pay_id)
+                            for c in (await db.execute(child_del_stmt)).scalars().all():
+                                await db.delete(c)
+                            await db.delete(pay)
+
+                    await db.flush()
+
+                    # Recalculate paid_amount for all affected invoices from real DB payments
+                    from sqlalchemy import func as sqlfunc
+                    for inv_id in affected_invoice_ids:
+                        real_paid = (await db.execute(
+                            select(sqlfunc.coalesce(sqlfunc.sum(Payment.amount), 0.0)).where(Payment.invoice_id == inv_id)
+                        )).scalar() or 0.0
+                        inv_obj = (await db.execute(select(Invoice).where(Invoice.id == inv_id))).scalar_one_or_none()
+                        if inv_obj:
+                            inv_obj.paid_amount = real_paid
+                            if real_paid <= 0:
+                                inv_obj.status = InvoiceStatus.UNPAID
+                            elif real_paid < inv_obj.total_amount:
+                                inv_obj.status = InvoiceStatus.PARTIAL
+                            else:
+                                inv_obj.status = InvoiceStatus.PAID
+
+                    # Now adjust credit_balance and delete the topup transaction
                     org_stmt = select(MedicalOrganization).where(MedicalOrganization.id == bt.organization_id).with_for_update()
-                    org_res = await db.execute(org_stmt)
-                    org = org_res.scalar_one_or_none()
-                    
+                    org = (await db.execute(org_stmt)).scalar_one_or_none()
                     if org:
-                        # Since bt.amount for TOPUP is positive, we subtract it.
-                        org.credit_balance = (org.credit_balance or 0.0) - bt.amount
-                    
+                        org.credit_balance = max(0.0, (org.credit_balance or 0.0) - bt.amount)
                     await db.delete(bt)
-                
+
                 else:
                     # Unhandled types or INVOICE debt type (which usually shouldn't be reversed this way)
                     await db.delete(bt)
