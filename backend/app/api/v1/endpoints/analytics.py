@@ -95,7 +95,6 @@ async def get_receipt_queries(
     """
     # 1. Invoiced Payments Query
     pay_q = select(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
-    pay_q = pay_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%Автоматическое погашение%')))
     if start_date and end_date:
         pay_q = pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
     
