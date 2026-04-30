@@ -1,9 +1,6 @@
 """
-Faqat BalanceTransaction ID:481 (15,762,409.42 topup) va ID:612 (~15M topup)
-dan kelgan Payment larni topib o'chiradi.
-
-Maqsad: Payment #386 (15,762,409.42) va Payment #436 (637,638.58) ni o'chirish,
-chunki ular o'chirilgan BalanceTransaction lardan kelgan.
+Faqat Payment #436 va #437 ni o'chiradi (o'chirilgan ~15M topup dan kelgan).
+Invoice #361 va #373 ning paid_amount qayta hisoblanadi.
 """
 import asyncio
 import os
@@ -12,80 +9,37 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from app.db.session import AsyncSessionLocal
-from app.models.sales import Invoice, Payment, Reservation, InvoiceStatus
-from app.models.crm import BalanceTransaction
+from app.models.sales import Invoice, Payment, InvoiceStatus
 from sqlalchemy import select, func
 
-ORG_ID = 202
-
-# Faqat shu Payment ID larni o'chiramiz (orphaned topup applicationlar):
-# #386 = 15,762,409.42 (BT:481 topup dan kelgan application)
-# #436 = 637,638.58 (BT:611 dan kelgan application — lekin BT:611 hali bazada bor!)
-# Ehtiyotkorlik bilan tekshiramiz.
+# Faqat shu ikki payment o'chiriladi
+TARGET_PAYMENT_IDS = [436, 437]
 
 async def main():
     async with AsyncSessionLocal() as db:
-        # Org 202 ga tegishli fakturalar
-        inv_ids_q = select(Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id).where(Reservation.med_org_id == ORG_ID)
-        inv_ids = [row[0] for row in (await db.execute(inv_ids_q)).all()]
-
-        # Barcha paymentlarni topamiz
-        pay_q = select(Payment).where(Payment.invoice_id.in_(inv_ids))
-        payments = (await db.execute(pay_q)).scalars().all()
-
-        print("--- HAQIQIY YETIM TO'LOVLAR TAHLILI ---")
-        print("(Faqat comment 'Автоматическое погашение' yoki BT bazada YOQ ammo source_payment_id ham YOQ)\n")
-
-        orphaned = []
-        for pmt in payments:
-            # 1. BT bormi?
-            bt_q = select(BalanceTransaction).where(BalanceTransaction.payment_id == pmt.id)
-            bt = (await db.execute(bt_q)).scalar_one_or_none()
-
-            # 2. Agar BT yo'q VA comment "Автоматическое" bo'lsa — bu yetim application
-            is_auto = pmt.comment and ('автоматическ' in pmt.comment.lower() or 'погашени' in pmt.comment.lower())
-            
-            if not bt and is_auto:
-                print(f"  ✅ YETIM: Payment #{pmt.id} | {pmt.amount:,.2f} | comment='{pmt.comment}'")
-                orphaned.append(pmt)
-            elif not bt:
-                print(f"  ⚠️  BT yo'q lekin auto emas: Payment #{pmt.id} | {pmt.amount:,.2f} | type={pmt.payment_type} | comment='{pmt.comment}'")
+        payments = []
+        for pid in TARGET_PAYMENT_IDS:
+            pmt = (await db.execute(select(Payment).where(Payment.id == pid))).scalar_one_or_none()
+            if pmt:
+                print(f"Payment #{pmt.id} | {pmt.amount:,.2f} | invoice_id={pmt.invoice_id} | '{pmt.comment}'")
+                payments.append(pmt)
             else:
-                pass  # Normal to'lov
+                print(f"Payment #{pid} - TOPILMADI (allaqachon o'chirilgan)")
 
-        if not orphaned:
-            print("\n--- COMMENT BO'YICHA TOPILMADI. MANUAL TEKSHIRUV ---")
-            print("Quyidagi Payment ID larni ko'rsating (BT 481 dan kelgan):")
-            print("  Payment #386 | 15,762,409.42 - Bu o'chirilishi kerak")
-            print("  Payment #436 | 637,638.58 - BT:611 hali bazada, o'chirmaslik kerak")
-            
-            # Faqat #386 ni o'chiramiz
-            target_ids = [386]
-            print(f"\nFaqat Payment ID {target_ids} o'chiriladi. Davom etish uchun 'yes' yozing:")
-            answer = input().strip().lower()
-            if answer != 'yes':
-                print("Bekor qilindi.")
-                return
-            
-            for pay_id in target_ids:
-                pmt = (await db.execute(select(Payment).where(Payment.id == pay_id))).scalar_one_or_none()
-                if pmt:
-                    orphaned.append(pmt)
-
-        if not orphaned:
-            print("O'chiriladigan narsa topilmadi.")
+        if not payments:
+            print("O'chiriladigan narsa yo'q.")
             return
 
-        affected_inv_ids = {p.invoice_id for p in orphaned}
-        total = sum(p.amount for p in orphaned)
-        print(f"\nO'chiriladigan: {len(orphaned)} ta to'lov, jami {total:,.2f} UZS")
+        total = sum(p.amount for p in payments)
+        print(f"\nJami o'chiriladigan: {total:,.2f} UZS")
         print("Davom etish uchun 'yes' yozing:")
         answer = input().strip().lower()
         if answer != 'yes':
             print("Bekor qilindi.")
             return
 
-        for pmt in orphaned:
+        affected_inv_ids = {p.invoice_id for p in payments}
+        for pmt in payments:
             await db.delete(pmt)
         await db.flush()
 
@@ -103,10 +57,10 @@ async def main():
                     inv_obj.status = InvoiceStatus.PARTIAL
                 else:
                     inv_obj.status = InvoiceStatus.PAID
-                print(f"  Invoice #{inv_id}: {old:,.2f} → {real_paid:,.2f}")
+                print(f"  Invoice #{inv_id}: {old:,.2f} → {real_paid:,.2f} ({inv_obj.status.value})")
 
         await db.commit()
-        print(f"\n✅ Tuzatildi! Debitorka yangilandi.")
+        print(f"\n✅ {len(payments)} ta to'lov o'chirildi. Debitorka yangilandi.")
 
 if __name__ == "__main__":
     asyncio.run(main())
