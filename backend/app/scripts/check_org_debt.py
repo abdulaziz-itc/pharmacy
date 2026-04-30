@@ -22,8 +22,11 @@ async def main():
         print(f"Organization: {org.name} (ID: {org.id})")
         print(f"Current Credit Balance (Balance Table/Column): {org.credit_balance:,.2f}")
         
-        # 2. Total Invoices
-        inv_q = select(func.sum(Invoice.total_amount), func.sum(Invoice.paid_amount)).where(Invoice.med_org_id == org.id)
+        # 2. Total Invoices (Join with Reservation to get med_org_id)
+        from app.models.sales import Reservation
+        inv_q = select(func.sum(Invoice.total_amount), func.sum(Invoice.paid_amount))\
+            .join(Reservation, Invoice.reservation_id == Reservation.id)\
+            .where(Reservation.med_org_id == org.id)
         total_inv, total_paid = (await db.execute(inv_q)).one()
         print(f"Total Invoices Amount: {total_inv or 0:,.2f}")
         print(f"Total Invoices Paid (Cached in Invoice table): {total_paid or 0:,.2f}")
