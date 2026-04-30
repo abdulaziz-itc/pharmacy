@@ -1,6 +1,6 @@
 """
-Org 202 uchun barcha orphaned "Автоматическое погашение" paymentlarini ko'rsatadi
-va tasdiqlashdan so'ng o'chiradi. Invoice paid_amount qayta hisoblanadi.
+Faqat BT#481 (15,762,409.42 topup, April 17) dan kelgan Payment #386 ni o'chiradi.
+Invoice #361 paid_amount qayta hisoblanadi.
 """
 import asyncio
 import os
@@ -9,71 +9,51 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from app.db.session import AsyncSessionLocal
-from app.models.sales import Invoice, Payment, Reservation, InvoiceStatus
-from app.models.crm import BalanceTransaction
+from app.models.sales import Invoice, Payment, InvoiceStatus
 from sqlalchemy import select, func
 
-ORG_ID = 202
+TARGET_PAYMENT_IDS = [386]
 
 async def main():
     async with AsyncSessionLocal() as db:
-        inv_ids = [r[0] for r in (await db.execute(
-            select(Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
-            .where(Reservation.med_org_id == ORG_ID)
-        )).all()]
+        payments = []
+        for pid in TARGET_PAYMENT_IDS:
+            pmt = (await db.execute(select(Payment).where(Payment.id == pid))).scalar_one_or_none()
+            if pmt:
+                print(f"Payment #{pmt.id} | {pmt.amount:,.2f} UZS | invoice_id={pmt.invoice_id} | '{pmt.comment}'")
+                payments.append(pmt)
+            else:
+                print(f"Payment #{pid} - topilmadi (allaqachon o'chirilgan)")
 
-        payments = (await db.execute(
-            select(Payment).where(Payment.invoice_id.in_(inv_ids))
-        )).scalars().all()
-
-        orphaned = []
-        for pmt in payments:
-            bt = (await db.execute(
-                select(BalanceTransaction).where(BalanceTransaction.payment_id == pmt.id)
-            )).scalar_one_or_none()
-            is_auto = pmt.comment and ('автоматическ' in pmt.comment.lower() or 'погашени' in pmt.comment.lower() or 'баланса' in pmt.comment.lower())
-            if not bt and is_auto:
-                orphaned.append(pmt)
-
-        if not orphaned:
-            print("✅ Yetim to'lovlar topilmadi.")
+        if not payments:
+            print("\n✅ O'chiriladigan narsa yo'q.")
             return
 
-        print(f"⚠️  {len(orphaned)} ta YETIM to'lov topildi:\n")
-        for p in orphaned:
-            print(f"  Payment #{p.id} | {p.amount:,.2f} UZS | invoice_id={p.invoice_id} | '{p.comment[:60]}'")
-
-        total = sum(p.amount for p in orphaned)
+        total = sum(p.amount for p in payments)
         print(f"\nJami: {total:,.2f} UZS")
-        print("\nBarchasini o'chirish uchun 'yes' yozing:")
+        print("'yes' deb tasdiqlang:")
         answer = input().strip().lower()
         if answer != 'yes':
             print("Bekor qilindi.")
             return
 
-        affected_inv_ids = {p.invoice_id for p in orphaned}
-        for pmt in orphaned:
-            await db.delete(pmt)
+        affected = {p.invoice_id for p in payments}
+        for p in payments:
+            await db.delete(p)
         await db.flush()
 
-        for inv_id in affected_inv_ids:
-            real_paid = (await db.execute(
+        for inv_id in affected:
+            real = (await db.execute(
                 select(func.coalesce(func.sum(Payment.amount), 0.0)).where(Payment.invoice_id == inv_id)
             )).scalar() or 0.0
-            inv_obj = (await db.execute(select(Invoice).where(Invoice.id == inv_id))).scalar_one_or_none()
-            if inv_obj:
-                old = inv_obj.paid_amount
-                inv_obj.paid_amount = real_paid
-                if real_paid <= 0:
-                    inv_obj.status = InvoiceStatus.UNPAID
-                elif real_paid < inv_obj.total_amount:
-                    inv_obj.status = InvoiceStatus.PARTIAL
-                else:
-                    inv_obj.status = InvoiceStatus.PAID
-                print(f"  Invoice #{inv_id}: {old:,.2f} → {real_paid:,.2f} ({inv_obj.status.value})")
+            inv = (await db.execute(select(Invoice).where(Invoice.id == inv_id))).scalar_one_or_none()
+            if inv:
+                inv.paid_amount = real
+                inv.status = InvoiceStatus.UNPAID if real <= 0 else InvoiceStatus.PARTIAL if real < inv.total_amount else InvoiceStatus.PAID
+                print(f"  Invoice #{inv_id}: {inv.paid_amount:,.2f} → {real:,.2f} ({inv.status.value})")
 
         await db.commit()
-        print(f"\n✅ {len(orphaned)} ta yetim to'lov o'chirildi. Debitorka yangilandi.")
+        print(f"\n✅ Tuzatildi. Debitorka ~{total:,.0f} ga ko'tarildi.")
 
 if __name__ == "__main__":
     asyncio.run(main())
