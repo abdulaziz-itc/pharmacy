@@ -34,17 +34,26 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
     has_prod = product_id is not None
     
     # 1. Sum Invoice-linked payments
+    # Exclude APPLICATION payments (auto-applied from topups) to avoid
+    # double-counting: those topups are already summed in top_sum below.
+    app_payment_ids_sq = select(BalanceTransaction.payment_id).where(
+        BalanceTransaction.payment_id.isnot(None),
+        func.lower(BalanceTransaction.transaction_type) == 'application'
+    ).scalar_subquery()
+
     if not has_rep and not has_reg and not has_prod:
         # Bare sum for absolute reliability in Global/Director view
         pay_sum_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).select_from(Payment)
         if start_date and end_date:
             pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+        pay_sum_q = pay_sum_q.where(Payment.id.notin_(app_payment_ids_sq))
     else:
         pay_sum_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).select_from(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
         if start_date and end_date:
             pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
         pay_sum_q = pay_sum_q.join(Reservation, Invoice.reservation_id == Reservation.id)
         pay_sum_q = pay_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+        pay_sum_q = pay_sum_q.where(Payment.id.notin_(app_payment_ids_sq))
         if has_rep:
             pay_sum_q = pay_sum_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
         if has_reg:
