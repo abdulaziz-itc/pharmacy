@@ -328,7 +328,11 @@ const BalanceManagement = () => {
                                 <div className="text-slate-300 font-black text-lg tabular-nums">0</div>
                             )}
                             <div className="text-[9px] uppercase font-black tracking-widest text-slate-400">
-                                {org.current_surplus > 0 ? 'Кредиторка' : org.current_debt > 0 ? 'Дебиторка' : 'Баланс пуст'}
+                                {org.current_debt > org.current_surplus
+                                  ? 'Дебиторка'
+                                  : org.current_surplus > 0
+                                  ? 'Кредиторка'
+                                  : 'Баланс пуст'}
                             </div>
                         </div>
                       </td>
