@@ -681,7 +681,25 @@ class FinancialService:
 
                 # C. Finally delete the main payment
                 await db.delete(main_payment)
-                
+                await db.flush()
+
+                # D. Recalculate paid_amount for ALL affected invoices directly from DB
+                # This guarantees 100% accuracy regardless of rounding or logic bugs
+                affected_invoice_ids = {pmt.invoice_id for pmt in all_payments_to_reverse if pmt.invoice_id}
+                for inv_id in affected_invoice_ids:
+                    real_paid_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).where(Payment.invoice_id == inv_id)
+                    real_paid = (await db.execute(real_paid_q)).scalar() or 0.0
+                    inv_q = select(Invoice).where(Invoice.id == inv_id)
+                    inv_obj = (await db.execute(inv_q)).scalar_one_or_none()
+                    if inv_obj:
+                        inv_obj.paid_amount = real_paid
+                        if real_paid <= 0:
+                            inv_obj.status = InvoiceStatus.UNPAID
+                        elif real_paid < inv_obj.total_amount:
+                            inv_obj.status = InvoiceStatus.PARTIAL
+                        else:
+                            inv_obj.status = InvoiceStatus.PAID
+
                 await db.commit()
                 return {"status": "success", "message": f"Payment #{payment_id} and all linked transactions reversed successfully"}
                 
