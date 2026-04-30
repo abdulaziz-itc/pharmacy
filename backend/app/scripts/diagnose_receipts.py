@@ -1,68 +1,56 @@
 """
-Dashboarddagi "Fakt Postupleniy" (2,944,648,860) tarkibini tahlil qiladi.
+Payment jadvali va Excel o'rtasidagi farqni tushuntiradi.
 """
 import asyncio, os, sys
-from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from app.db.session import AsyncSessionLocal
 from app.models.sales import Payment, Invoice
 from app.models.crm import BalanceTransaction
-from sqlalchemy import select, func, or_, and_, text
-
-# Dashboard qaysi davr uchun ko'rsatyapti? (Joriy oy yoki hammasi)
-# Agar filter yo'q bo'lsa, hammasini ko'ramiz
-START = None
-END = None
+from sqlalchemy import select, func, text
 
 async def main():
     async with AsyncSessionLocal() as db:
+        # 1. Jami payment soni va summasi
+        count, total = (await db.execute(
+            select(func.count(Payment.id), func.coalesce(func.sum(Payment.amount), 0.0))
+        )).one()
+        print(f"Payment jadvalidagi jami: {count} ta | {total:,.2f} UZS")
 
-        # 1. Jami barcha Payment (Excel dagi kabi)
-        all_pay = (await db.execute(
-            select(func.coalesce(func.sum(Payment.amount), 0.0))
-        )).scalar() or 0.0
-        print(f"1. Barcha Payment yig'indisi (Excel):     {all_pay:>20,.2f}")
+        # 2. invoice_id bor va yo'q paymentlar
+        with_inv = (await db.execute(
+            select(func.count(Payment.id), func.coalesce(func.sum(Payment.amount), 0.0))
+            .where(Payment.invoice_id.isnot(None))
+        )).one()
+        print(f"  invoice_id bor:          {with_inv[0]} ta | {with_inv[1]:,.2f} UZS")
 
-        # 2. APPLICATION tipidagi paymentlar (topupdan yaratilgan)
-        app_payment_ids = select(BalanceTransaction.payment_id).where(
-            BalanceTransaction.payment_id.isnot(None),
-            func.lower(BalanceTransaction.transaction_type) == 'application'
-        ).scalar_subquery()
-        app_pay = (await db.execute(
-            select(func.coalesce(func.sum(Payment.amount), 0.0))
-            .where(Payment.id.in_(app_payment_ids))
-        )).scalar() or 0.0
-        print(f"2. Application paymentlar (topupdan):     {app_pay:>20,.2f}")
+        without_inv = (await db.execute(
+            select(func.count(Payment.id), func.coalesce(func.sum(Payment.amount), 0.0))
+            .where(Payment.invoice_id.is_(None))
+        )).one()
+        print(f"  invoice_id yo'q:         {without_inv[0]} ta | {without_inv[1]:,.2f} UZS")
 
-        # 3. To'g'ridan-to'g'ri tўlovlar (application emas)
-        direct_pay = all_pay - app_pay
-        print(f"3. To'g'ridan to'g'ri to'lovlar (1-2):   {direct_pay:>20,.2f}")
+        # 3. Payment type breakdown
+        print("\n--- Payment type bo'yicha ---")
+        rows = (await db.execute(
+            select(Payment.payment_type, func.count(Payment.id), func.coalesce(func.sum(Payment.amount), 0.0))
+            .group_by(Payment.payment_type)
+            .order_by(func.sum(Payment.amount).desc())
+        )).all()
+        for row in rows:
+            print(f"  {str(row[0]):15} | {row[1]:4} ta | {row[2]:>20,.2f} UZS")
 
-        # 4. Topup BalanceTransaction yig'indisi
-        top_sum = (await db.execute(
-            select(func.coalesce(func.sum(BalanceTransaction.amount), 0.0))
-            .where(or_(
-                func.lower(BalanceTransaction.transaction_type) == 'topup',
-                func.lower(BalanceTransaction.transaction_type) == 'refill',
-            ))
-        )).scalar() or 0.0
-        print(f"4. Topup BalanceTransactionlar:           {top_sum:>20,.2f}")
+        # 4. Topup BT
+        bt_count, bt_total = (await db.execute(
+            select(func.count(BalanceTransaction.id), func.coalesce(func.sum(BalanceTransaction.amount), 0.0))
+            .where(func.lower(BalanceTransaction.transaction_type) == 'topup')
+        )).one()
+        print(f"\nTopup BalanceTransaction: {bt_count} ta | {bt_total:,.2f} UZS")
 
-        # 5. Dashboard hozir = 1 + 4
-        dashboard_now = all_pay + top_sum
-        print(f"\n5. Dashboard HOZIR (1+4):                {dashboard_now:>20,.2f}")
-
-        # 6. Agar 3+4 bo'lsa (application chiqarilganda)
-        fixed = direct_pay + top_sum
-        print(f"6. Tuzatilsa (3+4):                       {fixed:>20,.2f}")
-
-        print(f"\nFarq (5-6 = application): {app_pay:>20,.2f}")
-        print(f"\nNatija: Application paymentlar topup BT lar bilan tengmi?")
-        print(f"  Topup BT:          {top_sum:,.2f}")
-        print(f"  Application Pay:   {app_pay:,.2f}")
-        print(f"  Farq:              {abs(top_sum - app_pay):,.2f}")
+        print(f"\nDashboard = {total:,.2f} + {bt_total:,.2f} = {total+bt_total:,.2f}")
+        print(f"Excel ko'rsatgan:                                    2,917,553,738.00")
+        print(f"Farq (Dashboard - Excel):             {(total+bt_total) - 2917553738:>20,.2f}")
 
 if __name__ == "__main__":
     asyncio.run(main())
