@@ -490,6 +490,33 @@ const BalanceManagement = () => {
                   </button>
                 </div>
 
+                {/* Summary Stats Bar */}
+                {history.length > 0 && (() => {
+                  const totalTopup = history.filter(t => t.transaction_type === 'topup' || t.transaction_type === 'manual_adjustment').reduce((s, t) => s + t.amount, 0);
+                  const totalApplied = history.filter(t => t.transaction_type === 'application').reduce((s, t) => s + t.amount, 0);
+                  return (
+                    <div className="grid grid-cols-3 gap-0 border-b border-slate-100 bg-slate-50/80">
+                      <div className="px-8 py-5 border-r border-slate-100">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Жами кирим</p>
+                        <p className="text-lg font-black text-emerald-600 tabular-nums">+{formatMoney(totalTopup)} <span className="text-[10px] text-slate-300 font-bold">UZS</span></p>
+                      </div>
+                      <div className="px-8 py-5 border-r border-slate-100">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Фактураларга</p>
+                        <p className="text-lg font-black text-indigo-600 tabular-nums">{formatMoney(totalApplied)} <span className="text-[10px] text-slate-300 font-bold">UZS</span></p>
+                      </div>
+                      <div className="px-8 py-5">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                          {selectedOrg.current_debt > 0 ? 'Дебиторка' : 'Кредиторка'}
+                        </p>
+                        <p className={`text-lg font-black tabular-nums ${selectedOrg.current_debt > 0 ? 'text-rose-500' : 'text-emerald-600'}`}>
+                          {selectedOrg.current_debt > 0 ? `-${formatMoney(selectedOrg.current_debt)}` : `+${formatMoney(selectedOrg.current_surplus)}`}
+                          <span className="text-[10px] text-slate-300 font-bold ml-1">UZS</span>
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="flex-1 overflow-y-auto p-10 pt-6 space-y-6">
                   {history.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-24 text-slate-200">
