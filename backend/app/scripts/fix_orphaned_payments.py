@@ -1,6 +1,6 @@
 """
-Payment #386 (15,762,409.42) ni o'chiradi — BT#481 dan kelgan va hozir yetim.
-Invoice #361 paid_amount qayta hisoblanadi.
+Org 202 uchun barcha orphaned "Автоматическое погашение" paymentlarini ko'rsatadi
+va tasdiqlashdan so'ng o'chiradi. Invoice paid_amount qayta hisoblanadi.
 """
 import asyncio
 import os
@@ -9,36 +9,50 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from app.db.session import AsyncSessionLocal
-from app.models.sales import Invoice, Payment, InvoiceStatus
+from app.models.sales import Invoice, Payment, Reservation, InvoiceStatus
+from app.models.crm import BalanceTransaction
 from sqlalchemy import select, func
 
-TARGET_PAYMENT_IDS = [386]
+ORG_ID = 202
 
 async def main():
     async with AsyncSessionLocal() as db:
-        payments = []
-        for pid in TARGET_PAYMENT_IDS:
-            pmt = (await db.execute(select(Payment).where(Payment.id == pid))).scalar_one_or_none()
-            if pmt:
-                print(f"Payment #{pmt.id} | {pmt.amount:,.2f} | invoice_id={pmt.invoice_id} | '{pmt.comment}'")
-                payments.append(pmt)
-            else:
-                print(f"Payment #{pid} - TOPILMADI (allaqachon o'chirilgan)")
+        inv_ids = [r[0] for r in (await db.execute(
+            select(Invoice.id).join(Reservation, Invoice.reservation_id == Reservation.id)
+            .where(Reservation.med_org_id == ORG_ID)
+        )).all()]
 
-        if not payments:
-            print("\n✅ O'chiriladigan narsa yo'q.")
+        payments = (await db.execute(
+            select(Payment).where(Payment.invoice_id.in_(inv_ids))
+        )).scalars().all()
+
+        orphaned = []
+        for pmt in payments:
+            bt = (await db.execute(
+                select(BalanceTransaction).where(BalanceTransaction.payment_id == pmt.id)
+            )).scalar_one_or_none()
+            is_auto = pmt.comment and ('автоматическ' in pmt.comment.lower() or 'погашени' in pmt.comment.lower() or 'баланса' in pmt.comment.lower())
+            if not bt and is_auto:
+                orphaned.append(pmt)
+
+        if not orphaned:
+            print("✅ Yetim to'lovlar topilmadi.")
             return
 
-        total = sum(p.amount for p in payments)
-        print(f"\nJami o'chiriladigan: {total:,.2f} UZS")
-        print("Davom etish uchun 'yes' yozing:")
+        print(f"⚠️  {len(orphaned)} ta YETIM to'lov topildi:\n")
+        for p in orphaned:
+            print(f"  Payment #{p.id} | {p.amount:,.2f} UZS | invoice_id={p.invoice_id} | '{p.comment[:60]}'")
+
+        total = sum(p.amount for p in orphaned)
+        print(f"\nJami: {total:,.2f} UZS")
+        print("\nBarchasini o'chirish uchun 'yes' yozing:")
         answer = input().strip().lower()
         if answer != 'yes':
             print("Bekor qilindi.")
             return
 
-        affected_inv_ids = {p.invoice_id for p in payments}
-        for pmt in payments:
+        affected_inv_ids = {p.invoice_id for p in orphaned}
+        for pmt in orphaned:
             await db.delete(pmt)
         await db.flush()
 
@@ -59,7 +73,7 @@ async def main():
                 print(f"  Invoice #{inv_id}: {old:,.2f} → {real_paid:,.2f} ({inv_obj.status.value})")
 
         await db.commit()
-        print(f"\n✅ Tuzatildi! Debitorka ~{total:,.0f} ga ko'tarilishi kerak.")
+        print(f"\n✅ {len(orphaned)} ta yetim to'lov o'chirildi. Debitorka yangilandi.")
 
 if __name__ == "__main__":
     asyncio.run(main())
