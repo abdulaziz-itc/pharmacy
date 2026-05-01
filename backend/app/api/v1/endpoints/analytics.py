@@ -1454,6 +1454,12 @@ async def get_comprehensive_drilldown(
 
             customer = (inv.reservation.med_org.name if inv.reservation and inv.reservation.med_org else (inv.reservation.customer_name if inv.reservation else "-")) if inv else "-"
             
+            nds_percent = (r.reservation.nds_percent if r.reservation and r.reservation.nds_percent is not None else 12.0)
+            nds_multiplier = 1 + (nds_percent / 100.0)
+            
+            price_with_nds = round((r.price or 0) * nds_multiplier, 2)
+            total_with_nds = round(price_with_nds * (r.quantity or 0), 2)
+            
             res_payload.append({
                 "id": r.id,
                 "date": inv.date.isoformat() if inv and inv.date else "-",
@@ -1463,8 +1469,8 @@ async def get_comprehensive_drilldown(
                 "region": region_name,
                 "med_rep": med_rep_name,
                 "qty": r.quantity,
-                "sale_price": r.price,
-                "total_amount": (r.price or 0) * (r.quantity or 0)
+                "sale_price": price_with_nds,
+                "total_amount": total_with_nds
             })
         return res_payload
 
