@@ -261,8 +261,33 @@ async def get_global_realtime_dashboard(
     c_rev_inv = (await db.execute(curr_inv_q)).scalar() or 0.0
 
     # 2c. Bonus Accrued
+    from sqlalchemy import extract, or_
     curr_bonus_q = select(func.sum(BonusLedger.amount)).where(BonusLedger.ledger_type == LedgerType.ACCRUAL)
-    if start_date and end_date: curr_bonus_q = curr_bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+    if month and year:
+        curr_bonus_q = curr_bonus_q.where(
+            or_(
+                and_(BonusLedger.target_month == month, BonusLedger.target_year == year),
+                and_(BonusLedger.target_month.is_(None), extract('month', BonusLedger.created_at) == month, extract('year', BonusLedger.created_at) == year)
+            )
+        )
+    elif quarter and year:
+        start_m = (quarter - 1) * 3 + 1
+        curr_bonus_q = curr_bonus_q.where(
+            or_(
+                and_(BonusLedger.target_month >= start_m, BonusLedger.target_month <= start_m + 2, BonusLedger.target_year == year),
+                and_(BonusLedger.target_month.is_(None), extract('month', BonusLedger.created_at) >= start_m, extract('month', BonusLedger.created_at) <= start_m + 2, extract('year', BonusLedger.created_at) == year)
+            )
+        )
+    elif year:
+        curr_bonus_q = curr_bonus_q.where(
+            or_(
+                BonusLedger.target_year == year,
+                and_(BonusLedger.target_year.is_(None), extract('year', BonusLedger.created_at) == year)
+            )
+        )
+    elif start_date and end_date:
+        curr_bonus_q = curr_bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+        
     if rep_ids: curr_bonus_q = curr_bonus_q.where(BonusLedger.user_id.in_(rep_ids))
     if final_region_ids:
         curr_bonus_q = curr_bonus_q.join(User, BonusLedger.user_id == User.id).join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id.in_(final_region_ids))
@@ -525,8 +550,33 @@ async def get_comprehensive_stats(
     fact_sum = round(float(fact_invoice_sum) + float(fact_topup_sum), 2)
 
     # Bonus Ledger (Earned, Paid, Advances)
+    from sqlalchemy import extract, or_
     bonus_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
-    if start_date and end_date: bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+    if month and year:
+        bonus_q = bonus_q.where(
+            or_(
+                and_(BonusLedger.target_month == month, BonusLedger.target_year == year),
+                and_(BonusLedger.target_month.is_(None), extract('month', BonusLedger.created_at) == month, extract('year', BonusLedger.created_at) == year)
+            )
+        )
+    elif quarter and year:
+        start_m = (quarter - 1) * 3 + 1
+        bonus_q = bonus_q.where(
+            or_(
+                and_(BonusLedger.target_month >= start_m, BonusLedger.target_month <= start_m + 2, BonusLedger.target_year == year),
+                and_(BonusLedger.target_month.is_(None), extract('month', BonusLedger.created_at) >= start_m, extract('month', BonusLedger.created_at) <= start_m + 2, extract('year', BonusLedger.created_at) == year)
+            )
+        )
+    elif year:
+        bonus_q = bonus_q.where(
+            or_(
+                BonusLedger.target_year == year,
+                and_(BonusLedger.target_year.is_(None), extract('year', BonusLedger.created_at) == year)
+            )
+        )
+    elif start_date and end_date:
+        bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+        
     if rep_ids: bonus_q = bonus_q.where(BonusLedger.user_id.in_(rep_ids))
     if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
     if product_id: bonus_q = bonus_q.where(BonusLedger.product_id == product_id)
@@ -1220,7 +1270,31 @@ async def get_comprehensive_drilldown(
             )
         elif metric == "preinvest":
             bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.notes == "Аванс (Предынвест)"))
-        if start_date and end_date: bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+        if month and year:
+            bonus_q = bonus_q.where(
+                or_(
+                    and_(BonusLedger.target_month == month, BonusLedger.target_year == year),
+                    and_(BonusLedger.target_month.is_(None), extract('month', BonusLedger.created_at) == month, extract('year', BonusLedger.created_at) == year)
+                )
+            )
+        elif quarter and year:
+            start_m = (quarter - 1) * 3 + 1
+            bonus_q = bonus_q.where(
+                or_(
+                    and_(BonusLedger.target_month >= start_m, BonusLedger.target_month <= start_m + 2, BonusLedger.target_year == year),
+                    and_(BonusLedger.target_month.is_(None), extract('month', BonusLedger.created_at) >= start_m, extract('month', BonusLedger.created_at) <= start_m + 2, extract('year', BonusLedger.created_at) == year)
+                )
+            )
+        elif year:
+            bonus_q = bonus_q.where(
+                or_(
+                    BonusLedger.target_year == year,
+                    and_(BonusLedger.target_year.is_(None), extract('year', BonusLedger.created_at) == year)
+                )
+            )
+        elif start_date and end_date:
+            bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+            
         if rep_ids: bonus_q = bonus_q.where(BonusLedger.user_id.in_(rep_ids))
         if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
         if product_id: bonus_q = bonus_q.where(BonusLedger.product_id == product_id)
