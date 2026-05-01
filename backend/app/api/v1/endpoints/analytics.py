@@ -1351,6 +1351,7 @@ async def get_comprehensive_drilldown(
             selectinload(ReservationItem.product),
             selectinload(ReservationItem.reservation).selectinload(Reservation.invoice),
             selectinload(ReservationItem.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.region),
+            selectinload(ReservationItem.reservation).selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps),
             selectinload(ReservationItem.reservation).selectinload(Reservation.created_by)
         ).join(Reservation, ReservationItem.reservation_id == Reservation.id)\
          .join(Invoice, Invoice.reservation_id == Reservation.id)\
@@ -1368,12 +1369,22 @@ async def get_comprehensive_drilldown(
         for r in rows:
             inv = r.reservation.invoice if r.reservation else None
             region_name = (r.reservation.med_org.region.name if r.reservation and r.reservation.med_org and r.reservation.med_org.region else "-") if r.reservation else "-"
-            med_rep_name = (r.reservation.created_by.full_name if r.reservation and r.reservation.created_by else "-")
+            
+            med_org = r.reservation.med_org if r.reservation else None
+            if med_org and med_org.assigned_reps:
+                med_rep_name = ", ".join([u.full_name for u in med_org.assigned_reps if u.full_name])
+            elif r.reservation and r.reservation.created_by:
+                med_rep_name = r.reservation.created_by.full_name
+            else:
+                med_rep_name = "-"
+
+            customer = (inv.reservation.med_org.name if inv.reservation and inv.reservation.med_org else (inv.reservation.customer_name if inv.reservation else "-")) if inv else "-"
             
             res_payload.append({
                 "id": r.id,
-                "invoice_num": inv.factura_number if inv else "-",
                 "date": inv.date.isoformat() if inv and inv.date else "-",
+                "customer": customer,
+                "invoice_num": inv.factura_number if inv else "-",
                 "product": r.product.name if r.product else "-",
                 "region": region_name,
                 "med_rep": med_rep_name,
