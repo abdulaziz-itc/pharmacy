@@ -100,7 +100,7 @@ async def get_receipt_queries(
     Returns (payment_q, topup_q) for Fact of Receipts.
     Standardizes the logic for both aggregate counts and detailed lists.
     """
-    # 1. Invoiced Payments Query
+    # 1. Invoiced Payments Query (invoice_id IS NOT NULL)
     pay_q = select(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
     if start_date and end_date:
         pay_q = pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
@@ -110,7 +110,6 @@ async def get_receipt_queries(
     if rep_ids or region_ids or product_id:
         pay_q = pay_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
         if rep_ids:
-            # Type safety: convert to int in case strings were passed
             clean_rep_ids = [int(i) for i in rep_ids if i is not None]
             pay_q = pay_q.where(or_(
                 Reservation.created_by_id.in_(clean_rep_ids),
@@ -137,17 +136,28 @@ async def get_receipt_queries(
         if rep_ids or region_ids:
             clean_rep_ids = [int(i) for i in rep_ids if i is not None] if rep_ids else []
             clean_reg_ids = [int(i) for i in region_ids if i is not None] if region_ids else []
-            
-            # Use OUTER JOIN to ensure top-ups are counted even if org/regions are partially missing
             top_q = top_q.outerjoin(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
             if clean_rep_ids:
-                # If rep filter is applied, we only show what's assigned to those reps
                 top_q = top_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(clean_rep_ids)))
             if clean_reg_ids:
-                # If region filter is applied, we only show what belongs to that region
                 top_q = top_q.where(MedicalOrganization.region_id.in_(clean_reg_ids))
-                
+
     return pay_q, top_q
+
+
+async def get_null_invoice_payments_query(
+    db: AsyncSession,
+    start_date: Optional[datetime],
+    end_date: Optional[datetime],
+):
+    """
+    Returns payments with invoice_id = NULL (auto-balance payments without an invoice).
+    These appear in Dashboard totals but were missing from Excel/drilldown.
+    """
+    q = select(Payment).where(Payment.invoice_id.is_(None))
+    if start_date and end_date:
+        q = q.where(and_(Payment.date >= start_date, Payment.date < end_date))
+    return q
 
 @router.get("/dashboard/global")
 async def get_global_realtime_dashboard(
@@ -917,16 +927,28 @@ async def export_drilldown_excel(
             topup_q = topup_q.options(selectinload(BalanceTransaction.organization))
             topup_rows = (await db.execute(topup_q.order_by(BalanceTransaction.created_at.desc()))).scalars().all()
 
+        # Null-invoice balance payments (invoice_id=NULL, auto-applied from credit balance)
+        null_inv_q = await get_null_invoice_payments_query(db, start_date, end_date)
+        null_inv_rows = (await db.execute(null_inv_q.order_by(Payment.date.desc()))).scalars().all()
+
         # 3. Combine and Format
         all_data = []
         from datetime import time
         for p in payment_rows:
-            # Standardize to datetime for sorting (midnight)
             sort_dt = datetime.combine(p.date, time.min) if isinstance(p.date, date) and not isinstance(p.date, datetime) else p.date
             all_data.append({
                 "date": sort_dt,
                 "inn": p.invoice.reservation.med_org.inn if p.invoice and p.invoice.reservation and p.invoice.reservation.med_org else "-",
                 "customer": p.invoice.reservation.customer_name if p.invoice and p.invoice.reservation else "-",
+                "amount": p.amount,
+                "comment": p.comment or ""
+            })
+        for p in null_inv_rows:
+            sort_dt = datetime.combine(p.date, time.min) if isinstance(p.date, date) and not isinstance(p.date, datetime) else p.date
+            all_data.append({
+                "date": sort_dt,
+                "inn": "-",
+                "customer": "-",
                 "amount": p.amount,
                 "comment": p.comment or ""
             })
@@ -1089,12 +1111,14 @@ async def get_comprehensive_drilldown(
             topup_q = topup_q.options(selectinload(BalanceTransaction.organization))
             topup_rows = (await db.execute(topup_q.order_by(BalanceTransaction.created_at.desc()))).scalars().all()
 
+        # Null-invoice balance payments (invoice_id=NULL, auto-applied from credit balance)
+        null_inv_q = await get_null_invoice_payments_query(db, start_date, end_date)
+        null_inv_rows = (await db.execute(null_inv_q.order_by(Payment.date.desc()))).scalars().all()
+
         # 3. Combine and Format
         all_results = []
         from datetime import time
         for r in payment_rows:
-            # We must use isoformat or similar for the return JSON, 
-            # but ensure we handle both date and datetime types.
             dt_str = r.date.isoformat() if hasattr(r.date, "isoformat") else str(r.date)
             all_results.append({
                 "id": r.id, 
@@ -1104,6 +1128,19 @@ async def get_comprehensive_drilldown(
                 "invoice_num": r.invoice.factura_number if r.invoice else "-", 
                 "customer": r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-",
                 "inn": r.invoice.reservation.med_org.inn if r.invoice and r.invoice.reservation and r.invoice.reservation.med_org else "-",
+                "comment": r.comment or "",
+                "is_topup": False
+            })
+        for r in null_inv_rows:
+            dt_str = r.date.isoformat() if hasattr(r.date, "isoformat") else str(r.date)
+            all_results.append({
+                "id": r.id,
+                "date": dt_str,
+                "amount": r.amount,
+                "type": r.payment_type,
+                "invoice_num": "-",
+                "customer": "-",
+                "inn": "-",
                 "comment": r.comment or "",
                 "is_topup": False
             })
