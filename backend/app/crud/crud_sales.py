@@ -729,7 +729,7 @@ async def apply_surplus_to_debts(db: AsyncSession, organization_id: int, amount:
         .where(Reservation.med_org_id == organization_id)
         .where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.DRAFT]))
         .where(Invoice.total_amount > Invoice.paid_amount)
-        .order_by(Invoice.date.asc())
+        .order_by(func.coalesce(Invoice.realization_date, Invoice.date).asc(), Invoice.id.asc())
     )
     result = await db.execute(query)
     invoices = result.scalars().all()
