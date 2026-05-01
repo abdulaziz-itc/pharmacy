@@ -564,10 +564,10 @@ async def get_comprehensive_stats(
     gross_profit_sum_q = select(
         func.coalesce(func.sum(
             (ReservationItem.price * (1 - func.coalesce(ReservationItem.discount_percent, 0) / 100.0) - 
-             func.coalesce(Product.production_price, 0) - 
+             func.coalesce(Product.production_price, 0) * (ReservationItem.price / case((Product.price > 0, Product.price), else_=1.0)) - 
              case((ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
              case((ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
-             func.coalesce(Product.other_expenses, 0)) * 
+             func.coalesce(Product.other_expenses, 0) * (ReservationItem.price / case((Product.price > 0, Product.price), else_=1.0))) * 
             ReservationItem.quantity * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
         ), 0.0)
     ).select_from(ReservationItem)\
@@ -597,10 +597,10 @@ async def get_comprehensive_stats(
     potential_profit_sum_q = select(
         func.coalesce(func.sum(
             (ReservationItem.price * (1 - func.coalesce(ReservationItem.discount_percent, 0) / 100.0) - 
-             func.coalesce(Product.production_price, 0) - 
+             func.coalesce(Product.production_price, 0) * (ReservationItem.price / case((Product.price > 0, Product.price), else_=1.0)) - 
              case((ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
              case((ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
-             func.coalesce(Product.other_expenses, 0)) * 
+             func.coalesce(Product.other_expenses, 0) * (ReservationItem.price / case((Product.price > 0, Product.price), else_=1.0))) * 
             ReservationItem.quantity
         ), 0.0)
     ).select_from(ReservationItem)\
@@ -1256,10 +1256,11 @@ async def get_comprehensive_drilldown(
         for r in rows:
             paid_ratio = (r.reservation.invoice.paid_amount or 0) / r.reservation.invoice.total_amount if r.reservation and r.reservation.invoice and r.reservation.invoice.total_amount > 0 else 0
             sale_price = r.price * (1 - (r.discount_percent or 0) / 100.0)
-            prod_price = r.product.production_price or 0
+            ratio = (r.price / r.product.price) if r.product and r.product.price and r.product.price > 0 else 1.0
+            prod_price = (r.product.production_price or 0) * ratio
             salary = r.salary_amount if (r.salary_amount or 0) > 0 else (r.product.salary_expense or 0)
             marketing = r.marketing_amount if (r.marketing_amount or 0) > 0 else (r.product.marketing_expense or 0)
-            other_per_unit = r.product.other_expenses or 0
+            other_per_unit = (r.product.other_expenses or 0) * ratio
             unit_profit = sale_price - prod_price - salary - marketing - other_per_unit
             total_profit_realized = (unit_profit * r.quantity) * paid_ratio
             if total_profit_realized > 0:
@@ -1299,10 +1300,11 @@ async def get_comprehensive_drilldown(
             if not inv or not inv.total_amount: continue
             paid_ratio = (inv.paid_amount or 0) / inv.total_amount
             sale_price = r.price * (1 - (r.discount_percent or 0) / 100.0)
-            prod_price = r.product.production_price or 0
+            ratio = (r.price / r.product.price) if r.product and r.product.price and r.product.price > 0 else 1.0
+            prod_price = (r.product.production_price or 0) * ratio
             salary = r.salary_amount if (r.salary_amount or 0) > 0 else (r.product.salary_expense or 0)
             marketing = r.marketing_amount if (r.marketing_amount or 0) > 0 else (r.product.marketing_expense or 0)
-            other_per_unit = r.product.other_expenses or 0
+            other_per_unit = (r.product.other_expenses or 0) * ratio
             unit_profit = sale_price - prod_price - salary - marketing - other_per_unit
             total_profit_realized = (unit_profit * r.quantity) * paid_ratio
             region_name = (r.reservation.med_org.region.name if r.reservation and r.reservation.med_org and r.reservation.med_org.region else "-") if r.reservation else "-"
