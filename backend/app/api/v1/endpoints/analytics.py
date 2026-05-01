@@ -473,6 +473,13 @@ async def get_comprehensive_stats(
     elif year:
         start_date = datetime(year, 1, 1)
         end_date = datetime(year + 1, 1, 1)
+    else:
+        # Default to current month and year if no filter is provided
+        now = datetime.utcnow()
+        month = now.month
+        year = now.year
+        start_date = datetime(year, month, 1)
+        end_date = (datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1))
 
     # 3. KPI AGGREGATIONS
     # Filter helper
@@ -911,6 +918,12 @@ async def export_drilldown_excel(
         else:
             start_date = datetime(year, 1, 1)
             end_date = datetime(year + 1, 1, 1)
+    else:
+        now = datetime.utcnow()
+        month = now.month
+        year = now.year
+        start_date = datetime(year, month, 1)
+        end_date = (datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1))
 
     # 3. Fetch Data (specialized for cash_in for now)
     if metric == "cash_in":
@@ -1046,6 +1059,12 @@ async def get_comprehensive_drilldown(
     elif year:
         start_date = datetime(year, 1, 1)
         end_date = datetime(year + 1, 1, 1)
+    else:
+        now = datetime.utcnow()
+        month = now.month
+        year = now.year
+        start_date = datetime(year, month, 1)
+        end_date = (datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1))
 
     def apply_filters(q, model_ref=Reservation):
         if rep_ids or region_id:
