@@ -1,4 +1,4 @@
-# v1.1 - Corrected for Phusion Passenger
+# v1.2 - Force reload for passenger backend with the latest updates
 import os
 import sys
 
