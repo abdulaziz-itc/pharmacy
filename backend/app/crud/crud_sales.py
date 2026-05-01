@@ -755,6 +755,10 @@ async def apply_surplus_to_debts(db: AsyncSession, organization_id: int, amount:
             processed_by_id=user_id
         )
         db.add(p)
+        await db.flush() # flush to get payment id
+
+        # Accrue bonus and salary for medrep
+        await accrue_medrep_bonus_for_payment(db, inv.id, p.id, payment_to_apply)
         
         inv.paid_amount = (inv.paid_amount or 0.0) + payment_to_apply
         if inv.paid_amount >= inv.total_amount:
@@ -800,6 +804,10 @@ async def apply_balance_to_invoice(db: AsyncSession, invoice: Invoice, organizat
         processed_by_id=user_id
     )
     db.add(p)
+    await db.flush() # flush to get payment id
+
+    # Accrue bonus and salary for medrep
+    await accrue_medrep_bonus_for_payment(db, invoice.id, p.id, amount_to_apply)
     
     # Update Invoice
     invoice.paid_amount = (invoice.paid_amount or 0.0) + amount_to_apply
@@ -1224,3 +1232,83 @@ async def update_bonus_payment(
     await db.commit()
     await db.refresh(db_obj)
     return db_obj
+
+
+async def accrue_medrep_bonus_for_payment(
+    db: AsyncSession, invoice_id: int, payment_id: int, amount: float
+):
+    """
+    Helper function to accrue bonuses and salaries for a MedRep whenever a payment is applied.
+    Avoids double accruals by checking if a ledger entry already exists for the payment.
+    """
+    from app.models.ledger import BonusLedger, LedgerType
+    from app.models.user import UserRole
+
+    # Check for existing BonusLedger
+    l_check = await db.execute(select(BonusLedger).where(BonusLedger.payment_id == payment_id))
+    if l_check.scalars().first():
+        return
+
+    # Fetch invoice
+    inv_res = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    invoice = inv_res.scalar_one_or_none()
+    if not invoice:
+        return
+
+    # Fetch reservation
+    res_query = select(Reservation).options(
+        selectinload(Reservation.items),
+        selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps)
+    ).where(Reservation.id == invoice.reservation_id)
+    res_result = await db.execute(res_query)
+    reservation = res_result.scalar_one_or_none()
+
+    if reservation:
+        target_medrep_id = None
+        if reservation.med_org and reservation.med_org.assigned_reps:
+            for rep in reservation.med_org.assigned_reps:
+                if rep.role == UserRole.MED_REP:
+                    target_medrep_id = rep.id
+                    break
+
+        payment_ratio = amount / invoice.total_amount if invoice.total_amount > 0 else 0
+        payment_bonus_amount = 0.0
+        payment_salary_total = 0.0
+
+        for item in reservation.items:
+            if item.marketing_amount:
+                payment_bonus_amount += (item.quantity * item.marketing_amount) * payment_ratio
+            if reservation.is_salary_enabled and item.salary_amount:
+                payment_salary_total += (item.quantity * item.salary_amount) * payment_ratio
+
+        payment_bonus_amount = float(round(payment_bonus_amount))
+        payment_salary_total = float(round(payment_salary_total))
+
+        if target_medrep_id:
+            now = datetime.utcnow()
+            if payment_bonus_amount > 0:
+                accrual_bonus = BonusLedger(
+                    user_id=target_medrep_id,
+                    amount=payment_bonus_amount,
+                    ledger_type=LedgerType.ACCRUAL,
+                    ledger_category="bonus",
+                    payment_id=payment_id,
+                    target_month=now.month,
+                    target_year=now.year,
+                    notes=f"Бонус начислен по счет-фактуре #{invoice.id} (Аптека: {reservation.med_org.name if reservation.med_org else 'N/A'})"
+                )
+                db.add(accrual_bonus)
+
+            if payment_salary_total > 0:
+                accrual_salary = BonusLedger(
+                    user_id=target_medrep_id,
+                    amount=payment_salary_total,
+                    ledger_type=LedgerType.ACCRUAL,
+                    ledger_category="salary",
+                    payment_id=payment_id,
+                    target_month=now.month,
+                    target_year=now.year,
+                    notes=f"Зарплата начислена по счет-фактуре #{invoice.id} (Аптека: {reservation.med_org.name if reservation.med_org else 'N/A'})"
+                )
+                db.add(accrual_salary)
+
