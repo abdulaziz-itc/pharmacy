@@ -474,8 +474,8 @@ export default function AccountantPage() {
                     badge="Реализовано"
                 />
                 <PremiumKpiCard 
-                    label="Проdaжи (Факт)" 
-                    value={stats?.total_amount || 0} 
+                    label="Продажи (Факт)" 
+                    value={stats?.total_invoice_sum || 0} 
                     icon={DollarSign} 
                     color="emerald"
                     badge="Всего"
