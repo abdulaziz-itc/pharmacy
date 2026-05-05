@@ -41,13 +41,34 @@ class ExpenseService:
         return res.scalar_one()
 
     @staticmethod
-    async def get_expenses(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[OtherExpense]:
+    async def get_expenses(
+        db: AsyncSession,
+        skip: int = 0,
+        limit: int = 500,
+        month: int = None,
+        year: int = None,
+        quarter: int = None
+    ) -> List[OtherExpense]:
         from sqlalchemy.orm import selectinload
-        result = await db.execute(
+        from sqlalchemy import extract
+        query = (
             select(OtherExpense)
             .options(selectinload(OtherExpense.category), selectinload(OtherExpense.created_by))
-            .offset(skip).limit(limit).order_by(OtherExpense.date.desc())
+            .order_by(OtherExpense.date.desc())
         )
+        if year:
+            query = query.where(extract('year', OtherExpense.date) == year)
+        if month:
+            query = query.where(extract('month', OtherExpense.date) == month)
+        elif quarter:
+            # Quarter 1 = months 1-3, Q2 = 4-6, Q3 = 7-9, Q4 = 10-12
+            start_month = (quarter - 1) * 3 + 1
+            end_month = start_month + 2
+            query = query.where(
+                extract('month', OtherExpense.date) >= start_month,
+                extract('month', OtherExpense.date) <= end_month
+            )
+        result = await db.execute(query.offset(skip).limit(limit))
         return result.scalars().all()
 
     @staticmethod

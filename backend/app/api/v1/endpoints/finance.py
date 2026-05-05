@@ -214,11 +214,14 @@ async def get_expenses(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
     skip: int = 0,
-    limit: int = 100
+    limit: int = 500,
+    month: int = None,
+    year: int = None,
+    quarter: int = None,
 ) -> Any:
     if current_user.role not in [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.INVESTOR, UserRole.ACCOUNTANT]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    return await ExpenseService.get_expenses(db, skip, limit)
+    return await ExpenseService.get_expenses(db, skip, limit, month=month, year=year, quarter=quarter)
 
 @router.post("/expenses", response_model=OtherExpense)
 async def create_expense(

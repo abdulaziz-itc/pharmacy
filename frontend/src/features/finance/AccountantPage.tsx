@@ -119,11 +119,15 @@ export default function AccountantPage() {
         }
     });
 
-    // Fetch Expenses
+    // Fetch Expenses (with filters)
     const { data: expenses = [], isLoading: expensesLoading } = useQuery<Expense[]>({
-        queryKey: ['expenses'],
+        queryKey: ['expenses', selectedMonth, selectedYear, selectedQuarter],
         queryFn: async () => {
-            const res = await api.get('/finance/expenses');
+            const params: any = {};
+            if (selectedMonth) params.month = selectedMonth;
+            if (selectedYear) params.year = selectedYear;
+            if (selectedQuarter) params.quarter = selectedQuarter;
+            const res = await api.get('/finance/expenses', { params });
             return Array.isArray(res.data) ? res.data : (res.data?.items || []);
         }
     });
