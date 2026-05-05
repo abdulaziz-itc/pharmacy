@@ -73,6 +73,9 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
         payment_amount: number | null;
         payment_type: string | null;
         counterparty: string | null;
+        is_paid: boolean;
+        paid_date: string | null;
+        paid_by: { id: number, full_name: string } | null;
     }
 
     const [expandedRepId, setExpandedRepId] = useState<number | null>(null);
@@ -482,8 +485,8 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
                                                                             <TableHead className="text-xs h-9">Тип</TableHead>
                                                                             <TableHead className="text-xs h-9">Счет-фактура</TableHead>
                                                                             <TableHead className="text-xs h-9">Контрагент</TableHead>
-                                                                            <TableHead className="text-xs h-9">Врач</TableHead>
-                                                                            <TableHead className="text-xs h-9">Препарат</TableHead>
+                                                                            <TableHead className="text-xs h-9">Выплатил(а)</TableHead>
+                                                                            <TableHead className="text-xs h-9">Дата выплаты</TableHead>
                                                                             <TableHead className="text-xs h-9 text-right">Оплата</TableHead>
                                                                             <TableHead className="text-xs h-9 text-right">Сумма (UZS)</TableHead>
                                                                         </TableRow>
@@ -515,8 +518,14 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
                                                                                     )}
                                                                                 </TableCell>
                                                                                 <TableCell className="text-xs py-2">{h.counterparty || '-'}</TableCell>
-                                                                                <TableCell className="text-xs py-2">{h.doctor?.full_name || '-'}</TableCell>
-                                                                                <TableCell className="text-xs py-2">{h.product?.name || '-'}</TableCell>
+                                                                                <TableCell className="text-xs py-2">{h.is_paid && h.paid_by ? h.paid_by.full_name : '-'}</TableCell>
+                                                                                <TableCell className="text-xs py-2 font-medium">
+                                                                                    {h.is_paid && h.paid_date ? (
+                                                                                        <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                                                                            {new Date(h.paid_date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                                                        </span>
+                                                                                    ) : '-'}
+                                                                                </TableCell>
                                                                                 <TableCell className="text-xs py-2 text-right font-medium text-slate-500">
                                                                                     {h.payment_amount ? (
                                                                                         <>

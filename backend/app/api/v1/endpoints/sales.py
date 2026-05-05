@@ -1056,8 +1056,8 @@ async def get_medrep_bonus_balance(
         # Get history (all transactions)
         query = select(BonusLedger).options(
             selectinload(BonusLedger.doctor),
-            selectinload(BonusLedger.product),
             selectinload(BonusLedger.payment),
+            selectinload(BonusLedger.paid_by),
             selectinload(BonusLedger.invoice_item).selectinload(ReservationItem.reservation).selectinload(Reservation.invoice),
             selectinload(BonusLedger.invoice_item).selectinload(ReservationItem.reservation).selectinload(Reservation.med_org)
         ).where(
@@ -1135,9 +1135,10 @@ async def get_medrep_bonus_balance(
                 "invoice_id": inv_id,
                 "reservation_id": res_id,
                 "counterparty": org_name,
-                "target_month": h.target_month,
                 "target_year": h.target_year,
                 "is_paid": h.is_paid,
+                "paid_date": h.paid_date.isoformat() if h.paid_date else None,
+                "paid_by": {"id": h.paid_by.id, "full_name": h.paid_by.full_name} if getattr(h, "paid_by", None) else None,
                 "doctor": {"id": h.doctor.id, "full_name": h.doctor.full_name} if h.doctor else None,
                 "product": {"id": h.product.id, "name": h.product.name} if h.product else None,
                 "payment_amount": h.payment.amount if h.payment else None,
@@ -1529,6 +1530,8 @@ async def pay_medrep_bonus(
         if entry.amount <= amount_remaining_to_pay:
             # Full entry can be paid
             entry.is_paid = True
+            entry.paid_date = datetime.utcnow()
+            entry.paid_by_id = current_user.id
             amount_remaining_to_pay -= entry.amount
             actual_paid += entry.amount
         else:
@@ -1539,6 +1542,8 @@ async def pay_medrep_bonus(
             # Shrink this entry to the paid portion and mark it paid
             entry.amount = paid_portion
             entry.is_paid = True
+            entry.paid_date = datetime.utcnow()
+            entry.paid_by_id = current_user.id
             actual_paid += paid_portion
             
             # Create a new entry for the leftover unpaid portion
@@ -1573,9 +1578,11 @@ async def pay_medrep_bonus(
             amount=amount_remaining_to_pay,
             ledger_type=LedgerType.PAYOUT,
             ledger_category="bonus",
-            is_paid=True, # It is immediately paid out
+            is_paid=True,
             target_month=now.month,
             target_year=now.year,
+            paid_date=now,
+            paid_by_id=current_user.id,
             notes=f"Выплачено (доп. сумма)"
         )
         db.add(predinvest_entry)

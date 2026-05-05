@@ -42,7 +42,12 @@ class BonusLedger(Base):
     ledger_category = Column(String, nullable=False, default="bonus", index=True) # "bonus" or "salary"
     notes = Column(String, nullable=True)
 
-    user = relationship("User")
+    # Payout Tracking
+    paid_date = Column(DateTime, nullable=True)
+    paid_by_id = Column(Integer, ForeignKey("user.id"), nullable=True)
+
+    user = relationship("User", foreign_keys=[user_id])
+    paid_by = relationship("User", foreign_keys=[paid_by_id])
     doctor = relationship("Doctor")
     product = relationship("Product")
     invoice_item = relationship("ReservationItem")
