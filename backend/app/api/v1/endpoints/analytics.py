@@ -548,60 +548,38 @@ async def get_comprehensive_stats(
     # Using unified helper for absolute consistency
     fact_invoice_sum, fact_topup_sum = await _get_receipt_totals(db, start_date, end_date, rep_ids, [rid] if rid else None, pid)
     fact_sum = round(float(fact_invoice_sum) + float(fact_topup_sum), 2)
-
-    # Bonus Ledger (Earned, Paid, Advances)
     from sqlalchemy import extract, or_
-    bonus_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid, BonusLedger.notes).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
+    accrual_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid)\
+        .join(User, BonusLedger.user_id == User.id)\
+        .where(User.is_active == True, User.role == UserRole.MED_REP, BonusLedger.ledger_type == LedgerType.ACCRUAL)
+    
     if month and year:
-        bonus_q = bonus_q.where(
-            or_(
-                and_(BonusLedger.target_month == month, BonusLedger.target_year == year),
-                and_(BonusLedger.target_month.is_(None), extract('month', BonusLedger.created_at) == month, extract('year', BonusLedger.created_at) == year)
-            )
-        )
-    elif quarter and year:
-        start_m = (quarter - 1) * 3 + 1
-        bonus_q = bonus_q.where(
-            or_(
-                and_(BonusLedger.target_month >= start_m, BonusLedger.target_month <= start_m + 2, BonusLedger.target_year == year),
-                and_(BonusLedger.target_month.is_(None), extract('month', BonusLedger.created_at) >= start_m, extract('month', BonusLedger.created_at) <= start_m + 2, extract('year', BonusLedger.created_at) == year)
-            )
-        )
-    elif year:
-        bonus_q = bonus_q.where(
-            or_(
-                BonusLedger.target_year == year,
-                and_(BonusLedger.target_year.is_(None), extract('year', BonusLedger.created_at) == year)
-            )
-        )
+        accrual_q = accrual_q.where(or_(
+            and_(BonusLedger.target_month == month, BonusLedger.target_year == year),
+            and_(BonusLedger.target_month.is_(None), extract('month', BonusLedger.created_at) == month, extract('year', BonusLedger.created_at) == year)
+        ))
     elif start_date and end_date:
-        bonus_q = bonus_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+        accrual_q = accrual_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
         
-    if rep_ids: bonus_q = bonus_q.where(BonusLedger.user_id.in_(rep_ids))
-    if region_id: bonus_q = bonus_q.join(Doctor, BonusLedger.doctor_id == Doctor.id).where(Doctor.region_id == region_id)
-    if product_id: bonus_q = bonus_q.where(BonusLedger.product_id == product_id)
-    
-    bonus_res = (await db.execute(bonus_q)).all()
-    
-    accrued_sum = 0.0
-    paid_sum = 0.0
-    allocated_sum = 0.0
+    if rep_ids: accrual_q = accrual_q.where(BonusLedger.user_id.in_(rep_ids))
+    accrued_sum = (await db.execute(select(func.sum(BonusLedger.amount)).select_from(accrual_q.subquery()))).scalar() or 0.0
 
-    for r in bonus_res:
-        if r.ledger_type == LedgerType.ACCRUAL:
-            accrued_sum += r.amount
-            if r.is_paid:
-                paid_sum += r.amount
-        elif r.ledger_type == LedgerType.ADVANCE:
-            paid_sum += r.amount
-        elif r.ledger_type == LedgerType.PAYOUT:
-            paid_sum += r.amount
-        elif r.ledger_type == LedgerType.OFFSET:
-            allocated_sum += abs(r.amount)
+    # Physical Payouts (What actually left the bank account in this period)
+    payout_q = select(func.sum(BonusLedger.amount))\
+        .where(BonusLedger.is_paid == True)
+    
+    if start_date and end_date:
+        # We use paid_date to track when the money ACTUALLY left
+        payout_q = payout_q.where(and_(BonusLedger.paid_date >= start_date, BonusLedger.paid_date < end_date))
+    
+    if rep_ids: payout_q = payout_q.where(BonusLedger.user_id.in_(rep_ids))
+    
+    actual_payout_sum = (await db.execute(payout_q)).scalar() or 0.0
 
-    # Calculate dynamic Predinvest and Balance
-    total_predinvest = max(0, paid_sum - accrued_sum)
-    bonus_balance = max(0, accrued_sum - paid_sum)
+    # Calculate dynamic balance
+    bonus_balance = max(0, accrued_sum - actual_payout_sum)
+    total_predinvest = max(0, actual_payout_sum - accrued_sum)
+    paid_sum = actual_payout_sum
 
     # Debt (Outstanding from Invoices)
     debt_q = select(func.sum(Invoice.total_amount - Invoice.paid_amount).label("total")).where(Invoice.status.in_([InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL, InvoiceStatus.APPROVED]))
@@ -880,30 +858,30 @@ async def get_comprehensive_stats(
                     "plan": plan_month_map.get(m, 0)
                 })
 
+    # Unified Total Expenses (Other Expenses + Physical MedRep Payouts)
+    combined_total_expenses = float(total_expenses) + float(actual_payout_sum)
+
     kpis = {
         "sales_plan_amount": float(plan_sum),
         "sales_fact_received_amount": float(fact_sum),
         "fact_from_invoices": float(fact_invoice_sum),
         "fact_from_topups": float(fact_topup_sum),
-        "debug_receipts": [
-            {"date": t.created_at.strftime("%Y-%m-%d") if t.created_at else "-", "amount": t.amount, "type": t.transaction_type, "comment": t.comment}
-            for t in (await db.execute(select(BalanceTransaction).order_by(BalanceTransaction.created_at.desc()).limit(10))).scalars().all()
-        ],
         "total_invoice_sum": float(total_invoice_sum),
         "total_items_sold": int(total_items_sold),
         "bonus_accrued": float(accrued_sum),
-        "bonus_allocated": float(allocated_sum),
-        "bonus_paid": float(paid_sum),
+        "bonus_paid": float(actual_payout_sum),
         "bonus_balance": float(bonus_balance),
         "total_predinvest": float(total_predinvest),
         "receivables": float(debt_sum),
         "overdue_receivables": float(overdue_receivables),
-        "salary_accrued": float(salary_accrued),
-        "salary_paid": float(salary_paid),
+        "salary_accrued": float(salary_accrued), # Accrued in invoices
+        "salary_paid": float(salary_paid), # Realized by invoice payments
         "salary_balance": float(salary_balance),
         "gross_profit": float(gross_profit_sum if fact_sum > 0 else potential_profit_sum),
-        "total_expenses": float(total_expenses),
-        "net_profit": float((gross_profit_sum if fact_sum > 0 else potential_profit_sum) - total_expenses),
+        "total_expenses": combined_total_expenses,
+        "other_expenses": float(total_expenses),
+        "medrep_payouts": float(actual_payout_sum),
+        "net_profit": float((gross_profit_sum if fact_sum > 0 else potential_profit_sum) - combined_total_expenses),
     }
 
     return {
