@@ -30,6 +30,7 @@ interface ReservationDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
     reservation: any | null;
+    isLoading?: boolean;
     onRefresh?: () => void;
 }
 
@@ -37,13 +38,29 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
     isOpen,
     onClose,
     reservation,
+    isLoading = false,
     onRefresh
 }) => {
     const [isMedOrgModalOpen, setIsMedOrgModalOpen] = React.useState(false);
     const [isDoctorModalOpen, setIsDoctorModalOpen] = React.useState(false);
     const user = useAuthStore(state => state.user);
 
-    if (!reservation) return null;
+    if (!isOpen) return null;
+
+    if (isLoading || !reservation) {
+        return (
+            <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+                <DialogContent className="sm:max-w-[700px] p-0 border-0 shadow-3xl rounded-[32px] overflow-hidden bg-white">
+                    <div className="flex items-center justify-center h-64">
+                        <div className="flex flex-col items-center gap-3 text-slate-400">
+                            <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                            <p className="text-sm font-medium">Загрузка данных...</p>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
 
     const items = reservation.items || [];
     const subtotal = items.reduce((acc: number, item: any) => acc + ((item.price || 0) * item.quantity), 0);

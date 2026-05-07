@@ -91,14 +91,19 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
     const [drilldownMetric, setDrilldownMetric] = useState<{ id: string, label: string } | null>(null);
 
     const handleInvoiceClick = async (reservationId: number) => {
+        if (!reservationId) return;
         setIsDetailModalOpen(true);
         setIsDetailLoading(true);
+        setSelectedResDetails(null);
         try {
             const response = await axiosInstance.get(`/sales/reservations/${reservationId}`);
             setSelectedResDetails(response.data);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch reservation details:", error);
-            toast.error("Не удалось загрузить данные по брони");
+            const msg = error?.response?.data?.detail
+                ? String(error.response.data.detail).substring(0, 200)
+                : "Не удалось загрузить данные по брони";
+            toast.error(msg);
             setIsDetailModalOpen(false);
         } finally {
             setIsDetailLoading(false);
@@ -631,6 +636,7 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
                 isOpen={isDetailModalOpen}
                 onClose={() => setIsDetailModalOpen(false)}
                 reservation={selectedResDetails}
+                isLoading={isDetailLoading}
                 onRefresh={handleDetailRefresh}
             />
 
