@@ -63,28 +63,9 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
 
     pay_sum = (await db.execute(pay_sum_q)).scalar() or 0.0
     
-    # 2. Sum Standalone refills (Balance Transactions)
+    # BalanceTransaction (topup/refill) are internal balance movements,
+    # NOT actual client payments. They must NOT be included in "Факт поступлений".
     top_sum = 0.0
-    if not has_prod:
-        top_sum_q = select(func.coalesce(func.sum(BalanceTransaction.amount), 0.0)).select_from(BalanceTransaction)
-        # Relaxed types to be sure
-        top_sum_q = top_sum_q.where(or_(
-            func.lower(BalanceTransaction.transaction_type) == "topup",
-            func.lower(BalanceTransaction.transaction_type) == "refill",
-            func.lower(BalanceTransaction.transaction_type) == "balance",
-            and_(func.lower(BalanceTransaction.transaction_type) == "adjustment", BalanceTransaction.amount > 0)
-        ))
-        if start_date and end_date:
-            top_sum_q = top_sum_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
-            
-        if has_rep or has_reg:
-            top_sum_q = top_sum_q.outerjoin(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
-            if has_rep:
-                top_sum_q = top_sum_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids)))
-            if has_reg:
-                top_sum_q = top_sum_q.where(MedicalOrganization.region_id.in_(region_ids))
-        
-        top_sum = (await db.execute(top_sum_q)).scalar() or 0.0
         
     return float(pay_sum), float(top_sum)
 
@@ -121,26 +102,9 @@ async def get_receipt_queries(
         if product_id:
             pay_q = pay_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == int(product_id))
 
-    # 2. Standalone Refills Query (Only if no product filter)
+    # Standalone Refills (BalanceTransaction) are internal balance movements
+    # and must NOT be counted as actual client receipts.
     top_q = None
-    if not product_id:
-        top_q = select(BalanceTransaction).where(
-            or_(
-                func.lower(BalanceTransaction.transaction_type) == "topup",
-                and_(func.lower(BalanceTransaction.transaction_type) == "adjustment", BalanceTransaction.amount > 0)
-            )
-        )
-        if start_date and end_date:
-            top_q = top_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
-            
-        if rep_ids or region_ids:
-            clean_rep_ids = [int(i) for i in rep_ids if i is not None] if rep_ids else []
-            clean_reg_ids = [int(i) for i in region_ids if i is not None] if region_ids else []
-            top_q = top_q.outerjoin(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
-            if clean_rep_ids:
-                top_q = top_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(clean_rep_ids)))
-            if clean_reg_ids:
-                top_q = top_q.where(MedicalOrganization.region_id.in_(clean_reg_ids))
 
     return pay_q, top_q
 
