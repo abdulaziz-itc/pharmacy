@@ -43,7 +43,9 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
 }) => {
     const [isMedOrgModalOpen, setIsMedOrgModalOpen] = React.useState(false);
     const [isDoctorModalOpen, setIsDoctorModalOpen] = React.useState(false);
+    const [isDeleting, setIsDeleting] = React.useState<number | null>(null);
     const user = useAuthStore(state => state.user);
+    const canDelete = user?.role && ['accountant', 'investor', 'admin', 'director'].includes(user.role.toLowerCase());
 
     if (!isOpen) return null;
 
@@ -68,8 +70,6 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
     const ndsAmount = subtotal * (ndsPercent / 100);
     const totalAmount = subtotal + ndsAmount;
 
-    const [isDeleting, setIsDeleting] = React.useState<number | null>(null);
-    const canDelete = user?.role && ['accountant', 'investor', 'admin', 'director'].includes(user.role.toLowerCase());
 
     const handleDeletePayment = async (paymentId: number) => {
         if (!window.confirm('Haqiqatan ham ushbu to\'lovni bekor qilmoqchimisiz? Bu moliyaviy hisobotlarga ta’sir qiladi.')) return;
