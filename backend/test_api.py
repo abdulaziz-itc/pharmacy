@@ -1,35 +1,32 @@
-
-import sys
-import os
 import asyncio
-sys.path.append(os.path.abspath("/Users/macbook13/Documents/pharma_new/backend"))
-
 from app.db.session import AsyncSessionLocal
-from app.models.user import User
-from sqlalchemy import select
-from app.api.v1.endpoints.visit_plans import get_visit_plans
-from app.schemas.visit_plan import VisitPlan as VisitPlanSchema
+from app.api.v1.endpoints.analytics import get_comprehensive_stats
+from app.models.user import User, UserRole
+from fastapi import HTTPException
 
-async def main():
+async def check():
     async with AsyncSessionLocal() as db:
-        user = (await db.execute(select(User).where(User.username=="test_med_rep"))).scalars().first()
-        if not user:
-            print("User not found")
-            return
-            
-        print("Got User ID:", user.id)
+        class MockUser:
+            id = 1
+            role = UserRole.DIRECTOR
+        
+        # We need a proper user from DB to avoid lazy loading issues
+        user = await db.execute(select(User).limit(1))
+        user = user.scalar()
+        if user:
+            user.role = UserRole.DIRECTOR
+            try:
+                res = await get_comprehensive_stats(db=db, current_user=user)
+                print("Gross Profit:", res["kpis"]["gross_profit"])
+                print("Net Profit:", res["kpis"]["net_profit"])
+                print("Total Expenses:", res["kpis"]["total_expenses"])
+                print("Other Expenses:", res["kpis"]["other_expenses"])
+                print("Fact sum:", res["kpis"]["sales_fact_received_amount"])
+                print("Predinvest:", res["kpis"]["total_predinvest"])
+            except Exception as e:
+                print("Error:", e)
+        else:
+            print("No users found")
 
-        plans = await get_visit_plans(db=db, current_user=user, med_rep_id=None)
-        
-        # Serialize like FastAPI does
-        from fastapi.encoders import jsonable_encoder
-        json_data = jsonable_encoder(plans)
-        
-        print("---- JSON DUMP ----")
-        import json
-        print(json.dumps(json_data, indent=2))
-        
-        if len(plans) > 0:
-            print("First planned_date:", plans[0].planned_date)
-
-asyncio.run(main())
+from sqlalchemy import select
+asyncio.run(check())

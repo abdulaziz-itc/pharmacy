@@ -840,13 +840,22 @@ async def export_reservation_excel(
         font_bold = Font(bold=True)
         border_thin = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
         
+        total_client_bonus = 0.0
+        total_manager_bonus = 0.0
+        for item in reservation.items:
+            actual_qty = (item.quantity or 0) - (item.returned_quantity or 0)
+            if actual_qty > 0:
+                total_client_bonus += actual_qty * (item.marketing_amount or 0)
+                if reservation.is_salary_enabled:
+                    total_manager_bonus += actual_qty * (item.salary_amount or 0)
+
         # 1. Харажатлардан кейин Фойда/Зарар (Shifting to column 4 - Column D)
         ws.cell(row=1, column=4, value="Харажатлардан кейин Фойда/Зарар").font = font_bold
         ws.cell(row=2, column=4, value="Клинт бонуси")
-        ws.cell(row=2, column=5, value=0).fill = fill_yellow
+        ws.cell(row=2, column=5, value=total_client_bonus).fill = fill_yellow
         ws.cell(row=3, column=4, value="Менеджерлар бонуси")
         ws.cell(row=4, column=4, value="Прямой").font = font_bold
-        ws.cell(row=4, column=5).fill = fill_yellow
+        ws.cell(row=4, column=5, value=total_manager_bonus).fill = fill_yellow
         ws.cell(row=5, column=4, value="Доставка")
         ws.cell(row=5, column=5).fill = fill_yellow
         
