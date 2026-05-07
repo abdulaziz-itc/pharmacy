@@ -166,7 +166,8 @@ async def get_global_realtime_dashboard(
     month: Optional[int] = None,
     year: Optional[int] = None,
     quarter: Optional[int] = None,
-    region_id: Optional[int] = None
+    region_id: Optional[int] = None,
+    med_rep_id: Optional[int] = None
 ) -> Any:
     """
     Returns real-time aggregated global statistics.
@@ -265,7 +266,9 @@ async def get_global_realtime_dashboard(
     # 1. HIERARCHY & REGION FILTERS
     is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
     rep_ids = None
-    if is_team_manager:
+    if med_rep_id and str(med_rep_id).isdigit():
+        rep_ids = [int(med_rep_id)]
+    elif is_team_manager:
         rep_ids = await get_descendant_ids(db, current_user.id)
         if not rep_ids: rep_ids = [-1]
 
@@ -452,6 +455,17 @@ async def get_global_realtime_dashboard(
         activities = activities[:5]
         for a in activities:
             del a["dt"] # remove date obj
+            
+    # Calculate Plans
+    plan_q = select(func.sum(Plan.target_amount).label("total_amount"), func.sum(Plan.target_quantity).label("total_qty"))
+    if quarter and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month.in_(list(range((quarter-1)*3+1, (quarter-1)*3+4)))))
+    elif month and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
+    elif year: plan_q = plan_q.where(Plan.year == year)
+    if rep_ids: plan_q = plan_q.where(Plan.med_rep_id.in_(rep_ids))
+    if final_region_ids: plan_q = plan_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+    plan_result = (await db.execute(plan_q)).first()
+    plan_amount = plan_result.total_amount or 0 if plan_result else 0
+    plan_quantity = plan_result.total_qty or 0 if plan_result else 0
  
     return {
         "month": month,
@@ -467,7 +481,9 @@ async def get_global_realtime_dashboard(
         "items_sold_change": qty_change,
         "debt_change": debt_change,
         "growth_peak": growth_peak,
-        "recent_activities": activities
+        "recent_activities": activities,
+        "plan_amount": plan_amount,
+        "plan_quantity": plan_quantity
     }
 
 @router.get("/stats/comprehensive")

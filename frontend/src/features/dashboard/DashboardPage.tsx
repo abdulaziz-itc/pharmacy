@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useEffect, useState } from 'react';
 import { useRegionStore } from '../../store/regionStore';
+import { useMedRepStore } from '../../store/medRepStore';
 
 interface DashboardStats {
     total_sales: number;
@@ -43,30 +44,40 @@ interface DashboardStats {
         reference?: string;
     }>;
     growth_peak: string;
+    plan_amount?: number;
+    plan_quantity?: number;
 }
 
 export default function DashboardPage() {
     const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
     const { regions, fetchRegions } = useRegionStore();
+    const { medReps, fetchMedReps } = useMedRepStore();
 
     const [selectedMonth, setSelectedMonth] = useState<number | undefined>(undefined);
     const [selectedYear, setSelectedYear] = useState<number | undefined>(undefined);
     const [selectedRegion, setSelectedRegion] = useState<string>('all');
+    const [selectedMedRep, setSelectedMedRep] = useState<string>('all');
 
     useEffect(() => {
         if (user?.role === 'med_rep') {
             navigate(`/med-reps/${user.id}`);
         }
         fetchRegions();
-    }, [user, navigate, fetchRegions]);
+        if (user?.role && ['director', 'deputy_director', 'admin', 'investor', 'product_manager', 'field_force_manager', 'regional_manager'].includes(user.role)) {
+            fetchMedReps('med_rep');
+        }
+    }, [user, navigate, fetchRegions, fetchMedReps]);
 
     const { data: stats, isLoading, refetch } = useQuery<DashboardStats>({
-        queryKey: ['dashboard-stats', selectedMonth, selectedYear, selectedRegion],
+        queryKey: ['dashboard-stats', selectedMonth, selectedYear, selectedRegion, selectedMedRep],
         queryFn: async () => {
             const params: any = { month: selectedMonth, year: selectedYear };
             if (selectedRegion !== 'all') {
                 params.region_id = selectedRegion;
+            }
+            if (selectedMedRep !== 'all') {
+                params.med_rep_id = selectedMedRep;
             }
             
             const isHRD = user?.role === 'hrd';
@@ -100,7 +111,9 @@ export default function DashboardPage() {
                 growth_peak: data.growth_peak || "0%",
                 completed_visits: 0,
                 planned_visits: 0,
-                bonus_balance: data.total_bonus_accrued
+                bonus_balance: data.total_bonus_accrued,
+                plan_amount: data.plan_amount || 0,
+                plan_quantity: data.plan_quantity || 0
             };
         },
     });
@@ -146,6 +159,20 @@ export default function DashboardPage() {
                             <option value="all">{canSeeAllRegions ? "Все регионы" : "Мои регионы"}</option>
                             {regions.map((r) => (
                                 <option key={r.id} value={r.id.toString()}>{r.name}</option>
+                            ))}
+                        </select>
+                    )}
+                    
+                    {/* MedRep Filter */}
+                    {(user?.role !== 'med_rep') && (
+                        <select 
+                            value={selectedMedRep} 
+                            onChange={(e) => setSelectedMedRep(e.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                        >
+                            <option value="all">Все медпреды</option>
+                            {medReps.map((r) => (
+                                <option key={r.id} value={r.id.toString()}>{r.full_name || r.username}</option>
                             ))}
                         </select>
                     )}
@@ -211,6 +238,9 @@ export default function DashboardPage() {
                     icon={TrendingUp}
                     color="blue"
                     onClick={() => navigate(user?.role === 'hrd' ? '/hrd/users' : '/reports')}
+                    subValue={user?.role === 'hrd' ? undefined : stats?.plan_amount}
+                    subLabel={user?.role === 'hrd' ? undefined : "План"}
+                    subSuffix="сум"
                 />
                 <MetricCard
                     title={user?.role === 'hrd' ? "Охват врачей" : "Количество проданных товаров"}
@@ -220,6 +250,9 @@ export default function DashboardPage() {
                     icon={Users}
                     color="indigo"
                     onClick={() => navigate(user?.role === 'hrd' ? '/doctors' : '/reports')}
+                    subValue={user?.role === 'hrd' ? undefined : stats?.plan_quantity}
+                    subLabel={user?.role === 'hrd' ? undefined : "План"}
+                    subSuffix="шт"
                 />
                 <MetricCard
                     title={user?.role === 'hrd' ? "Активность (24ч)" : "Начисленные бонусы"}
@@ -315,7 +348,7 @@ export default function DashboardPage() {
     );
 }
 
-function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, onClick, subValue, subLabel, suffix }: any) {
+function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, onClick, subValue, subLabel, suffix, subSuffix = "сум" }: any) {
     const colorClasses: any = {
         blue: "bg-blue-600/10 text-blue-600",
         indigo: "bg-indigo-600/10 text-indigo-600",
@@ -366,11 +399,11 @@ function MetricCard({ title, value, change, isUp, icon: Icon, color, isStatic, o
                     
                     {subLabel && subValue !== undefined && subValue > 0 && (
                         <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col">
-                            <span className="text-[10px] font-bold text-rose-500 uppercase tracking-tight">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
                                 {subLabel}:
                             </span>
                             <span className="text-sm font-black text-slate-700">
-                                {subValue.toLocaleString()} сум
+                                {subValue.toLocaleString()} {subSuffix}
                             </span>
                         </div>
                     )}
