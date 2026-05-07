@@ -898,8 +898,10 @@ async def get_comprehensive_stats(
                     "plan": plan_month_map.get(m, 0)
                 })
 
-    # Unified Total Expenses (Other Expenses + Physical MedRep Payouts)
-    combined_total_expenses = float(total_expenses) + float(actual_payout_sum)
+    # NOTE: actual_payout_sum is already factored into gross_profit via
+    # marketing_amount and salary_amount per ReservationItem, so it must NOT
+    # be subtracted again here. Only other/external expenses are subtracted.
+    combined_total_expenses = float(total_expenses)
 
     kpis = {
         "sales_plan_amount": float(plan_sum),
