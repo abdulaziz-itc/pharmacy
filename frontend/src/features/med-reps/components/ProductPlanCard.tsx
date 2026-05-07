@@ -895,14 +895,14 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                             <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Оплачено:</span>
                             <div className="flex flex-col items-end">
                                 <span className="text-lg font-black text-blue-400">{new Intl.NumberFormat('ru-RU').format(salaryPaid || 0)} UZS</span>
-                                {onPaySalary && (
+                                {/* onPaySalary && (
                                     <button
                                         onClick={() => setIsPaySalaryOpen(true)}
                                         className="text-[9px] font-black text-emerald-400 uppercase tracking-widest hover:text-white transition-colors underline underline-offset-2 mt-0.5"
                                     >
                                         выплатить зарплату →
                                     </button>
-                                )}
+                                ) */}
                             </div>
                         </div>
                         <div className="flex justify-between items-center max-w-xs border-t border-white/10 pt-2">
@@ -922,14 +922,14 @@ export function ProductPlanCard({ plans = [], facts = [], onAddPlan, onEditPlan,
                             <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Оплачено:</span>
                             <div className="flex flex-col items-end">
                                 <span className="text-lg font-black text-fuchsia-400">{new Intl.NumberFormat('ru-RU').format(bonusPayout || 0)} UZS</span>
-                                {onPayBonus && (
+                                {/* onPayBonus && (
                                     <button
                                         onClick={() => setIsPayBonusOpen(true)}
                                         className="text-[9px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition-colors underline underline-offset-2 mt-0.5"
                                     >
                                         выплатить бонус →
                                     </button>
-                                )}
+                                ) */}
                             </div>
                         </div>
                         <div className="flex justify-between items-center max-w-xs border-t border-white/10 pt-2">
