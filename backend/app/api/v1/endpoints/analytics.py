@@ -64,17 +64,17 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
     pay_sum = (await db.execute(pay_sum_q)).scalar() or 0.0
     
     # 2. Standalone client balance top-ups (real cash received from clients).
-    # Only include confirmed topup/refill with a real organization linkage.
-    # Exclude: 'balance', 'adjustment', 'credit', 'application' types — these are
-    # internal movements and do NOT represent actual client payments.
+    # Exclude auto-generated entries: "Автоматическая оплата с баланса" — these
+    # are internal system records, not actual new client payments.
     top_sum = 0.0
     if not has_prod:
         top_sum_q = select(func.coalesce(func.sum(BalanceTransaction.amount), 0.0)).select_from(BalanceTransaction)
         top_sum_q = top_sum_q.where(
             and_(
                 func.lower(BalanceTransaction.transaction_type).in_(["topup", "refill"]),
-                BalanceTransaction.organization_id.isnot(None),
-                BalanceTransaction.amount > 0
+                BalanceTransaction.amount > 0,
+                # Exclude auto-generated system entries
+                ~func.lower(func.coalesce(BalanceTransaction.description, '')).contains('автоматическая')
             )
         )
         if start_date and end_date:
