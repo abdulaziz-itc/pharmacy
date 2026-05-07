@@ -179,7 +179,13 @@ export default function DashboardPage() {
 
                     <select 
                         value={selectedMonth || ""} 
-                        onChange={(e) => setSelectedMonth(e.target.value ? parseInt(e.target.value) : undefined)}
+                        onChange={(e) => {
+                            const val = e.target.value ? parseInt(e.target.value) : undefined;
+                            setSelectedMonth(val);
+                            if (val && !selectedYear) {
+                                setSelectedYear(new Date().getFullYear());
+                            }
+                        }}
                         className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
                     >
                         <option value="">Все месяцы</option>
@@ -228,7 +234,7 @@ export default function DashboardPage() {
             </div>
 
             {/* High Impact Metrics Grid */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <MetricCard
                     title={user?.role === 'hrd' ? "Штат сотрудников" : "Общие продажи"}
                     value={stats?.total_sales ?? 0}
@@ -238,10 +244,20 @@ export default function DashboardPage() {
                     icon={TrendingUp}
                     color="blue"
                     onClick={() => navigate(user?.role === 'hrd' ? '/hrd/users' : '/reports')}
-                    subValue={user?.role === 'hrd' ? undefined : stats?.plan_amount}
-                    subLabel={user?.role === 'hrd' ? undefined : "План"}
-                    subSuffix="сум"
                 />
+                
+                {user?.role !== 'hrd' && (
+                    <MetricCard
+                        title="План продаж"
+                        value={stats?.plan_amount ?? 0}
+                        suffix="сум"
+                        change="Цель"
+                        isStatic={true}
+                        icon={TrendingUp}
+                        color="indigo"
+                    />
+                )}
+
                 <MetricCard
                     title={user?.role === 'hrd' ? "Охват врачей" : "Количество проданных товаров"}
                     value={stats?.active_doctors ?? 0}
@@ -250,10 +266,19 @@ export default function DashboardPage() {
                     icon={Users}
                     color="indigo"
                     onClick={() => navigate(user?.role === 'hrd' ? '/doctors' : '/reports')}
-                    subValue={user?.role === 'hrd' ? undefined : stats?.plan_quantity}
-                    subLabel={user?.role === 'hrd' ? undefined : "План"}
-                    subSuffix="шт"
                 />
+                
+                {user?.role !== 'hrd' && (
+                    <MetricCard
+                        title="План количества"
+                        value={stats?.plan_quantity ?? 0}
+                        suffix="шт"
+                        change="Цель"
+                        isStatic={true}
+                        icon={Users}
+                        color="blue"
+                    />
+                )}
                 <MetricCard
                     title={user?.role === 'hrd' ? "Активность (24ч)" : "Начисленные бонусы"}
                     value={stats?.pending_reservations ?? 0}
