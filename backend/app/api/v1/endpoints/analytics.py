@@ -653,8 +653,8 @@ async def get_comprehensive_stats(
         func.coalesce(func.sum(
             (ReservationItem.price * (1 - func.coalesce(ReservationItem.discount_percent, 0) / 100.0) - 
              func.coalesce(Product.production_price, 0) -
-             case((ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
-             case((ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
+             case((Reservation.is_salary_enabled == False, 0), (ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
+             case((Reservation.is_bonus_eligible == False, 0), (ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
              func.coalesce(Product.other_expenses, 0)) * 
             ReservationItem.quantity * (func.coalesce(Invoice.paid_amount, 0) / Invoice.total_amount)
         ), 0.0)
@@ -686,8 +686,8 @@ async def get_comprehensive_stats(
         func.coalesce(func.sum(
             (ReservationItem.price * (1 - func.coalesce(ReservationItem.discount_percent, 0) / 100.0) - 
              func.coalesce(Product.production_price, 0) -
-             case((ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
-             case((ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
+             case((Reservation.is_salary_enabled == False, 0), (ReservationItem.salary_amount > 0, ReservationItem.salary_amount), else_=func.coalesce(Product.salary_expense, 0)) - 
+             case((Reservation.is_bonus_eligible == False, 0), (ReservationItem.marketing_amount > 0, ReservationItem.marketing_amount), else_=func.coalesce(Product.marketing_expense, 0)) -
              func.coalesce(Product.other_expenses, 0)) * 
             ReservationItem.quantity
         ), 0.0)
@@ -1384,8 +1384,15 @@ async def get_comprehensive_drilldown(
             sale_price = r.price * (1 - (r.discount_percent or 0) / 100.0)
             ratio = (r.price / r.product.price) if r.product and r.product.price and r.product.price > 0 else 1.0
             prod_price = (r.product.production_price or 0) * ratio
-            salary = r.salary_amount if (r.salary_amount or 0) > 0 else (r.product.salary_expense or 0)
-            marketing = r.marketing_amount if (r.marketing_amount or 0) > 0 else (r.product.marketing_expense or 0)
+            if r.reservation and not r.reservation.is_salary_enabled:
+                salary = 0
+            else:
+                salary = r.salary_amount if (r.salary_amount or 0) > 0 else (r.product.salary_expense or 0)
+            
+            if r.reservation and not r.reservation.is_bonus_eligible:
+                marketing = 0
+            else:
+                marketing = r.marketing_amount if (r.marketing_amount or 0) > 0 else (r.product.marketing_expense or 0)
             other_per_unit = (r.product.other_expenses or 0) * ratio
             unit_profit = sale_price - prod_price - salary - marketing - other_per_unit
             total_profit_realized = (unit_profit * r.quantity) * paid_ratio
@@ -1430,9 +1437,16 @@ async def get_comprehensive_drilldown(
             # Себестоимость — mahsulotning o'zgarmas tannarxi (ratio bilan ko'paytirish noto'g'ri!)
             prod_price = (r.product.production_price or 0)
             # Зарплата МП — fakturadagi yozuv, yo'q bo'lsa mahsulot default qiymati
-            salary = r.salary_amount if (r.salary_amount or 0) > 0 else (r.product.salary_expense or 0)
+            if r.reservation and not r.reservation.is_salary_enabled:
+                salary = 0
+            else:
+                salary = r.salary_amount if (r.salary_amount or 0) > 0 else (r.product.salary_expense or 0)
+            
             # Маркетинг — fakturadagi yozuv, yo'q bo'lsa mahsulot default qiymati
-            marketing = r.marketing_amount if (r.marketing_amount or 0) > 0 else (r.product.marketing_expense or 0)
+            if r.reservation and not r.reservation.is_bonus_eligible:
+                marketing = 0
+            else:
+                marketing = r.marketing_amount if (r.marketing_amount or 0) > 0 else (r.product.marketing_expense or 0)
             # Boshqa xarajatlar — o'zgarmas
             other_per_unit = (r.product.other_expenses or 0)
             unit_profit = sale_price - prod_price - salary - marketing - other_per_unit

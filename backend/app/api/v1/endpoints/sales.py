@@ -845,7 +845,8 @@ async def export_reservation_excel(
         for item in reservation.items:
             actual_qty = (item.quantity or 0) - (item.returned_quantity or 0)
             if actual_qty > 0:
-                total_client_bonus += actual_qty * (item.marketing_amount or 0)
+                if reservation.is_bonus_eligible:
+                    total_client_bonus += actual_qty * (item.marketing_amount or 0)
                 if reservation.is_salary_enabled:
                     total_manager_bonus += actual_qty * (item.salary_amount or 0)
 

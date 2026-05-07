@@ -90,7 +90,7 @@ class FinancialService:
                     
                     for item in reservation.items:
                         # 1. Marketing bonus
-                        if item.marketing_amount:
+                        if reservation.is_bonus_eligible and item.marketing_amount:
                             payment_bonus_amount += (item.quantity * item.marketing_amount) * payment_ratio
                         # 2. Salary (Zarplata)
                         if reservation.is_salary_enabled and item.salary_amount:
@@ -276,7 +276,8 @@ class FinancialService:
                 prod_result = await db.execute(prod_query)
                 product = prod_result.scalar_one()
 
-                item_query = select(ReservationItem).join(
+                from sqlalchemy.orm import selectinload
+                item_query = select(ReservationItem).options(selectinload(ReservationItem.reservation)).join(
                     Reservation, ReservationItem.reservation_id == Reservation.id
                 ).join(
                     Invoice, Invoice.reservation_id == Reservation.id
@@ -311,17 +312,24 @@ class FinancialService:
                 await db.flush()
 
                 # 4. Create Bonus Ledger (Pro-rata bonus realization)
-                # Round to nearest integer to avoid fractions ("kopeyki")
-                bonus_amount = float(round(actual_assign_quantity * (reservation_item.marketing_amount or 0)))
-                accrual = BonusLedger(
-                    doctor_id=doctor_id,
-                    amount=bonus_amount,
-                    ledger_type=LedgerType.ACCRUAL,
-                    fact_id=fact.id,
-                    payment_id=None, # This is an assignment, not a direct payment record
-                    notes=f"Бонус распределен из счет-фактуры #{rec.invoice_id} ({actual_assign_quantity} шт.)"
-                )
-                db.add(accrual)
+                # Check if bonus is eligible for this reservation
+                is_eligible = True
+                if reservation_item and reservation_item.reservation:
+                    is_eligible = reservation_item.reservation.is_bonus_eligible
+                
+                if is_eligible:
+                    # Round to nearest integer to avoid fractions ("kopeyki")
+                    bonus_amount = float(round(actual_assign_quantity * (reservation_item.marketing_amount or 0)))
+                    if bonus_amount > 0:
+                        accrual = BonusLedger(
+                            doctor_id=doctor_id,
+                            amount=bonus_amount,
+                            ledger_type=LedgerType.ACCRUAL,
+                            fact_id=fact.id,
+                            payment_id=None, # This is an assignment, not a direct payment record
+                            notes=f"Бонус распределен из счет-фактуры #{rec.invoice_id} ({actual_assign_quantity} шт.)"
+                        )
+                        db.add(accrual)
 
                 # 5. Update Record
                 rec.assigned_quantity += actual_assign_quantity
