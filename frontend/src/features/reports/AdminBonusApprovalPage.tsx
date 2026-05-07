@@ -193,7 +193,7 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
     };
 
     const filteredSummaries = summaries.filter(s =>
-        s.med_rep_name.toLowerCase().includes(searchTerm.toLowerCase())
+        (s.med_rep_name || "").toLowerCase().includes((searchTerm || "").toLowerCase())
     );
 
     const totalAccrued = summaries.reduce((sum, s) => sum + (s.accrued || 0), 0);
