@@ -47,7 +47,7 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
         if start_date and end_date:
             pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
         pay_sum_q = pay_sum_q.where(Payment.id.notin_(app_payment_ids_sq))
-        pay_sum_q = pay_sum_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%автоматическ%')))
+        pay_sum_q = pay_sum_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%автоматическая оплата с баланса%')))
     else:
         pay_sum_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).select_from(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
         if start_date and end_date:
@@ -55,7 +55,7 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
         pay_sum_q = pay_sum_q.join(Reservation, Invoice.reservation_id == Reservation.id)
         pay_sum_q = pay_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
         pay_sum_q = pay_sum_q.where(Payment.id.notin_(app_payment_ids_sq))
-        pay_sum_q = pay_sum_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%автоматическ%')))
+        pay_sum_q = pay_sum_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%автоматическая оплата с баланса%')))
         if has_rep:
             pay_sum_q = pay_sum_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
         if has_reg:
@@ -111,7 +111,7 @@ async def get_receipt_queries(
     pay_q = select(Payment).join(Invoice, Payment.invoice_id == Invoice.id)
     if start_date and end_date:
         pay_q = pay_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
-    pay_q = pay_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%автоматическ%')))
+    pay_q = pay_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%автоматическая оплата с баланса%')))
     
     # Apply filters - standard join chain
     pay_q = pay_q.join(Reservation, Invoice.reservation_id == Reservation.id)

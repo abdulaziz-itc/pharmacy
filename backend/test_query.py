@@ -1,30 +1,25 @@
-
 import asyncio
-import os
-import sys
-
-# Set up the environment
-sys.path.append(os.path.abspath("/Users/macbook13/Documents/pharma_new/backend"))
-
 from app.db.session import AsyncSessionLocal
-from app.models.visit import VisitPlan
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select, func, text, and_, or_
+from app.models.sales import Payment
+from app.models.crm import BalanceTransaction
 
-async def test_visit_plans():
+async def check():
     async with AsyncSessionLocal() as db:
-        try:
-            query = select(VisitPlan).options(
-                selectinload(VisitPlan.doctor),
-                selectinload(VisitPlan.med_org)
-            )
-            result = await db.execute(query)
-            plans = result.scalars().all()
-            print(f"SUCCESS: Found {len(plans)} plans")
-        except Exception as e:
-            print(f"FAILED: {e}")
-            import traceback
-            traceback.print_exc()
+        app_payment_ids_sq = select(BalanceTransaction.payment_id).where(
+            BalanceTransaction.payment_id.isnot(None),
+            func.lower(BalanceTransaction.transaction_type) == 'application'
+        ).scalar_subquery()
 
-if __name__ == "__main__":
-    asyncio.run(test_visit_plans())
+        pay_sum_q = select(func.coalesce(func.sum(Payment.amount), 0.0)).select_from(Payment)
+        pay_sum_q = pay_sum_q.where(and_(Payment.date >= '2026-05-01', Payment.date < '2026-06-01'))
+        pay_sum_q = pay_sum_q.where(Payment.id.notin_(app_payment_ids_sq))
+        
+        res1 = await db.execute(pay_sum_q)
+        print("Without comment filter:", res1.scalar())
+
+        pay_sum_q2 = pay_sum_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%автоматическ%')))
+        res2 = await db.execute(pay_sum_q2)
+        print("With IS NULL | ILIKE filter:", res2.scalar())
+
+asyncio.run(check())
