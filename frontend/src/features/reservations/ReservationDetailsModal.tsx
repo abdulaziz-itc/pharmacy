@@ -208,7 +208,7 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
                                 {payments.length > 0 ? payments.map((p: any) => (
                                     <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-100 group">
                                         <div>
-                                            <p className="text-xs font-black text-slate-800">{p.amount.toLocaleString()} UZS</p>
+                                            <p className="text-xs font-black text-slate-800">{(p.amount || 0).toLocaleString()} UZS</p>
                                             <p className="text-[9px] font-bold text-slate-400">{new Date(p.date).toLocaleDateString('ru-RU')} • PM #{p.id}</p>
                                         </div>
                                         {canDelete && (
