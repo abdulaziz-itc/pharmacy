@@ -64,16 +64,19 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
     pay_sum = (await db.execute(pay_sum_q)).scalar() or 0.0
     
     # 2. Standalone client balance top-ups (real cash received from clients).
-    # Exclude: APPLICATION (auto debt settlement) and INVOICE (debt creation) types.
-    # Also exclude entries where comment contains 'кредиторка' (auto credit write-offs).
+    # Include topup and refill.
+    # Exclude system-generated payments (e.g. "Автоматическая оплата с баланса").
     top_sum = 0.0
     if not has_prod:
         top_sum_q = select(func.coalesce(func.sum(BalanceTransaction.amount), 0.0)).select_from(BalanceTransaction)
         top_sum_q = top_sum_q.where(
             and_(
-                func.lower(BalanceTransaction.transaction_type).notin_(["application", "invoice"]),
-                BalanceTransaction.amount > 0,
-                ~func.lower(func.coalesce(BalanceTransaction.comment, '')).contains('кредиторка')
+                or_(
+                    func.lower(BalanceTransaction.transaction_type) == "topup",
+                    func.lower(BalanceTransaction.transaction_type) == "refill",
+                    and_(func.lower(BalanceTransaction.transaction_type) == "adjustment", BalanceTransaction.amount > 0)
+                ),
+                ~func.lower(func.coalesce(BalanceTransaction.comment, '')).contains('автоматическая')
             )
         )
         if start_date and end_date:
@@ -123,9 +126,30 @@ async def get_receipt_queries(
         if product_id:
             pay_q = pay_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == int(product_id))
 
-    # Standalone Refills (BalanceTransaction) are internal balance movements
-    # and must NOT be counted as actual client receipts.
+    # 2. Standalone Refills Query (Only if no product filter)
     top_q = None
+    if not product_id:
+        top_q = select(BalanceTransaction).where(
+            and_(
+                or_(
+                    func.lower(BalanceTransaction.transaction_type) == "topup",
+                    func.lower(BalanceTransaction.transaction_type) == "refill",
+                    and_(func.lower(BalanceTransaction.transaction_type) == "adjustment", BalanceTransaction.amount > 0)
+                ),
+                ~func.lower(func.coalesce(BalanceTransaction.comment, '')).contains('автоматическая')
+            )
+        )
+        if start_date and end_date:
+            top_q = top_q.where(and_(BalanceTransaction.created_at >= start_date, BalanceTransaction.created_at < end_date))
+            
+        if rep_ids or region_ids:
+            clean_rep_ids = [int(i) for i in rep_ids if i is not None] if rep_ids else []
+            clean_reg_ids = [int(i) for i in region_ids if i is not None] if region_ids else []
+            top_q = top_q.outerjoin(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+            if clean_rep_ids:
+                top_q = top_q.where(MedicalOrganization.assigned_reps.any(User.id.in_(clean_rep_ids)))
+            if clean_reg_ids:
+                top_q = top_q.where(MedicalOrganization.region_id.in_(clean_reg_ids))
 
     return pay_q, top_q
 
