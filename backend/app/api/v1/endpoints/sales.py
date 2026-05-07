@@ -1279,6 +1279,10 @@ async def get_admin_bonus_summary(
     
     start_date = None
     end_date = None
+    
+    if month and not year:
+        year = datetime.now().year
+        
     if month and year:
         start_date = datetime(year, month, 1)
         end_date = (datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1))
