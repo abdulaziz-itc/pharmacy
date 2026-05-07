@@ -1,5 +1,6 @@
 from typing import Any, List, Optional, Dict
 import io
+from pydantic import BaseModel
 import logging
 import urllib.parse
 
@@ -1571,7 +1572,6 @@ async def pay_medrep_bonus(
     # it's an advance payment (Predinvest).
     # ONLY for 'bonus' category (Salaries don't have predinvest)
     if amount_remaining_to_pay > 0 and request_data.category == "bonus":
-        from datetime import datetime
         now = datetime.utcnow()
         predinvest_entry = BonusLedger(
             user_id=request_data.med_rep_id,

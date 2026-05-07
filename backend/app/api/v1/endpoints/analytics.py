@@ -163,9 +163,10 @@ async def get_null_invoice_payments_query(
 async def get_global_realtime_dashboard(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    month: int = None,
-    year: int = None,
-    region_id: int = None
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    quarter: Optional[int] = None,
+    region_id: Optional[int] = None
 ) -> Any:
     """
     Returns real-time aggregated global statistics.
@@ -192,15 +193,24 @@ async def get_global_realtime_dashboard(
     prev_start_date = None
     prev_end_date = None
     
-    is_global_mode = not month or not year
+    is_global_mode = (not month and not quarter) or not year
     
-    if not is_global_mode:
-        # Start of period
+    if month and year:
         start_date = datetime(year, month, 1)
         if month == 12:
             end_date = datetime(year + 1, 1, 1)
         else:
             end_date = datetime(year, month + 1, 1)
+    elif quarter and year:
+        start_month = (quarter - 1) * 3 + 1
+        start_date = datetime(year, start_month, 1)
+        if quarter == 4:
+            end_date = datetime(year + 1, 1, 1)
+        else:
+            end_date = datetime(year, start_month + 3, 1)
+    elif year:
+        start_date = datetime(year, 1, 1)
+        end_date = datetime(year + 1, 1, 1)
 
     else:
         # Global mode: Compare this year vs last year (as an example of comparative context)
@@ -227,16 +237,30 @@ async def get_global_realtime_dashboard(
 
     # Calculate previous period boundaries (only if not in global mode)
     if not is_global_mode:
-        if month == 1:
-            prev_m, prev_y = 12, year - 1
-        else:
-            prev_m, prev_y = month - 1, year
-        prev_start_date = datetime(prev_y, prev_m, 1)
-        
-        if prev_m == 12:
-            prev_end_date = datetime(prev_y + 1, 1, 1)
-        else:
-            prev_end_date = datetime(prev_y, prev_m + 1, 1)
+        if month and year:
+            if month == 1:
+                prev_m, prev_y = 12, year - 1
+            else:
+                prev_m, prev_y = month - 1, year
+            prev_start_date = datetime(prev_y, prev_m, 1)
+            if prev_m == 12:
+                prev_end_date = datetime(prev_y + 1, 1, 1)
+            else:
+                prev_end_date = datetime(prev_y, prev_m + 1, 1)
+        elif quarter and year:
+            if quarter == 1:
+                prev_q, prev_y = 4, year - 1
+            else:
+                prev_q, prev_y = quarter - 1, year
+            prev_start_m = (prev_q - 1) * 3 + 1
+            prev_start_date = datetime(prev_y, prev_start_m, 1)
+            if prev_q == 4:
+                prev_end_date = datetime(prev_y + 1, 1, 1)
+            else:
+                prev_end_date = datetime(prev_y, prev_start_m + 3, 1)
+        elif year:
+            prev_start_date = datetime(year - 1, 1, 1)
+            prev_end_date = datetime(year, 1, 1)
 
     # 1. HIERARCHY & REGION FILTERS
     is_team_manager = current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]
