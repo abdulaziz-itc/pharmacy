@@ -549,12 +549,13 @@ async def get_comprehensive_stats(
     # 3. KPI AGGREGATIONS
     # Filter helper
     def apply_filters(q, model_ref=Reservation):
+        from sqlalchemy import or_ as _or_
         if rep_ids or region_id:
             q = q.outerjoin(MedicalOrganization, model_ref.med_org_id == MedicalOrganization.id)
             
         if rep_ids: 
             q = q.where(
-                or_(
+                _or_(
                     model_ref.created_by_id.in_(rep_ids),
                     MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))
                 )
