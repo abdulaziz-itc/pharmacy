@@ -1458,9 +1458,8 @@ async def get_admin_bonus_summary(
         # If they were paid more than they earned, remainder is 0.
         remainder = max(0.0, g_accrued - g_paid)
         
-        # User says there are no predinvests, so we set it to 0 
-        # to avoid confusing orange numbers, even if mathematically they were paid more.
-        predinvest = 0.0
+        # Predinvest is the advance payment amount (overpayment)
+        predinvest = max(0.0, g_paid - g_accrued)
 
 
 
@@ -1479,7 +1478,7 @@ async def get_admin_bonus_summary(
             )
         ).limit(1)
         overdue_res = await db.execute(overdue_q)
-        has_overdue = overdue_res.scalar_one_or_none() is not None
+        has_overdue = (overdue_res.scalar_one_or_none() is not None) and (remainder > 0)
         
         rep_region = ", ".join([r.name for r in rep.assigned_regions]) if rep.assigned_regions else ""
 
