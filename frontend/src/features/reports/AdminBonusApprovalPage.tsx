@@ -12,6 +12,7 @@ import axiosInstance from "@/api/axios";
 import { DrilldownModal } from "@/components/analytics/DrilldownModal";
 import { MoneyInput, formatMoney } from "@/components/ui/MoneyInput";
 import { ReservationDetailsModal } from "../reservations/ReservationDetailsModal";
+import { useAuthStore, UserRole } from "@/store/authStore";
 
 // TypeScript Interfaces
 interface BonusSummary {
@@ -35,6 +36,7 @@ interface AdminBonusApprovalPageProps {
 
 export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonusApprovalPageProps) {
     const isSalary = category === "salary";
+    const user = useAuthStore(state => state.user);
     const [summaries, setSummaries] = useState<BonusSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -453,20 +455,22 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
                                                 {formatMoney(rep.allocated || 0)} UZS
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <Button
-                                                    size="sm"
-                                                    className={`w-full group-hover:opacity-100 transition-opacity ${rep.remainder > 0
-                                                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
-                                                        : 'bg-slate-100 text-slate-400 hover:bg-slate-200 opacity-50'
-                                                        }`}
-                                                    disabled={rep.remainder <= 0}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleOpenPayModal(rep);
-                                                    }}
-                                                >
-                                                    Выплатить
-                                                </Button>
+                                                {user?.role !== UserRole.DEPUTY_DIRECTOR && (
+                                                    <Button
+                                                        size="sm"
+                                                        className={`w-full group-hover:opacity-100 transition-opacity ${rep.remainder > 0
+                                                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                                                            : 'bg-slate-100 text-slate-400 hover:bg-slate-200 opacity-50'
+                                                            }`}
+                                                        disabled={rep.remainder <= 0}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleOpenPayModal(rep);
+                                                        }}
+                                                    >
+                                                        Выплатить
+                                                    </Button>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                         {expandedRepId === rep.med_rep_id && (
