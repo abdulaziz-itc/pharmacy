@@ -458,11 +458,11 @@ export default function AdminBonusApprovalPage({ category = "bonus" }: AdminBonu
                                                 {user?.role !== UserRole.DEPUTY_DIRECTOR && (
                                                     <Button
                                                         size="sm"
-                                                        className={`w-full group-hover:opacity-100 transition-opacity ${rep.remainder > 0
+                                                        className={`w-full group-hover:opacity-100 transition-opacity ${rep.remainder > 0 || !isSalary
                                                             ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
                                                             : 'bg-slate-100 text-slate-400 hover:bg-slate-200 opacity-50'
                                                             }`}
-                                                        disabled={rep.remainder <= 0}
+                                                        disabled={isSalary && rep.remainder <= 0}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             handleOpenPayModal(rep);
