@@ -2517,8 +2517,9 @@ const HeadOfOrdersPage: React.FC = () => {
                                 <tbody className="divide-y divide-slate-50">
                                     {selectedResItems.map((item, idx) => {
                                         const actualQty = item.quantity - (item.returned_quantity || 0);
-                                        const totalDisplay = actualQty * (item.product?.price || 0);
-                                        const returnedTotal = (item.returned_quantity || 0) * (item.product?.price || 0);
+                                        const unitPrice = item.price || item.product?.price || 0;
+                                        const totalDisplay = actualQty * unitPrice;
+                                        const returnedTotal = (item.returned_quantity || 0) * unitPrice;
 
                                         return (
                                             <tr key={idx} className="hover:bg-slate-50 transition-colors">
@@ -2536,7 +2537,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                         </div>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-4 text-right font-bold text-slate-600">{formatMoney(item.product?.price || 0)}</td>
+                                                <td className="px-4 py-4 text-right font-bold text-slate-600">{formatMoney(unitPrice)}</td>
                                                 <td className="px-4 py-4 text-right">
                                                     <div className="flex flex-col items-end">
                                                         <span className="font-black text-purple-600">
@@ -2554,7 +2555,7 @@ const HeadOfOrdersPage: React.FC = () => {
                                                         </span>
                                                         {item.returned_quantity > 0 && (
                                                             <span className="text-[10px] text-rose-500 font-bold mt-1 line-through">
-                                                                {formatMoney(item.quantity * (item.product?.price || 0))}
+                                                                {formatMoney(item.quantity * unitPrice)}
                                                             </span>
                                                         )}
                                                     </div>
