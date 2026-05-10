@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.db.session import AsyncSessionLocal
 from app.models.sales import Invoice, Reservation, ReservationItem
 from app.models.product import Product
+from app.models.crm import MedicalOrganization
 from sqlalchemy.orm import selectinload
 
 async def check():
@@ -17,7 +18,8 @@ async def check():
         ).join(
             Product, ReservationItem.product_id == Product.id
         ).options(
-            selectinload(Reservation.created_by)
+            selectinload(Reservation.created_by),
+            selectinload(Reservation.med_org).selectinload(MedicalOrganization.assigned_reps)
         ).where(
             Invoice.status != "cancelled",
             Invoice.total_amount > 0
@@ -46,11 +48,21 @@ async def check():
             
             margin = (profit / sell_price * 100) if sell_price > 0 else 0
             
+            actual_medrep = "-"
+            if reservation.med_org and reservation.med_org.assigned_reps:
+                for rep in reservation.med_org.assigned_reps:
+                    if getattr(rep, 'role', '') == 'med_rep' or getattr(rep, 'role', '') == 'MED_REP':
+                        actual_medrep = rep.full_name
+                        break
+            if actual_medrep == "-" and reservation.created_by:
+                actual_medrep = f"{reservation.created_by.full_name} (Creator)"
+
             all_invoices.append({
                 "invoice_id": invoice.id,
+                "date": invoice.date.strftime("%Y-%m-%d") if invoice.date else "-",
                 "factura_number": invoice.factura_number or str(invoice.id),
                 "customer": reservation.customer_name or "-",
-                "medrep": reservation.created_by.full_name if reservation.created_by else "-",
+                "medrep": actual_medrep,
                 "product": product.name,
                 "qty": item.quantity,
                 "sell_price": sell_price,
@@ -68,11 +80,11 @@ async def check():
         worst = sorted(all_invoices, key=lambda x: x['margin'])[:30]
         
         print("\n=== MARJASI ENG PAST (FOYDASI KAM YOKI MINUS) FAKTURALAR ===")
-        print(f"{'Faktura/Bron #':<15} | {'Kontragent':<20} | {'MedRep':<20} | {'Dori':<20} | {'Sotuv narxi':<12} | {'Tan narx':<10} | {'Bonus':<8} | {'Oylik':<8} | {'Rasxod':<12} | {'Foyda':<12} | {'Marja %':<8}")
-        print("-" * 170)
+        print(f"{'Sana':<12} | {'Faktura #':<12} | {'Kontragent':<20} | {'MedRep':<20} | {'Dori':<20} | {'Sotuv narx':<12} | {'Tan narx':<10} | {'Bonus':<8} | {'Oylik':<8} | {'Rasxod':<12} | {'Foyda':<12} | {'Marja %':<8}")
+        print("-" * 180)
         
         for b in worst:
-            print(f"{b['factura_number']:<15} | {b['customer'][:18]:<20} | {b['medrep'][:18]:<20} | {b['product'][:18]:<20} | {b['sell_price']:<12,.0f} | {b['cost_price']:<10,.0f} | {b['bonus']:<8,.0f} | {b['salary']:<8,.0f} | {b['total_cost']:<12,.0f} | {b['profit']:<12,.0f} | {b['margin']:<8.1f}")
+            print(f"{b['date']:<12} | {b['factura_number']:<12} | {b['customer'][:18]:<20} | {b['medrep'][:18]:<20} | {b['product'][:18]:<20} | {b['sell_price']:<12,.0f} | {b['cost_price']:<10,.0f} | {b['bonus']:<8,.0f} | {b['salary']:<8,.0f} | {b['total_cost']:<12,.0f} | {b['profit']:<12,.0f} | {b['margin']:<8.1f}")
 
 if __name__ == "__main__":
     import logging
