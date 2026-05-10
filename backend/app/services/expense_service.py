@@ -72,10 +72,13 @@ class ExpenseService:
         return result.scalars().all()
 
     @staticmethod
-    async def get_total_expenses(db: AsyncSession, start_date=None, end_date=None) -> float:
+    async def get_total_expenses(db: AsyncSession, start_date=None, end_date=None, rep_ids: List[int] = None, region_id: int = None) -> float:
         query = select(func.sum(OtherExpense.amount))
         if start_date and end_date:
             query = query.where(OtherExpense.date.between(start_date, end_date))
+        if rep_ids:
+            query = query.where(OtherExpense.created_by_id.in_(rep_ids))
+        # Note: If region_id is added to OtherExpense in the future, add filter here
         result = await db.execute(query)
         return result.scalar() or 0.0
 

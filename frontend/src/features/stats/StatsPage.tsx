@@ -451,6 +451,7 @@ export default function StatsPage() {
                                 value={kpis.total_expenses}
                                 icon={Activity}
                                 color="slate"
+                                onClick={() => setDrilldownMetric({ id: 'expenses', label: 'Маркетинг/Прочие Xarajatlar' })}
                             />
                             <PremiumKpiCard
                                 variant="minimal"

@@ -755,7 +755,7 @@ async def get_comprehensive_stats(
 
     # Total Expenses (Prochie Rasxodi)
     from app.services.expense_service import ExpenseService
-    total_expenses = await ExpenseService.get_total_expenses(db, start_date, end_date)
+    total_expenses = await ExpenseService.get_total_expenses(db, start_date, end_date, rep_ids, region_id)
 
     # 3. NEW Dashbaord KPIs
     # 3a. Shipment Fact (Invoices Total)
