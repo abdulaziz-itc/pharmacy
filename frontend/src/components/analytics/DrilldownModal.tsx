@@ -101,6 +101,7 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
     if (!isOpen) return null;
 
     const isBonusMetric = ['bonus_accrued', 'bonus_paid', 'preinvest'].includes(metric);
+    const isSalaryMetric = ['salary_accrued', 'salary_paid', 'salary_balance'].includes(metric);
 
     const renderTable = () => {
         if (isLoading) return (
@@ -202,6 +203,100 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
             );
         }
 
+        // ── Salary metrics: dedicated layout ──
+        if (isSalaryMetric) {
+            const salaryHeaders = metric === 'salary_accrued'
+                ? ['Дата начисления', 'Мед. Представитель', 'Начислено зарплаты', 'Фактура №', 'Аптека / Покупатель', 'Сумма фактуры', 'Оплачено по фактуре', 'Дата оплаты', 'Описание']
+                : metric === 'salary_paid'
+                ? ['Дата записи', 'Мед. Представитель', 'Выплачено зарплаты', 'Фактура №', 'Аптека / Покупатель', 'Дата оплаты', 'Описание']
+                : ['Дата начисления', 'Мед. Представитель', 'Остаток зарплаты', 'Фактура №', 'Аптека / Покупатель', 'Сумма фактуры', 'Описание'];
+
+            const safeFmt = (d: string | null | undefined) => {
+                if (!d) return '—';
+                try { return format(new Date(d), 'dd.MM.yyyy HH:mm'); } catch { return d; }
+            };
+
+            return (
+                <div className="overflow-x-auto sleek-scrollbar">
+                    <table className="w-full text-left border-separate border-spacing-0">
+                        <thead>
+                            <tr>
+                                {salaryHeaders.map(h => (
+                                    <th key={h} className="sticky top-0 bg-slate-50/90 backdrop-blur-md p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 z-20 whitespace-nowrap">
+                                        {h}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {rows.map((row: any, idx: number) => (
+                                <motion.tr
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.015 }}
+                                    key={row.id || idx}
+                                    className="hover:bg-violet-50/50 transition-colors group cursor-default"
+                                >
+                                    {/* Дата */}
+                                    <td className="p-5 text-sm font-bold text-slate-500 whitespace-nowrap">
+                                        {safeFmt(row.date)}
+                                    </td>
+                                    {/* МП */}
+                                    <td className="p-5 text-sm font-bold text-slate-700 whitespace-nowrap">
+                                        {row.med_rep && row.med_rep !== '-' ? row.med_rep : '—'}
+                                    </td>
+                                    {/* Сумма зарплаты */}
+                                    <td className="p-5">
+                                        <span className="inline-flex items-center px-3 py-1 rounded-xl bg-violet-50 text-violet-700 font-black text-sm">
+                                            {formatCurrency(Number(row.amount))}
+                                        </span>
+                                    </td>
+                                    {/* Фактура */}
+                                    <td className="p-5 text-sm font-bold text-indigo-600 whitespace-nowrap">
+                                        {row.invoice?.factura_number || row.invoice_factura_number || '—'}
+                                    </td>
+                                    {/* Аптека */}
+                                    <td className="p-5 text-sm font-semibold text-slate-700">
+                                        {row.invoice?.customer || row.invoice_customer || '—'}
+                                    </td>
+                                    {/* Сумма фактуры (только для accrued и balance) */}
+                                    {metric !== 'salary_paid' && (
+                                        <td className="p-5 text-sm font-semibold text-slate-600 whitespace-nowrap">
+                                            {row.invoice?.invoice_total != null
+                                                ? formatCurrency(Number(row.invoice.invoice_total))
+                                                : row.invoice_invoice_total != null
+                                                ? formatCurrency(Number(row.invoice_invoice_total))
+                                                : '—'}
+                                        </td>
+                                    )}
+                                    {/* Оплачено по фактуре (только для accrued) */}
+                                    {metric === 'salary_accrued' && (
+                                        <td className="p-5 text-sm font-semibold text-emerald-600 whitespace-nowrap">
+                                            {row.invoice?.invoice_paid != null
+                                                ? formatCurrency(Number(row.invoice.invoice_paid))
+                                                : row.invoice_invoice_paid != null
+                                                ? formatCurrency(Number(row.invoice_invoice_paid))
+                                                : '—'}
+                                        </td>
+                                    )}
+                                    {/* Дата оплаты (не для balance) */}
+                                    {metric !== 'salary_balance' && (
+                                        <td className="p-5 text-sm text-slate-500 font-medium whitespace-nowrap">
+                                            {safeFmt(row.payment?.payment_date || row.payment_payment_date)}
+                                        </td>
+                                    )}
+                                    {/* Описание */}
+                                    <td className="p-5 text-xs text-slate-400 font-medium max-w-[220px] truncate" title={row.description}>
+                                        {row.description && row.description !== '-' ? row.description : '—'}
+                                    </td>
+                                </motion.tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        }
+
         // ── Generic metrics: auto-render all columns ──
         const columnLabels: Record<string, string> = {
             date: 'Дата',
@@ -276,7 +371,9 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                                 >
                                     {displayColumns.map(col => {
                                         let val = rowWithDelay[col];
-                                        if (col === 'date' || col === 'realization_date') val = format(new Date(val), 'dd.MM.yyyy');
+                                        if ((col === 'date' || col === 'realization_date' || col.endsWith('_date') || col.includes('date')) && val && typeof val === 'string') {
+                                            try { val = format(new Date(val), 'dd.MM.yyyy HH:mm'); } catch { /* keep raw */ }
+                                        }
                                         if (['amount', 'total_amount', 'paid_amount', 'debt_amount', 'profit', 'salary_earned', 'accrued', 'paid', 'balance'].includes(col)) {
                                             val = formatCurrency(Number(val));
                                         }
