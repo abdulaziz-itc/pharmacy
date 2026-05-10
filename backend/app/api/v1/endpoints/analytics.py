@@ -1329,7 +1329,7 @@ async def get_comprehensive_drilldown(
             sil(BonusLedger.user),
             sil(BonusLedger.product),
             sil(BonusLedger.payment).selectinload(Payment.invoice).selectinload(Invoice.reservation)
-        ).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP)
+        ).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP, BonusLedger.ledger_category == 'bonus')
         
         if metric == "bonus_accrued":
             bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, or_(BonusLedger.notes != "Аванс (Предынвест)", BonusLedger.notes.is_(None))))
