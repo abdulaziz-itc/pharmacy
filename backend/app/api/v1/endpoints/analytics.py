@@ -161,12 +161,29 @@ async def get_null_invoice_payments_query(
     db: AsyncSession,
     start_date: Optional[datetime],
     end_date: Optional[datetime],
+    rep_ids: Optional[List[int]] = None,
+    region_id: Optional[int] = None
 ):
     """
     Returns payments with invoice_id = NULL (auto-balance payments without an invoice).
-    These appear in Dashboard totals but were missing from Excel/drilldown.
+    Now filtered by MedRep and Region via BalanceTransaction -> MedicalOrganization.
     """
     q = select(Payment).where(Payment.invoice_id.is_(None))
+    
+    if rep_ids or region_id:
+        q = q.join(BalanceTransaction, Payment.id == BalanceTransaction.payment_id)\
+             .join(MedicalOrganization, BalanceTransaction.organization_id == MedicalOrganization.id)
+             
+        if rep_ids:
+            q = q.where(
+                or_(
+                    MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids)),
+                    Payment.processed_by_id.in_(rep_ids) # Fallback for sanity
+                )
+            )
+        if region_id:
+            q = q.where(MedicalOrganization.region_id == region_id)
+
     if start_date and end_date:
         q = q.where(and_(Payment.date >= start_date, Payment.date < end_date))
     return q
@@ -1237,7 +1254,7 @@ async def get_comprehensive_drilldown(
             topup_rows = (await db.execute(topup_q.order_by(BalanceTransaction.created_at.desc()))).scalars().all()
 
         # Null-invoice balance payments (invoice_id=NULL, auto-applied from credit balance)
-        null_inv_q = await get_null_invoice_payments_query(db, start_date, end_date)
+        null_inv_q = await get_null_invoice_payments_query(db, start_date, end_date, rep_ids, region_id)
         null_inv_rows = (await db.execute(null_inv_q.order_by(Payment.date.desc()))).scalars().all()
 
         # 3. Combine and Format
