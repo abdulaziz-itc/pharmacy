@@ -2,7 +2,7 @@ from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, date
-from sqlalchemy import Date, cast, select, func, and_, or_, case
+from sqlalchemy import Date, cast, select, func, and_, or_, case, extract
 from sqlalchemy.orm import selectinload
 import calendar
 import io
@@ -317,7 +317,7 @@ async def get_global_realtime_dashboard(
     c_rev_inv = (await db.execute(curr_inv_q)).scalar() or 0.0
 
     # 2c. Bonus Accrued
-    from sqlalchemy import extract, or_
+
     curr_bonus_q = select(func.sum(BonusLedger.amount)).where(BonusLedger.ledger_type == LedgerType.ACCRUAL)
     if month and year:
         curr_bonus_q = curr_bonus_q.where(
@@ -618,7 +618,7 @@ async def get_comprehensive_stats(
     # Using unified helper for absolute consistency
     fact_invoice_sum, fact_topup_sum = await _get_receipt_totals(db, start_date, end_date, rep_ids, [rid] if rid else None, pid)
     fact_sum = round(float(fact_invoice_sum) + float(fact_topup_sum), 2)
-    from sqlalchemy import extract, or_
+
     # Simple but robust sum calculation
     accrued_sum_q = select(func.sum(BonusLedger.amount))\
         .join(User, BonusLedger.user_id == User.id)\
