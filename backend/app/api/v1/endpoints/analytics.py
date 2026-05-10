@@ -604,7 +604,7 @@ async def get_comprehensive_stats(
     from sqlalchemy import extract, or_
     accrual_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid)\
         .join(User, BonusLedger.user_id == User.id)\
-        .where(User.is_active == True, User.role == UserRole.MED_REP, BonusLedger.ledger_type == LedgerType.ACCRUAL)
+        .where(User.is_active == True, User.role == UserRole.MED_REP, BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.ledger_category == 'bonus')
     
     if month and year:
         accrual_q = accrual_q.where(or_(
@@ -619,7 +619,7 @@ async def get_comprehensive_stats(
 
     # Physical Payouts (What actually left the bank account in this period)
     payout_q = select(func.sum(BonusLedger.amount))\
-        .where(BonusLedger.is_paid == True)
+        .where(BonusLedger.is_paid == True, BonusLedger.ledger_category == 'bonus')
     
     if start_date and end_date:
         # We use paid_date to track when the money ACTUALLY left
