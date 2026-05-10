@@ -324,7 +324,7 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="bg-white/95 w-full max-w-6xl h-[85vh] rounded-[4rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] relative z-10 flex flex-col overflow-hidden border border-white/40"
+                        className="bg-white/95 w-[95vw] max-w-screen-2xl h-[90vh] rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] relative z-10 flex flex-col overflow-hidden border border-white/40"
                     >
                         {/* Header */}
                         <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white/50 backdrop-blur-sm">
