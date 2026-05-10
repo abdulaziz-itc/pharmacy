@@ -998,32 +998,54 @@ async def export_drilldown_excel(
     region_id: Optional[int] = Query(None),
     product_id: Optional[int] = Query(None),
     med_rep_id: Optional[int] = Query(None),
-    product_manager_id: Optional[int] = Query(None)
+    product_manager_id: Optional[int] = Query(None),
+    period: Optional[str] = Query(None),  # ignored – sent by frontend but not needed
 ) -> Any:
     """
     Export drilldown data to Excel for ANY metric dynamically.
     """
-    # Fetch data using the existing comprehensive drilldown logic
-    res = await get_comprehensive_drilldown(
+    raw = await get_comprehensive_drilldown(
         metric=metric, db=db, current_user=current_user, month=month, year=year,
         quarter=quarter, region_id=region_id, med_rep_id=med_rep_id,
         product_id=product_id, product_manager_id=product_manager_id, skip=0, limit=100000
     )
-    
-    rows = res.get("items", [])
-    
+
+    # get_comprehensive_drilldown returns a plain list directly
+    if isinstance(raw, list):
+        rows = raw
+    elif isinstance(raw, dict):
+        rows = raw.get("items", raw.get("rows", []))
+    else:
+        rows = []
+
     if not rows:
         raise HTTPException(status_code=404, detail="Нет данных для экспорта")
+
+    # Flatten nested dicts one level deep so nested payment/invoice info also gets exported
+    def flatten_row(row: dict) -> dict:
+        flat = {}
+        for k, v in row.items():
+            if isinstance(v, dict):
+                for sk, sv in v.items():
+                    flat[f"{k}_{sk}"] = sv
+            elif isinstance(v, list):
+                pass  # skip list fields
+            else:
+                flat[k] = v
+        return flat
+
+    flat_rows = [flatten_row(r) for r in rows]
 
     # Create Excel
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Export"
 
-    # Identify columns to export (exclude 'id' and 'realization_date' typically)
-    base_columns = [k for k in rows[0].keys() if k not in ["id", "realization_date"] and not isinstance(rows[0][k], (dict, list))]
-    
-    # Translate columns based on frontend columnLabels
+    # Identify columns to export (exclude raw 'id' and helper keys)
+    exclude_keys = {"id", "realization_date"}
+    base_columns = [k for k in flat_rows[0].keys() if k not in exclude_keys]
+
+    # Translate columns
     column_labels = {
         "invoice_num": "Фактура",
         "date": "Дата",
@@ -1045,65 +1067,88 @@ async def export_drilldown_excel(
         "salary": "Зарплата МП",
         "marketing": "Маркетинг",
         "comment": "Описание",
+        "description": "Описание",
         "status": "Статус",
         "inn": "ИНН",
         "delay_days": "Дней просрочки",
         "salary_earned": "Заработано",
         "accrued": "Начислено",
         "paid": "Выплачено",
-        "balance": "Остаток"
+        "balance": "Остаток",
+        "month": "Месяц",
+        "year": "Год",
+        "payment_payment_id": "ID платежа",
+        "payment_payment_amount": "Сумма платежа",
+        "payment_payment_date": "Дата платежа",
+        "invoice_invoice_id": "ID счёта",
+        "invoice_factura_number": "Номер фактуры",
+        "invoice_customer": "Покупатель",
+        "invoice_invoice_total": "Итого по счёту",
+        "invoice_invoice_paid": "Оплачено по счёту",
     }
 
     display_columns = base_columns
-    if metric == "receivables" and "delay_days" not in display_columns:
-        display_columns.append("delay_days")
 
     # Write headers
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF")
-    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
 
     for col_idx, col_key in enumerate(display_columns, 1):
-        cell = ws.cell(row=1, column=col_idx, value=column_labels.get(col_key, col_key).upper())
+        cell = ws.cell(row=1, column=col_idx, value=column_labels.get(col_key, col_key.replace("_", " ").title()).upper())
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center", vertical="center")
         cell.border = thin_border
 
+    ws.row_dimensions[1].height = 22
+
     # Write data rows
-    from datetime import datetime
-    for row_idx, row_data in enumerate(rows, 2):
+    money_keys = {
+        'amount', 'total_amount', 'paid_amount', 'debt_amount', 'profit', 'gross_profit',
+        'sale_price', 'prod_price', 'salary', 'marketing', 'salary_earned', 'accrued',
+        'paid', 'balance', 'payment_payment_amount', 'invoice_invoice_total', 'invoice_invoice_paid'
+    }
+
+    for row_idx, row_data in enumerate(flat_rows, 2):
+        fill_color = "F8F9FF" if row_idx % 2 == 0 else "FFFFFF"
+        row_fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
+
         for col_idx, col_key in enumerate(display_columns, 1):
             val = row_data.get(col_key, "")
-            
-            # Calculation specific formatting
+
             if col_key == "delay_days" and metric == "receivables":
                 eff_date = row_data.get("realization_date") or row_data.get("date")
                 if eff_date:
                     try:
-                        eff_dt = datetime.fromisoformat(eff_date.replace("Z", "+00:00"))
-                        val = max(0, (datetime.utcnow().date() - eff_dt.date()).days)
+                        from datetime import datetime as _dt
+                        eff_dt = _dt.fromisoformat(str(eff_date).replace("Z", "+00:00"))
+                        val = max(0, (_dt.utcnow().date() - eff_dt.date()).days)
                     except:
                         val = 0
                 else:
                     val = 0
-            elif col_key in ["date", "realization_date"] and val and isinstance(val, str):
+            elif col_key in ["date"] and val and isinstance(val, str):
                 try:
-                    dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
+                    from datetime import datetime as _dt
+                    dt = _dt.fromisoformat(val.replace("Z", "+00:00"))
                     val = dt.strftime('%d.%m.%Y %H:%M')
-                except: pass
+                except:
+                    pass
             elif col_key == "paid_ratio" and isinstance(val, (int, float)):
                 val = f"{val}%"
-            
+
             cell = ws.cell(row=row_idx, column=col_idx, value=val)
             cell.border = thin_border
-            
-            # Align numbers right
-            if isinstance(val, (int, float)) or (isinstance(val, str) and val.endswith('%')):
-                cell.alignment = Alignment(horizontal="right")
-                # Format money
-                if col_key in ['amount', 'total_amount', 'paid_amount', 'debt_amount', 'profit', 'gross_profit', 'sale_price', 'prod_price', 'salary', 'marketing', 'salary_earned', 'accrued', 'paid', 'balance']:
+            cell.fill = row_fill
+
+            if isinstance(val, (int, float)):
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+                if col_key in money_keys:
                     cell.number_format = '#,##0.00'
             else:
                 cell.alignment = Alignment(horizontal="left", vertical="center")
@@ -1111,24 +1156,30 @@ async def export_drilldown_excel(
     # Autofit columns
     for column in ws.columns:
         max_length = 0
-        column_letter = column[0].column_letter
+        col_letter = column[0].column_letter
         for cell in column:
             try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except: pass
-        ws.column_dimensions[column_letter].width = min(max_length + 4, 60) # reasonable max width
+                cell_len = len(str(cell.value)) if cell.value is not None else 0
+                if cell_len > max_length:
+                    max_length = cell_len
+            except:
+                pass
+        ws.column_dimensions[col_letter].width = min(max_length + 4, 55)
 
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
-    
-    filename = f"Export_{metric}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+
+    from datetime import datetime as _dt
+    filename = f"Export_{metric}_{_dt.now().strftime('%Y%m%d_%H%M')}.xlsx"
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+
 
 
 
