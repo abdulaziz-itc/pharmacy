@@ -1362,18 +1362,21 @@ async def get_comprehensive_drilldown(
         rows = (await db.execute(expense_q.order_by(OtherExpense.date.desc()).offset(skip).limit(limit))).scalars().all()
         return [{"id": r.id, "date": r.date.isoformat() if r.date else "-", "amount": r.amount, "category": r.category.name if r.category else "-", "description": r.comment or "-", "author": r.created_by.full_name if r.created_by else "-"} for r in rows]
 
-    elif metric in ["bonus_accrued", "bonus_paid", "preinvest"]:
+    elif metric in ["bonus_accrued", "bonus_paid", "preinvest", "salary_accrued", "salary_paid", "salary_balance"]:
+        # Determine which ledger_category to query
+        ledger_cat = "salary" if metric.startswith("salary") else "bonus"
+
         from sqlalchemy.orm import selectinload as sil
         bonus_q = select(BonusLedger).options(
             sil(BonusLedger.doctor),
             sil(BonusLedger.user),
             sil(BonusLedger.product),
             sil(BonusLedger.payment).selectinload(Payment.invoice).selectinload(Invoice.reservation)
-        ).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP, BonusLedger.ledger_category == 'bonus')
+        ).join(User, BonusLedger.user_id == User.id).where(User.is_active == True, User.role == UserRole.MED_REP, BonusLedger.ledger_category == ledger_cat)
         
-        if metric == "bonus_accrued":
+        if metric in ["bonus_accrued", "salary_accrued"]:
             bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, or_(BonusLedger.notes != "Аванс (Предынвест)", BonusLedger.notes.is_(None))))
-        elif metric == "bonus_paid":
+        elif metric in ["bonus_paid", "salary_paid"]:
             bonus_q = bonus_q.where(
                 or_(
                     and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.is_paid == True),
@@ -1381,6 +1384,9 @@ async def get_comprehensive_drilldown(
                     BonusLedger.ledger_type == LedgerType.PAYOUT
                 )
             )
+        elif metric in ["salary_balance"]:
+            # Unpaid accruals = the remaining salary owed to the MedRep
+            bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.is_paid == False))
         elif metric == "preinvest":
             bonus_q = bonus_q.where(and_(BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.notes == "Аванс (Предынвест)"))
         if month and year:
