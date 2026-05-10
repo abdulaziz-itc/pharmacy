@@ -20,6 +20,7 @@ async def audit():
             .options(
                 selectinload(Invoice.reservation).selectinload(Reservation.items).selectinload(ReservationItem.product),
                 selectinload(Invoice.reservation).selectinload(Reservation.created_by),
+                selectinload(Invoice.reservation).selectinload(Reservation.med_org),
                 selectinload(Invoice.payments),
             )
             .join(Reservation, Invoice.reservation_id == Reservation.id)
