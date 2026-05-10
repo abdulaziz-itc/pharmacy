@@ -121,11 +121,11 @@ export const PremiumKpiCard: React.FC<PremiumKpiCardProps> = ({
                     </h3>
                     
                     {hasSubValue && (
-                        <div className="flex items-center gap-2 mt-2 ml-1">
-                            <span className="text-sm font-black text-slate-700">
-                                {Number(subValue).toLocaleString()} {subSuffix}
+                        <div className="mt-2 ml-1 pt-2 border-t border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{subLabel}</p>
+                            <span className="text-sm font-black text-emerald-600">
+                                {formatMoney(Number(subValue || 0))} {subSuffix || 'UZS'}
                             </span>
-                            {subLabel && <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{subLabel}</span>}
                         </div>
                     )}
 

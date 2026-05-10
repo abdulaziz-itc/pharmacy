@@ -368,6 +368,8 @@ export default function StatsPage() {
                                 variant="minimal"
                                 label="ФАКТ ПОСТУПЛЕНИЙ"
                                 value={kpis.sales_fact_received_amount}
+                                subValue={kpis.total_invoice_sum - kpis.receivables}
+                                subLabel="Shu davr fakturalari bo'yicha"
                                 icon={HandCoins}
                                 color="emerald"
                                 badge={kpis.sales_plan_amount > 0 ? `${((kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100).toFixed(0)}% ВЫПОЛНЕНО` : undefined}
