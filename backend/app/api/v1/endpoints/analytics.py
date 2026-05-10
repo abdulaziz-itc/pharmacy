@@ -637,7 +637,23 @@ async def get_comprehensive_stats(
 
     # Calculate dynamic balance
     bonus_balance = max(0, accrued_sum - actual_payout_sum)
-    total_predinvest = max(0, actual_payout_sum - accrued_sum)
+    
+    # Calculate preinvest directly from the ledger to be more accurate
+    predinvest_q = select(func.sum(BonusLedger.amount))\
+        .where(
+            BonusLedger.ledger_category == 'bonus',
+            or_(
+                BonusLedger.ledger_type == LedgerType.ADVANCE,
+                and_(BonusLedger.ledger_type == LedgerType.PAYOUT, BonusLedger.notes.ilike('%Выплачено (доп. сумма)%')),
+                BonusLedger.notes.ilike('%Аванс (Предынвест)%')
+            )
+        )
+    if start_date and end_date:
+        predinvest_q = predinvest_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+    if rep_ids:
+        predinvest_q = predinvest_q.where(BonusLedger.user_id.in_(rep_ids))
+        
+    total_predinvest = (await db.execute(predinvest_q)).scalar() or 0.0
     paid_sum = actual_payout_sum
 
     # Debt (Outstanding from Invoices)
