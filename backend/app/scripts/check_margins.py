@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.db.session import AsyncSessionLocal
 from app.models.sales import Invoice, Reservation, ReservationItem
 from app.models.product import Product
+from sqlalchemy.orm import selectinload
 
 async def check():
     async with AsyncSessionLocal() as db:
@@ -15,6 +16,8 @@ async def check():
             ReservationItem, Reservation.id == ReservationItem.reservation_id
         ).join(
             Product, ReservationItem.product_id == Product.id
+        ).options(
+            selectinload(Reservation.created_by)
         ).where(
             Invoice.status != "cancelled",
             Invoice.total_amount > 0
@@ -46,6 +49,8 @@ async def check():
             all_invoices.append({
                 "invoice_id": invoice.id,
                 "factura_number": invoice.factura_number or str(invoice.id),
+                "customer": reservation.customer_name or "-",
+                "medrep": reservation.created_by.full_name if reservation.created_by else "-",
                 "product": product.name,
                 "qty": item.quantity,
                 "sell_price": sell_price,
@@ -59,15 +64,15 @@ async def check():
                 "salary_on": reservation.is_salary_enabled
             })
         
-        # 20 ta eng marjasi past (yoki minus) bo'lgan fakturalarni chiqaramiz
-        worst = sorted(all_invoices, key=lambda x: x['margin'])[:20]
+        # 30 ta eng marjasi past (yoki minus) bo'lgan fakturalarni chiqaramiz
+        worst = sorted(all_invoices, key=lambda x: x['margin'])[:30]
         
         print("\n=== MARJASI ENG PAST (FOYDASI KAM YOKI MINUS) FAKTURALAR ===")
-        print(f"{'Faktura/Bron #':<15} | {'Dori':<20} | {'Sotuv narxi':<15} | {'Tan narxi':<15} | {'Bonus':<10} | {'Oylik':<10} | {'Jami Rasxod':<15} | {'Sof foyda':<15} | {'Marja %':<10}")
-        print("-" * 140)
+        print(f"{'Faktura/Bron #':<15} | {'Kontragent':<20} | {'MedRep':<20} | {'Dori':<20} | {'Sotuv narxi':<12} | {'Tan narx':<10} | {'Bonus':<8} | {'Oylik':<8} | {'Rasxod':<12} | {'Foyda':<12} | {'Marja %':<8}")
+        print("-" * 170)
         
         for b in worst:
-            print(f"{b['factura_number']:<15} | {b['product'][:18]:<20} | {b['sell_price']:<15,.0f} | {b['cost_price']:<15,.0f} | {b['bonus']:<10,.0f} | {b['salary']:<10,.0f} | {b['total_cost']:<15,.0f} | {b['profit']:<15,.0f} | {b['margin']:<10.1f}")
+            print(f"{b['factura_number']:<15} | {b['customer'][:18]:<20} | {b['medrep'][:18]:<20} | {b['product'][:18]:<20} | {b['sell_price']:<12,.0f} | {b['cost_price']:<10,.0f} | {b['bonus']:<8,.0f} | {b['salary']:<8,.0f} | {b['total_cost']:<12,.0f} | {b['profit']:<12,.0f} | {b['margin']:<8.1f}")
 
 if __name__ == "__main__":
     import logging
