@@ -368,7 +368,7 @@ export default function StatsPage() {
                                 variant="minimal"
                                 label="ФАКТ ПОСТУПЛЕНИЙ"
                                 value={kpis.sales_fact_received_amount}
-                                subValue={kpis.total_invoice_sum - kpis.receivables}
+                                subValue={kpis.period_paid_amount}
                                 subLabel={
                                     selectedPeriod === 'month'
                                         ? `${new Date(currentYear, currentMonth - 1).toLocaleString('ru-RU', { month: 'long' })} ${currentYear} fakturalari`

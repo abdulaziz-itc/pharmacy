@@ -936,6 +936,7 @@ async def get_comprehensive_stats(
         "total_expenses": combined_total_expenses,
         "other_expenses": float(total_expenses),
         "medrep_payouts": float(actual_payout_sum),
+        "period_paid_amount": float(paid_invoice_sum),
         "net_profit": float((gross_profit_sum if fact_sum > 0 else potential_profit_sum) - combined_total_expenses),
     }
 
