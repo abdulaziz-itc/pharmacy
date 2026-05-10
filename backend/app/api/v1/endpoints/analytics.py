@@ -1230,7 +1230,11 @@ async def export_drilldown_excel(
                         val = 0
                 else:
                     val = 0
-            elif col_key in ["date"] and val and isinstance(val, str):
+            elif isinstance(val, str) and val and (
+                col_key.endswith("_date") or col_key == "date"
+                or "date" in col_key
+            ):
+                # Format any ISO datetime string → "dd.mm.yyyy HH:MM"
                 try:
                     from datetime import datetime as _dt
                     dt = _dt.fromisoformat(val.replace("Z", "+00:00"))
