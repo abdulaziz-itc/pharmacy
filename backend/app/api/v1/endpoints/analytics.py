@@ -1001,146 +1001,135 @@ async def export_drilldown_excel(
     product_manager_id: Optional[int] = Query(None)
 ) -> Any:
     """
-    Export drilldown data to Excel. Currently specialized for 'cash_in'.
+    Export drilldown data to Excel for ANY metric dynamically.
     """
-    if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.ACCOUNTANT, UserRole.HRD]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-
-    # 1. TEAM HIERARCHY
-    rep_ids = None
-    if med_rep_id:
-        rep_ids = [med_rep_id]
-    elif product_manager_id:
-        rep_ids = await get_descendant_ids(db, product_manager_id)
-        if not rep_ids: rep_ids = [-1]
-    elif current_user.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER, UserRole.REGIONAL_MANAGER]:
-        rep_ids = await get_descendant_ids(db, current_user.id)
-        if not rep_ids: rep_ids = [-1]
-
-    # 2. DATE RANGE
-    start_date = None
-    end_date = None
-    if year:
-        if month:
-            start_date = datetime(year, month, 1)
-            next_m = month + 1
-            next_y = year
-            if next_m > 12:
-                next_m = 1
-                next_y += 1
-            end_date = datetime(next_y, next_m, 1)
-        elif quarter:
-            start_month = (quarter - 1) * 3 + 1
-            start_date = datetime(year, start_month, 1)
-            next_m = start_month + 3
-            next_y = year
-            if next_m > 12:
-                next_m = 1
-                next_y += 1
-            end_date = datetime(next_y, next_m, 1)
-        else:
-            start_date = datetime(year, 1, 1)
-            end_date = datetime(year + 1, 1, 1)
-    else:
-        now = datetime.utcnow()
-        month = now.month
-        year = now.year
-        start_date = datetime(year, month, 1)
-        end_date = (datetime(year, month + 1, 1) if month < 12 else datetime(year + 1, 1, 1))
-
-    # 3. Fetch Data (specialized for cash_in for now)
-    if metric == "cash_in":
-        # Using unified receipt queries
-        fact_q, topup_q = await get_receipt_queries(db, start_date, end_date, rep_ids, [region_id] if region_id else None, product_id)
-        
-        # Add options for relation loading
-        fact_q = fact_q.options(selectinload(Payment.invoice).selectinload(Invoice.reservation).selectinload(Reservation.med_org))
-        
-        payment_rows = (await db.execute(fact_q.order_by(Payment.date.desc()))).scalars().all()
-        
-        topup_rows = []
-        if topup_q is not None:
-            topup_q = topup_q.options(selectinload(BalanceTransaction.organization))
-            topup_rows = (await db.execute(topup_q.order_by(BalanceTransaction.created_at.desc()))).scalars().all()
-
-        # Null-invoice balance payments (invoice_id=NULL, auto-applied from credit balance)
-        null_inv_q = await get_null_invoice_payments_query(db, start_date, end_date)
-        null_inv_rows = (await db.execute(null_inv_q.order_by(Payment.date.desc()))).scalars().all()
-
-        # 3. Combine and Format
-        all_data = []
-        from datetime import time
-        for p in payment_rows:
-            sort_dt = datetime.combine(p.date, time.min) if isinstance(p.date, date) and not isinstance(p.date, datetime) else p.date
-            all_data.append({
-                "date": sort_dt,
-                "inn": p.invoice.reservation.med_org.inn if p.invoice and p.invoice.reservation and p.invoice.reservation.med_org else "-",
-                "customer": p.invoice.reservation.customer_name if p.invoice and p.invoice.reservation else "-",
-                "amount": p.amount,
-                "comment": p.comment or ""
-            })
-        for p in null_inv_rows:
-            sort_dt = datetime.combine(p.date, time.min) if isinstance(p.date, date) and not isinstance(p.date, datetime) else p.date
-            all_data.append({
-                "date": sort_dt,
-                "inn": "-",
-                "customer": "-",
-                "amount": p.amount,
-                "comment": p.comment or ""
-            })
-        for t in topup_rows:
-            all_data.append({
-                "date": t.created_at,
-                "inn": t.organization.inn if t.organization else "-",
-                "customer": t.organization.name if t.organization else "-",
-                "amount": t.amount,
-                "comment": f"ПОПОЛНЕНИE: {t.comment or ''}"
-            })
-        
-        all_data.sort(key=lambda x: x["date"], reverse=True)
-
-        # 4. Create Excel
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Postupleniya"
-        
-        headers = ["тушган пул санаси", "ИНН", "Контрагент", "Сumma", "Izoh"]
-        for col_idx, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col_idx, value=header)
-            cell.font = Font(bold=True)
-            cell.alignment = Alignment(horizontal='center')
-            cell.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
-            
-        for row_idx, r in enumerate(all_data, 2):
-            ws.cell(row=row_idx, column=1, value=r["date"].strftime('%d.%m.%Y'))
-            ws.cell(row=row_idx, column=2, value=r["inn"])
-            ws.cell(row=row_idx, column=3, value=r["customer"])
-            ws.cell(row=row_idx, column=4, value=r["amount"])
-            ws.cell(row=row_idx, column=5, value=r["comment"])
-
-        # Autofit columns
-        for column in ws.columns:
-            max_length = 0
-            column_letter = column[0].column_letter
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except: pass
-            ws.column_dimensions[column_letter].width = max_length + 2
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-        
-        filename = f"Postupleniya_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-        return StreamingResponse(
-            output,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
+    # Fetch data using the existing comprehensive drilldown logic
+    res = await get_comprehensive_drilldown(
+        metric=metric, db=db, current_user=current_user, month=month, year=year,
+        quarter=quarter, region_id=region_id, med_rep_id=med_rep_id,
+        product_id=product_id, product_manager_id=product_manager_id, skip=0, limit=100000
+    )
     
-    raise HTTPException(status_code=400, detail="Export not implemented for this metric")
+    rows = res.get("items", [])
+    
+    if not rows:
+        raise HTTPException(status_code=404, detail="Нет данных для экспорта")
+
+    # Create Excel
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Export"
+
+    # Identify columns to export (exclude 'id' and 'realization_date' typically)
+    base_columns = [k for k in rows[0].keys() if k not in ["id", "realization_date"] and not isinstance(rows[0][k], (dict, list))]
+    
+    # Translate columns based on frontend columnLabels
+    column_labels = {
+        "invoice_num": "Фактура",
+        "date": "Дата",
+        "customer": "Контрагент",
+        "region": "Регион",
+        "med_rep": "Мед. Представитель",
+        "doctor": "Врач",
+        "product": "Продукт",
+        "qty": "Кол-во",
+        "amount": "Сумма",
+        "total_amount": "Сумма",
+        "paid_amount": "Оплачено",
+        "debt_amount": "Задолженность",
+        "profit": "Прибыль",
+        "paid_ratio": "Оплата%",
+        "gross_profit": "Валовая прибыль",
+        "sale_price": "Цена продажи",
+        "prod_price": "Себестоимость",
+        "salary": "Зарплата МП",
+        "marketing": "Маркетинг",
+        "comment": "Описание",
+        "status": "Статус",
+        "inn": "ИНН",
+        "delay_days": "Дней просрочки",
+        "salary_earned": "Заработано",
+        "accrued": "Начислено",
+        "paid": "Выплачено",
+        "balance": "Остаток"
+    }
+
+    display_columns = base_columns
+    if metric == "receivables" and "delay_days" not in display_columns:
+        display_columns.append("delay_days")
+
+    # Write headers
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    for col_idx, col_key in enumerate(display_columns, 1):
+        cell = ws.cell(row=1, column=col_idx, value=column_labels.get(col_key, col_key).upper())
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+
+    # Write data rows
+    from datetime import datetime
+    for row_idx, row_data in enumerate(rows, 2):
+        for col_idx, col_key in enumerate(display_columns, 1):
+            val = row_data.get(col_key, "")
+            
+            # Calculation specific formatting
+            if col_key == "delay_days" and metric == "receivables":
+                eff_date = row_data.get("realization_date") or row_data.get("date")
+                if eff_date:
+                    try:
+                        eff_dt = datetime.fromisoformat(eff_date.replace("Z", "+00:00"))
+                        val = max(0, (datetime.utcnow().date() - eff_dt.date()).days)
+                    except:
+                        val = 0
+                else:
+                    val = 0
+            elif col_key in ["date", "realization_date"] and val and isinstance(val, str):
+                try:
+                    dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
+                    val = dt.strftime('%d.%m.%Y %H:%M')
+                except: pass
+            elif col_key == "paid_ratio" and isinstance(val, (int, float)):
+                val = f"{val}%"
+            
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.border = thin_border
+            
+            # Align numbers right
+            if isinstance(val, (int, float)) or (isinstance(val, str) and val.endswith('%')):
+                cell.alignment = Alignment(horizontal="right")
+                # Format money
+                if col_key in ['amount', 'total_amount', 'paid_amount', 'debt_amount', 'profit', 'gross_profit', 'sale_price', 'prod_price', 'salary', 'marketing', 'salary_earned', 'accrued', 'paid', 'balance']:
+                    cell.number_format = '#,##0.00'
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    # Autofit columns
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except: pass
+        ws.column_dimensions[column_letter].width = min(max_length + 4, 60) # reasonable max width
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f"Export_{metric}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 
 
 @router.get("/stats/comprehensive/drilldown")

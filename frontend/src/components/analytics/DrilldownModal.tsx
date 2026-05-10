@@ -370,20 +370,18 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
                             </div>
                             
                             <div className="flex items-center gap-4">
-                                {metric === 'cash_in' && (
-                                    <button 
-                                        onClick={handleExport}
-                                        disabled={isExporting}
-                                        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isExporting ? (
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        ) : (
-                                            <Download className="w-4 h-4" />
-                                        )}
-                                        {isExporting ? 'Загрузка...' : 'Excel'}
-                                    </button>
-                                )}
+                                <button 
+                                    onClick={handleExport}
+                                    disabled={isExporting}
+                                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isExporting ? (
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <Download className="w-4 h-4" />
+                                    )}
+                                    {isExporting ? 'Загрузка...' : 'Excel'}
+                                </button>
                                 <button 
                                     onClick={onClose}
                                     className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all duration-300 group"
