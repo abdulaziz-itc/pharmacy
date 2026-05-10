@@ -602,20 +602,26 @@ async def get_comprehensive_stats(
     fact_invoice_sum, fact_topup_sum = await _get_receipt_totals(db, start_date, end_date, rep_ids, [rid] if rid else None, pid)
     fact_sum = round(float(fact_invoice_sum) + float(fact_topup_sum), 2)
     from sqlalchemy import extract, or_
-    accrual_q = select(BonusLedger.ledger_type, BonusLedger.amount, BonusLedger.is_paid)\
+    # Simple but robust sum calculation
+    accrued_sum_q = select(func.sum(BonusLedger.amount))\
         .join(User, BonusLedger.user_id == User.id)\
-        .where(User.is_active == True, User.role == UserRole.MED_REP, BonusLedger.ledger_type == LedgerType.ACCRUAL, BonusLedger.ledger_category == 'bonus')
+        .where(
+            User.is_active == True, 
+            User.role == UserRole.MED_REP, 
+            BonusLedger.ledger_type == LedgerType.ACCRUAL, 
+            BonusLedger.ledger_category == 'bonus'
+        )
     
     if month and year:
-        accrual_q = accrual_q.where(or_(
+        accrued_sum_q = accrued_sum_q.where(or_(
             and_(BonusLedger.target_month == month, BonusLedger.target_year == year),
             and_(BonusLedger.target_month.is_(None), extract('month', BonusLedger.created_at) == month, extract('year', BonusLedger.created_at) == year)
         ))
     elif start_date and end_date:
-        accrual_q = accrual_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
+        accrued_sum_q = accrued_sum_q.where(and_(BonusLedger.created_at >= start_date, BonusLedger.created_at < end_date))
         
-    if rep_ids: accrual_q = accrual_q.where(BonusLedger.user_id.in_(rep_ids))
-    accrued_sum = (await db.execute(select(func.sum(BonusLedger.amount)).select_from(accrual_q.subquery()))).scalar() or 0.0
+    if rep_ids: accrued_sum_q = accrued_sum_q.where(BonusLedger.user_id.in_(rep_ids))
+    accrued_sum = (await db.execute(accrued_sum_q)).scalar() or 0.0
 
     # Physical Payouts (What actually left the bank account in this period)
     payout_q = select(func.sum(BonusLedger.amount))\
