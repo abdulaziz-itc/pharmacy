@@ -369,7 +369,15 @@ export default function StatsPage() {
                                 label="ФАКТ ПОСТУПЛЕНИЙ"
                                 value={kpis.sales_fact_received_amount}
                                 subValue={kpis.total_invoice_sum - kpis.receivables}
-                                subLabel="Shu davr fakturalari bo'yicha"
+                                subLabel={
+                                    selectedPeriod === 'month'
+                                        ? `${new Date(currentYear, currentMonth - 1).toLocaleString('ru-RU', { month: 'long' })} ${currentYear} fakturalari`
+                                        : selectedPeriod === 'quarter'
+                                        ? `${currentYear} — ${currentQuarter}-kvartal fakturalari`
+                                        : selectedPeriod === 'year'
+                                        ? `${currentYear} yil fakturalari`
+                                        : `Barcha fakturalar bo'yicha`
+                                }
                                 icon={HandCoins}
                                 color="emerald"
                                 badge={kpis.sales_plan_amount > 0 ? `${((kpis.sales_fact_received_amount / kpis.sales_plan_amount) * 100).toFixed(0)}% ВЫПОЛНЕНО` : undefined}
