@@ -1522,13 +1522,18 @@ async def pay_medrep_bonus(
         
     from app.models.ledger import BonusLedger, LedgerType
     
-    # Get unpaid accruals for this medrep, sorted by oldest first
+    # Get unpaid accruals for this medrep, sorted FIFO — oldest period first, then oldest record first
     query = select(BonusLedger).where(
         BonusLedger.user_id == request_data.med_rep_id,
         BonusLedger.ledger_type == LedgerType.ACCRUAL,
         BonusLedger.ledger_category == request_data.category,
         BonusLedger.is_paid == False
-    ).order_by(BonusLedger.id.asc())
+    ).order_by(
+        BonusLedger.target_year.asc().nullsfirst(),
+        BonusLedger.target_month.asc().nullsfirst(),
+        BonusLedger.created_at.asc(),
+        BonusLedger.id.asc()
+    )
     
     result = await db.execute(query)
     unpaid_entries = result.scalars().all()
