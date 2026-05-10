@@ -1045,49 +1045,147 @@ async def export_drilldown_excel(
     exclude_keys = {"id", "realization_date"}
     base_columns = [k for k in flat_rows[0].keys() if k not in exclude_keys]
 
-    # Translate columns
-    column_labels = {
-        "invoice_num": "Фактура",
-        "date": "Дата",
-        "customer": "Контрагент",
-        "region": "Регион",
-        "med_rep": "Мед. Представитель",
-        "doctor": "Врач",
-        "product": "Продукт",
-        "qty": "Кол-во",
-        "amount": "Сумма",
-        "total_amount": "Сумма",
-        "paid_amount": "Оплачено",
-        "debt_amount": "Задолженность",
-        "profit": "Прибыль",
-        "paid_ratio": "Оплата%",
-        "gross_profit": "Валовая прибыль",
-        "sale_price": "Цена продажи",
-        "prod_price": "Себестоимость",
-        "salary": "Зарплата МП",
-        "marketing": "Маркетинг",
-        "comment": "Описание",
-        "description": "Описание",
-        "status": "Статус",
-        "inn": "ИНН",
-        "delay_days": "Дней просрочки",
-        "salary_earned": "Заработано",
-        "accrued": "Начислено",
-        "paid": "Выплачено",
-        "balance": "Остаток",
-        "month": "Месяц",
-        "year": "Год",
-        "payment_payment_id": "ID платежа",
-        "payment_payment_amount": "Сумма платежа",
-        "payment_payment_date": "Дата платежа",
-        "invoice_invoice_id": "ID счёта",
-        "invoice_factura_number": "Номер фактуры",
-        "invoice_customer": "Покупатель",
-        "invoice_invoice_total": "Итого по счёту",
-        "invoice_invoice_paid": "Оплачено по счёту",
+    # ── Metric-specific column definitions ─────────────────────────────────────
+    # Each entry: (key_in_flat_row, display_label)
+    METRIC_COLUMNS: dict[str, list[tuple[str, str]]] = {
+        "salary_accrued": [
+            ("date",                    "Дата начисления"),
+            ("med_rep",                 "Мед. Представитель"),
+            ("amount",                  "Начислено зарплаты (сум)"),
+            ("invoice_factura_number",  "Фактура №"),
+            ("invoice_customer",        "Аптека / Покупатель"),
+            ("invoice_invoice_total",   "Сумма фактуры"),
+            ("invoice_invoice_paid",    "Оплачено по фактуре"),
+            ("payment_payment_date",    "Дата оплаты"),
+            ("description",             "Описание"),
+        ],
+        "salary_paid": [
+            ("date",                    "Дата записи"),
+            ("med_rep",                 "Мед. Представитель"),
+            ("amount",                  "Выплачено зарплаты (сум)"),
+            ("invoice_factura_number",  "Фактура №"),
+            ("invoice_customer",        "Аптека / Покупатель"),
+            ("payment_payment_date",    "Дата оплаты"),
+            ("description",             "Описание"),
+        ],
+        "salary_balance": [
+            ("date",                    "Дата начисления"),
+            ("med_rep",                 "Мед. Представитель"),
+            ("amount",                  "Остаток зарплаты (не выплачено, сум)"),
+            ("invoice_factura_number",  "Фактура №"),
+            ("invoice_customer",        "Аптека / Покупатель"),
+            ("invoice_invoice_total",   "Сумма фактуры"),
+            ("description",             "Описание"),
+        ],
+        "bonus_accrued": [
+            ("date",                    "Дата начисления"),
+            ("med_rep",                 "Мед. Представитель"),
+            ("amount",                  "Начислено бонуса (сум)"),
+            ("invoice_factura_number",  "Фактура №"),
+            ("invoice_customer",        "Аптека / Покупатель"),
+            ("invoice_invoice_total",   "Сумма фактуры"),
+            ("invoice_invoice_paid",    "Оплачено по фактуре"),
+            ("payment_payment_date",    "Дата оплаты"),
+            ("description",             "Описание"),
+        ],
+        "bonus_paid": [
+            ("date",                    "Дата записи"),
+            ("med_rep",                 "Мед. Представитель"),
+            ("amount",                  "Выплачено бонуса (сум)"),
+            ("invoice_factura_number",  "Фактура №"),
+            ("invoice_customer",        "Аптека / Покупатель"),
+            ("payment_payment_date",    "Дата оплаты"),
+            ("description",             "Описание"),
+        ],
+        "preinvest": [
+            ("date",                    "Дата"),
+            ("med_rep",                 "Мед. Представитель"),
+            ("amount",                  "Предынвест (аванс, сум)"),
+            ("description",             "Описание"),
+        ],
+        "cash_in": [
+            ("date",                    "Дата оплаты"),
+            ("invoice_num",             "Фактура №"),
+            ("amount",                  "Поступление (сум)"),
+            ("customer",                "Аптека / Покупатель"),
+            ("region",                  "Регион"),
+            ("med_rep",                 "Мед. Представитель"),
+        ],
+        "realization": [
+            ("date",                    "Дата"),
+            ("invoice_num",             "Фактура №"),
+            ("total_amount",            "Реализация (сум)"),
+            ("customer",                "Аптека / Покупатель"),
+        ],
+        "receivables": [
+            ("date",                    "Дата фактуры"),
+            ("invoice_num",             "Фактура №"),
+            ("total_amount",            "Сумма фактуры"),
+            ("paid_amount",             "Оплачено"),
+            ("debt_amount",             "Долг (сум)"),
+            ("delay_days",              "Дней просрочки"),
+            ("customer",                "Аптека / Покупатель"),
+        ],
+        "expenses": [
+            ("date",                    "Дата"),
+            ("amount",                  "Расход (сум)"),
+            ("category",                "Категория"),
+            ("description",             "Описание"),
+            ("author",                  "Автор"),
+        ],
+        "gross_profit": [
+            ("date",                    "Дата"),
+            ("invoice_num",             "Фактура №"),
+            ("product",                 "Продукт"),
+            ("qty",                     "Кол-во"),
+            ("sale_price",              "Цена продажи"),
+            ("prod_price",              "Себестоимость"),
+            ("salary",                  "Зарплата МП / ед."),
+            ("marketing",               "Маркетинг / ед."),
+            ("paid_ratio",              "Оплачено %"),
+            ("profit",                  "Реализованная прибыль (сум)"),
+        ],
+        "net_profit": [
+            ("date",                    "Дата"),
+            ("invoice_num",             "Фактура №"),
+            ("product",                 "Продукт"),
+            ("region",                  "Регион"),
+            ("med_rep",                 "Мед. Представитель"),
+            ("qty",                     "Кол-во"),
+            ("sale_price",              "Цена продажи"),
+            ("prod_price",              "Себестоимость"),
+            ("salary",                  "Зарплата МП / ед."),
+            ("marketing",               "Маркетинг / ед."),
+            ("paid_ratio",              "Оплачено %"),
+            ("gross_profit",            "Чистая прибыль (сум)"),
+        ],
     }
 
-    display_columns = base_columns
+    # Build display_columns: use predefined order if metric is known,
+    # otherwise fall back to auto-detected columns from the flat row.
+    if metric in METRIC_COLUMNS:
+        col_spec = METRIC_COLUMNS[metric]
+        # Only include columns that actually exist in the data
+        display_columns = [key for key, _ in col_spec if key in flat_rows[0] or key == "delay_days"]
+        column_labels   = {key: label for key, label in col_spec}
+    else:
+        # Generic fallback labels
+        column_labels = {
+            "invoice_num": "Фактура №", "date": "Дата", "customer": "Аптека/Покупатель",
+            "region": "Регион", "med_rep": "Мед. Представитель", "doctor": "Врач",
+            "product": "Продукт", "qty": "Кол-во", "amount": "Сумма",
+            "total_amount": "Сумма", "paid_amount": "Оплачено", "debt_amount": "Долг",
+            "profit": "Прибыль", "paid_ratio": "Оплачено %", "gross_profit": "Валовая прибыль",
+            "sale_price": "Цена продажи", "prod_price": "Себестоимость",
+            "salary": "Зарплата МП / ед.", "marketing": "Маркетинг",
+            "description": "Описание", "status": "Статус", "delay_days": "Дней просрочки",
+            "invoice_factura_number": "Фактура №", "invoice_customer": "Покупатель",
+            "invoice_invoice_total": "Сумма фактуры", "invoice_invoice_paid": "Оплачено",
+            "payment_payment_date": "Дата оплаты", "payment_payment_amount": "Сумма платежа",
+        }
+        exclude_keys_display = {"id", "realization_date", "payment_payment_id", "invoice_invoice_id"}
+        display_columns = [k for k in flat_rows[0].keys() if k not in exclude_keys_display]
+
 
     # Write headers
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
