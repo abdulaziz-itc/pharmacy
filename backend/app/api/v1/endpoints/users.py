@@ -121,6 +121,9 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
+    if user_in.manager_id and user_in.manager_id == user_id:
+        raise HTTPException(status_code=400, detail="Пользователь не может назначить себя собственным менеджером.")
+        
     if current_user.role not in [UserRole.INVESTOR, UserRole.ADMIN, UserRole.DEPUTY_DIRECTOR, UserRole.DIRECTOR, UserRole.PRODUCT_MANAGER, UserRole.REGIONAL_MANAGER, UserRole.HRD]:
         raise HTTPException(status_code=400, detail="Not enough permissions")
         
@@ -253,8 +256,8 @@ async def get_med_reps(
     all_users_result = await db.execute(select(User).options(selectinload(User.assigned_regions)))
     all_users = all_users_result.scalars().all()
     
-    # Build manager name lookup
-    manager_lookup = {u.id: u.full_name for u in all_users}
+    # Build user map for efficient traversal
+    user_map = {u.id: u for u in all_users}
     
     # Filter by role if specified, otherwise return med_reps by default
     if role == "all":
@@ -274,12 +277,35 @@ async def get_med_reps(
         descendant_ids = await get_descendant_ids(db, current_user.id)
         filtered = [u for u in filtered if u.id in descendant_ids]
     
-    # Build response with manager name and region details
+    # Build response with manager name resolved via logic chain and region details
     result = []
     for user in filtered:
         regions = user.assigned_regions if hasattr(user, 'assigned_regions') else []
         region_ids = [r.id for r in regions]
         region_names = ", ".join([r.name for r in regions])
+        
+        # Resolve actual manager name to display smartly in list columns
+        display_mgr_name = None
+        m1_id = user.manager_id
+        
+        # Ensure no loop/bad self reference data pollutes UI
+        if m1_id and m1_id != user.id:
+            m1 = user_map.get(m1_id)
+            if m1:
+                # Step 1: Prioritize direct top-level manager role
+                if m1.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER]:
+                    display_mgr_name = m1.full_name or m1.username
+                else:
+                    # Step 2: Walk chain to resolve grandparent if immediate manager is lower tier (e.g. RM)
+                    m2_id = m1.manager_id
+                    if m2_id and m2_id != m1_id and m2_id != user.id:
+                        m2 = user_map.get(m2_id)
+                        if m2 and m2.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER]:
+                            display_mgr_name = m2.full_name or m2.username
+                    
+                    # Step 3: Total Fallback -> use immediate direct manager's name
+                    if not display_mgr_name:
+                        display_mgr_name = m1.full_name or m1.username
         
         result.append({
             "id": user.id,
@@ -288,7 +314,7 @@ async def get_med_reps(
             "role": user.role,
             "is_active": user.is_active,
             "manager_id": user.manager_id,
-            "manager_name": manager_lookup.get(user.manager_id, None) if user.manager_id else None,
+            "manager_name": display_mgr_name,
             "region_ids": region_ids,
             "region_names": region_names
         })
