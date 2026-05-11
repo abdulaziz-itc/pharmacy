@@ -1784,7 +1784,7 @@ async def get_director_report_excel(
             old_q, old_a = plan_map.get(key, (0, 0))
             plan_map[key] = (old_q + (p.target_quantity or 0), old_a + (p.target_amount or 0))
 
-    # ── 4. Facts: Invoice+ReservationItem by med_rep + product for this period ──
+    # ── 4. Facts: Invoice+ReservationItem — only by active MedReps ─────────────
     first_day = datetime(year, month, 1)
     last_day  = datetime(year, month, _cal.monthrange(year, month)[1], 23, 59, 59)
 
@@ -1792,14 +1792,20 @@ async def get_director_report_excel(
         select(
             Reservation.created_by_id.label("med_rep_id"),
             ReservationItem.product_id,
-            func.sum(ReservationItem.quantity).label("qty"),
-            func.sum(ReservationItem.total_price).label("total_sum"),
+            func.sum(ReservationItem.quantity - ReservationItem.returned_quantity).label("qty"),
+            func.sum(
+                (ReservationItem.quantity - ReservationItem.returned_quantity) * ReservationItem.price
+            ).label("total_sum"),
         )
         .join(ReservationItem, ReservationItem.reservation_id == Reservation.id)
         .join(Invoice, Invoice.reservation_id == Reservation.id)
+        # Only count reservations created by active MedReps
+        .join(User, User.id == Reservation.created_by_id)
         .where(
+            User.role == UserRole.MED_REP,
+            User.is_active == True,
             Invoice.date.between(first_day, last_day),
-            Invoice.status.notin_(["cancelled", "returned"])
+            Invoice.status.notin_(["cancelled", "returned", "draft"])
         )
         .group_by(Reservation.created_by_id, ReservationItem.product_id)
     )
