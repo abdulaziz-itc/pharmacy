@@ -2,6 +2,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.api import deps
 from app.models.user import User, UserRole
 from app.schemas.user import User as UserSchema
@@ -21,7 +22,7 @@ async def get_user_hierarchy(
     """
     try:
         # Verify the user exists
-        result = await db.execute(select(User).where(User.id == user_id))
+        result = await db.execute(select(User).options(selectinload(User.assigned_regions)).where(User.id == user_id))
         user = result.scalars().first()
         
         if not user:
@@ -29,7 +30,7 @@ async def get_user_hierarchy(
         
         # Level 1: Field Force Managers
         ffm_result = await db.execute(
-            select(User).where(User.manager_id == user_id, User.role == UserRole.FIELD_FORCE_MANAGER)
+            select(User).options(selectinload(User.assigned_regions)).where(User.manager_id == user_id, User.role == UserRole.FIELD_FORCE_MANAGER)
         )
         field_force_managers = ffm_result.scalars().all()
         ffm_ids = [u.id for u in field_force_managers]
@@ -39,7 +40,7 @@ async def get_user_hierarchy(
         rm_ids = []
         if ffm_ids:
             rm_result = await db.execute(
-                select(User).where(User.manager_id.in_(ffm_ids), User.role == UserRole.REGIONAL_MANAGER)
+                select(User).options(selectinload(User.assigned_regions)).where(User.manager_id.in_(ffm_ids), User.role == UserRole.REGIONAL_MANAGER)
             )
             regional_managers = rm_result.scalars().all()
             rm_ids = [u.id for u in regional_managers]
@@ -48,7 +49,7 @@ async def get_user_hierarchy(
         med_reps = []
         if rm_ids:
             mr_result = await db.execute(
-                select(User).where(User.manager_id.in_(rm_ids), User.role == UserRole.MED_REP)
+                select(User).options(selectinload(User.assigned_regions)).where(User.manager_id.in_(rm_ids), User.role == UserRole.MED_REP)
             )
             med_reps = mr_result.scalars().all()
         
