@@ -1723,20 +1723,19 @@ async def get_director_report_excel(
     year: int = None
 ) -> Any:
     """
-    Generates a high-fidelity Excel report for the Director comparing Plans vs. Facts.
-    Uses direct aggregation from Plan and DoctorFactAssignment tables.
+    Director Excel report: Product Manager → Regional Manager → MedRep
+    Columns: per-product Plan(qty), Fact(qty), Fact(sum) + totals
     """
-    import io
+    import io, calendar as _cal
     import openpyxl
     from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
     from openpyxl.utils import get_column_letter
     from fastapi.responses import StreamingResponse
-    from app.models.crm import Doctor, MedicalOrganization, Region, DoctorSpecialty, DoctorCategory
     from app.models.product import Product
-    from app.models.sales import Plan, DoctorFactAssignment
+    from app.models.sales import Plan, Invoice, Reservation, ReservationItem
     from sqlalchemy.orm import selectinload
-    from sqlalchemy import select, and_
-    
+    from sqlalchemy import select, and_, extract, func
+
     if current_user.role not in [UserRole.INVESTOR, UserRole.DIRECTOR, UserRole.DEPUTY_DIRECTOR, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
@@ -1745,182 +1744,343 @@ async def get_director_report_excel(
     if not year:
         year = datetime.utcnow().year
 
-    # 1. Fetch Products for columns
-    products_res = await db.execute(select(Product).order_by(Product.name))
-    products = products_res.scalars().all()
-    product_count = len(products)
-    
-    # 2. Fetch all Doctors with related info
-    doctors_res = await db.execute(
-        select(Doctor)
+    # ── 1. Products (columns) ───────────────────────────────────────────────────
+    products = (await db.execute(select(Product).where(Product.is_active == True).order_by(Product.name))).scalars().all()
+    prod_count = len(products)
+
+    # ── 2. MedReps with full manager chain ─────────────────────────────────────
+    medreps_res = await db.execute(
+        select(User)
         .options(
-            selectinload(Doctor.med_org),
-            selectinload(Doctor.region),
-            selectinload(Doctor.specialty),
-            selectinload(Doctor.category),
-            selectinload(Doctor.assigned_rep).selectinload(User.manager).selectinload(User.manager)
+            selectinload(User.manager).selectinload(User.manager)
         )
-        .where(Doctor.is_active == True)
-        .order_by(Doctor.full_name)
+        .where(User.role == UserRole.MED_REP, User.is_active == True)
+        .order_by(User.full_name)
     )
-    doctors = doctors_res.scalars().all()
+    medreps = medreps_res.scalars().all()
 
-    # 3. Fetch Plans for this month/year
-    plans_res = await db.execute(
-        select(Plan).where(
-            and_(Plan.month == month, Plan.year == year)
+    # Build hierarchy map: pm_name -> rm_name -> [medrep]
+    from collections import defaultdict
+    hierarchy: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
+    for mr in medreps:
+        rm_name = "-"
+        pm_name = "-"
+        mgr = mr.manager
+        if mgr:
+            rm_name = mgr.full_name or mgr.username
+            mgr2 = mgr.manager
+            if mgr2 and mgr2.role == UserRole.PRODUCT_MANAGER:
+                pm_name = mgr2.full_name or mgr2.username
+        hierarchy[pm_name][rm_name].append(mr)
+
+    # ── 3. Plans (month/year, by med_rep_id + product_id) ──────────────────────
+    plan_q = select(Plan).where(and_(Plan.month == month, Plan.year == year))
+    plans = (await db.execute(plan_q)).scalars().all()
+    # plan_map[(med_rep_id, product_id)] = (qty, amount)
+    plan_map: dict[tuple, tuple] = {}
+    for p in plans:
+        if p.med_rep_id:
+            key = (p.med_rep_id, p.product_id)
+            old_q, old_a = plan_map.get(key, (0, 0))
+            plan_map[key] = (old_q + (p.target_quantity or 0), old_a + (p.target_amount or 0))
+
+    # ── 4. Facts: Invoice+ReservationItem by med_rep + product for this period ──
+    first_day = datetime(year, month, 1)
+    last_day  = datetime(year, month, _cal.monthrange(year, month)[1], 23, 59, 59)
+
+    fact_q = (
+        select(
+            Reservation.created_by_id.label("med_rep_id"),
+            ReservationItem.product_id,
+            func.sum(ReservationItem.quantity).label("qty"),
+            func.sum(ReservationItem.total_price).label("total_sum"),
         )
-    )
-    plans_list = plans_res.scalars().all()
-    plan_map = {} # (doctor_id, product_id) -> qty
-    for p in plans_list:
-        if p.doctor_id:
-            key = (p.doctor_id, p.product_id)
-            plan_map[key] = plan_map.get(key, 0) + (p.target_quantity or 0)
-
-    # 4. Fetch Facts for this month/year
-    facts_res = await db.execute(
-        select(DoctorFactAssignment).where(
-            and_(DoctorFactAssignment.month == month, DoctorFactAssignment.year == year)
+        .join(ReservationItem, ReservationItem.reservation_id == Reservation.id)
+        .join(Invoice, Invoice.reservation_id == Reservation.id)
+        .where(
+            Invoice.date.between(first_day, last_day),
+            Invoice.status.notin_(["cancelled", "returned"])
         )
+        .group_by(Reservation.created_by_id, ReservationItem.product_id)
     )
-    facts_list = facts_res.scalars().all()
-    fact_map = {} # (doctor_id, product_id) -> qty
-    for f in facts_list:
-        key = (f.doctor_id, f.product_id)
-        fact_map[key] = fact_map.get(key, 0) + (f.quantity or 0)
+    fact_rows = (await db.execute(fact_q)).all()
+    # fact_map[(med_rep_id, product_id)] = (qty, sum)
+    fact_map: dict[tuple, tuple] = {}
+    for row in fact_rows:
+        if row.med_rep_id:
+            fact_map[(row.med_rep_id, row.product_id)] = (int(row.qty or 0), float(row.total_sum or 0))
 
-
-    # 5. Create Excel
+    # ── 5. Build Excel ──────────────────────────────────────────────────────────
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = f"Report {month}-{year}"
+    ws.title = f"Отчет {month}-{year}"
 
     # Styles
-    fill_blue = PatternFill(start_color="8DB4E2", end_color="8DB4E2", fill_type="solid")
-    fill_green = PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
-    fill_grey = PatternFill(start_color="BFBFBF", end_color="BFBFBF", fill_type="solid")
-    
-    font_bold = Font(bold=True, size=10)
-    font_small = Font(size=8)
-    border_thin = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-    align_center = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    align_vertical = Alignment(text_rotation=90, horizontal='center', vertical='center')
+    C_BLUE   = "1E3A5F";  C_BLUE_L  = "BDD7EE"
+    C_GREEN  = "375623";  C_GREEN_L = "E2EFDA"
+    C_GREY   = "404040";  C_GREY_L  = "F2F2F2"
+    C_YELLOW = "7F6000";  C_YELLOW_L= "FFEB9C"
+    C_WHITE  = "FFFFFF"
 
-    # Static Headers
-    base_headers = [
-        "Продукт Менеджер", "РМ/МП", "ФИО Врача", "Контакт врача", 
-        "Специальность", "ЛПУ", "Регион", "Категория вр."
-    ]
-    
-    # Setup Headers
-    for i, h in enumerate(base_headers, 1):
-        cell = ws.cell(row=1, column=i, value=h)
-        cell.alignment = align_vertical
-        cell.font = font_bold
-        cell.border = border_thin
-        cell.fill = fill_blue
-        ws.merge_cells(start_row=1, start_column=i, end_row=3, end_column=i)
+    def fill(hex_color):
+        return PatternFill(start_color=hex_color, end_color=hex_color, fill_type="solid")
 
-    start_plan_col = 9
-    end_plan_col = 8 + product_count + 1 
-    ws.merge_cells(start_row=1, start_column=start_plan_col, end_row=1, end_column=end_plan_col)
-    cell_plan_title = ws.cell(row=1, column=start_plan_col, value="План продаж")
-    cell_plan_title.fill = fill_green
-    cell_plan_title.alignment = align_center
-    cell_plan_title.font = font_bold
-    cell_plan_title.border = border_thin
+    def font(bold=False, color=C_WHITE, size=9):
+        return Font(bold=bold, color=color, size=size)
 
-    for i, p in enumerate(products, 0):
-        col = start_plan_col + i
-        cell = ws.cell(row=2, column=col, value=p.name)
-        cell.alignment = align_vertical
-        cell.font = font_small
-        cell.border = border_thin
-        cell.fill = fill_green
-        ws.merge_cells(start_row=2, start_column=col, end_row=3, end_column=col)
+    thin  = Side(style="thin",   color="999999")
+    thick = Side(style="medium", color="555555")
+    def border(left=thin, right=thin, top=thin, bottom=thin):
+        return Border(left=left, right=right, top=top, bottom=bottom)
 
-    col_sum_plan = start_plan_col + product_count
-    cell_sum_plan = ws.cell(row=2, column=col_sum_plan, value="СУММА")
-    cell_sum_plan.alignment = align_vertical
-    cell_sum_plan.font = font_bold
-    cell_sum_plan.fill = fill_green
-    ws.merge_cells(start_row=2, start_column=col_sum_plan, end_row=3, end_column=col_sum_plan)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left   = Alignment(horizontal="left",   vertical="center")
+    right_a= Alignment(horizontal="right",  vertical="center")
+    vert   = Alignment(text_rotation=90, horizontal="center", vertical="center")
 
-    start_fact_col = end_plan_col + 1
-    end_fact_col = start_fact_col + product_count 
-    ws.merge_cells(start_row=1, start_column=start_fact_col, end_row=1, end_column=end_fact_col)
-    cell_fact_title = ws.cell(row=1, column=start_fact_col, value="Фактическая реализация")
-    cell_fact_title.fill = fill_grey
-    cell_fact_title.alignment = align_center
-    cell_fact_title.font = font_bold
-    cell_fact_title.border = border_thin
+    # ── Header row 1: static cols + per-product groups ─────────────────────────
+    STATIC_COLS = ["Продукт Менеджер", "Рег. Менеджер / МП", "Регион"]
+    S = len(STATIC_COLS)  # number of static columns = 3
 
-    for i, p in enumerate(products, 0):
-        col = start_fact_col + i
-        cell = ws.cell(row=2, column=col, value=p.name)
-        cell.alignment = align_vertical
-        cell.font = font_small
-        cell.border = border_thin
-        cell.fill = fill_grey
-        ws.merge_cells(start_row=2, start_column=col, end_row=3, end_column=col)
+    # Row 1: static headers (merge rows 1-3) + product group headers (merge cols per product)
+    # Row 2: per-product sub-headers: Plan / Факт (дон.) / Факт (сум)
+    # Row 3: empty (continuation of merge)
 
-    col_sum_fact = start_fact_col + product_count
-    cell_sum_fact = ws.cell(row=2, column=col_sum_fact, value="СУММА")
-    cell_sum_fact.alignment = align_vertical
-    cell_sum_fact.font = font_bold
-    cell_sum_fact.fill = fill_grey
-    ws.merge_cells(start_row=2, start_column=col_sum_fact, end_row=3, end_column=col_sum_fact)
+    # Static header cells (merge 3 rows)
+    for ci, h in enumerate(STATIC_COLS, 1):
+        ws.merge_cells(start_row=1, start_column=ci, end_row=3, end_column=ci)
+        cell = ws.cell(row=1, column=ci, value=h)
+        cell.font      = font(bold=True, color=C_WHITE)
+        cell.fill      = fill(C_BLUE)
+        cell.alignment = vert
+        cell.border    = border()
 
-    # 6. Fill Data
-    row_idx = 4
-    for doc in doctors:
-        pm_name = ""
-        rm_name = ""
-        if doc.assigned_rep:
-            rm_name = doc.assigned_rep.full_name
-            # Try to find PM in hierarchy
-            mgr = doc.assigned_rep.manager
-            for _ in range(3):
-                if not mgr: break
-                if mgr.role == UserRole.PRODUCT_MANAGER:
-                    pm_name = mgr.full_name
-                    break
-                mgr = mgr.manager if hasattr(mgr, 'manager') else None
+    # Per-product group headers (3 cols each: plan_qty, fact_qty, fact_sum)
+    COLS_PER_PROD = 3
+    for pi, prod in enumerate(products):
+        start_col = S + 1 + pi * COLS_PER_PROD
+        end_col   = start_col + COLS_PER_PROD - 1
 
-        ws.cell(row=row_idx, column=1, value=pm_name).border = border_thin
-        ws.cell(row=row_idx, column=2, value=rm_name).border = border_thin
-        ws.cell(row=row_idx, column=3, value=doc.full_name).border = border_thin
-        ws.cell(row=row_idx, column=4, value=doc.contact1).border = border_thin
-        ws.cell(row=row_idx, column=5, value=doc.specialty.name if doc.specialty else "").border = border_thin
-        ws.cell(row=row_idx, column=6, value=doc.med_org.name if doc.med_org else "").border = border_thin
-        ws.cell(row=row_idx, column=7, value=doc.region.name if doc.region else "").border = border_thin
-        ws.cell(row=row_idx, column=8, value=doc.category.name if doc.category else "").border = border_thin
+        # Row 1: product name (merge 3 cols)
+        ws.merge_cells(start_row=1, start_column=start_col, end_row=1, end_column=end_col)
+        c = ws.cell(row=1, column=start_col, value=prod.name)
+        c.font = font(bold=True, color=C_WHITE); c.fill = fill(C_GREEN); c.alignment = center; c.border = border()
 
-        row_total_plan = 0
-        for i, p in enumerate(products):
-            val = plan_map.get((doc.id, p.id), 0)
-            row_total_plan += val
-            ws.cell(row=row_idx, column=start_plan_col + i, value=val).border = border_thin
-        ws.cell(row=row_idx, column=col_sum_plan, value=row_total_plan).border = border_thin
+        # Row 2: sub-labels
+        sub_labels = ["План (дон.)", "Факт (дон.)", "Факт (сум)"]
+        for si, lbl in enumerate(sub_labels):
+            c2 = ws.cell(row=2, column=start_col + si, value=lbl)
+            c2.font = font(bold=True, color=C_GREEN); c2.fill = fill(C_GREEN_L)
+            c2.alignment = center; c2.border = border()
 
-        row_total_fact = 0
-        for i, p in enumerate(products):
-            val = fact_map.get((doc.id, p.id), 0)
-            row_total_fact += val
-            ws.cell(row=row_idx, column=start_fact_col + i, value=val).border = border_thin
-        ws.cell(row=row_idx, column=col_sum_fact, value=row_total_fact).border = border_thin
+        # Row 3: % выполнения (colspan 3)
+        ws.merge_cells(start_row=3, start_column=start_col, end_row=3, end_column=end_col)
+        c3 = ws.cell(row=3, column=start_col, value="% выполнения")
+        c3.font = font(bold=False, color=C_GREEN); c3.fill = fill(C_GREEN_L)
+        c3.alignment = center; c3.border = border()
 
-        row_idx += 1
+    # Totals columns (after all products): total plan qty, total fact qty, total fact sum
+    tc_start = S + 1 + prod_count * COLS_PER_PROD
+    ws.merge_cells(start_row=1, start_column=tc_start, end_row=1, end_column=tc_start + 2)
+    c = ws.cell(row=1, column=tc_start, value="ИТОГО")
+    c.font = font(bold=True); c.fill = fill(C_GREY); c.alignment = center; c.border = border()
+    for si, lbl in enumerate(["План (дон.)", "Факт (дон.)", "Факт (сум)"]):
+        c2 = ws.cell(row=2, column=tc_start + si, value=lbl)
+        c2.font = font(bold=True, color=C_GREY); c2.fill = fill(C_GREY_L); c2.alignment = center; c2.border = border()
+    ws.merge_cells(start_row=3, start_column=tc_start, end_row=3, end_column=tc_start + 2)
+    c3 = ws.cell(row=3, column=tc_start, value="% выполнения")
+    c3.font = font(bold=False, color=C_GREY); c3.fill = fill(C_GREY_L); c3.alignment = center; c3.border = border()
 
-    # Format
-    for i in range(1, 9): ws.column_dimensions[get_column_letter(i)].width = 15
-    for i in range(9, end_fact_col + 1): ws.column_dimensions[get_column_letter(i)].width = 5
+    ws.row_dimensions[1].height = 40
+    ws.row_dimensions[2].height = 28
+    ws.row_dimensions[3].height = 18
+
+    # ── Data rows ───────────────────────────────────────────────────────────────
+    def pct(plan_q, fact_q):
+        if not plan_q: return "—"
+        return f"{round(fact_q / plan_q * 100)}%"
+
+    def write_data_row(row_idx, pm, rm_mr_label, region_label,
+                       row_fill_color, row_font_color, bold=False):
+        """Write one data row; returns (total_plan_q, total_fact_q, total_fact_s)."""
+        for ci, val in enumerate([pm, rm_mr_label, region_label], 1):
+            c = ws.cell(row=row_idx, column=ci, value=val)
+            c.fill = fill(row_fill_color); c.font = font(bold=bold, color=row_font_color)
+            c.alignment = left; c.border = border()
+        return row_idx  # caller fills product columns
+
+    current_row = 4
+
+    for pm_name in sorted(hierarchy.keys()):
+        rm_dict = hierarchy[pm_name]
+
+        # Accumulators for PM summary row
+        pm_plan_tot = 0; pm_fact_qty_tot = 0; pm_fact_sum_tot = 0
+        pm_per_prod_plan = [0]*prod_count
+        pm_per_prod_fqty = [0]*prod_count
+        pm_per_prod_fsum = [0.0]*prod_count
+
+        pm_row_idx = current_row  # we'll fill it after writing RM/MR rows
+        current_row += 1  # reserve PM row
+
+        for rm_name in sorted(rm_dict.keys()):
+            mr_list = rm_dict[rm_name]
+
+            rm_plan_tot = 0; rm_fact_qty_tot = 0; rm_fact_sum_tot = 0
+            rm_per_prod_plan = [0]*prod_count
+            rm_per_prod_fqty = [0]*prod_count
+            rm_per_prod_fsum = [0.0]*prod_count
+
+            rm_row_idx = current_row
+            current_row += 1  # reserve RM row
+
+            for mr in mr_list:
+                mr_row = current_row
+                current_row += 1
+
+                # Static cells
+                for ci, val in enumerate(["", f"    {mr.full_name or mr.username}", ""], 1):
+                    c = ws.cell(row=mr_row, column=ci, value=val)
+                    c.fill = fill(C_WHITE); c.font = font(bold=False, color="333333")
+                    c.alignment = left; c.border = border()
+
+                mr_plan_tot = 0; mr_fact_qty_tot = 0; mr_fact_sum_tot = 0
+
+                for pi, prod in enumerate(products):
+                    plan_q, _ = plan_map.get((mr.id, prod.id), (0, 0))
+                    fact_q, fact_s = fact_map.get((mr.id, prod.id), (0, 0.0))
+                    col_base = S + 1 + pi * COLS_PER_PROD
+
+                    for si, (val, fmt) in enumerate([(plan_q, None), (fact_q, None), (fact_s, '#,##0')]):
+                        c = ws.cell(row=mr_row, column=col_base + si, value=val)
+                        c.fill = fill(C_WHITE); c.font = font(bold=False, color="333333")
+                        c.alignment = right_a; c.border = border()
+                        if fmt: c.number_format = fmt
+
+                    # % выполнения
+                    p_col = S + 1 + pi * COLS_PER_PROD  # col_base start
+                    # spans 3 cols but we write to first col; we skip merging for perf
+                    # write pct in a merged sense — put value only in first of 3 cols logically
+                    # Actually we'll skip a separate pct row per medrep, include in sub-label
+
+                    mr_plan_tot      += plan_q
+                    mr_fact_qty_tot  += fact_q
+                    mr_fact_sum_tot  += fact_s
+                    rm_per_prod_plan[pi] += plan_q
+                    rm_per_prod_fqty[pi] += fact_q
+                    rm_per_prod_fsum[pi] += fact_s
+
+                # MedRep totals
+                tc = S + 1 + prod_count * COLS_PER_PROD
+                for si, val in enumerate([mr_plan_tot, mr_fact_qty_tot, mr_fact_sum_tot]):
+                    c = ws.cell(row=mr_row, column=tc + si, value=val)
+                    c.fill = fill(C_WHITE); c.font = font(bold=False, color="333333")
+                    c.alignment = right_a; c.border = border()
+                    if si == 2: c.number_format = '#,##0'
+
+                rm_plan_tot     += mr_plan_tot
+                rm_fact_qty_tot += mr_fact_qty_tot
+                rm_fact_sum_tot += mr_fact_sum_tot
+
+            # ── RM summary row ──────────────────────────────────────────────
+            for ci, val in enumerate(["", f"  RM: {rm_name}", ""], 1):
+                c = ws.cell(row=rm_row_idx, column=ci, value=val)
+                c.fill = fill(C_BLUE_L); c.font = font(bold=True, color=C_BLUE)
+                c.alignment = left; c.border = border(bottom=thick)
+
+            for pi in range(prod_count):
+                col_base = S + 1 + pi * COLS_PER_PROD
+                for si, val in enumerate([rm_per_prod_plan[pi], rm_per_prod_fqty[pi], rm_per_prod_fsum[pi]]):
+                    c = ws.cell(row=rm_row_idx, column=col_base + si, value=val)
+                    c.fill = fill(C_BLUE_L); c.font = font(bold=True, color=C_BLUE)
+                    c.alignment = right_a; c.border = border(bottom=thick)
+                    if si == 2: c.number_format = '#,##0'
+
+            tc = S + 1 + prod_count * COLS_PER_PROD
+            for si, val in enumerate([rm_plan_tot, rm_fact_qty_tot, rm_fact_sum_tot]):
+                c = ws.cell(row=rm_row_idx, column=tc + si, value=val)
+                c.fill = fill(C_BLUE_L); c.font = font(bold=True, color=C_BLUE)
+                c.alignment = right_a; c.border = border(bottom=thick)
+                if si == 2: c.number_format = '#,##0'
+
+            pm_plan_tot     += rm_plan_tot
+            pm_fact_qty_tot += rm_fact_qty_tot
+            pm_fact_sum_tot += rm_fact_sum_tot
+            for pi in range(prod_count):
+                pm_per_prod_plan[pi] += rm_per_prod_plan[pi]
+                pm_per_prod_fqty[pi] += rm_per_prod_fqty[pi]
+                pm_per_prod_fsum[pi] += rm_per_prod_fsum[pi]
+
+        # ── PM summary row ──────────────────────────────────────────────────
+        for ci, val in enumerate([f"PM: {pm_name}", "", ""], 1):
+            c = ws.cell(row=pm_row_idx, column=ci, value=val)
+            c.fill = fill(C_BLUE); c.font = font(bold=True, color=C_WHITE)
+            c.alignment = left; c.border = border(top=thick, bottom=thick)
+
+        for pi in range(prod_count):
+            col_base = S + 1 + pi * COLS_PER_PROD
+            pq = pm_per_prod_plan[pi]; fq = pm_per_prod_fqty[pi]; fs = pm_per_prod_fsum[pi]
+            for si, val in enumerate([pq, fq, fs]):
+                c = ws.cell(row=pm_row_idx, column=col_base + si, value=val)
+                c.fill = fill(C_BLUE); c.font = font(bold=True, color=C_WHITE)
+                c.alignment = right_a; c.border = border(top=thick, bottom=thick)
+                if si == 2: c.number_format = '#,##0'
+
+        tc = S + 1 + prod_count * COLS_PER_PROD
+        for si, val in enumerate([pm_plan_tot, pm_fact_qty_tot, pm_fact_sum_tot]):
+            c = ws.cell(row=pm_row_idx, column=tc + si, value=val)
+            c.fill = fill(C_BLUE); c.font = font(bold=True, color=C_WHITE)
+            c.alignment = right_a; c.border = border(top=thick, bottom=thick)
+            if si == 2: c.number_format = '#,##0'
+
+    # ── Grand total row ─────────────────────────────────────────────────────────
+    grand_plan = sum(plan_map[k][0] for k in plan_map)
+    grand_fqty = sum(v[0] for v in fact_map.values())
+    grand_fsum = sum(v[1] for v in fact_map.values())
+
+    gt_row = current_row
+    for ci, val in enumerate(["ЖAMI / ИТОГО", "", ""], 1):
+        c = ws.cell(row=gt_row, column=ci, value=val)
+        c.fill = fill(C_YELLOW); c.font = font(bold=True, color=C_YELLOW)
+        c.alignment = left; c.border = border(top=thick)
+
+    for pi, prod in enumerate(products):
+        col_base = S + 1 + pi * COLS_PER_PROD
+        pq = sum(plan_map.get((mr.id, prod.id), (0,0))[0] for pm in hierarchy for rm in hierarchy[pm] for mr in hierarchy[pm][rm])
+        fq = sum(fact_map.get((mr.id, prod.id), (0,0))[0] for pm in hierarchy for rm in hierarchy[pm] for mr in hierarchy[pm][rm])
+        fs = sum(fact_map.get((mr.id, prod.id), (0,0.0))[1] for pm in hierarchy for rm in hierarchy[pm] for mr in hierarchy[pm][rm])
+        for si, val in enumerate([pq, fq, fs]):
+            c = ws.cell(row=gt_row, column=col_base + si, value=val)
+            c.fill = fill(C_YELLOW_L); c.font = font(bold=True, color=C_YELLOW)
+            c.alignment = right_a; c.border = border(top=thick)
+            if si == 2: c.number_format = '#,##0'
+
+    tc = S + 1 + prod_count * COLS_PER_PROD
+    for si, val in enumerate([grand_plan, grand_fqty, grand_fsum]):
+        c = ws.cell(row=gt_row, column=tc + si, value=val)
+        c.fill = fill(C_YELLOW_L); c.font = font(bold=True, color=C_YELLOW)
+        c.alignment = right_a; c.border = border(top=thick)
+        if si == 2: c.number_format = '#,##0'
+
+    # ── Column widths ───────────────────────────────────────────────────────────
+    ws.column_dimensions[get_column_letter(1)].width = 22  # PM
+    ws.column_dimensions[get_column_letter(2)].width = 26  # RM/MR name
+    ws.column_dimensions[get_column_letter(3)].width = 16  # Region
+    total_cols = S + prod_count * COLS_PER_PROD + 3
+    for ci in range(S + 1, total_cols + 1):
+        ws.column_dimensions[get_column_letter(ci)].width = 12
+
+    ws.freeze_panes = "A4"
 
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
 
-    filename = f"Director_Report_{year}_{month}.xlsx"
-    headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
-    return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+    filename = f"Director_Report_{year}_{month:02d}.xlsx"
+    resp_headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=resp_headers
+    )
+
