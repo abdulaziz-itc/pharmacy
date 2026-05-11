@@ -29,6 +29,10 @@ export default function ProductManagerDetailPage() {
     const [transferUser, setTransferUser] = React.useState<SubordinateUser | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
     const currentUser = useAuthStore((state) => state.user);
+    
+    const [pmList, setPmList] = React.useState<any[]>([]);
+    const [ffmList, setFfmList] = React.useState<any[]>([]);
+    const [rmList, setRmList] = React.useState<any[]>([]);
 
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -49,10 +53,27 @@ export default function ProductManagerDetailPage() {
         }
     }, [id]);
 
+    const fetchManagementLists = React.useCallback(async () => {
+        try {
+            const api = (await import('../../api/axios')).default;
+            const [pms, ffms, rms] = await Promise.all([
+                api.get('/users/med-reps?role=product_manager'),
+                api.get('/users/med-reps?role=field_force_manager'),
+                api.get('/users/med-reps?role=regional_manager'),
+            ]);
+            setPmList(Array.isArray(pms.data) ? pms.data : []);
+            setFfmList(Array.isArray(ffms.data) ? ffms.data : []);
+            setRmList(Array.isArray(rms.data) ? rms.data : []);
+        } catch (error) {
+            console.error("Failed to fetch global manager lists:", error);
+        }
+    }, []);
+
     React.useEffect(() => {
         fetchHierarchy();
         fetchRegions();
-    }, [fetchHierarchy, fetchRegions]);
+        fetchManagementLists();
+    }, [fetchHierarchy, fetchRegions, fetchManagementLists]);
 
     const handleToggleActive = async (user: SubordinateUser) => {
         try {
@@ -87,6 +108,24 @@ export default function ProductManagerDetailPage() {
         canReassign ? handleToggleActive : undefined,
         regionMap
     ), [canReassign, handleToggleActive, regionMap]);
+
+    const computedManagerList = React.useMemo(() => {
+        if (!editingUser) return [];
+        const role = editingUser.role;
+        if (role === 'regional_manager') {
+            // RM can report to FFM or PM
+            return [...pmList, ...ffmList];
+        }
+        if (role === 'field_force_manager') {
+            // FFM reports to PM
+            return pmList;
+        }
+        if (role === 'med_rep') {
+            // MedRep can report to RM, FFM, or PM
+            return [...pmList, ...ffmList, ...rmList];
+        }
+        return [];
+    }, [editingUser, pmList, ffmList, rmList]);
 
     if (isLoading) {
         return (
@@ -268,6 +307,7 @@ export default function ProductManagerDetailPage() {
                         onClose={() => setEditingUser(null)}
                         onSuccess={fetchHierarchy}
                         user={editingUser}
+                        managerList={computedManagerList}
                     />
                 </>
             )}
