@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from app.api import deps
 from app.models.user import User, UserRole
 from app.models.sales import Payment, Invoice, Reservation, ReservationItem, InvoiceStatus, Plan, DoctorFactAssignment
-from app.models.crm import BalanceTransaction, MedicalOrganization, Doctor
+from app.models.crm import BalanceTransaction, MedicalOrganization, Doctor, user_regions
 from app.models.ledger import BonusLedger, LedgerType, DoctorMonthlyStat
 from app.models.finance import OtherExpense
 from app.models.product import Product
@@ -53,13 +53,17 @@ async def _get_receipt_totals(db: AsyncSession, start_date, end_date, rep_ids=No
         if start_date and end_date:
             pay_sum_q = pay_sum_q.where(and_(Payment.date >= start_date, Payment.date < end_date))
         pay_sum_q = pay_sum_q.join(Reservation, Invoice.reservation_id == Reservation.id)
-        pay_sum_q = pay_sum_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+        pay_sum_q = pay_sum_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
         pay_sum_q = pay_sum_q.where(Payment.id.notin_(app_payment_ids_sq))
         pay_sum_q = pay_sum_q.where(or_(Payment.comment.is_(None), ~Payment.comment.ilike('%автоматическая оплата с баланса%')))
         if has_rep:
             pay_sum_q = pay_sum_q.where(or_(Reservation.created_by_id.in_(rep_ids), MedicalOrganization.assigned_reps.any(User.id.in_(rep_ids))))
         if has_reg:
-            pay_sum_q = pay_sum_q.where(MedicalOrganization.region_id.in_(region_ids))
+            reg_users_sq = select(user_regions.c.user_id).where(user_regions.c.region_id.in_(region_ids))
+            pay_sum_q = pay_sum_q.where(or_(
+                MedicalOrganization.region_id.in_(region_ids),
+                and_(Reservation.med_org_id.is_(None), Reservation.created_by_id.in_(reg_users_sq))
+            ))
         if has_prod:
             pay_sum_q = pay_sum_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == int(product_id))
 
@@ -116,7 +120,7 @@ async def get_receipt_queries(
     # Apply filters - standard join chain
     pay_q = pay_q.join(Reservation, Invoice.reservation_id == Reservation.id)
     if rep_ids or region_ids or product_id:
-        pay_q = pay_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+        pay_q = pay_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
         if rep_ids:
             clean_rep_ids = [int(i) for i in rep_ids if i is not None]
             pay_q = pay_q.where(or_(
@@ -125,7 +129,11 @@ async def get_receipt_queries(
             ))
         if region_ids:
             clean_reg_ids = [int(i) for i in region_ids if i is not None]
-            pay_q = pay_q.where(MedicalOrganization.region_id.in_(clean_reg_ids))
+            reg_users_sq = select(user_regions.c.user_id).where(user_regions.c.region_id.in_(clean_reg_ids))
+            pay_q = pay_q.where(or_(
+                MedicalOrganization.region_id.in_(clean_reg_ids),
+                and_(Reservation.med_org_id.is_(None), Reservation.created_by_id.in_(reg_users_sq))
+            ))
         if product_id:
             pay_q = pay_q.join(ReservationItem, Reservation.id == ReservationItem.reservation_id).where(ReservationItem.product_id == int(product_id))
 
@@ -313,7 +321,13 @@ async def get_global_realtime_dashboard(
         curr_inv_q = curr_inv_q.join(Reservation, Invoice.reservation_id == Reservation.id)
         if rep_ids: curr_inv_q = curr_inv_q.where(Reservation.created_by_id.in_(rep_ids))
         if final_region_ids:
-            curr_inv_q = curr_inv_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+            reg_users_sq = select(user_regions.c.user_id).where(user_regions.c.region_id.in_(final_region_ids))
+            curr_inv_q = curr_inv_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(
+                or_(
+                    MedicalOrganization.region_id.in_(final_region_ids),
+                    and_(Reservation.med_org_id.is_(None), Reservation.created_by_id.in_(reg_users_sq))
+                )
+            )
     c_rev_inv = (await db.execute(curr_inv_q)).scalar() or 0.0
 
     # 2c. Bonus Accrued
@@ -354,7 +368,13 @@ async def get_global_realtime_dashboard(
     if start_date and end_date: curr_qty_q = curr_qty_q.where(and_(Invoice.date >= start_date, Invoice.date < end_date))
     if rep_ids: curr_qty_q = curr_qty_q.where(Reservation.created_by_id.in_(rep_ids))
     if final_region_ids:
-        curr_qty_q = curr_qty_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+        reg_users_sq = select(user_regions.c.user_id).where(user_regions.c.region_id.in_(final_region_ids))
+        curr_qty_q = curr_qty_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(
+            or_(
+                MedicalOrganization.region_id.in_(final_region_ids),
+                and_(Reservation.med_org_id.is_(None), Reservation.created_by_id.in_(reg_users_sq))
+            )
+        )
     c_qty = (await db.execute(curr_qty_q)).scalar() or 0
 
     # 2e. Total Debt (Up to end_date)
@@ -364,7 +384,13 @@ async def get_global_realtime_dashboard(
         curr_debt_q = curr_debt_q.join(Reservation, Invoice.reservation_id == Reservation.id)
         if rep_ids: curr_debt_q = curr_debt_q.where(Reservation.created_by_id.in_(rep_ids))
         if final_region_ids:
-            curr_debt_q = curr_debt_q.join(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+            reg_users_sq = select(user_regions.c.user_id).where(user_regions.c.region_id.in_(final_region_ids))
+            curr_debt_q = curr_debt_q.outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id).where(
+                or_(
+                    MedicalOrganization.region_id.in_(final_region_ids),
+                    and_(Reservation.med_org_id.is_(None), Reservation.created_by_id.in_(reg_users_sq))
+                )
+            )
     c_debt = (await db.execute(curr_debt_q)).scalar() or 0.0
 
     # 3. CALCULATE PREVIOUS PERIOD (For trend percentages)
@@ -491,7 +517,14 @@ async def get_global_realtime_dashboard(
     elif month and year: plan_q = plan_q.where(and_(Plan.year == year, Plan.month == month))
     elif year: plan_q = plan_q.where(Plan.year == year)
     if rep_ids: plan_q = plan_q.where(Plan.med_rep_id.in_(rep_ids))
-    if final_region_ids: plan_q = plan_q.join(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(MedicalOrganization.region_id.in_(final_region_ids))
+    if final_region_ids:
+        reg_users_sq = select(user_regions.c.user_id).where(user_regions.c.region_id.in_(final_region_ids))
+        plan_q = plan_q.outerjoin(MedicalOrganization, Plan.med_org_id == MedicalOrganization.id).where(
+            or_(
+                MedicalOrganization.region_id.in_(final_region_ids),
+                and_(Plan.med_org_id.is_(None), Plan.med_rep_id.in_(reg_users_sq))
+            )
+        )
     plan_result = (await db.execute(plan_q)).first()
     plan_amount = plan_result.total_amount or 0 if plan_result else 0
     plan_quantity = plan_result.total_qty or 0 if plan_result else 0
@@ -1733,6 +1766,7 @@ async def get_director_report_excel(
     from fastapi.responses import StreamingResponse
     from app.models.product import Product
     from app.models.sales import Plan, Invoice, Reservation, ReservationItem
+    from app.models.crm import MedicalOrganization, Region
     from sqlalchemy.orm import selectinload
     from sqlalchemy import select, and_, extract, func
 
@@ -1752,7 +1786,8 @@ async def get_director_report_excel(
     medreps_res = await db.execute(
         select(User)
         .options(
-            selectinload(User.manager).selectinload(User.manager)
+            selectinload(User.manager).selectinload(User.manager),
+            selectinload(User.assigned_regions)
         )
         .where(User.role == UserRole.MED_REP, User.is_active == True)
         .order_by(User.full_name)
@@ -1765,28 +1800,62 @@ async def get_director_report_excel(
     for mr in medreps:
         rm_name = "-"
         pm_name = "-"
-        mgr = mr.manager
-        if mgr:
-            rm_name = mgr.full_name or mgr.username
-            mgr2 = mgr.manager
-            if mgr2 and mgr2.role == UserRole.PRODUCT_MANAGER:
-                pm_name = mgr2.full_name or mgr2.username
+        
+        mgr1 = mr.manager
+        if mgr1:
+            # Check first-tier manager roles
+            if mgr1.role == UserRole.REGIONAL_MANAGER:
+                rm_name = mgr1.full_name or mgr1.username
+            elif mgr1.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER]:
+                pm_name = mgr1.full_name or mgr1.username
+            else:
+                # Default immediate manager to RM if unspecified
+                rm_name = mgr1.full_name or mgr1.username
+            
+            # Check second-tier grandparent manager
+            mgr2 = mgr1.manager
+            if mgr2:
+                if mgr2.role in [UserRole.PRODUCT_MANAGER, UserRole.FIELD_FORCE_MANAGER]:
+                    pm_name = mgr2.full_name or mgr2.username
+                elif mgr2.role == UserRole.REGIONAL_MANAGER and rm_name == "-":
+                    rm_name = mgr2.full_name or mgr2.username
+                elif pm_name == "-":
+                    # Fallback for top-level managers
+                    pm_name = mgr2.full_name or mgr2.username
+        
         hierarchy[pm_name][rm_name].append(mr)
 
     # ── 3. Plans (month/year, by med_rep_id + product_id) ──────────────────────
-    plan_q = select(Plan).where(and_(Plan.month == month, Plan.year == year))
+    plan_q = select(Plan).options(selectinload(Plan.med_org).selectinload(MedicalOrganization.region)).where(and_(Plan.month == month, Plan.year == year))
     plans = (await db.execute(plan_q)).scalars().all()
-    # plan_map[(med_rep_id, product_id)] = (qty, amount)
-    plan_map: dict[tuple, tuple] = {}
+    
+    plan_map: dict[tuple, tuple] = {}  # (med_rep_id, product_id) -> (qty, amount)
+    org_plan_map: dict[tuple, tuple] = {}  # (med_rep_id, org_key, product_id) -> (qty, amount)
+    
+    org_metadata: dict[str, dict] = {}  # org_key -> {"name": str, "region": str}
+    medrep_orgs = defaultdict(set)      # med_rep_id -> set of org_keys
+
     for p in plans:
         if p.med_rep_id:
-            key = (p.med_rep_id, p.product_id)
-            old_q, old_a = plan_map.get(key, (0, 0))
-            plan_map[key] = (old_q + (p.target_quantity or 0), old_a + (p.target_amount or 0))
+            # MedRep Level Total
+            key_rep = (p.med_rep_id, p.product_id)
+            old_q, old_a = plan_map.get(key_rep, (0, 0))
+            plan_map[key_rep] = (old_q + (p.target_quantity or 0), old_a + (p.target_amount or 0))
+            
+            # Organization level if exists
+            if p.med_org_id:
+                okey = f"org_{p.med_org_id}"
+                if okey not in org_metadata:
+                    org_metadata[okey] = {
+                        "name": p.med_org.name if p.med_org else "-",
+                        "region": p.med_org.region.name if p.med_org and p.med_org.region else "-"
+                    }
+                medrep_orgs[p.med_rep_id].add(okey)
+                o_key = (p.med_rep_id, okey, p.product_id)
+                o_q, o_a = org_plan_map.get(o_key, (0, 0))
+                org_plan_map[o_key] = (o_q + (p.target_quantity or 0), o_a + (p.target_amount or 0))
 
-    # ── 4. Facts: Using UnassignedSale as the definitive link ─────────────────
-    # UnassignedSale table maps Invoices to the responsible MedRep determined
-    # by the system upon confirmation. This is the source of truth.
+    # ── 4. Facts ──────────────────────────────────────────────────────────────
     from app.models.sales import UnassignedSale
     
     first_day = datetime(year, month, 1)
@@ -1796,6 +1865,10 @@ async def get_director_report_excel(
         select(
             UnassignedSale.med_rep_id,
             UnassignedSale.product_id,
+            MedicalOrganization.id.label("org_id"),
+            MedicalOrganization.name.label("org_name"),
+            Reservation.customer_name.label("cust_name"),
+            Region.name.label("region_name"),
             func.sum(ReservationItem.quantity - ReservationItem.returned_quantity).label("qty"),
             func.sum(
                 (ReservationItem.quantity - ReservationItem.returned_quantity) * ReservationItem.price
@@ -1803,11 +1876,13 @@ async def get_director_report_excel(
         )
         .select_from(UnassignedSale)
         .join(Invoice, UnassignedSale.invoice_id == Invoice.id)
+        .join(Reservation, Invoice.reservation_id == Reservation.id)
+        .outerjoin(MedicalOrganization, Reservation.med_org_id == MedicalOrganization.id)
+        .outerjoin(Region, MedicalOrganization.region_id == Region.id)
         .join(ReservationItem, and_(
             ReservationItem.reservation_id == Invoice.reservation_id,
             ReservationItem.product_id == UnassignedSale.product_id
         ))
-        # Ensure user is still active and exists in hierarchy
         .join(User, and_(
             User.id == UnassignedSale.med_rep_id, 
             User.role == UserRole.MED_REP
@@ -1816,18 +1891,41 @@ async def get_director_report_excel(
             Invoice.date.between(first_day, last_day),
             Invoice.status.notin_(["cancelled", "returned", "draft"])
         )
-        .group_by(UnassignedSale.med_rep_id, UnassignedSale.product_id)
+        .group_by(
+            UnassignedSale.med_rep_id, 
+            UnassignedSale.product_id,
+            MedicalOrganization.id,
+            MedicalOrganization.name,
+            Reservation.customer_name,
+            Region.name
+        )
     )
 
     fact_rows = (await db.execute(fact_q)).all()
-    # fact_map[(med_rep_id, product_id)] = (qty, sum)
-    fact_map: dict[tuple, tuple] = {}
+    
+    fact_map: dict[tuple, tuple] = {}      # (med_rep_id, product_id) -> (qty, sum)
+    org_fact_map: dict[tuple, tuple] = {}  # (med_rep_id, org_key, product_id) -> (qty, sum)
+    
     for row in fact_rows:
         if row.med_rep_id:
-            key = (row.med_rep_id, row.product_id)
-            # Round quantities/sums to handle floating point floats safely
-            old_q, old_s = fact_map.get(key, (0, 0))
-            fact_map[key] = (old_q + float(row.qty or 0), old_s + float(row.total_sum or 0))
+            # Sum to MedRep Total Map
+            rep_key = (row.med_rep_id, row.product_id)
+            old_q, old_s = fact_map.get(rep_key, (0, 0))
+            fact_map[rep_key] = (old_q + float(row.qty or 0), old_s + float(row.total_sum or 0))
+            
+            # Identify organization key
+            okey = f"org_{row.org_id}" if row.org_id else f"cust_{row.cust_name}" if row.cust_name else "UNKNOWN"
+            if okey not in org_metadata:
+                org_metadata[okey] = {
+                    "name": row.org_name or row.cust_name or "-",
+                    "region": row.region_name or "-"
+                }
+            medrep_orgs[row.med_rep_id].add(okey)
+            
+            # Specific Organization breakdown
+            o_key = (row.med_rep_id, okey, row.product_id)
+            o_old_q, o_old_s = org_fact_map.get(o_key, (0, 0))
+            org_fact_map[o_key] = (o_old_q + float(row.qty or 0), o_old_s + float(row.total_sum or 0))
 
     # ── 5. Build Excel ──────────────────────────────────────────────────────────
     wb = openpyxl.Workbook()
@@ -1858,12 +1956,8 @@ async def get_director_report_excel(
     vert   = Alignment(text_rotation=90, horizontal="center", vertical="center")
 
     # ── Header row 1: static cols + per-product groups ─────────────────────────
-    STATIC_COLS = ["Продукт Менеджер", "Рег. Менеджер / МП", "Регион"]
-    S = len(STATIC_COLS)  # number of static columns = 3
-
-    # Row 1: static headers (merge rows 1-3) + product group headers (merge cols per product)
-    # Row 2: per-product sub-headers: Plan / Факт (дон.) / Факт (сум)
-    # Row 3: empty (continuation of merge)
+    STATIC_COLS = ["Продукт Менеджер", "Рег. Менеджер / МП", "Контрагент", "Регион"]
+    S = len(STATIC_COLS)  # number of static columns = 4
 
     # Static header cells (merge 3 rows)
     for ci, h in enumerate(STATIC_COLS, 1):
@@ -1919,15 +2013,6 @@ async def get_director_report_excel(
         if not plan_q: return "—"
         return f"{round(fact_q / plan_q * 100)}%"
 
-    def write_data_row(row_idx, pm, rm_mr_label, region_label,
-                       row_fill_color, row_font_color, bold=False):
-        """Write one data row; returns (total_plan_q, total_fact_q, total_fact_s)."""
-        for ci, val in enumerate([pm, rm_mr_label, region_label], 1):
-            c = ws.cell(row=row_idx, column=ci, value=val)
-            c.fill = fill(row_fill_color); c.font = font(bold=bold, color=row_font_color)
-            c.alignment = left; c.border = border()
-        return row_idx  # caller fills product columns
-
     current_row = 4
 
     for pm_name in sorted(hierarchy.keys()):
@@ -1957,10 +2042,11 @@ async def get_director_report_excel(
                 mr_row = current_row
                 current_row += 1
 
-                # Static cells
-                for ci, val in enumerate(["", f"    {mr.full_name or mr.username}", ""], 1):
+                # MedRep summary row static cells (include MedRep's base regions)
+                mr_reg_txt = ", ".join([rg.name for rg in mr.assigned_regions]) if mr.assigned_regions else ""
+                for ci, val in enumerate(["", f"    {mr.full_name or mr.username}", "ИТОГО ПО МП", mr_reg_txt], 1):
                     c = ws.cell(row=mr_row, column=ci, value=val)
-                    c.fill = fill(C_WHITE); c.font = font(bold=False, color="333333")
+                    c.fill = fill(C_GREY_L); c.font = font(bold=True, color="000000")
                     c.alignment = left; c.border = border()
 
                 mr_plan_tot = 0; mr_fact_qty_tot = 0; mr_fact_sum_tot = 0
@@ -1972,15 +2058,9 @@ async def get_director_report_excel(
 
                     for si, (val, fmt) in enumerate([(plan_q, None), (fact_q, None), (fact_s, '#,##0')]):
                         c = ws.cell(row=mr_row, column=col_base + si, value=val)
-                        c.fill = fill(C_WHITE); c.font = font(bold=False, color="333333")
+                        c.fill = fill(C_GREY_L); c.font = font(bold=True, color="000000")
                         c.alignment = right_a; c.border = border()
                         if fmt: c.number_format = fmt
-
-                    # % выполнения
-                    p_col = S + 1 + pi * COLS_PER_PROD  # col_base start
-                    # spans 3 cols but we write to first col; we skip merging for perf
-                    # write pct in a merged sense — put value only in first of 3 cols logically
-                    # Actually we'll skip a separate pct row per medrep, include in sub-label
 
                     mr_plan_tot      += plan_q
                     mr_fact_qty_tot  += fact_q
@@ -1993,16 +2073,49 @@ async def get_director_report_excel(
                 tc = S + 1 + prod_count * COLS_PER_PROD
                 for si, val in enumerate([mr_plan_tot, mr_fact_qty_tot, mr_fact_sum_tot]):
                     c = ws.cell(row=mr_row, column=tc + si, value=val)
-                    c.fill = fill(C_WHITE); c.font = font(bold=False, color="333333")
+                    c.fill = fill(C_GREY_L); c.font = font(bold=True, color="000000")
                     c.alignment = right_a; c.border = border()
                     if si == 2: c.number_format = '#,##0'
 
                 rm_plan_tot     += mr_plan_tot
                 rm_fact_qty_tot += mr_fact_qty_tot
                 rm_fact_sum_tot += mr_fact_sum_tot
+                
+                # ── Org sub-rows breakdown ──
+                sorted_org_keys = sorted(list(medrep_orgs[mr.id]), key=lambda k: org_metadata[k]["name"])
+                for okey in sorted_org_keys:
+                    org_row = current_row
+                    current_row += 1
+                    meta = org_metadata[okey]
+                    
+                    for ci, val in enumerate(["", "", f"        {meta['name']}", meta['region']], 1):
+                        c = ws.cell(row=org_row, column=ci, value=val)
+                        c.fill = fill(C_WHITE); c.font = font(bold=False, color="333333")
+                        c.alignment = left; c.border = border()
+                        
+                    o_p_tot = 0; o_fq_tot = 0; o_fs_tot = 0
+                    for pi, prod in enumerate(products):
+                        opq, _ = org_plan_map.get((mr.id, okey, prod.id), (0, 0))
+                        ofq, ofs = org_fact_map.get((mr.id, okey, prod.id), (0, 0.0))
+                        col_base = S + 1 + pi * COLS_PER_PROD
+                        
+                        for si, (val, fmt) in enumerate([(opq, None), (ofq, None), (ofs, '#,##0')]):
+                            c = ws.cell(row=org_row, column=col_base + si, value=val)
+                            c.fill = fill(C_WHITE); c.font = font(bold=False, color="333333")
+                            c.alignment = right_a; c.border = border()
+                            if fmt: c.number_format = fmt
+                            
+                        o_p_tot += opq; o_fq_tot += ofq; o_fs_tot += ofs
+                    
+                    tc = S + 1 + prod_count * COLS_PER_PROD
+                    for si, val in enumerate([o_p_tot, o_fq_tot, o_fs_tot]):
+                        c = ws.cell(row=org_row, column=tc + si, value=val)
+                        c.fill = fill(C_WHITE); c.font = font(bold=False, color="333333")
+                        c.alignment = right_a; c.border = border()
+                        if si == 2: c.number_format = '#,##0'
 
             # ── RM summary row ──────────────────────────────────────────────
-            for ci, val in enumerate(["", f"  RM: {rm_name}", ""], 1):
+            for ci, val in enumerate(["", f"  RM: {rm_name}", "", ""], 1):
                 c = ws.cell(row=rm_row_idx, column=ci, value=val)
                 c.fill = fill(C_BLUE_L); c.font = font(bold=True, color=C_BLUE)
                 c.alignment = left; c.border = border(bottom=thick)
@@ -2031,7 +2144,7 @@ async def get_director_report_excel(
                 pm_per_prod_fsum[pi] += rm_per_prod_fsum[pi]
 
         # ── PM summary row ──────────────────────────────────────────────────
-        for ci, val in enumerate([f"PM: {pm_name}", "", ""], 1):
+        for ci, val in enumerate([f"PM: {pm_name}", "", "", ""], 1):
             c = ws.cell(row=pm_row_idx, column=ci, value=val)
             c.fill = fill(C_BLUE); c.font = font(bold=True, color=C_WHITE)
             c.alignment = left; c.border = border(top=thick, bottom=thick)
@@ -2058,7 +2171,7 @@ async def get_director_report_excel(
     grand_fsum = sum(v[1] for v in fact_map.values())
 
     gt_row = current_row
-    for ci, val in enumerate(["ЖAMI / ИТОГО", "", ""], 1):
+    for ci, val in enumerate(["ЖAMI / ИТОГО", "", "", ""], 1):
         c = ws.cell(row=gt_row, column=ci, value=val)
         c.fill = fill(C_YELLOW); c.font = font(bold=True, color=C_YELLOW)
         c.alignment = left; c.border = border(top=thick)
@@ -2084,7 +2197,8 @@ async def get_director_report_excel(
     # ── Column widths ───────────────────────────────────────────────────────────
     ws.column_dimensions[get_column_letter(1)].width = 22  # PM
     ws.column_dimensions[get_column_letter(2)].width = 26  # RM/MR name
-    ws.column_dimensions[get_column_letter(3)].width = 16  # Region
+    ws.column_dimensions[get_column_letter(3)].width = 28  # Counteragent
+    ws.column_dimensions[get_column_letter(4)].width = 16  # Region
     total_cols = S + prod_count * COLS_PER_PROD + 3
     for ci in range(S + 1, total_cols + 1):
         ws.column_dimensions[get_column_letter(ci)].width = 12
