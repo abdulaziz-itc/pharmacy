@@ -53,11 +53,22 @@ async def get_user_hierarchy(
             )
             med_reps = mr_result.scalars().all()
         
+        def format_user(u):
+            return {
+                "id": u.id,
+                "full_name": u.full_name,
+                "username": u.username,
+                "is_active": u.is_active,
+                "role": u.role,
+                "manager_id": u.manager_id,
+                "region_ids": [r.id for r in getattr(u, "assigned_regions", [])]
+            }
+
         return {
-            "user": UserSchema.model_validate(user),
-            "field_force_managers": [UserSchema.model_validate(u) for u in field_force_managers],
-            "regional_managers": [UserSchema.model_validate(u) for u in regional_managers],
-            "med_reps": [UserSchema.model_validate(u) for u in med_reps],
+            "user": format_user(user),
+            "field_force_managers": [format_user(u) for u in field_force_managers],
+            "regional_managers": [format_user(u) for u in regional_managers],
+            "med_reps": [format_user(u) for u in med_reps],
         }
     except Exception as e:
         import traceback
