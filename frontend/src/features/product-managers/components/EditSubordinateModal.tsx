@@ -18,9 +18,10 @@ interface EditSubordinateModalProps {
     onClose: () => void;
     onSuccess: () => void;
     user: SubordinateUser | null;
+    managerList?: any[];
 }
 
-export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditSubordinateModalProps) {
+export function EditSubordinateModal({ isOpen, onClose, onSuccess, user, managerList }: EditSubordinateModalProps) {
     const { regions, fetchRegions } = useRegionStore();
     const [isLoading, setIsLoading] = React.useState(false);
     const [formData, setFormData] = React.useState({
@@ -28,6 +29,7 @@ export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditS
         username: '',
         password: '',
         region_ids: [] as number[],
+        manager_id: '',
     });
 
     useEffect(() => {
@@ -43,6 +45,7 @@ export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditS
                 username: user.username || '',
                 password: '', // default empty, only send if user types something
                 region_ids: user.region_ids || [],
+                manager_id: user.manager_id ? user.manager_id.toString() : '',
             });
         }
     }, [user, isOpen]);
@@ -66,6 +69,7 @@ export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditS
                 full_name: formData.full_name,
                 username: formData.username,
                 region_ids: formData.region_ids,
+                manager_id: formData.manager_id ? parseInt(formData.manager_id) : null,
             };
 
             if (formData.password) {
@@ -142,6 +146,30 @@ export function EditSubordinateModal({ isOpen, onClose, onSuccess, user }: EditS
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             />
                         </div>
+
+                        {managerList && managerList.length > 0 && (
+                            <div className="space-y-2">
+                                <Label htmlFor="manager_id" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                    Назначенный Менеджер
+                                </Label>
+                                <select
+                                    id="manager_id"
+                                    className="w-full h-12 px-3 rounded-xl border border-slate-200 focus:border-blue-500 transition-all font-medium text-sm bg-white"
+                                    value={formData.manager_id}
+                                    onChange={(e) => setFormData({ ...formData, manager_id: e.target.value })}
+                                >
+                                    <option value="">Без менеджера (Главный)</option>
+                                    {managerList
+                                        .filter(m => m.id !== user?.id) // ensure user can't manage themselves
+                                        .map(m => (
+                                            <option key={m.id} value={m.id}>
+                                                {m.full_name || m.username} ({m.role})
+                                            </option>
+                                        ))
+                                    }
+                                </select>
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">

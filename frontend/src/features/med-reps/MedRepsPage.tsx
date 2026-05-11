@@ -280,6 +280,7 @@ export default function MedRepsPage() {
                 }}
                 onSuccess={() => fetchMedReps("med_rep")}
                 user={selectedMedRep}
+                managerList={[...pmList, ...rmList]}
             />
         </PageContainer>
     );
