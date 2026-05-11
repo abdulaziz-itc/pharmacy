@@ -1784,37 +1784,50 @@ async def get_director_report_excel(
             old_q, old_a = plan_map.get(key, (0, 0))
             plan_map[key] = (old_q + (p.target_quantity or 0), old_a + (p.target_amount or 0))
 
-    # ── 4. Facts: Invoice+ReservationItem — only by active MedReps ─────────────
+    # ── 4. Facts: Using UnassignedSale as the definitive link ─────────────────
+    # UnassignedSale table maps Invoices to the responsible MedRep determined
+    # by the system upon confirmation. This is the source of truth.
+    from app.models.sales import UnassignedSale
+    
     first_day = datetime(year, month, 1)
     last_day  = datetime(year, month, _cal.monthrange(year, month)[1], 23, 59, 59)
 
     fact_q = (
         select(
-            Reservation.created_by_id.label("med_rep_id"),
-            ReservationItem.product_id,
+            UnassignedSale.med_rep_id,
+            UnassignedSale.product_id,
             func.sum(ReservationItem.quantity - ReservationItem.returned_quantity).label("qty"),
             func.sum(
                 (ReservationItem.quantity - ReservationItem.returned_quantity) * ReservationItem.price
-            ).label("total_sum"),
+            ).label("total_sum")
         )
-        .join(ReservationItem, ReservationItem.reservation_id == Reservation.id)
-        .join(Invoice, Invoice.reservation_id == Reservation.id)
-        # Only count reservations created by active MedReps
-        .join(User, User.id == Reservation.created_by_id)
+        .select_from(UnassignedSale)
+        .join(Invoice, UnassignedSale.invoice_id == Invoice.id)
+        .join(ReservationItem, and_(
+            ReservationItem.reservation_id == Invoice.reservation_id,
+            ReservationItem.product_id == UnassignedSale.product_id
+        ))
+        # Ensure user is still active and exists in hierarchy
+        .join(User, and_(
+            User.id == UnassignedSale.med_rep_id, 
+            User.role == UserRole.MED_REP
+        ))
         .where(
-            User.role == UserRole.MED_REP,
-            User.is_active == True,
             Invoice.date.between(first_day, last_day),
             Invoice.status.notin_(["cancelled", "returned", "draft"])
         )
-        .group_by(Reservation.created_by_id, ReservationItem.product_id)
+        .group_by(UnassignedSale.med_rep_id, UnassignedSale.product_id)
     )
+
     fact_rows = (await db.execute(fact_q)).all()
     # fact_map[(med_rep_id, product_id)] = (qty, sum)
     fact_map: dict[tuple, tuple] = {}
     for row in fact_rows:
         if row.med_rep_id:
-            fact_map[(row.med_rep_id, row.product_id)] = (int(row.qty or 0), float(row.total_sum or 0))
+            key = (row.med_rep_id, row.product_id)
+            # Round quantities/sums to handle floating point floats safely
+            old_q, old_s = fact_map.get(key, (0, 0))
+            fact_map[key] = (old_q + float(row.qty or 0), old_s + float(row.total_sum or 0))
 
     # ── 5. Build Excel ──────────────────────────────────────────────────────────
     wb = openpyxl.Workbook()
