@@ -766,12 +766,13 @@ async def apply_surplus_to_debts(db: AsyncSession, organization_id: int, amount:
         else:
             inv.status = InvoiceStatus.PARTIAL
             
-        # Record BalanceTransaction for automatic settlement
+        # Record BalanceTransaction for automatic settlement (link payment_id for analytics)
         bt_settle = BalanceTransaction(
             organization_id=organization_id,
             amount=payment_to_apply,
             transaction_type=BalanceTransactionType.APPLICATION,
             related_invoice_id=inv.id,
+            payment_id=p.id,
             comment=comment
         )
         db.add(bt_settle)
@@ -819,12 +820,13 @@ async def apply_balance_to_invoice(db: AsyncSession, invoice: Invoice, organizat
     # Update Organization Balance
     organization.credit_balance -= amount_to_apply
     
-    # Record Balance Transaction
+    # Record Balance Transaction (link payment_id so analytics can resolve org name)
     bt = BalanceTransaction(
         organization_id=organization.id,
         amount=-amount_to_apply,
         transaction_type=BalanceTransactionType.APPLICATION,
         related_invoice_id=invoice.id,
+        payment_id=p.id,
         comment=f"Оплата счета №{invoice.factura_number or invoice.id}"
     )
     db.add(bt)

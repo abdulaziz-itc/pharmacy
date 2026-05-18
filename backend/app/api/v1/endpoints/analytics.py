@@ -1449,14 +1449,23 @@ async def get_comprehensive_drilldown(
         from datetime import time
         for r in payment_rows:
             dt_str = r.date.isoformat() if hasattr(r.date, "isoformat") else str(r.date)
+            # Resolve customer name: prefer customer_name, fallback to med_org.name
+            _res = r.invoice.reservation if r.invoice else None
+            _org = _res.med_org if _res else None
+            _customer = (
+                (_res.customer_name if _res and _res.customer_name else None)
+                or (_org.name if _org else None)
+                or "-"
+            )
+            _inn = _org.inn if _org else "-"
             all_results.append({
                 "id": r.id, 
                 "date": dt_str, 
                 "amount": r.amount, 
                 "type": r.payment_type, 
                 "invoice_num": r.invoice.factura_number if r.invoice else "-", 
-                "customer": r.invoice.reservation.customer_name if r.invoice and r.invoice.reservation else "-",
-                "inn": r.invoice.reservation.med_org.inn if r.invoice and r.invoice.reservation and r.invoice.reservation.med_org else "-",
+                "customer": _customer,
+                "inn": _inn,
                 "comment": r.comment or "",
                 "is_topup": False
             })
