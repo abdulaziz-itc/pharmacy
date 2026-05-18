@@ -1432,6 +1432,18 @@ async def get_comprehensive_drilldown(
         null_inv_q = await get_null_invoice_payments_query(db, start_date, end_date, rep_ids, region_id)
         null_inv_rows = (await db.execute(null_inv_q.order_by(Payment.date.desc()))).scalars().all()
 
+        # Build a map: payment_id -> BalanceTransaction (to get organization name)
+        null_inv_payment_ids = [r.id for r in null_inv_rows]
+        null_inv_org_map: dict = {}
+        if null_inv_payment_ids:
+            bt_q = select(BalanceTransaction).options(
+                selectinload(BalanceTransaction.organization)
+            ).where(BalanceTransaction.payment_id.in_(null_inv_payment_ids))
+            bt_rows = (await db.execute(bt_q)).scalars().all()
+            for bt in bt_rows:
+                if bt.payment_id and bt.payment_id not in null_inv_org_map:
+                    null_inv_org_map[bt.payment_id] = bt.organization
+
         # 3. Combine and Format
         all_results = []
         from datetime import time
@@ -1450,14 +1462,15 @@ async def get_comprehensive_drilldown(
             })
         for r in null_inv_rows:
             dt_str = r.date.isoformat() if hasattr(r.date, "isoformat") else str(r.date)
+            org = null_inv_org_map.get(r.id)
             all_results.append({
                 "id": r.id,
                 "date": dt_str,
                 "amount": r.amount,
                 "type": r.payment_type,
                 "invoice_num": "-",
-                "customer": "-",
-                "inn": "-",
+                "customer": org.name if org else (r.comment or "-"),
+                "inn": org.inn if org else "-",
                 "comment": r.comment or "",
                 "is_topup": False
             })
