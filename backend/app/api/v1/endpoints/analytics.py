@@ -1432,10 +1432,11 @@ async def get_comprehensive_drilldown(
         null_inv_q = await get_null_invoice_payments_query(db, start_date, end_date, rep_ids, region_id)
         null_inv_rows = (await db.execute(null_inv_q.order_by(Payment.date.desc()))).scalars().all()
 
-        # Build a map: payment_id -> BalanceTransaction (to get organization name)
+        # Build a map: payment_id -> organization (for null-invoice payments)
         null_inv_payment_ids = [r.id for r in null_inv_rows]
         null_inv_org_map: dict = {}
         if null_inv_payment_ids:
+            # Strategy 1: via BalanceTransaction.payment_id (new records have this)
             bt_q = select(BalanceTransaction).options(
                 selectinload(BalanceTransaction.organization)
             ).where(BalanceTransaction.payment_id.in_(null_inv_payment_ids))
@@ -1443,6 +1444,26 @@ async def get_comprehensive_drilldown(
             for bt in bt_rows:
                 if bt.payment_id and bt.payment_id not in null_inv_org_map:
                     null_inv_org_map[bt.payment_id] = bt.organization
+
+            # Strategy 2: OLD records — match by date + amount from BalanceTransaction
+            unresolved = [r for r in null_inv_rows if r.id not in null_inv_org_map]
+            for r in unresolved:
+                r_date = r.date.date() if hasattr(r.date, 'date') else r.date
+                bt_match_q = (
+                    select(BalanceTransaction)
+                    .options(selectinload(BalanceTransaction.organization))
+                    .where(
+                        and_(
+                            func.abs(BalanceTransaction.amount) == func.abs(r.amount),
+                            func.date(BalanceTransaction.created_at) == r_date,
+                            BalanceTransaction.organization_id.isnot(None)
+                        )
+                    )
+                    .limit(1)
+                )
+                bt_match = (await db.execute(bt_match_q)).scalars().first()
+                if bt_match and bt_match.organization:
+                    null_inv_org_map[r.id] = bt_match.organization
 
         # 3. Combine and Format
         all_results = []
