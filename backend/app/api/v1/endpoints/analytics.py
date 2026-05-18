@@ -1143,6 +1143,7 @@ async def export_drilldown_excel(
             ("customer",                "Аптека / Покупатель"),
             ("region",                  "Регион"),
             ("med_rep",                 "Мед. Представитель"),
+            ("comment",                 "Описание"),
         ],
         "realization": [
             ("date",                    "Дата"),
@@ -1310,7 +1311,12 @@ async def export_drilldown_excel(
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
     )
 
 
